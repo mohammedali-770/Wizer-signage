@@ -70,6 +70,12 @@ ENV NODE_ENV=production
 ENV API_PORT=3001
 WORKDIR /app
 
+# Prisma's schema/query engines (linux-musl-openssl-3.0.x) need OpenSSL/libssl
+# at runtime to start and connect; node:20-alpine does not ship it. Install it
+# as root before dropping to the unprivileged user, otherwise `prisma migrate
+# deploy` / the client fail with "failed to detect the libssl/openssl version".
+RUN apk add --no-cache openssl
+
 # Run as the unprivileged "node" user shipped in the base image.
 COPY --from=build --chown=node:node /app/deploy/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/apps/api/dist ./dist

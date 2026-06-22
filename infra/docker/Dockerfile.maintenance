@@ -52,8 +52,9 @@ ENV MAINTENANCE_CLI=/app/dist/maintenance/maintenance.cli.js
 WORKDIR /app
 
 # crond (busybox, bundled), su-exec (drop privileges for jobs), bash + pg_dump
-# (the backup script), tzdata (cron in local time when TZ is set).
-RUN apk add --no-cache su-exec bash postgresql-client tzdata
+# (the backup script), tzdata (cron in local time when TZ is set), and openssl
+# (libssl) which the Prisma engines need at runtime for the maintenance CLI.
+RUN apk add --no-cache openssl su-exec bash postgresql-client tzdata
 
 # App runtime (built CLI + pruned prod node_modules incl. the Prisma client).
 COPY --from=build --chown=node:node /app/deploy/node_modules ./node_modules
