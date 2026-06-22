@@ -1,9 +1,16 @@
 {
+  // Emit CommonJS JS + .d.ts to ./dist. This package contains runtime enums, so
+  // it must ship compiled JS for the CommonJS API runtime, not raw TS source.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "noEmit": true
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "sourceMap": true,
+    "noEmit": false
   },
-  "include": ["src"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

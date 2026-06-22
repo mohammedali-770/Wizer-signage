@@ -20,6 +20,8 @@ WORKDIR /app
 # --- Dependencies ------------------------------------------------------------
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+# Shared TS base config — extended by the API build and the internal packages.
+COPY tsconfig.base.json ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY packages/types/package.json ./packages/types/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
@@ -32,7 +34,9 @@ COPY --from=deps /app /app
 COPY apps/api ./apps/api
 COPY packages ./packages
 RUN pnpm --filter @master-signage/api db:generate
-RUN pnpm --filter @master-signage/api build
+# Build the API plus the internal workspace packages it consumes (see
+# apps/api/Dockerfile) so the runtime image ships compiled JS, not TS source.
+RUN pnpm --filter "@master-signage/api..." build
 # Single-project deploy (see apps/api/Dockerfile): a trailing `...` would make
 # pnpm try to deploy the workspace deps as separate projects and fail with
 # ERR_PNPM_CANNOT_DEPLOY_MANY. deploy bundles the workspace deps on its own.

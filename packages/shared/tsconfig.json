@@ -1,9 +1,16 @@
 {
+  // Emit CommonJS JS + .d.ts to ./dist so the compiled NestJS API (CommonJS)
+  // can `require()` this package at runtime instead of loading raw TS source.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "noEmit": true
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "sourceMap": true,
+    "noEmit": false
   },
-  "include": ["src"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -26,6 +26,9 @@ WORKDIR /app
 # layers are only rebuilt when a package.json or the lockfile changes.
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+# Shared TS base config — extended by the API build (tsconfig.build.json) and by
+# the internal packages' build configs below.
+COPY tsconfig.base.json ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY packages/types/package.json ./packages/types/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
@@ -44,8 +47,12 @@ COPY packages ./packages
 # Generate the Prisma client (required before the TS build can typecheck the
 # generated model types).
 RUN pnpm --filter @master-signage/api db:generate
-# Compile the NestJS app to apps/api/dist.
-RUN pnpm --filter @master-signage/api build
+# Compile the NestJS app AND the internal workspace packages it consumes
+# (@master-signage/shared, /types). The trailing `...` includes the API's
+# workspace dependencies and pnpm runs them in topological order (types/shared
+# before api). This emits each package's dist/ JS so the runtime image carries
+# compiled JavaScript, not raw TypeScript source.
+RUN pnpm --filter "@master-signage/api..." build
 # Prune dev dependencies for a lean runtime node_modules.
 # NOTE: `pnpm deploy` targets exactly ONE project — it already bundles the
 # target's workspace dependencies (@master-signage/shared, /types) into the
