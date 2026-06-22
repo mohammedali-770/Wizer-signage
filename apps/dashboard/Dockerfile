@@ -38,10 +38,16 @@ ENV NEXT_OUTPUT=standalone
 # This is NOT a secret (it ships to the browser); never pass secrets this way.
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages ./packages
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+# Bring the FULLY-resolved workspace from deps — including the per-package
+# node_modules. pnpm links each app's binaries under its own
+# apps/dashboard/node_modules/.bin (NOT the root node_modules), so copying only
+# the root node_modules leaves `next` off PATH ("next: not found"). Copying the
+# whole /app tree (as the API Dockerfile does) carries those binaries through.
+COPY --from=deps /app /app
+# Overlay the dashboard + workspace package source. node_modules is excluded by
+# the root .dockerignore, so the resolved modules copied above are preserved.
 COPY apps/dashboard ./apps/dashboard
+COPY packages ./packages
 RUN pnpm --filter @master-signage/dashboard build
 
 # ----- Runner: minimal runtime image -----------------------------------------
