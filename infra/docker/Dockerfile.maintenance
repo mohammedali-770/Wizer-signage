@@ -33,7 +33,10 @@ COPY apps/api ./apps/api
 COPY packages ./packages
 RUN pnpm --filter @master-signage/api db:generate
 RUN pnpm --filter @master-signage/api build
-RUN pnpm --filter @master-signage/api... --prod deploy /app/deploy
+# Single-project deploy (see apps/api/Dockerfile): a trailing `...` would make
+# pnpm try to deploy the workspace deps as separate projects and fail with
+# ERR_PNPM_CANNOT_DEPLOY_MANY. deploy bundles the workspace deps on its own.
+RUN pnpm --filter @master-signage/api --prod deploy /app/deploy
 # Re-generate the Prisma client into the pruned deploy tree (see apps/api/Dockerfile).
 RUN cd /app/deploy && ./node_modules/.bin/prisma generate --schema /app/apps/api/prisma/schema.prisma
 

@@ -47,7 +47,11 @@ RUN pnpm --filter @master-signage/api db:generate
 # Compile the NestJS app to apps/api/dist.
 RUN pnpm --filter @master-signage/api build
 # Prune dev dependencies for a lean runtime node_modules.
-RUN pnpm --filter @master-signage/api... --prod deploy /app/deploy
+# NOTE: `pnpm deploy` targets exactly ONE project — it already bundles the
+# target's workspace dependencies (@master-signage/shared, /types) into the
+# deployed node_modules. A trailing `...` would expand the filter to those
+# workspace projects too and pnpm refuses (ERR_PNPM_CANNOT_DEPLOY_MANY).
+RUN pnpm --filter @master-signage/api --prod deploy /app/deploy
 # Re-generate the Prisma client INTO the pruned deploy tree so the runtime image
 # carries it (avoids the pnpm-deploy + hoisted-.prisma gotcha). prisma is a
 # production dependency, so its CLI is present under deploy/node_modules/.bin.
