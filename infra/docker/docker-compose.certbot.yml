@@ -1,0 +1,33 @@
+# =============================================================================
+# MasterSignage — OPTIONAL containerized Let's Encrypt (certbot webroot)
+# =============================================================================
+# Use this override ALONGSIDE the base compose so it shares the nginx webroot +
+# certificate volumes:
+#
+#   # 1) Issue the first certificate (nginx must already serve :80 for the
+#   #    ACME HTTP-01 challenge — see docs/nginx-ssl.md):
+#   docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.certbot.yml \
+#     run --rm certbot certonly --webroot -w /var/www/certbot \
+#       -d "$APP_DOMAIN" --email "$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email
+#
+#   # 2) Bring the renewal loop up (renews + the host/nginx reloads on change):
+#   docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.certbot.yml up -d certbot
+#
+# Prefer host certbot instead? See docs/nginx-ssl.md — both are documented.
+# =============================================================================
+
+services:
+  certbot:
+    image: certbot/certbot:latest
+    container_name: master-signage-certbot
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    # Default command: attempt renewal every 12h (no-op until ~30 days to expiry).
+    # `run --rm certbot certonly ...` (above) overrides this for initial issuance.
+    entrypoint: ''
+    command: >
+      sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+    restart: unless-stopped
+    networks:
+      - master-signage

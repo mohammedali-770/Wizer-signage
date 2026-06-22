@@ -1,0 +1,27 @@
+{
+  "name": "@master-signage/types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared TypeScript domain types and enums for the MasterSignage platform.",
+  "license": "UNLICENSED",
+  "author": "MasterSignage",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "lint": "eslint \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

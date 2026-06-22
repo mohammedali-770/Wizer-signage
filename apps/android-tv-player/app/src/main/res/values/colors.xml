@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resource colors mirrored from ui/theme/Color.kt for use in XML (window background). -->
+<resources>
+    <color name="brand_surface_dark">#FF0E1116</color>
+    <color name="brand_primary">#FF4F8CFF</color>
+    <color name="brand_secondary">#FF22D3A6</color>
+</resources>

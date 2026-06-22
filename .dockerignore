@@ -1,0 +1,47 @@
+# =============================================================================
+# Root .dockerignore — the build context for ALL images is the repo root, so
+# THIS file (not apps/*/.dockerignore) governs what is sent to the daemon.
+# Keep secrets, VCS, and heavy artifacts OUT of the build context.
+# =============================================================================
+
+# Dependencies & build output (reinstalled/rebuilt inside the image)
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/build
+
+# Secrets & local env (NEVER ship these into an image/context)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# VCS & tooling
+.git
+.gitignore
+.github
+.husky
+.vscode
+.idea
+
+# Tests (not needed at build/runtime)
+**/*.spec.ts
+**/*.e2e-spec.ts
+**/test
+**/__tests__
+
+# Android (built on a real machine, not in the API/dashboard images)
+apps/android-tv-player
+
+# Local data, logs, backups, storage
+**/*.log
+.storage
+backups
+**/.DS_Store
+
+# Docs / infra not needed by the app images (infra is mounted, not built in)
+docs

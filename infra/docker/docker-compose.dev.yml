@@ -1,0 +1,92 @@
+# =============================================================================
+# MasterSignage — Development override (OPTIONAL)
+# =============================================================================
+# This override is layered ON TOP of docker-compose.yml:
+#
+#   docker compose \
+#     -f infra/docker/docker-compose.yml \
+#     -f infra/docker/docker-compose.dev.yml up -d
+#
+# WHAT IT ADDS:
+#   - A local postgres:16 service for OFFLINE development only.
+#
+# IMPORTANT:
+#   Supabase (managed Postgres + storage) is the REAL/production target.
+#   The local postgres below is a convenience for developing without a
+#   network connection to Supabase. When using it, point DATABASE_URL /
+#   DIRECT_URL at the local "postgres" service (see the example values
+#   under the api service environment block, or override them in your .env).
+#
+#   Do NOT rely on the local database for anything production-like:
+#   Row-Level Security policies, storage buckets, auth, and edge functions
+#   provided by Supabase are NOT reproduced here.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Local Postgres — OPTIONAL, offline development only.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: master-signage-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mastersignage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mastersignage}
+      POSTGRES_DB: ${POSTGRES_DB:-mastersignage}
+    ports:
+      # Exposed on the host for local tooling (psql, GUI clients, migrations).
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-mastersignage} -d ${POSTGRES_DB:-mastersignage}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - master-signage
+
+  # ---------------------------------------------------------------------------
+  # API — point at the local postgres and (optionally) enable hot reload.
+  # ---------------------------------------------------------------------------
+  api:
+    environment:
+      NODE_ENV: development
+      # Local DATABASE_URL pointing at the bundled postgres service.
+      # Override these in your .env to switch back to Supabase.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mastersignage}:${POSTGRES_PASSWORD:-mastersignage}@postgres:5432/${POSTGRES_DB:-mastersignage}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-mastersignage}:${POSTGRES_PASSWORD:-mastersignage}@postgres:5432/${POSTGRES_DB:-mastersignage}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # ---- Optional hot reload (uncomment to bind-mount source) ----------------
+    # Mounting source enables live development against the container. Keep this
+    # simple; for most workflows running `pnpm dev` on the host is preferred.
+    # volumes:
+    #   - ../../apps/api:/app/apps/api
+    #   - ../../packages:/app/packages
+    # command: ["pnpm", "--filter", "@master-signage/api", "dev"]
+
+  # ---------------------------------------------------------------------------
+  # Dashboard — development environment / optional hot reload.
+  # ---------------------------------------------------------------------------
+  dashboard:
+    environment:
+      NODE_ENV: development
+    # ---- Optional hot reload (uncomment to bind-mount source) ----------------
+    # volumes:
+    #   - ../../apps/dashboard:/app/apps/dashboard
+    #   - ../../packages:/app/packages
+    # command: ["pnpm", "--filter", "@master-signage/dashboard", "dev"]
+
+# -----------------------------------------------------------------------------
+# Volumes
+# -----------------------------------------------------------------------------
+volumes:
+  postgres-data:
+    name: master-signage-postgres-data

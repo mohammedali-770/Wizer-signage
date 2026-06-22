@@ -1,0 +1,401 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { ArrowLeft, FileText, Link2, Upload } from 'lucide-react';
+
+import { api, ApiError } from '@/lib/api';
+import { useApiResource } from '@/lib/use-api';
+import type { Content, Orientation, Paginated, Tag } from '@/lib/types';
+import { Link, useRouter } from '@/i18n/navigation';
+import {
+  Button,
+  Card,
+  CardContent,
+  Field,
+  Input,
+  Label,
+  PageHeader,
+  Select,
+  Spinner,
+  Textarea,
+  useToast,
+} from '@/components/ui';
+
+type Mode = 'upload' | 'url' | 'text';
+
+const MODES: { value: Mode; label: string; icon: typeof Upload }[] = [
+  { value: 'upload', label: 'Upload file', icon: Upload },
+  { value: 'url', label: 'URL', icon: Link2 },
+  { value: 'text', label: 'Text', icon: FileText },
+];
+
+const ORIENTATION_OPTIONS: Orientation[] = ['LANDSCAPE', 'PORTRAIT', 'UNKNOWN'];
+const ORIENTATION_LABELS: Record<Orientation, string> = {
+  LANDSCAPE: 'Landscape',
+  PORTRAIT: 'Portrait',
+  UNKNOWN: 'Unknown',
+};
+
+const FILE_ACCEPT = 'image/*,video/*,application/pdf';
+
+/** Convert a `type=date` value (YYYY-MM-DD) to an ISO string, or null when empty. */
+function dateToIso(value: string): string | null {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+export default function NewContentPage() {
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const [mode, setMode] = useState<Mode>('upload');
+
+  // Shared fields across all modes.
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [orientation, setOrientation] = useState<Orientation>('UNKNOWN');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [durationSeconds, setDurationSeconds] = useState('');
+  const [tagIds, setTagIds] = useState<string[]>([]);
+
+  // Upload-specific.
+  const [file, setFile] = useState<File | null>(null);
+  // URL-specific.
+  const [url, setUrl] = useState('');
+  // Text-specific.
+  const [textBody, setTextBody] = useState('');
+
+  const [busy, setBusy] = useState(false);
+
+  // Content tags (CONTENT or BOTH) for the multi-select.
+  const tagsResource = useApiResource<Paginated<Tag>>('/tags?pageSize=100');
+  const contentTags = useMemo(
+    () => (tagsResource.data?.items ?? []).filter((t) => t.type === 'CONTENT' || t.type === 'BOTH'),
+    [tagsResource.data],
+  );
+
+  const toggleTag = (id: string) => {
+    setTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+  };
+
+  const parsedDuration = (): number | null => {
+    const trimmed = durationSeconds.trim();
+    if (!trimmed) return null;
+    const n = Number(trimmed);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0] ?? null;
+    setFile(selected);
+    // Default the title to the file name (sans extension) when empty.
+    if (selected && !title.trim()) {
+      setTitle(selected.name.replace(/\.[^./\\]+$/, ''));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      toast('Title is required.', 'error');
+      return;
+    }
+
+    const iso = dateToIso(expiresAt);
+    const duration = parsedDuration();
+
+    setBusy(true);
+    try {
+      let created: Content;
+
+      if (mode === 'upload') {
+        if (!file) {
+          toast('Choose a file to upload.', 'error');
+          setBusy(false);
+          return;
+        }
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('title', trimmedTitle);
+        if (description.trim()) formData.append('description', description.trim());
+        if (orientation) formData.append('orientation', orientation);
+        if (iso) formData.append('expiresAt', iso);
+        if (duration !== null) formData.append('durationSeconds', String(duration));
+        if (tagIds.length > 0) formData.append('tags', tagIds.join(','));
+        created = await api.upload<Content>('/content/upload', formData);
+      } else if (mode === 'url') {
+        const trimmedUrl = url.trim();
+        if (!trimmedUrl) {
+          toast('URL is required.', 'error');
+          setBusy(false);
+          return;
+        }
+        if (!isHttpUrl(trimmedUrl)) {
+          toast('Enter a valid http(s) URL.', 'error');
+          setBusy(false);
+          return;
+        }
+        created = await api.post<Content>('/content/url', {
+          title: trimmedTitle,
+          description: description.trim() || undefined,
+          url: trimmedUrl,
+          orientation,
+          expiresAt: iso ?? undefined,
+          durationSeconds: duration ?? undefined,
+          tagIds: tagIds.length > 0 ? tagIds : undefined,
+        });
+      } else {
+        const trimmedBody = textBody.trim();
+        if (!trimmedBody) {
+          toast('Text body is required.', 'error');
+          setBusy(false);
+          return;
+        }
+        created = await api.post<Content>('/content/text', {
+          title: trimmedTitle,
+          description: description.trim() || undefined,
+          textBody: trimmedBody,
+          orientation,
+          expiresAt: iso ?? undefined,
+          durationSeconds: duration ?? undefined,
+          tagIds: tagIds.length > 0 ? tagIds : undefined,
+        });
+      }
+
+      toast('Content created.', 'success');
+      router.push(`/company/content/${created.id}`);
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div>
+      <PageHeader
+        title="Add Content"
+        description="Upload a file, link an external URL, or compose a text slide."
+        actions={
+          <Link
+            href="/company/content"
+            className="border-border hover:bg-muted focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md border bg-transparent px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2"
+          >
+            <ArrowLeft className="size-4" />
+            Back to Content
+          </Link>
+        }
+      />
+
+      {/* Segmented control */}
+      <div className="border-border bg-muted/40 mb-6 inline-flex rounded-lg border p-1">
+        {MODES.map(({ value, label, icon: Icon }) => {
+          const active = mode === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setMode(value)}
+              aria-pressed={active}
+              disabled={busy}
+              className={
+                'inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition disabled:pointer-events-none disabled:opacity-50 ' +
+                (active
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground')
+              }
+            >
+              <Icon className="size-4" />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <form onSubmit={handleSubmit} className="max-w-2xl">
+        <Card>
+          <CardContent className="space-y-5">
+            {/* Mode-specific primary inputs */}
+            {mode === 'upload' && (
+              <Field
+                label="File"
+                hint="Images, videos, or PDF. The title defaults to the file name."
+              >
+                <Input
+                  type="file"
+                  accept={FILE_ACCEPT}
+                  onChange={handleFileChange}
+                  disabled={busy}
+                  className="file:bg-muted h-auto py-2 file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                  aria-label="File to upload"
+                />
+              </Field>
+            )}
+
+            {mode === 'url' && (
+              <Field
+                label="URL"
+                hint="External URLs may be unreliable or blocked by the display device. Prefer uploading a file when possible."
+              >
+                <Input
+                  type="url"
+                  inputMode="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://example.com/page"
+                  disabled={busy}
+                  required
+                />
+              </Field>
+            )}
+
+            {mode === 'text' && (
+              <Field label="Text body" hint="The text shown on the slide.">
+                <Textarea
+                  value={textBody}
+                  onChange={(e) => setTextBody(e.target.value)}
+                  placeholder="Write the slide text here…"
+                  rows={5}
+                  disabled={busy}
+                  required
+                />
+              </Field>
+            )}
+
+            <Field label="Title">
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="A short, descriptive name"
+                required
+                disabled={busy}
+              />
+            </Field>
+
+            <Field label="Description">
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional notes about this content."
+                rows={2}
+                disabled={busy}
+              />
+            </Field>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Orientation">
+                <Select
+                  value={orientation}
+                  onChange={(e) => setOrientation(e.target.value as Orientation)}
+                  disabled={busy}
+                >
+                  {ORIENTATION_OPTIONS.map((o) => (
+                    <option key={o} value={o}>
+                      {ORIENTATION_LABELS[o]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field label="Expires" hint="Optional. Content is hidden after this date.">
+                <Input
+                  type="date"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                  disabled={busy}
+                />
+              </Field>
+            </div>
+
+            <Field
+              label="Duration (seconds)"
+              hint="Optional. How long this item shows in a playlist."
+            >
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                value={durationSeconds}
+                onChange={(e) => setDurationSeconds(e.target.value)}
+                placeholder="e.g. 10"
+                disabled={busy}
+                className="sm:max-w-[12rem]"
+              />
+            </Field>
+
+            <div>
+              <Label>Tags</Label>
+              {tagsResource.loading ? (
+                <div className="text-muted-foreground flex items-center gap-2 py-2 text-sm">
+                  <Spinner className="size-4" />
+                  Loading tags…
+                </div>
+              ) : contentTags.length === 0 ? (
+                <p className="text-muted-foreground py-1 text-sm">No content tags available.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {contentTags.map((tag) => {
+                    const selected = tagIds.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleTag(tag.id)}
+                        disabled={busy}
+                        aria-pressed={selected}
+                        className={
+                          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition disabled:pointer-events-none disabled:opacity-50 ' +
+                          (selected
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border text-muted-foreground hover:bg-muted')
+                        }
+                      >
+                        <span
+                          aria-hidden
+                          className="border-border inline-block size-2.5 rounded-full border"
+                          style={{ backgroundColor: tag.color ?? 'transparent' }}
+                        />
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-muted-foreground mt-1.5 text-xs">
+                Optional. Select one or more content tags.
+              </p>
+            </div>
+
+            <div className="border-border flex justify-end gap-2 border-t pt-4">
+              <Link
+                href="/company/content"
+                className="border-border hover:bg-muted focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md border bg-transparent px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2"
+                aria-disabled={busy}
+              >
+                Cancel
+              </Link>
+              <Button type="submit" disabled={busy}>
+                {busy && <Spinner className="size-4" />}
+                {mode === 'upload' ? 'Upload content' : 'Create content'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </form>
+    </div>
+  );
+}

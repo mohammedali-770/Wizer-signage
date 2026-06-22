@@ -1,0 +1,31 @@
+# MasterSignage TV Player — Android / Gradle ignores.
+
+# Built output.
+build/
+*/build/
+.gradle/
+
+# Local configuration (SDK path, signing — never commit).
+local.properties
+
+# IDE.
+.idea/
+*.iml
+.DS_Store
+captures/
+
+# NDK.
+.cxx/
+obj/
+
+# Artifacts.
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Keystores / secrets.
+*.jks
+*.keystore
+keystore.properties

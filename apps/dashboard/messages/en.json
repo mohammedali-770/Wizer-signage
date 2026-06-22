@@ -1,0 +1,33 @@
+{
+  "app": {
+    "name": "MasterSignage"
+  },
+  "nav": {
+    "overview": "Overview",
+    "screens": "Screens",
+    "playlists": "Playlists",
+    "media": "Media",
+    "settings": "Settings"
+  },
+  "home": {
+    "title": "Dashboard shell is ready",
+    "subtitle": "The internationalization, right-to-left, and theming foundation is in place.",
+    "phase0Note": "This is the Phase 0 dashboard shell. Authentication and feature pages arrive in later phases.",
+    "demoNumberLabel": "Formatted number (Latin digits)",
+    "localeLabel": "Active locale"
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "locale": {
+    "label": "Change language",
+    "en": "English",
+    "ar": "العربية"
+  },
+  "footer": {
+    "copyright": "MasterSignage — Proprietary. All rights reserved."
+  }
+}

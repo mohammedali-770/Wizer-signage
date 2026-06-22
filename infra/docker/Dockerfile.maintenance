@@ -1,0 +1,66 @@
+# =============================================================================
+# MasterSignage maintenance worker — runs the Phase 10 maintenance CLI on a cron
+# schedule (busybox crond) plus the nightly pg_dump backup.
+#
+# BUILD CONTEXT MUST BE THE REPOSITORY ROOT:
+#   docker build -f infra/docker/Dockerfile.maintenance -t master-signage/maintenance .
+#
+# It reuses the API's build (the CLI is apps/api/dist/maintenance/maintenance.cli.js)
+# and adds: busybox crond, su-exec (drop to non-root for jobs), bash + the backup
+# script, and postgresql-client (pg_dump). NO HTTP server is exposed.
+# =============================================================================
+
+# --- Base --------------------------------------------------------------------
+FROM node:20-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9 --activate
+WORKDIR /app
+
+# --- Dependencies ------------------------------------------------------------
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY packages/types/package.json ./packages/types/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/ui/package.json ./packages/ui/package.json
+RUN pnpm install --filter @master-signage/api... --frozen-lockfile
+
+# --- Build -------------------------------------------------------------------
+FROM base AS build
+COPY --from=deps /app /app
+COPY apps/api ./apps/api
+COPY packages ./packages
+RUN pnpm --filter @master-signage/api db:generate
+RUN pnpm --filter @master-signage/api build
+RUN pnpm --filter @master-signage/api... --prod deploy /app/deploy
+# Re-generate the Prisma client into the pruned deploy tree (see apps/api/Dockerfile).
+RUN cd /app/deploy && ./node_modules/.bin/prisma generate --schema /app/apps/api/prisma/schema.prisma
+
+# --- Runtime -----------------------------------------------------------------
+FROM node:20-alpine AS runtime
+ENV NODE_ENV=production
+# The backup script records runs through the CLI at this path.
+ENV MAINTENANCE_CLI=/app/dist/maintenance/maintenance.cli.js
+WORKDIR /app
+
+# crond (busybox, bundled), su-exec (drop privileges for jobs), bash + pg_dump
+# (the backup script), tzdata (cron in local time when TZ is set).
+RUN apk add --no-cache su-exec bash postgresql-client tzdata
+
+# App runtime (built CLI + pruned prod node_modules incl. the Prisma client).
+COPY --from=build --chown=node:node /app/deploy/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/apps/api/dist ./dist
+COPY --from=build --chown=node:node /app/apps/api/package.json ./package.json
+COPY --from=build --chown=node:node /app/apps/api/prisma ./prisma
+# Backup script + crontab.
+COPY --chown=node:node scripts/backup-db.sh ./scripts/backup-db.sh
+COPY infra/docker/crontab /etc/crontabs/root
+RUN chmod +x ./scripts/backup-db.sh
+
+# crond must start as root to schedule + su-exec down to "node" per job; the jobs
+# themselves never run as root. A persistent backup volume is mounted at /backups.
+HEALTHCHECK --interval=60s --timeout=5s --start-period=15s --retries=3 \
+  CMD pgrep crond >/dev/null || exit 1
+
+CMD ["crond", "-f", "-l", "8"]

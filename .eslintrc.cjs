@@ -1,0 +1,55 @@
+// MasterSignage — root ESLint configuration.
+// Apps (Next.js, NestJS) and packages may extend this with their own config.
+/** @type {import('eslint').Linter.Config} */
+module.exports = {
+  root: true,
+  env: {
+    node: true,
+    es2022: true,
+  },
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 2022,
+    sourceType: 'module',
+  },
+  plugins: ['@typescript-eslint'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'prettier',
+  ],
+  rules: {
+    // Allow intentionally-unused leading-underscore bindings and the
+    // `const { omit, ...rest } = obj` field-omission idiom.
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+      },
+    ],
+  },
+  overrides: [
+    {
+      // k6 load-test scripts run in the k6 (Goja) runtime, which injects
+      // global helpers like __ENV / __VU / __ITER. See docs/performance-testing.md.
+      files: ['scripts/load-test/**/*.js'],
+      globals: {
+        __ENV: 'readonly',
+        __VU: 'readonly',
+        __ITER: 'readonly',
+      },
+    },
+  ],
+  ignorePatterns: [
+    'node_modules/',
+    'dist/',
+    '.next/',
+    'out/',
+    'build/',
+    'coverage/',
+    '.turbo/',
+    'apps/android-tv-player/',
+  ],
+};

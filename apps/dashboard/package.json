@@ -1,0 +1,42 @@
+{
+  "name": "@master-signage/dashboard",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "author": "MasterSignage",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@master-signage/types": "workspace:*",
+    "@master-signage/shared": "workspace:*",
+    "@master-signage/ui": "workspace:*",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.395.0",
+    "next": "^14.2.5",
+    "next-intl": "^3.15.0",
+    "next-themes": "^0.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.5",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MasterSignage</string>
+
+    <!-- Phase 0 splash copy. Real, localized strings arrive with the pairing UI. -->
+    <string name="splash_subtitle">TV Player</string>
+    <string name="splash_pairing_hint">Enter this code in the dashboard to pair this screen</string>
+    <string name="splash_phase">Phase 0 — player skeleton</string>
+</resources>

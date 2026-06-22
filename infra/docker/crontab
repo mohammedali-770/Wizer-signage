@@ -1,0 +1,23 @@
+# =============================================================================
+# MasterSignage — maintenance worker crontab (busybox crond)
+# =============================================================================
+# Read by busybox crond inside the maintenance container (see Dockerfile.maintenance).
+# Jobs run as the unprivileged "node" user via su-exec; output is redirected to
+# the container's stdout (/proc/1/fd/1) so `docker logs` shows it.
+#
+# All jobs are IDEMPOTENT (deduped alerts, deleteMany retention, status-gated
+# auto-END), so an occasional overlap is harmless. Times are UTC unless TZ is set.
+#
+# fields: minute hour day-of-month month day-of-week  command
+# =============================================================================
+
+# Alerts sweep + due scheduled reports + emergency auto-END — every 5 minutes.
+*/5 * * * * cd /app && su-exec node node dist/maintenance/maintenance.cli.js sweep       >> /proc/1/fd/1 2>&1
+*/5 * * * * cd /app && su-exec node node dist/maintenance/maintenance.cli.js reports      >> /proc/1/fd/1 2>&1
+*/5 * * * * cd /app && su-exec node node dist/maintenance/maintenance.cli.js emergencies  >> /proc/1/fd/1 2>&1
+
+# Full nightly run (sweep + retention cleanup + reports + auto-END + backup check) at 03:30.
+30 3 * * * cd /app && su-exec node node dist/maintenance/maintenance.cli.js all           >> /proc/1/fd/1 2>&1
+
+# Database backup at 02:00 (pg_dump → BACKUP_DIR, records a BackupRecord).
+0 2 * * * cd /app && su-exec node bash scripts/backup-db.sh                                >> /proc/1/fd/1 2>&1

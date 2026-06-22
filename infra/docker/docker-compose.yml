@@ -1,0 +1,210 @@
+# =============================================================================
+# MasterSignage — Production-oriented Docker Compose (base file)
+# =============================================================================
+# Multi-tenant digital signage SaaS platform.
+#
+# This is the PRODUCTION base stack. It runs three services:
+#   - api        : NestJS backend (apps/api)        -> internal port 3001
+#   - dashboard  : Next.js frontend (apps/dashboard) -> internal port 3000
+#   - nginx      : reverse proxy + TLS termination    -> public ports 80/443
+#
+# DATABASE & STORAGE:
+#   Database and object storage are provided by SUPABASE (external, managed).
+#   They are NOT defined here. Connectivity is configured purely through env
+#   vars (SUPABASE_URL, DATABASE_URL, DIRECT_URL, ...). Production has NO local
+#   database container.
+#
+#   For OFFLINE/local development only, use the dev override which adds a
+#   local postgres:16 service:
+#     docker compose \
+#       -f infra/docker/docker-compose.yml \
+#       -f infra/docker/docker-compose.dev.yml up -d
+#
+# ENV:
+#   All service configuration comes from the repo-root .env file (see
+#   .env.example and docs/environment-variables.md). Build/run from the repo
+#   root or adjust the relative paths below accordingly.
+#
+# USAGE (from repo root):
+#   docker compose -f infra/docker/docker-compose.yml up -d
+#   docker compose -f infra/docker/docker-compose.yml down
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # API — NestJS backend
+  # Reads PORT from API_PORT (default 3001). Exposes /api/health for checks.
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      # Build context is the repo root so the Dockerfile can access the
+      # pnpm workspace (apps/* and packages/*).
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    image: master-signage/api:latest
+    container_name: master-signage-api
+    # Load all canonical env vars from the repo-root .env file.
+    env_file:
+      - ../../.env
+    environment:
+      # Ensure the container listens on the canonical internal port.
+      NODE_ENV: ${NODE_ENV:-production}
+      API_PORT: ${API_PORT:-3001}
+    # Internal-only: reachable by nginx on the shared network. Not published.
+    expose:
+      - '3001'
+    restart: unless-stopped
+    healthcheck:
+      # Hit the NestJS health endpoint (global prefix "api").
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3001/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+    deploy:
+      resources:
+        limits: { cpus: '1.5', memory: 768M }
+    networks:
+      - master-signage
+
+  # ---------------------------------------------------------------------------
+  # Dashboard — Next.js frontend (App Router)
+  # ---------------------------------------------------------------------------
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: apps/dashboard/Dockerfile
+      args:
+        # Baked into the client bundle at build time (Next.js inlines
+        # NEXT_PUBLIC_*). Point it at your public API origin. NOT a secret.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
+    image: master-signage/dashboard:latest
+    container_name: master-signage-dashboard
+    env_file:
+      - ../../.env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DASHBOARD_PORT: ${DASHBOARD_PORT:-3000}
+      PORT: ${DASHBOARD_PORT:-3000}
+    expose:
+      - '3000'
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+    deploy:
+      resources:
+        limits: { cpus: '1.0', memory: 512M }
+    networks:
+      - master-signage
+
+  # ---------------------------------------------------------------------------
+  # Maintenance worker — runs the Phase 10 maintenance CLI on a cron schedule
+  # (busybox crond): alerts sweep, due scheduled reports, emergency auto-END,
+  # nightly retention cleanup, and the database backup. No HTTP port. See
+  # infra/docker/crontab and docs/data-retention.md.
+  # ---------------------------------------------------------------------------
+  maintenance:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.maintenance
+    image: master-signage/maintenance:latest
+    container_name: master-signage-maintenance
+    env_file:
+      - ../../.env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      # pg_dump output target (mounted volume below).
+      BACKUP_DIR: /backups
+      TZ: ${TZ:-UTC}
+    volumes:
+      - backups:/backups
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'pgrep', 'crond']
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 384M }
+    networks:
+      - master-signage
+
+  # ---------------------------------------------------------------------------
+  # Nginx — reverse proxy + TLS termination
+  # Routes:
+  #   /        -> dashboard:3000
+  #   /api/    -> api:3001 (prefix preserved)
+  #   WS_PATH  -> api:3001 (websocket upgrade)
+  # TLS certificates are issued via Let's Encrypt (certbot webroot).
+  # See infra/nginx/README.md for the certificate workflow.
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: master-signage-nginx
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      # Main nginx configuration.
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Server blocks (virtual hosts).
+      - ../nginx/conf.d:/etc/nginx/conf.d:ro
+      # ACME HTTP-01 challenge webroot (shared with certbot).
+      - certbot-webroot:/var/www/certbot:ro
+      # Let's Encrypt issued certificates (managed on the host by certbot).
+      - letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      api:
+        condition: service_started
+      dashboard:
+        condition: service_started
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+    networks:
+      - master-signage
+
+# -----------------------------------------------------------------------------
+# Networks
+# -----------------------------------------------------------------------------
+networks:
+  master-signage:
+    name: master-signage
+    driver: bridge
+
+# -----------------------------------------------------------------------------
+# Volumes
+#   certbot-webroot : shared ACME challenge directory between nginx & certbot.
+#   letsencrypt     : persisted Let's Encrypt certificates.
+# -----------------------------------------------------------------------------
+volumes:
+  certbot-webroot:
+    name: master-signage-certbot-webroot
+  letsencrypt:
+    name: master-signage-letsencrypt
+  # pg_dump backups written by the maintenance worker (see scripts/backup-db.sh).
+  backups:
+    name: master-signage-backups

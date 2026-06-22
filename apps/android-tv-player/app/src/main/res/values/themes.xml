@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    MasterSignage TV Player — base application theme.
+
+    The actual UI is built with Jetpack Compose + Material3 (see ui/theme/Theme.kt), so
+    this XML theme only provides a Compose-friendly, action-bar-free window background used
+    before the first Compose frame (and as the manifest `android:theme`). It intentionally
+    does NOT extend a Theme.MaterialComponents.* / AppCompat parent.
+
+    NOTE: Adaptive launcher icons (mipmap ic_launcher / ic_launcher_round) and a dedicated
+    TV banner asset are added in a later phase. The manifest references @mipmap/ic_launcher.
+-->
+<resources>
+
+    <style name="Theme.MasterSignage" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/brand_surface_dark</item>
+        <item name="android:statusBarColor">@color/brand_surface_dark</item>
+        <item name="android:navigationBarColor">@color/brand_surface_dark</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+</resources>

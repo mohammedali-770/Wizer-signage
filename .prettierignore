@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+out/
+build/
+coverage/
+.turbo/
+
+# Lockfiles
+pnpm-lock.yaml
+
+# Android (Kotlin/Gradle formatted by their own tooling)
+apps/android-tv-player/
+
+# Generated / vendor
+*.min.js
+*.min.css

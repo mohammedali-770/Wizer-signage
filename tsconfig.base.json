@@ -1,0 +1,33 @@
+{
+  // MasterSignage — shared TypeScript base configuration.
+  //
+  // IMPORTANT: This base intentionally does NOT set `module` or `moduleResolution`.
+  // Each app overrides those settings for its own runtime/toolchain:
+  //   - apps/api (NestJS)        -> module: "commonjs", moduleResolution: "node"
+  //   - apps/dashboard (Next.js) -> module: "esnext",   moduleResolution: "bundler"
+  // Keeping the base free of module settings prevents one runtime's choice from
+  // leaking into the other. The base only enforces strictness and shared paths.
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "baseUrl": ".",
+    "paths": {
+      "@master-signage/types": ["packages/types/src/index.ts"],
+      "@master-signage/types/*": ["packages/types/src/*"],
+      "@master-signage/shared": ["packages/shared/src/index.ts"],
+      "@master-signage/shared/*": ["packages/shared/src/*"],
+      "@master-signage/ui": ["packages/ui/src/index.ts"],
+      "@master-signage/ui/*": ["packages/ui/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next", "out", "coverage", ".turbo"]
+}
