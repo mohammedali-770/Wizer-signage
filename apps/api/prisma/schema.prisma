@@ -19,6 +19,12 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "native" keeps local dev (Windows/macOS/glibc) working; the explicit
+  // Alpine target is required for the production Docker runtime (node:20-alpine,
+  // musl + OpenSSL 3.0). Without it, build-time detection falls back to the
+  // generic "linux-musl" engine and the client cannot locate the query engine
+  // at runtime ("linux-musl-openssl-3.0.x" not found).
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
