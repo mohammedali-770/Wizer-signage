@@ -21,11 +21,12 @@ export function generateStaticParams() {
 
 type LocaleLayoutProps = {
   children: React.ReactNode;
-  params: { locale: string };
+  // Next.js 15: dynamic route params are async (a Promise).
+  params: Promise<{ locale: string }>;
 };
 
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
-  const { locale } = params;
+  const { locale } = await params;
 
   // Reject unknown locales early.
   if (!routing.locales.includes(locale as Locale)) {
