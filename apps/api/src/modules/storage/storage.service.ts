@@ -12,6 +12,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Response } from 'express';
+import WebSocket from 'ws';
 
 import { CryptoService } from '../../common/crypto/crypto.service';
 import type { AppConfig } from '../../config/configuration';
@@ -50,6 +51,14 @@ export class StorageService {
       this.mode = 'supabase';
       this.supabase = createClient(supabase.url, supabase.serviceRoleKey, {
         auth: { persistSession: false },
+        // This server uses Storage only — never Realtime. supabase-js still
+        // constructs a Realtime client, and @supabase/realtime-js throws on
+        // Node < 22 when it can't find a native WebSocket. Supplying the `ws`
+        // transport satisfies that probe (it never actually connects). ws is
+        // runtime-compatible with realtime-js's WebSocketLikeConstructor; their
+        // TS types differ, so cast narrowly.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        realtime: { transport: WebSocket as any },
       });
       this.logger.log(`Storage: Supabase bucket "${this.bucket}".`);
     } else {
