@@ -29,10 +29,13 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment files (keep .env.example tracked)
+# Environment files (keep *.example templates tracked; never real env files)
 .env
 .env.*
 !.env.example
+!*.env.example
+!**/.env.example
+!**/*.env.production.example
 
 # Android / Gradle
 .gradle/

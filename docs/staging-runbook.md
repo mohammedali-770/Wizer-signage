@@ -227,10 +227,11 @@ from `.env` afterward.
 
 ## 7. Nginx & SSL
 
-**Configure the domain:** edit `infra/nginx/conf.d/master-signage.conf` and
-replace every `signage.example.com` with `$APP_DOMAIN` (server*name + the two
-`ssl_certificate*` paths). *(Alternative: the env-substituted template — see
-[nginx-ssl.md](./nginx-ssl.md).)\_
+**Configure the domain:** just set `APP_DOMAIN` in the repo-root `.env` (e.g.
+`signage.example.com`). The nginx service renders its server blocks from
+`infra/nginx/templates/mastersignage.conf.template` via `envsubst` at startup —
+no config file to hand-edit, and no domain is hardcoded. See
+[nginx-ssl.md](./nginx-ssl.md).
 
 **Certbot flow (host certbot, staging first):**
 
@@ -253,12 +254,21 @@ sudo certbot certonly --webroot \
   -w /var/lib/docker/volumes/master-signage-certbot-webroot/_data \
   -d "$APP_DOMAIN" --email "$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email --force-renewal
 
-# 4) Reload nginx to pick up the real cert:
-$DC exec nginx nginx -t && $DC exec nginx nginx -s reload
+# 4) Sync the host-issued cert into the Docker volume nginx reads, then reload.
+#    (Host certbot writes to /etc/letsencrypt/live/$APP_DOMAIN/, but nginx reads
+#    the master-signage-letsencrypt volume — they are different locations.)
+sudo APP_DOMAIN="$APP_DOMAIN" scripts/sync-letsencrypt-to-docker.sh
 ```
 
-**Renewal test:** `sudo certbot renew --dry-run` (add a deploy hook to reload
-nginx after a real renewal — see [nginx-ssl.md](./nginx-ssl.md)).
+**Renewal test:** `sudo certbot renew --dry-run`. Install the sync helper as a
+deploy hook so renewals auto-copy into the volume and reload nginx:
+
+```bash
+sudo install -m 0755 scripts/sync-letsencrypt-to-docker.sh \
+  /etc/letsencrypt/renewal-hooks/deploy/master-signage-sync-docker-nginx.sh
+```
+
+See [nginx-ssl.md](./nginx-ssl.md) for details.
 
 **Verify:**
 

@@ -38,6 +38,11 @@ async function bootstrap(): Promise<void> {
   const nodeEnv = config.get<AppConfig['nodeEnv']>('nodeEnv', { infer: true });
 
   const port = httpConfig?.port ?? Number(process.env.API_PORT) ?? 3001;
+  // Bind 0.0.0.0 by default so the API is reachable across the Docker network
+  // (the nginx reverse proxy connects to api:3001). Binding to localhost inside
+  // a container makes nginx unable to proxy and returns 502. Override with
+  // API_HOST (e.g. 127.0.0.1) for a hardened single-host local setup.
+  const host = httpConfig?.host ?? process.env.API_HOST ?? '0.0.0.0';
   const corsOrigins = httpConfig?.corsOrigins ?? ['*'];
   const allowAllOrigins = corsOrigins.includes('*');
 
@@ -87,12 +92,12 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  await app.listen(port);
+  await app.listen(port, host);
 
-  const url = await app.getUrl();
-  logger.log(`MasterSignage API (${nodeEnv ?? 'development'}) listening on ${url}`);
-  logger.log(`Health:  ${url}/api/health`);
-  if (swaggerEnabled) logger.log(`Swagger: ${url}/api/docs`);
+  const baseUrl = `http://${host}:${port}`;
+  logger.log(`MasterSignage API (${nodeEnv ?? 'development'}) listening on ${baseUrl}`);
+  logger.log(`Health:  ${baseUrl}/api/health`);
+  if (swaggerEnabled) logger.log(`Swagger: ${baseUrl}/api/docs`);
 }
 
 void bootstrap();

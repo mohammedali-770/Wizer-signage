@@ -13,8 +13,8 @@ infra/
     docker-compose.dev.yml   # OPTIONAL dev override (adds local postgres)
   nginx/
     nginx.conf               # Main nginx config
-    conf.d/
-      master-signage.conf    # Server blocks / routing
+    templates/
+      mastersignage.conf.template  # Server blocks (${APP_DOMAIN}, rendered at startup)
     README.md                # Cert workflow & nginx operations
   Makefile                   # up / down / logs / build / backup / restore ...
   README.md                  # (this file)

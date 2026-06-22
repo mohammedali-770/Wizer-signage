@@ -13,28 +13,35 @@ stack. Nginx terminates TLS and routes traffic to the application services:
 
 - **`nginx.conf`** — main config: worker/event tuning, gzip, shared proxy and
   WebSocket-upgrade settings, and `include /etc/nginx/conf.d/*.conf`.
-- **`conf.d/master-signage.conf`** — the server blocks: an HTTP (`:80`) server
-  for the ACME challenge + HTTPS redirect, and an HTTPS (`:443`) server with
-  the routing rules above.
+- **`templates/mastersignage.conf.template`** — the server blocks (HTTP `:80`
+  ACME + redirect, HTTPS `:443` routing), templated with `${APP_DOMAIN}`. The
+  nginx image runs `envsubst` on this at startup and writes the rendered config
+  to `/etc/nginx/conf.d/`. **There is no hardcoded domain in any active config.**
 
 ## Before you start
 
-1. Replace every `signage.example.com` placeholder in
-   `conf.d/master-signage.conf` (both `server_name` directives and the two
-   `ssl_certificate*` paths) with your real domain.
+1. Set `APP_DOMAIN` in the repo-root `.env` (e.g. `signage.example.com`). The
+   compose `nginx` service substitutes it into `server_name` and the
+   `ssl_certificate*` paths at startup — nothing to hand-edit.
 2. Make sure DNS for your domain points at the host running this stack.
 3. Confirm `WS_PATH` in your `.env` matches the WebSocket `location` block
    (default `/ws`; if you use Socket.IO's default `/socket.io`, update the
-   location prefix accordingly).
+   location prefix in the template accordingly).
 
 ## Mount points (from `docker-compose.yml`)
 
-| Host path                | Container path          | Purpose                         |
-| ------------------------ | ----------------------- | ------------------------------- |
-| `infra/nginx/nginx.conf` | `/etc/nginx/nginx.conf` | Main config (read-only)         |
-| `infra/nginx/conf.d`     | `/etc/nginx/conf.d`     | Server blocks (read-only)       |
-| `certbot-webroot` volume | `/var/www/certbot`      | ACME HTTP-01 challenge files    |
-| `letsencrypt` volume     | `/etc/letsencrypt`      | Issued certificates (read-only) |
+| Host path                | Container path          | Purpose                              |
+| ------------------------ | ----------------------- | ------------------------------------ |
+| `infra/nginx/nginx.conf` | `/etc/nginx/nginx.conf` | Main config (read-only)              |
+| `infra/nginx/templates`  | `/etc/nginx/templates`  | `${APP_DOMAIN}` server template (ro) |
+| `certbot-webroot` volume | `/var/www/certbot`      | ACME HTTP-01 challenge files         |
+| `letsencrypt` volume     | `/etc/letsencrypt`      | Issued certificates (read-only)      |
+
+> **Host certbot users:** certs issued on the host at
+> `/etc/letsencrypt/live/$APP_DOMAIN/` must be synced into the
+> `master-signage-letsencrypt` volume that nginx reads. Use
+> `scripts/sync-letsencrypt-to-docker.sh` (also installable as a certbot deploy
+> hook). See `docs/nginx-ssl.md`.
 
 ## Obtaining certificates (Let's Encrypt, webroot)
 

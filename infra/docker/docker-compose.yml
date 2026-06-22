@@ -49,15 +49,20 @@ services:
     environment:
       # Ensure the container listens on the canonical internal port.
       NODE_ENV: ${NODE_ENV:-production}
+      # Bind all interfaces so nginx can proxy to api:3001 over the docker
+      # network. Binding localhost inside the container causes 502s.
+      API_HOST: ${API_HOST:-0.0.0.0}
       API_PORT: ${API_PORT:-3001}
     # Internal-only: reachable by nginx on the shared network. Not published.
     expose:
       - '3001'
     restart: unless-stopped
     healthcheck:
-      # Hit the NestJS health endpoint (global prefix "api").
+      # Hit the NestJS health endpoint (global prefix "api"). Use 127.0.0.1
+      # explicitly: inside the container "localhost" may resolve to IPv6 [::1],
+      # which the server is not bound to, making the check fail.
       test:
-        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3001/api/health']
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://127.0.0.1:3001/api/health']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -97,7 +102,10 @@ services:
         condition: service_started
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/']
+      # Use 127.0.0.1, not localhost: inside the container wget resolves
+      # localhost to IPv6 [::1] while Next.js listens on 0.0.0.0 (IPv4), so a
+      # "localhost" check fails even though the server is healthy.
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://127.0.0.1:3000/']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -166,11 +174,21 @@ services:
     ports:
       - '80:80'
       - '443:443'
+    environment:
+      # Public domain for server_name + TLS cert paths. The official nginx image
+      # runs envsubst on /etc/nginx/templates/*.template at startup and writes
+      # the result to /etc/nginx/conf.d/. REQUIRED — the stack will not start
+      # without it (no hardcoded domain lives in the active config).
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN must be set in .env (e.g. signage.example.com)}
+      # Substitute ONLY $APP_DOMAIN so nginx runtime vars ($host, $scheme, …)
+      # are preserved. The doubled $$ escapes compose interpolation.
+      NGINX_ENVSUBST_FILTER: '^APP_DOMAIN$$'
     volumes:
       # Main nginx configuration.
       - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      # Server blocks (virtual hosts).
-      - ../nginx/conf.d:/etc/nginx/conf.d:ro
+      # Domain-agnostic server blocks: rendered to /etc/nginx/conf.d/ at startup
+      # from APP_DOMAIN (replaces the old hardcoded conf.d/master-signage.conf).
+      - ../nginx/templates:/etc/nginx/templates:ro
       # ACME HTTP-01 challenge webroot (shared with certbot).
       - certbot-webroot:/var/www/certbot:ro
       # Let's Encrypt issued certificates (managed on the host by certbot).

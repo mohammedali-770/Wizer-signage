@@ -49,6 +49,10 @@ export class EnvironmentVariables {
 
   // --- HTTP ---------------------------------------------------------------
   @IsOptional()
+  @IsString()
+  API_HOST?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(65535)

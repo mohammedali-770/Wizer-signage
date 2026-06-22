@@ -18,6 +18,9 @@ export interface AppMetaConfig {
 }
 
 export interface HttpConfig {
+  /** Bind address. Defaults to 0.0.0.0 so the API is reachable from the Docker
+   *  network (e.g. the nginx reverse proxy). Override with API_HOST. */
+  readonly host: string;
   readonly port: number;
   readonly apiUrl?: string;
   readonly corsOrigins: string[];
@@ -127,6 +130,8 @@ export default (): AppConfig => {
       dashboardUrl: env.APP_URL ?? env.DASHBOARD_URL ?? 'http://localhost:3000',
     },
     http: {
+      // Bind all interfaces by default (required behind the Docker/nginx proxy).
+      host: env.API_HOST ?? '0.0.0.0',
       port: parseIntEnv(env.API_PORT, 3001),
       apiUrl: env.API_URL,
       corsOrigins: parseCorsOrigins(env.CORS_ORIGINS),

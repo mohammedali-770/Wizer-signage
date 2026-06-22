@@ -189,12 +189,14 @@ docker compose -f infra/docker/docker-compose.yml ps
 After the containers report healthy:
 
 ```bash
-# direct internal check (from the host, against the published API port if exposed)
-curl -fsS http://localhost:3001/api/health
+# direct internal check (the API port is NOT published in prod — check inside
+# the container; the server binds 0.0.0.0, so 127.0.0.1 works).
+docker compose -f infra/docker/docker-compose.yml exec api \
+  wget -qO- http://127.0.0.1:3001/api/health
 
 # through the public reverse proxy
-curl -fsS https://app.example.com/api/health
-curl -fsS https://app.example.com/api/health/ready
+curl -fsS https://$APP_DOMAIN/api/health
+curl -fsS https://$APP_DOMAIN/api/health/ready
 ```
 
 A healthy API returns:

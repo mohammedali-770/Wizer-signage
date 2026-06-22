@@ -15,32 +15,37 @@ containers are never published directly.
 | `/.well-known/acme-challenge/` | certbot webroot                                              |
 
 `infra/nginx/nginx.conf` sets gzip, `client_max_body_size 512m`,
-`server_tokens off`, and the `$connection_upgrade` map. The server block
-(`conf.d/master-signage.conf`) adds the security headers: **HSTS**,
-`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
-`Permissions-Policy` (the API also sends Helmet headers; nginx adds the
-transport-level HSTS + a safety net).
+`server_tokens off`, and the `$connection_upgrade` map. The server blocks are
+rendered from `infra/nginx/templates/mastersignage.conf.template` and add the
+security headers: **HSTS**, `X-Content-Type-Options`, `X-Frame-Options`,
+`Referrer-Policy`, `Permissions-Policy` (the API also sends Helmet headers; nginx
+adds the transport-level HSTS + a safety net).
 
-## Setting the domain
+## Setting the domain (APP_DOMAIN)
 
-Do **not** hardcode a domain anywhere else. Two options:
+The domain is **never hardcoded** in the active config. The compose `nginx`
+service mounts `infra/nginx/templates/` into `/etc/nginx/templates/`, and the
+official nginx image runs `envsubst` on `*.template` at startup, writing the
+rendered server blocks to `/etc/nginx/conf.d/`. You only set one variable:
 
-**A) Static config (default).** Edit `infra/nginx/conf.d/master-signage.conf` and
-replace every `signage.example.com` with your `$APP_DOMAIN` (server_name + the two
-`ssl_certificate*` paths). This file is mounted read-only into nginx.
+```bash
+# repo-root .env (see infra/docker/.env.production.example)
+APP_DOMAIN=signage.example.com
+```
 
-**B) Env-substituted template (advanced).** Use `infra/nginx/templates/mastersignage.conf.template`
-(uses `${APP_DOMAIN}`). In the nginx service, mount `../nginx/templates:/etc/nginx/templates:ro`
-**instead of** `conf.d`, and set:
+The compose file wires this automatically:
 
 ```yaml
 environment:
-  APP_DOMAIN: 'signage.example.com'
-  NGINX_ENVSUBST_FILTER: '^APP_DOMAIN$' # REQUIRED: only substitute APP_DOMAIN
+  APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN must be set in .env (e.g. signage.example.com)}
+  NGINX_ENVSUBST_FILTER: '^APP_DOMAIN$$' # only substitute APP_DOMAIN
 ```
 
 `NGINX_ENVSUBST_FILTER` is mandatory — without it `envsubst` would also clobber
-nginx runtime variables like `$host`.
+nginx runtime variables like `$host`. The `:?` guard means the stack refuses to
+start (before recreating the container) if `APP_DOMAIN` is unset, rather than
+rendering a broken empty `server_name`/cert path. `signage.example.com` now lives
+only in docs/examples/templates — never in an active config file.
 
 ## DNS & firewall
 
@@ -94,16 +99,43 @@ docker compose -f infra/docker/docker-compose.yml exec nginx nginx -s reload
 > Test with `--staging` first (Let's Encrypt has strict rate limits); re-issue
 > without `--staging` once the flow works.
 
+## Syncing host certs into the Docker volume (REQUIRED with host certbot)
+
+> **Two different locations.** Host certbot writes to
+> `/etc/letsencrypt/live/$APP_DOMAIN/`, but the nginx container reads certs from
+> the named Docker volume `master-signage-letsencrypt` (mounted read-only at
+> `/etc/letsencrypt`). They are **not** the same path. After every issuance or
+> renewal, the cert must be copied into the volume and nginx reloaded — otherwise
+> nginx keeps serving the old (or placeholder) certificate.
+
+A committed helper does exactly this:
+`scripts/sync-letsencrypt-to-docker.sh` — it resolves the volume mountpoint via
+`docker volume inspect`, copies `fullchain.pem`/`privkey.pem` (dereferencing the
+`live/` symlinks), runs `nginx -t`, then `nginx -s reload`.
+
+```bash
+# After the first real issuance:
+sudo APP_DOMAIN="$APP_DOMAIN" scripts/sync-letsencrypt-to-docker.sh
+```
+
+> The **containerized certbot** path mounts the same `master-signage-letsencrypt`
+> volume directly, so it does **not** need this sync — only host certbot does.
+
 ## Renewal
 
 Certificates last 90 days.
 
 - **Host certbot:** the apt package installs a systemd timer/cron that renews
-  automatically. Add a deploy hook to reload nginx:
-  `--deploy-hook "docker compose -f /opt/master-signage/infra/docker/docker-compose.yml exec nginx nginx -s reload"`.
+  automatically. Install the sync helper as a **deploy hook** so each renewal
+  copies the new cert into the Docker volume and reloads nginx:
+  ```bash
+  sudo install -m 0755 scripts/sync-letsencrypt-to-docker.sh \
+    /etc/letsencrypt/renewal-hooks/deploy/master-signage-sync-docker-nginx.sh
+  ```
+  (certbot sets `RENEWED_LINEAGE`/`RENEWED_DOMAINS`, which the script reads.)
 - **Containerized certbot:** `docker compose ... -f docker-compose.certbot.yml up -d certbot`
-  runs a loop that renews every 12h; reload nginx after a renewal (a host cron
-  `nginx -s reload` daily is the simplest).
+  runs a loop that renews every 12h into the shared volume; reload nginx after a
+  renewal (a host cron `nginx -s reload` daily is the simplest).
 
 ## HSTS caution
 
