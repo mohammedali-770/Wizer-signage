@@ -14,9 +14,19 @@ import {
   CardTitle,
   EmptyState,
   PageHeader,
-  Spinner,
+  StatCardSkeleton,
 } from '@/components/ui';
 import { Link } from '@/i18n/navigation';
+
+const QUICK_LINKS = [
+  { href: '/company/locations', label: 'Locations' },
+  { href: '/company/screens', label: 'Screens' },
+  { href: '/company/screen-groups', label: 'Screen Groups' },
+  { href: '/company/tags', label: 'Tags' },
+  { href: '/company/map', label: 'Map View' },
+  { href: '/company/settings', label: 'Settings' },
+  { href: '/company/activity-logs', label: 'Activity Logs' },
+];
 
 function limitLabel(r: ResourceUsage | undefined, locale: string): string {
   if (!r) return '—';
@@ -33,10 +43,11 @@ function usageTone(r: ResourceUsage | undefined): 'success' | 'warning' | 'dange
 
 export default function CompanyOverviewPage() {
   const locale = useLocale();
+  // Two independent sources — render each as soon as it arrives instead of
+  // blocking the whole page on the slower one.
   const settings = useApiResource<CompanySettings>('/company-settings');
   const usage = useApiResource<UsageEvaluation>('/company-settings/usage');
 
-  const loading = settings.loading || usage.loading;
   const company = settings.data;
   const evalData = usage.data;
   const res = (key: ResourceUsage['key']) => evalData?.resources.find((r) => r.key === key);
@@ -48,45 +59,49 @@ export default function CompanyOverviewPage() {
         description="Your company's locations, screens, and plan usage."
       />
 
-      {loading && (
-        <div className="flex justify-center py-16">
-          <Spinner className="text-primary size-6" />
-        </div>
-      )}
-      {!loading && (settings.error || usage.error) && (
-        <EmptyState
-          title="Could not load overview"
-          description={settings.error ?? usage.error ?? undefined}
-        />
-      )}
+      <div className="space-y-6">
+        {evalData?.status === 'grace' && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+            A plan limit is exceeded — you are in a grace period
+            {evalData.gracePeriodEndsAt
+              ? ` ending ${new Date(evalData.gracePeriodEndsAt).toLocaleDateString()}`
+              : ''}
+            .
+          </div>
+        )}
+        {evalData?.status === 'blocked' && (
+          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+            A plan limit is exceeded and the grace period has ended. Adding new resources is blocked
+            — contact your administrator to upgrade the plan.
+          </div>
+        )}
 
-      {!loading && company && evalData && (
-        <div className="space-y-6">
-          {evalData.status === 'grace' && (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-              A plan limit is exceeded — you are in a grace period
-              {evalData.gracePeriodEndsAt
-                ? ` ending ${new Date(evalData.gracePeriodEndsAt).toLocaleDateString()}`
-                : ''}
-              .
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {usage.error ? (
+            <div className="sm:col-span-2 xl:col-span-4">
+              <EmptyState title="Could not load usage" description={usage.error} />
             </div>
-          )}
-          {evalData.status === 'blocked' && (
-            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-              A plan limit is exceeded and the grace period has ended. Adding new resources is
-              blocked — contact your administrator to upgrade the plan.
-            </div>
+          ) : evalData ? (
+            <>
+              <UsageCard
+                icon={Building2}
+                label="Locations"
+                resource={res('locations')}
+                locale={locale}
+              />
+              <UsageCard icon={Monitor} label="Screens" resource={res('screens')} locale={locale} />
+              <UsageCard icon={Users} label="Users" resource={res('users')} locale={locale} />
+            </>
+          ) : (
+            <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <UsageCard
-              icon={Building2}
-              label="Locations"
-              resource={res('locations')}
-              locale={locale}
-            />
-            <UsageCard icon={Monitor} label="Screens" resource={res('screens')} locale={locale} />
-            <UsageCard icon={Users} label="Users" resource={res('users')} locale={locale} />
+          {/* Plan card depends on settings, which loads independently of usage. */}
+          {company ? (
             <Card className="p-5">
               <p className="text-muted-foreground text-sm">Plan</p>
               <p className="mt-2 text-2xl font-semibold tracking-tight">
@@ -98,34 +113,33 @@ export default function CompanyOverviewPage() {
                 </Badge>
               ) : null}
             </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick links</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[
-                { href: '/company/locations', label: 'Locations' },
-                { href: '/company/screens', label: 'Screens' },
-                { href: '/company/screen-groups', label: 'Screen Groups' },
-                { href: '/company/tags', label: 'Tags' },
-                { href: '/company/map', label: 'Map View' },
-                { href: '/company/settings', label: 'Settings' },
-                { href: '/company/activity-logs', label: 'Activity Logs' },
-              ].map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className="border-border hover:bg-muted rounded-lg border px-4 py-3 text-sm font-medium transition"
-                >
-                  {l.label}
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
+          ) : settings.error ? (
+            <Card className="p-5">
+              <p className="text-muted-foreground text-sm">Plan</p>
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400">Unavailable</p>
+            </Card>
+          ) : (
+            <StatCardSkeleton />
+          )}
         </div>
-      )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick links</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {QUICK_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="border-border hover:bg-muted rounded-lg border px-4 py-3 text-sm font-medium transition"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

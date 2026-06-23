@@ -24,8 +24,8 @@ import {
   PageHeader,
   Pagination,
   Select,
-  Spinner,
   StatusBadge,
+  TableSkeleton,
   Table,
   TBody,
   TD,
@@ -251,13 +251,12 @@ export default function ScreensPage() {
         </Select>
       </div>
 
-      {loading && (
-        <div className="flex justify-center py-16">
-          <Spinner className="text-primary size-6" />
-        </div>
-      )}
+      {/* First load → skeleton; on refetch the previous rows stay visible. */}
+      {loading && items.length === 0 && <TableSkeleton rows={8} columns={6} />}
 
-      {!loading && error && <EmptyState title="Could not load screens" description={error} />}
+      {error && items.length === 0 && (
+        <EmptyState title="Could not load screens" description={error} />
+      )}
 
       {!loading && !error && items.length === 0 && (
         <EmptyState
@@ -270,7 +269,7 @@ export default function ScreensPage() {
         />
       )}
 
-      {!loading && !error && items.length > 0 && (
+      {items.length > 0 && (
         <>
           <Table>
             <THead>

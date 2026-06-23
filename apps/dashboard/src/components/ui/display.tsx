@@ -101,6 +101,43 @@ export function EmptyState({ title, description }: { title: string; description?
   );
 }
 
+/** A single animated placeholder block. Use to outline content while it loads. */
+export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn('bg-muted/60 animate-pulse rounded-md', className)}
+      aria-hidden="true"
+      {...props}
+    />
+  );
+}
+
+/** Placeholder rows for a table/list while the first page of data loads. */
+export function TableSkeleton({ rows = 6, columns = 4 }: { rows?: number; columns?: number }) {
+  return (
+    <div className="space-y-1" aria-busy="true" aria-live="polite">
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="border-border flex items-center gap-4 border-b px-1 py-3">
+          {Array.from({ length: columns }).map((_, c) => (
+            <Skeleton key={c} className={cn('h-4', c === 0 ? 'w-1/4' : 'flex-1')} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Placeholder for a metric/usage card. */
+export function StatCardSkeleton() {
+  return (
+    <Card className="p-5">
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="mt-3 h-8 w-20" />
+      <Skeleton className="mt-3 h-4 w-16" />
+    </Card>
+  );
+}
+
 export function StatCard({
   label,
   value,

@@ -10,6 +10,9 @@ export {
   PageHeader,
   EmptyState,
   StatCard,
+  Skeleton,
+  TableSkeleton,
+  StatCardSkeleton,
 } from './display';
 export { Table, THead, TBody, TR, TH, TD, Pagination } from './table';
 export { Dialog } from './dialog';

@@ -47,6 +47,7 @@ import {
   Spinner,
   StatusBadge,
   Table,
+  TableSkeleton,
   TBody,
   TD,
   TH,
@@ -507,14 +508,16 @@ export default function ContentLibraryPage() {
         />
       )}
 
-      {/* List states */}
-      {loading && (
-        <div className="flex justify-center py-16">
-          <Spinner className="text-primary size-6" />
+      {/* List states. First load → skeleton; on refetch the rows stay visible. */}
+      {loading && items.length === 0 && (
+        <div className="mt-4">
+          <TableSkeleton rows={8} columns={5} />
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load content" description={error} />}
+      {error && items.length === 0 && (
+        <EmptyState title="Could not load content" description={error} />
+      )}
 
       {!loading && !error && items.length === 0 && (
         <EmptyState
@@ -531,7 +534,7 @@ export default function ContentLibraryPage() {
         />
       )}
 
-      {!loading && !error && items.length > 0 && (
+      {items.length > 0 && (
         <div className="mt-4">
           <Table>
             <THead>

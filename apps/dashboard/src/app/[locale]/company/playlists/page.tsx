@@ -15,8 +15,8 @@ import {
   Input,
   PageHeader,
   Pagination,
-  Spinner,
   Table,
+  TableSkeleton,
   TBody,
   TD,
   TH,
@@ -105,11 +105,9 @@ export default function PlaylistsPage() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <Spinner className="text-primary size-6" />
-        </div>
-      ) : error ? (
+      {loading && !data ? (
+        <TableSkeleton rows={6} columns={4} />
+      ) : error && !data ? (
         <EmptyState title="Could not load playlists" description={error} />
       ) : !data || data.items.length === 0 ? (
         <EmptyState

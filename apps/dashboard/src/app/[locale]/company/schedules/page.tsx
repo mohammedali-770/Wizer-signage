@@ -15,8 +15,8 @@ import {
   PageHeader,
   Pagination,
   Select,
-  Spinner,
   Table,
+  TableSkeleton,
   TBody,
   TD,
   TH,
@@ -116,11 +116,9 @@ export default function SchedulesPage() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <Spinner className="text-primary size-6" />
-        </div>
-      ) : error ? (
+      {loading && !data ? (
+        <TableSkeleton rows={6} columns={5} />
+      ) : error && !data ? (
         <EmptyState title="Could not load schedules" description={error} />
       ) : !data || data.items.length === 0 ? (
         <EmptyState
