@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Plus, Search } from 'lucide-react';
+import { Monitor, Plus, Search } from 'lucide-react';
 
 import { useApiResource } from '@/lib/use-api';
 import { formatDate } from '@/lib/format';
@@ -240,12 +240,27 @@ export default function ScreensPage() {
 
       {error && items.length === 0 && <EmptyState title={t('loadError')} description={error} />}
 
-      {!loading && !error && items.length === 0 && (
-        <EmptyState
-          title={t('emptyTitle')}
-          description={hasFilters ? t('emptyFiltered') : t('emptyDefault')}
-        />
-      )}
+      {!loading &&
+        !error &&
+        items.length === 0 &&
+        (hasFilters ? (
+          <EmptyState title={t('emptyTitle')} description={t('emptyFiltered')} />
+        ) : (
+          <EmptyState
+            title={t('emptyTitle')}
+            description={t('emptyDefault')}
+            icon={<Monitor aria-hidden />}
+            action={
+              <Link
+                href="/company/screens/new"
+                className="bg-primary text-primary-foreground focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
+              >
+                <Plus className="size-4" />
+                {t('newScreen')}
+              </Link>
+            }
+          />
+        ))}
 
       {items.length > 0 && (
         <>

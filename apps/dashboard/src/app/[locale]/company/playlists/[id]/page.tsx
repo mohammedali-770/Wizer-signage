@@ -2,7 +2,17 @@
 
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, Copy, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  Copy,
+  Eye,
+  GripVertical,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
 import { useLocale, useTranslations } from 'next-intl';
@@ -10,6 +20,7 @@ import { api, ApiError } from '@/lib/api';
 import { useApiResource } from '@/lib/use-api';
 import type { Playlist, PlaylistItem } from '@/lib/types';
 import { formatDuration } from '@/lib/format';
+import { cn } from '@/lib/cn';
 import { ContentPreview } from '@/components/content/content-preview';
 import {
   ContentPickerDialog,
@@ -53,6 +64,9 @@ export default function PlaylistDetailPage() {
   const [editItem, setEditItem] = useState<PlaylistItem | null>(null);
   const [metaOpen, setMetaOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // Drag-to-reorder state for the playback-order list (native HTML5 DnD, no lib).
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
 
   const run = async (fn: () => Promise<unknown>, ok?: string, after?: () => void) => {
     setBusy(true);
@@ -97,6 +111,18 @@ export default function PlaylistDetailPage() {
     const target = index + dir;
     if (target < 0 || target >= items.length) return;
     [items[index], items[target]] = [items[target]!, items[index]!];
+    return run(() =>
+      api.patch(`/playlists/${id}/items/reorder`, { itemIds: items.map((i) => i.id) }),
+    );
+  };
+
+  // Move an item from one position to another (drag-and-drop). Same reorder
+  // endpoint as the up/down buttons, which remain as the keyboard-accessible path.
+  const reorderTo = (from: number, to: number) => {
+    if (from === to) return;
+    const items = [...playlist.items];
+    const [moved] = items.splice(from, 1);
+    items.splice(to, 0, moved!);
     return run(() =>
       api.patch(`/playlists/${id}/items/reorder`, { itemIds: items.map((i) => i.id) }),
     );
@@ -222,7 +248,40 @@ export default function PlaylistDetailPage() {
           ) : (
             <ul className="divide-border divide-y">
               {playlist.items.map((item, index) => (
-                <li key={item.id} className="flex items-center gap-3 px-4 py-3">
+                <li
+                  key={item.id}
+                  draggable={editable && !busy}
+                  onDragStart={() => setDragIndex(index)}
+                  onDragOver={(e) => {
+                    if (dragIndex === null) return;
+                    e.preventDefault();
+                    setOverIndex(index);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragIndex !== null) reorderTo(dragIndex, index);
+                    setDragIndex(null);
+                    setOverIndex(null);
+                  }}
+                  onDragEnd={() => {
+                    setDragIndex(null);
+                    setOverIndex(null);
+                  }}
+                  className={cn(
+                    'flex items-center gap-3 px-4 py-3',
+                    editable && 'cursor-grab',
+                    dragIndex === index && 'opacity-50',
+                    overIndex === index && dragIndex !== null && dragIndex !== index
+                      ? 'border-primary border-t-2'
+                      : '',
+                  )}
+                >
+                  {editable ? (
+                    <GripVertical
+                      className="text-muted-foreground/60 size-4 shrink-0"
+                      aria-hidden
+                    />
+                  ) : null}
                   <span className="text-muted-foreground w-6 text-center text-sm">{index + 1}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">

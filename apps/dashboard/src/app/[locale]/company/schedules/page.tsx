@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Plus } from 'lucide-react';
+import { CalendarClock, Plus } from 'lucide-react';
 
 import { Link } from '@/i18n/navigation';
 import { useApiResource } from '@/lib/use-api';
@@ -125,7 +125,23 @@ export default function SchedulesPage() {
       ) : error && !data ? (
         <EmptyState title={t('loadError')} description={error} />
       ) : !data || data.items.length === 0 ? (
-        <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
+        search || status || type ? (
+          <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
+        ) : (
+          <EmptyState
+            icon={<CalendarClock aria-hidden />}
+            title={t('emptyTitle')}
+            description={t('emptyDescription')}
+            action={
+              <Link
+                href="/company/schedules/new"
+                className="bg-primary text-primary-foreground focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
+              >
+                <Plus className="size-4" /> {t('newSchedule')}
+              </Link>
+            }
+          />
+        )
       ) : (
         <>
           <Table>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Search, Tags, Trash2 } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
 import { useApiResource } from '@/lib/use-api';
@@ -245,12 +245,24 @@ export default function TagsPage() {
 
       {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
-      {!loading && !error && items.length === 0 && (
-        <EmptyState
-          title={t('emptyTitle')}
-          description={search || type ? t('emptyFiltered') : t('emptyDescription')}
-        />
-      )}
+      {!loading &&
+        !error &&
+        items.length === 0 &&
+        (search || type ? (
+          <EmptyState title={t('emptyTitle')} description={t('emptyFiltered')} />
+        ) : (
+          <EmptyState
+            icon={<Tags aria-hidden />}
+            title={t('emptyTitle')}
+            description={t('emptyDescription')}
+            action={
+              <Button onClick={openCreate}>
+                <Plus className="size-4" />
+                {t('new')}
+              </Button>
+            }
+          />
+        ))}
 
       {!loading && !error && items.length > 0 && (
         <>

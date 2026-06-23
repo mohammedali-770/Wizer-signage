@@ -141,11 +141,29 @@ export function PageHeader({
   );
 }
 
-export function EmptyState({ title, description }: { title: string; description?: string }) {
+export function EmptyState({
+  title,
+  description,
+  icon,
+  action,
+}: {
+  title: string;
+  description?: string;
+  /** Optional illustrative icon shown above the title (e.g. a lucide <Icon />). */
+  icon?: React.ReactNode;
+  /** Optional primary call-to-action shown below the description (e.g. a create button). */
+  action?: React.ReactNode;
+}) {
   return (
     <div className="border-border rounded-xl border border-dashed px-6 py-12 text-center">
+      {icon ? (
+        <div className="text-muted-foreground/50 mb-3 flex justify-center [&>svg]:size-10">
+          {icon}
+        </div>
+      ) : null}
       <p className="text-sm font-medium">{title}</p>
       {description ? <p className="text-muted-foreground mt-1 text-sm">{description}</p> : null}
+      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   );
 }

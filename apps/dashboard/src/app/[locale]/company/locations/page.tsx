@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Plus, Search } from 'lucide-react';
+import { MapPin, Plus, Search } from 'lucide-react';
 
 import { useApiResource } from '@/lib/use-api';
 import { formatDate, formatNumber } from '@/lib/format';
@@ -127,12 +127,27 @@ export default function LocationsPage() {
 
       {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
-      {!loading && !error && items.length === 0 && (
-        <EmptyState
-          title={t('emptyTitle')}
-          description={hasFilters ? t('emptyFiltered') : t('emptyDefault')}
-        />
-      )}
+      {!loading &&
+        !error &&
+        items.length === 0 &&
+        (hasFilters ? (
+          <EmptyState title={t('emptyTitle')} description={t('emptyFiltered')} />
+        ) : (
+          <EmptyState
+            icon={<MapPin aria-hidden />}
+            title={t('emptyTitle')}
+            description={t('emptyDefault')}
+            action={
+              <Link
+                href="/company/locations/new"
+                className="bg-primary text-primary-foreground focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
+              >
+                <Plus className="size-4" />
+                {t('newLocation')}
+              </Link>
+            }
+          />
+        ))}
 
       {!loading && !error && items.length > 0 && (
         <>

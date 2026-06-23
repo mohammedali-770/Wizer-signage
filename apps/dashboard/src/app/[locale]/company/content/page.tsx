@@ -8,6 +8,7 @@ import {
   FileText,
   Film,
   Image as ImageIcon,
+  Library,
   Link2,
   RotateCcw,
   Search,
@@ -493,6 +494,18 @@ export default function ContentLibraryPage() {
                 : status === 'ARCHIVED'
                   ? t('emptyArchived')
                   : t('emptyTrash')
+          }
+          icon={!hasFilters && status === 'ACTIVE' ? <Library aria-hidden /> : undefined}
+          action={
+            !hasFilters && status === 'ACTIVE' ? (
+              <Link
+                href="/company/content/new"
+                className="bg-primary text-primary-foreground focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
+              >
+                <Upload className="size-4" />
+                {t('uploadNew')}
+              </Link>
+            ) : undefined
           }
         />
       )}

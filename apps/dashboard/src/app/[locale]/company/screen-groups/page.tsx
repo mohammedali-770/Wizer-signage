@@ -196,12 +196,24 @@ export default function ScreenGroupsPage() {
 
       {!loading && error && <EmptyState title={t('loadErrorTitle')} description={error} />}
 
-      {!loading && !error && groups.length === 0 && (
-        <EmptyState
-          title={t('emptyTitle')}
-          description={search ? t('emptySearchDescription') : t('emptyDescription')}
-        />
-      )}
+      {!loading &&
+        !error &&
+        groups.length === 0 &&
+        (search ? (
+          <EmptyState title={t('emptyTitle')} description={t('emptySearchDescription')} />
+        ) : (
+          <EmptyState
+            icon={<Users2 aria-hidden />}
+            title={t('emptyTitle')}
+            description={t('emptyDescription')}
+            action={
+              <Button onClick={openCreate}>
+                <Plus className="size-4" />
+                {t('newGroup')}
+              </Button>
+            }
+          />
+        ))}
 
       {!loading && !error && groups.length > 0 && (
         <>
