@@ -77,7 +77,13 @@ class SyncManager(
         loop?.cancel()
     }
 
-    /** Trigger an immediate sync cycle (Phase 8 FORCE_SYNC / REFRESH_MANIFEST). */
+    /**
+     * Trigger an IMMEDIATE sync cycle, bypassing the periodic refresh delay
+     * (~60s). Cancels the running loop and relaunches it now, so it re-fetches
+     * the manifest and re-syncs right away. Invoked by the remote commands
+     * FORCE_SYNC / REFRESH_MANIFEST / RELOAD_CONFIG (Req 3) — the command poll
+     * runs every ~12s, so a dashboard "Force sync" takes effect within seconds.
+     */
     fun refreshNow() = start()
 
     /** Ask the player to restart playback from the beginning. */
@@ -214,7 +220,9 @@ class SyncManager(
                     SyncStatusReport(
                         status = status,
                         manifestSource = SOURCE_REMOTE,
-                        manifestVersion = manifest.generatedAt,
+                        // Report the stable content hash (Req 6) so the dashboard
+                        // can show whether this screen is in sync.
+                        manifestVersion = manifest.syncVersion,
                         requiredAssets = ordered.size,
                         cachedAssets = cache.cachedCount(),
                         failedDownloads = failed.size,

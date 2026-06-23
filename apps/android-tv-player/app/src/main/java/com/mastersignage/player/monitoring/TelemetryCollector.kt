@@ -32,7 +32,7 @@ class TelemetryCollector(
             currentContentId = item?.contentId,
             currentPlaylistId = manifest?.playlistId,
             currentScheduleId = manifest?.scheduleId,
-            manifestVersion = manifest?.generatedAt,
+            manifestVersion = manifest?.syncVersion,
             networkStatus = if (online) "ONLINE" else "OFFLINE",
             cacheSizeBytes = cacheSize,
             availableStorageBytes = available,

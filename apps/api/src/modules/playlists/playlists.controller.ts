@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
@@ -6,6 +17,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
+import { ManifestRefreshInterceptor } from '../sync/manifest-refresh.interceptor';
 import {
   AddPlaylistItemDto,
   CreatePlaylistDto,
@@ -20,6 +32,7 @@ import { PlaylistsService } from './playlists.service';
 @ApiTags('playlists')
 @ApiBearerAuth()
 @Controller('playlists')
+@UseInterceptors(ManifestRefreshInterceptor)
 export class PlaylistsController {
   constructor(private readonly playlists: PlaylistsService) {}
 

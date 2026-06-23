@@ -18,6 +18,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
+import { ManifestRefreshInterceptor } from '../sync/manifest-refresh.interceptor';
 import { ContentCleanupService } from './content-cleanup.service';
 import { ContentService } from './content.service';
 import {
@@ -36,6 +37,7 @@ const UPLOAD_LIMIT = { limits: { fileSize: 300 * 1024 * 1024 } };
 @ApiTags('content')
 @ApiBearerAuth()
 @Controller('content')
+@UseInterceptors(ManifestRefreshInterceptor)
 export class ContentController {
   constructor(
     private readonly content: ContentService,

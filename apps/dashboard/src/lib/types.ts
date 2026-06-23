@@ -860,6 +860,8 @@ export interface ManifestItem {
 export interface PlaybackManifest {
   screenId: string;
   generatedAt: string;
+  /** Stable content fingerprint (sha256) — see backend ScreenPlaybackManifest. */
+  manifestHash: string;
   timezone: string;
   sourceType: ManifestSourceType;
   scheduleId: string | null;

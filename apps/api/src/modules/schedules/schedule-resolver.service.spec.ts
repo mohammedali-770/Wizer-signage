@@ -67,29 +67,25 @@ function build() {
   const prisma: any = {
     screen: { findFirst: jest.fn().mockResolvedValue(screen()) },
     company: {
-      findFirst: jest
-        .fn()
-        .mockResolvedValue({
-          timezone: 'UTC',
-          settings: {},
-          fallbackContentId: null,
-          status: 'ACTIVE',
-        }),
+      findFirst: jest.fn().mockResolvedValue({
+        timezone: 'UTC',
+        settings: {},
+        fallbackContentId: null,
+        status: 'ACTIVE',
+      }),
     },
     schedule: { findMany: jest.fn().mockResolvedValue([]) },
     emergencyBroadcast: { findMany: jest.fn().mockResolvedValue([]) },
     playlistItem: {
-      findMany: jest
-        .fn()
-        .mockResolvedValue([
-          {
-            contentId: 'c1',
-            durationSeconds: null,
-            playFullVideo: false,
-            pdfPageDurationSeconds: null,
-            content: content(),
-          },
-        ]),
+      findMany: jest.fn().mockResolvedValue([
+        {
+          contentId: 'c1',
+          durationSeconds: null,
+          playFullVideo: false,
+          pdfPageDurationSeconds: null,
+          content: content(),
+        },
+      ]),
     },
     content: { findFirst: jest.fn().mockResolvedValue(content()) },
   };
@@ -309,5 +305,49 @@ describe('ScheduleResolverService emergency pre-emption (Phase 9)', () => {
     t.prisma.emergencyBroadcast.findMany.mockResolvedValue([]); // ended → not returned by the ACTIVE query
     const manifest = await t.service.resolve('comp1', 's1', AT);
     expect(manifest.sourceType).toBe('SCHEDULE');
+  });
+});
+
+describe('ScheduleResolverService manifest hash (Req 6)', () => {
+  it('stamps a 64-char sha256 manifestHash on the manifest', async () => {
+    const t = build();
+    t.prisma.schedule.findMany.mockResolvedValue([schedule()]);
+    const manifest = await t.service.resolve('comp1', 's1', AT);
+    expect(manifest.manifestHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('is stable across re-resolves of unchanged config (ignores generatedAt)', async () => {
+    const t = build();
+    t.prisma.schedule.findMany.mockResolvedValue([schedule()]);
+    const a = await t.service.resolve('comp1', 's1', new Date('2026-06-15T12:00:00Z'));
+    const b = await t.service.resolve('comp1', 's1', new Date('2026-06-15T12:30:00Z'));
+    expect(a.generatedAt).not.toEqual(b.generatedAt); // volatile field differs
+    expect(a.manifestHash).toBe(b.manifestHash); // content fingerprint stays the same
+  });
+
+  it('changes when the played content version (updatedAt) changes', async () => {
+    const t = build();
+    t.prisma.schedule.findMany.mockResolvedValue([schedule()]);
+    const before = await t.service.resolve('comp1', 's1', AT);
+    t.prisma.playlistItem.findMany.mockResolvedValue([
+      {
+        contentId: 'c1',
+        durationSeconds: null,
+        playFullVideo: false,
+        pdfPageDurationSeconds: null,
+        content: content({ updatedAt: new Date('2026-06-17T00:00:00Z') }),
+      },
+    ]);
+    const after = await t.service.resolve('comp1', 's1', AT);
+    expect(after.manifestHash).not.toBe(before.manifestHash);
+  });
+
+  it('differs between a SCHEDULE manifest and an empty NONE manifest', async () => {
+    const scheduled = build();
+    scheduled.prisma.schedule.findMany.mockResolvedValue([schedule()]);
+    const withSchedule = await scheduled.service.resolve('comp1', 's1', AT);
+    const empty = build(); // no schedule → NONE
+    const none = await empty.service.resolve('comp1', 's1', AT);
+    expect(withSchedule.manifestHash).not.toBe(none.manifestHash);
   });
 });

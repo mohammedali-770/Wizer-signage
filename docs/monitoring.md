@@ -67,6 +67,28 @@ Viewer / Content Manager are read-only. **Tenant isolation:** a device only ever
 fetches/acks/results commands for **its own screen** (token-scoped); admins only
 issue commands to their **own company's** screens.
 
+### Automatic refresh on content change (push, not just poll)
+
+Editing a **playlist, schedule, or content** automatically dispatches a
+`REFRESH_MANIFEST` to the company's paired screens (a `ManifestRefreshInterceptor`
+on those controllers fires after any successful write). Screens therefore pick up
+changes within one command-poll cycle (**~12 s**) instead of waiting for the
+periodic manifest refresh (**~60 s**). The dispatch is **best-effort** (never
+breaks the write), **deduped** server-side (a screen with a queued refresh is not
+re-queued), and **idempotent** on the device (it re-resolves and compares the
+manifest hash — a no-op if nothing changed). A dashboard **Force sync** is the
+manual equivalent.
+
+### Manifest hash & in-sync status
+
+The playback manifest carries a stable `manifestHash` — a sha256 fingerprint of
+_what plays_ (items + schedule/playlist/emergency identity + priority + message),
+excluding volatile fields (`generatedAt`, rotating signed URLs). It changes only
+when the effective configuration changes. The player reports the hash it last
+applied (as its synced manifest version), so the screen detail page shows the
+**current** manifest hash, what the **device** is synced to, and an **In sync /
+Update pending** badge.
+
 ### Android command handling
 
 The player polls every ~12 s, acks, executes, and reports a result. Handling is

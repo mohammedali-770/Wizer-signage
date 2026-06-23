@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   CompanyStatus,
@@ -62,6 +64,15 @@ export type ManifestSourceType = 'SCHEDULE' | 'FALLBACK' | 'EMERGENCY' | 'NONE';
 export interface ScreenPlaybackManifest {
   screenId: string;
   generatedAt: string;
+  /**
+   * Stable SHA-256 fingerprint of WHAT plays (items + schedule/playlist/
+   * emergency identity + priority + message), excluding volatile fields like
+   * generatedAt and rotating signed URLs. Changes only when the effective
+   * playback configuration changes, so the player and dashboard can detect
+   * "out of date" cheaply (Req 6). The player reports this back as its synced
+   * manifest version.
+   */
+  manifestHash: string;
   timezone: string;
   sourceType: ManifestSourceType;
   scheduleId: string | null;
@@ -118,7 +129,53 @@ export class ScheduleResolverService {
     private readonly storage: StorageService,
   ) {}
 
+  /**
+   * Resolve the screen's playback manifest and stamp a stable content hash on it
+   * (Req 6). The hash is computed over the final manifest so it is identical
+   * across re-resolves of unchanged configuration (it ignores generatedAt and
+   * rotating signed URLs).
+   */
   async resolve(
+    companyId: string,
+    screenId: string,
+    at: Date = new Date(),
+  ): Promise<ScreenPlaybackManifest> {
+    const manifest = await this.resolveManifest(companyId, screenId, at);
+    manifest.manifestHash = this.computeManifestHash(manifest);
+    return manifest;
+  }
+
+  /** Stable fingerprint of WHAT plays — excludes volatile generatedAt/signedUrl. */
+  private computeManifestHash(m: ScreenPlaybackManifest): string {
+    const fingerprint = JSON.stringify({
+      sourceType: m.sourceType,
+      scheduleId: m.scheduleId,
+      playlistId: m.playlistId,
+      emergencyBroadcastId: m.emergencyBroadcastId,
+      priority: m.priority,
+      outsideHours: m.outsideHours,
+      outsideHoursBehavior: m.outsideHoursBehavior,
+      message: m.message,
+      items: m.items.map((it) => ({
+        contentId: it.contentId,
+        type: it.type,
+        // version is content.updatedAt — bumps on ANY content edit, so it already
+        // captures title/orientation/etc. changes; orientation + title are
+        // included explicitly too for a directly-representative fingerprint.
+        version: it.version,
+        orientation: it.orientation,
+        title: it.title,
+        durationSeconds: it.durationSeconds,
+        playFullVideo: it.playFullVideo,
+        pdfPageDurationSeconds: it.pdfPageDurationSeconds,
+        url: it.url,
+        textBody: it.textBody,
+      })),
+    });
+    return createHash('sha256').update(fingerprint, 'utf8').digest('hex');
+  }
+
+  private async resolveManifest(
     companyId: string,
     screenId: string,
     at: Date = new Date(),
@@ -148,6 +205,9 @@ export class ScheduleResolverService {
     const base: ScreenPlaybackManifest = {
       screenId,
       generatedAt: at.toISOString(),
+      // Placeholder; the public resolve() wrapper stamps the real hash over the
+      // final manifest. Every return path spreads `base`, so this propagates.
+      manifestHash: '',
       timezone,
       sourceType: 'NONE',
       scheduleId: null,

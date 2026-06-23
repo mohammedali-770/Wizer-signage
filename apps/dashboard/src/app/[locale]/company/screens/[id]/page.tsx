@@ -16,6 +16,7 @@ import type {
   LocationListItem,
   Orientation,
   Paginated,
+  PlaybackManifest,
   Screen,
   ScreenGroup,
   ScreenMonitoring,
@@ -165,6 +166,9 @@ export default function ScreenDetailPage() {
   } = useApiResource<Screen>(id ? `/screens/${id}` : null);
   const pairing = useApiResource<ScreenPairingStatus>(id ? `/screens/${id}/pairing-status` : null);
   const monitoring = useApiResource<ScreenMonitoring>(id ? `/screens/${id}/monitoring` : null);
+  // Current backend manifest — to show the live manifest version/hash and whether
+  // the paired device is in sync with it (Req 6).
+  const manifest = useApiResource<PlaybackManifest>(id ? `/screens/${id}/playback-manifest` : null);
   const commands = useApiResource<Paginated<DeviceCommand>>(
     id ? `/screens/${id}/commands?pageSize=8` : null,
   );
@@ -637,6 +641,37 @@ export default function ScreenDetailPage() {
                         ? formatDateTime(pairing.data.sync.lastSyncAt, locale)
                         : '—'}
                     </DetailRow>
+                    <DetailRow label="Current manifest">
+                      {manifest.data?.manifestHash ? (
+                        <span className="font-mono text-xs">
+                          {manifest.data.manifestHash.slice(0, 12)}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </DetailRow>
+                    <DetailRow label="Device synced to">
+                      {(() => {
+                        // Defensive: TS narrowing from the outer `sync` guard does
+                        // not flow into this closure.
+                        const reported = pairing.data?.sync?.manifestVersion;
+                        if (!reported) return '—';
+                        const isHash = /^[0-9a-f]{64}$/.test(reported);
+                        const current = manifest.data?.manifestHash ?? null;
+                        return (
+                          <span className="flex items-center justify-end gap-2">
+                            <span className="font-mono text-xs">{reported.slice(0, 12)}</span>
+                            {isHash && current ? (
+                              reported === current ? (
+                                <Badge tone="success">In sync</Badge>
+                              ) : (
+                                <Badge tone="warning">Update pending</Badge>
+                              )
+                            ) : null}
+                          </span>
+                        );
+                      })()}
+                    </DetailRow>
                     {pairing.data.sync.lastError ? (
                       <DetailRow label="Last error">
                         <span className="text-red-600 dark:text-red-400">
@@ -709,9 +744,10 @@ export default function ScreenDetailPage() {
                 </div>
 
                 <div className="border-border flex flex-wrap gap-2 border-t pt-3">
+                  {/* Primary action — pushes a force-sync so the screen re-fetches
+                      and re-downloads immediately (Req 4). */}
                   <Button
                     size="sm"
-                    variant="outline"
                     disabled={busy}
                     onClick={() => monitorAction('force-sync', 'Force sync')}
                   >

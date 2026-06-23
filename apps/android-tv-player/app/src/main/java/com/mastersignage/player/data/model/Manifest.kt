@@ -12,6 +12,14 @@ import kotlinx.serialization.Serializable
 data class PlaybackManifest(
     val screenId: String,
     val generatedAt: String = "",
+    /**
+     * Stable content fingerprint (sha256) from the backend. Unlike generatedAt
+     * (which changes every resolve), this only changes when WHAT plays changes.
+     * Reported back as the device's synced manifest version so the dashboard can
+     * show in-sync status (Req 6). Null on older backends → falls back to
+     * generatedAt.
+     */
+    val manifestHash: String? = null,
     val timezone: String = "UTC",
     val sourceType: String = SOURCE_NONE, // SCHEDULE | FALLBACK | EMERGENCY | NONE
     val scheduleId: String? = null,
@@ -27,6 +35,13 @@ data class PlaybackManifest(
     val items: List<ManifestItem> = emptyList(),
     val warnings: List<String> = emptyList(),
 ) {
+    /**
+     * The value to report as the device's synced manifest version: the stable
+     * content hash when the backend provides it, else the generatedAt timestamp.
+     */
+    val syncVersion: String
+        get() = manifestHash ?: generatedAt
+
     companion object {
         const val SOURCE_SCHEDULE = "SCHEDULE"
         const val SOURCE_FALLBACK = "FALLBACK"

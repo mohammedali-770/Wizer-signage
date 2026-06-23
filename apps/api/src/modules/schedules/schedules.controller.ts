@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ScheduleStatus } from '@prisma/client';
 
@@ -7,6 +18,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
+import { ManifestRefreshInterceptor } from '../sync/manifest-refresh.interceptor';
 import {
   AddScheduleTargetDto,
   CreateScheduleDto,
@@ -18,6 +30,7 @@ import { SchedulesService } from './schedules.service';
 @ApiTags('schedules')
 @ApiBearerAuth()
 @Controller('schedules')
+@UseInterceptors(ManifestRefreshInterceptor)
 export class SchedulesController {
   constructor(private readonly schedules: SchedulesService) {}
 
