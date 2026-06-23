@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 
 import { Link } from '@/i18n/navigation';
@@ -24,11 +24,14 @@ import {
   TR,
 } from '@/components/ui';
 
-const TABS: { label: string; value: '' | PlaylistStatus }[] = [
-  { label: 'All', value: '' },
-  { label: 'Active', value: 'ACTIVE' },
-  { label: 'Draft', value: 'DRAFT' },
-  { label: 'Archived', value: 'ARCHIVED' },
+const TABS: {
+  labelKey: 'tabAll' | 'tabActive' | 'tabDraft' | 'tabArchived';
+  value: '' | PlaylistStatus;
+}[] = [
+  { labelKey: 'tabAll', value: '' },
+  { labelKey: 'tabActive', value: 'ACTIVE' },
+  { labelKey: 'tabDraft', value: 'DRAFT' },
+  { labelKey: 'tabArchived', value: 'ARCHIVED' },
 ];
 
 const STATUS_TONE: Record<PlaylistStatus, 'success' | 'neutral' | 'warning'> = {
@@ -39,6 +42,8 @@ const STATUS_TONE: Record<PlaylistStatus, 'success' | 'neutral' | 'warning'> = {
 
 export default function PlaylistsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.playlists');
+  const tc = useTranslations('common');
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<'' | PlaylistStatus>('');
   const [search, setSearch] = useState('');
@@ -61,14 +66,14 @@ export default function PlaylistsPage() {
   return (
     <div>
       <PageHeader
-        title="Playlists"
-        description="Sequence ready-made content for your screens."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Link
             href="/company/playlists/new"
             className="bg-primary text-primary-foreground focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
           >
-            <Plus className="size-4" /> New playlist
+            <Plus className="size-4" /> {t('newPlaylist')}
           </Link>
         }
       />
@@ -88,19 +93,19 @@ export default function PlaylistsPage() {
                   : 'text-muted-foreground hover:bg-muted'
               }`}
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
         <div className="flex flex-1 gap-2">
           <Input
-            placeholder="Search playlists…"
+            placeholder={t('searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && applySearch()}
           />
           <Button variant="outline" onClick={applySearch}>
-            Search
+            {tc('search')}
           </Button>
         </div>
       </div>
@@ -108,21 +113,18 @@ export default function PlaylistsPage() {
       {loading && !data ? (
         <TableSkeleton rows={6} columns={4} />
       ) : error && !data ? (
-        <EmptyState title="Could not load playlists" description={error} />
+        <EmptyState title={t('loadError')} description={error} />
       ) : !data || data.items.length === 0 ? (
-        <EmptyState
-          title="No playlists yet"
-          description="Create a playlist to start sequencing content."
-        />
+        <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       ) : (
         <>
           <Table>
             <THead>
               <TR>
-                <TH>Title</TH>
-                <TH>Status</TH>
-                <TH>Items</TH>
-                <TH>Updated</TH>
+                <TH>{t('colTitle')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH>{tc('items')}</TH>
+                <TH>{tc('updated')}</TH>
               </TR>
             </THead>
             <TBody>

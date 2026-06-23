@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Plus, Search } from 'lucide-react';
 
 import { useApiResource } from '@/lib/use-api';
@@ -30,6 +30,8 @@ const STATUS_OPTIONS: LocationStatus[] = ['ACTIVE', 'INACTIVE', 'ARCHIVED'];
 
 export default function LocationsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.locations');
+  const tc = useTranslations('common');
 
   // Applied (committed) query state that drives the request.
   const [page, setPage] = useState(1);
@@ -69,15 +71,15 @@ export default function LocationsPage() {
   return (
     <div>
       <PageHeader
-        title="Locations"
-        description="Sites where your screens are deployed."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Link
             href="/company/locations/new"
             className="bg-primary text-primary-foreground focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
           >
             <Plus className="size-4" />
-            New Location
+            {t('newLocation')}
           </Link>
         }
       />
@@ -95,9 +97,9 @@ export default function LocationsPage() {
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by name or code…"
+              placeholder={t('searchPlaceholder')}
               className="ps-9"
-              aria-label="Search locations"
+              aria-label={t('searchAriaLabel')}
             />
           </div>
         </form>
@@ -106,9 +108,9 @@ export default function LocationsPage() {
           value={status}
           onChange={(e) => onStatusChange(e.target.value)}
           className="w-44"
-          aria-label="Filter by status"
+          aria-label={t('filterByStatus')}
         >
-          <option value="">All statuses</option>
+          <option value="">{t('allStatuses')}</option>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -123,16 +125,12 @@ export default function LocationsPage() {
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load locations" description={error} />}
+      {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && items.length === 0 && (
         <EmptyState
-          title="No locations found"
-          description={
-            hasFilters
-              ? 'Try adjusting your search or status filter.'
-              : 'Create your first location to get started.'
-          }
+          title={t('emptyTitle')}
+          description={hasFilters ? t('emptyFiltered') : t('emptyDefault')}
         />
       )}
 
@@ -141,12 +139,12 @@ export default function LocationsPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Name</TH>
-                <TH>Code</TH>
-                <TH>City</TH>
-                <TH>Status</TH>
-                <TH className="text-end">Screens</TH>
-                <TH>Created</TH>
+                <TH>{tc('name')}</TH>
+                <TH>{t('code')}</TH>
+                <TH>{t('city')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH className="text-end">{t('screens')}</TH>
+                <TH>{tc('created')}</TH>
               </TR>
             </THead>
             <TBody>

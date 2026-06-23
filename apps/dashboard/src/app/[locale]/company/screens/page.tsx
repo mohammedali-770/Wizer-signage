@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Plus, Search } from 'lucide-react';
 
 import { useApiResource } from '@/lib/use-api';
@@ -82,6 +82,8 @@ function screenUseLabel(use: ScreenUse | null): string {
 
 export default function ScreensPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.screens');
+  const tc = useTranslations('common');
 
   // Applied (committed) query state that drives the request.
   const [page, setPage] = useState(1);
@@ -129,15 +131,15 @@ export default function ScreensPage() {
   return (
     <div>
       <PageHeader
-        title="Screens"
-        description="Displays paired and managed across your locations."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Link
             href="/company/screens/new"
             className="bg-primary text-primary-foreground focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
           >
             <Plus className="size-4" />
-            New Screen
+            {t('newScreen')}
           </Link>
         }
       />
@@ -155,13 +157,13 @@ export default function ScreensPage() {
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by name or code…"
+              placeholder={t('searchPlaceholder')}
               className="ps-9"
-              aria-label="Search screens"
+              aria-label={t('searchAriaLabel')}
             />
           </div>
           <Button type="submit" variant="outline">
-            Search
+            {tc('search')}
           </Button>
         </form>
 
@@ -172,9 +174,9 @@ export default function ScreensPage() {
             resetPage();
           }}
           className="w-44"
-          aria-label="Filter by location"
+          aria-label={t('filterByLocation')}
         >
-          <option value="">All locations</option>
+          <option value="">{t('allLocations')}</option>
           {(locations.data?.items ?? []).map((l) => (
             <option key={l.id} value={l.id}>
               {l.name}
@@ -189,9 +191,9 @@ export default function ScreensPage() {
             resetPage();
           }}
           className="w-40"
-          aria-label="Filter by status"
+          aria-label={t('filterByStatus')}
         >
-          <option value="">All statuses</option>
+          <option value="">{t('allStatuses')}</option>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -206,9 +208,9 @@ export default function ScreensPage() {
             resetPage();
           }}
           className="w-40"
-          aria-label="Filter by orientation"
+          aria-label={t('filterByOrientation')}
         >
-          <option value="">All orientations</option>
+          <option value="">{t('allOrientations')}</option>
           {ORIENTATION_OPTIONS.map((o) => (
             <option key={o} value={o}>
               {ORIENTATION_LABELS[o]}
@@ -223,9 +225,9 @@ export default function ScreensPage() {
             resetPage();
           }}
           className="w-44"
-          aria-label="Filter by use"
+          aria-label={t('filterByUse')}
         >
-          <option value="">All uses</option>
+          <option value="">{t('allUses')}</option>
           {USE_OPTIONS.map((u) => (
             <option key={u} value={u}>
               {USE_LABELS[u]}
@@ -240,9 +242,9 @@ export default function ScreensPage() {
             resetPage();
           }}
           className="w-40"
-          aria-label="Filter by tag"
+          aria-label={t('filterByTag')}
         >
-          <option value="">All tags</option>
+          <option value="">{t('allTags')}</option>
           {(tags.data?.items ?? []).map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -254,18 +256,12 @@ export default function ScreensPage() {
       {/* First load → skeleton; on refetch the previous rows stay visible. */}
       {loading && items.length === 0 && <TableSkeleton rows={8} columns={6} />}
 
-      {error && items.length === 0 && (
-        <EmptyState title="Could not load screens" description={error} />
-      )}
+      {error && items.length === 0 && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && items.length === 0 && (
         <EmptyState
-          title="No screens found"
-          description={
-            hasFilters
-              ? 'Try adjusting your search or filters.'
-              : 'Create your first screen to get started.'
-          }
+          title={t('emptyTitle')}
+          description={hasFilters ? t('emptyFiltered') : t('emptyDefault')}
         />
       )}
 
@@ -274,13 +270,13 @@ export default function ScreensPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Name</TH>
-                <TH>Location</TH>
-                <TH>Use</TH>
-                <TH>Orientation</TH>
-                <TH>Status</TH>
-                <TH>Tags</TH>
-                <TH>Created</TH>
+                <TH>{tc('name')}</TH>
+                <TH>{tc('location')}</TH>
+                <TH>{t('use')}</TH>
+                <TH>{tc('orientation')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH>{tc('tags')}</TH>
+                <TH>{tc('created')}</TH>
               </TR>
             </THead>
             <TBody>

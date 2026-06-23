@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 
 import { Link } from '@/i18n/navigation';
@@ -24,11 +24,11 @@ import {
   TR,
 } from '@/components/ui';
 
-const TABS: { label: string; value: '' | ScheduleStatus }[] = [
-  { label: 'All', value: '' },
-  { label: 'Active', value: 'ACTIVE' },
-  { label: 'Paused', value: 'PAUSED' },
-  { label: 'Archived', value: 'ARCHIVED' },
+const TABS: { tkey: 'all' | 'active' | 'paused' | 'archived'; value: '' | ScheduleStatus }[] = [
+  { tkey: 'all', value: '' },
+  { tkey: 'active', value: 'ACTIVE' },
+  { tkey: 'paused', value: 'PAUSED' },
+  { tkey: 'archived', value: 'ARCHIVED' },
 ];
 
 const STATUS_TONE: Record<ScheduleStatus, 'success' | 'warning' | 'neutral'> = {
@@ -39,6 +39,8 @@ const STATUS_TONE: Record<ScheduleStatus, 'success' | 'warning' | 'neutral'> = {
 
 export default function SchedulesPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.schedules');
+  const tc = useTranslations('common');
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<'' | ScheduleStatus>('');
   const [type, setType] = useState<'' | ScheduleType>('');
@@ -58,14 +60,14 @@ export default function SchedulesPage() {
   return (
     <div>
       <PageHeader
-        title="Schedules"
-        description="Decide what plays where and when, with priorities and campaigns."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Link
             href="/company/schedules/new"
             className="bg-primary text-primary-foreground focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
           >
-            <Plus className="size-4" /> New schedule
+            <Plus className="size-4" /> {t('newSchedule')}
           </Link>
         }
       />
@@ -85,11 +87,12 @@ export default function SchedulesPage() {
                   : 'text-muted-foreground hover:bg-muted'
               }`}
             >
-              {tab.label}
+              {t(`tabs.${tab.tkey}`)}
             </button>
           ))}
         </div>
         <Select
+          aria-label={t('filterByType')}
           value={type}
           onChange={(e) => {
             setType(e.target.value as '' | ScheduleType);
@@ -97,13 +100,14 @@ export default function SchedulesPage() {
           }}
           className="w-40"
         >
-          <option value="">All types</option>
-          <option value="NORMAL">Normal</option>
-          <option value="CAMPAIGN">Campaign</option>
+          <option value="">{t('allTypes')}</option>
+          <option value="NORMAL">{t('typeNormal')}</option>
+          <option value="CAMPAIGN">{t('typeCampaign')}</option>
         </Select>
         <div className="flex flex-1 gap-2">
           <Input
-            placeholder="Search schedules…"
+            aria-label={tc('search')}
+            placeholder={t('searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => {
@@ -119,24 +123,21 @@ export default function SchedulesPage() {
       {loading && !data ? (
         <TableSkeleton rows={6} columns={5} />
       ) : error && !data ? (
-        <EmptyState title="Could not load schedules" description={error} />
+        <EmptyState title={t('loadError')} description={error} />
       ) : !data || data.items.length === 0 ? (
-        <EmptyState
-          title="No schedules yet"
-          description="Create a schedule to assign a playlist to screens."
-        />
+        <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       ) : (
         <>
           <Table>
             <THead>
               <TR>
-                <TH>Name</TH>
-                <TH>Status</TH>
-                <TH>Type</TH>
-                <TH>Priority</TH>
-                <TH>Playlist</TH>
-                <TH>Targets</TH>
-                <TH>Dates</TH>
+                <TH>{tc('name')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH>{tc('type')}</TH>
+                <TH>{t('priority')}</TH>
+                <TH>{t('playlist')}</TH>
+                <TH>{t('targets')}</TH>
+                <TH>{t('dates')}</TH>
               </TR>
             </THead>
             <TBody>

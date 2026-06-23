@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Pencil, Plus, Search, Trash2, Users2 } from 'lucide-react';
 
 import { api, apiFetch, ApiError } from '@/lib/api';
@@ -50,6 +50,8 @@ function formFromGroup(group: ScreenGroup): GroupFormState {
 
 export default function ScreenGroupsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.screenGroups');
+  const tc = useTranslations('common');
   const { toast } = useToast();
 
   const [page, setPage] = useState(1);
@@ -152,12 +154,12 @@ export default function ScreenGroupsPage() {
   return (
     <div>
       <PageHeader
-        title="Screen Groups"
-        description="Organise screens into groups for bulk targeting and management."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Button onClick={openCreate}>
             <Plus className="size-4" />
-            New Group
+            {t('newGroup')}
           </Button>
         }
       />
@@ -175,13 +177,13 @@ export default function ScreenGroupsPage() {
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search groups…"
+              placeholder={t('searchPlaceholder')}
               className="ps-9"
-              aria-label="Search groups"
+              aria-label={t('searchAriaLabel')}
             />
           </div>
           <Button type="submit" variant="outline">
-            Search
+            {tc('search')}
           </Button>
         </form>
       </div>
@@ -192,16 +194,12 @@ export default function ScreenGroupsPage() {
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load screen groups" description={error} />}
+      {!loading && error && <EmptyState title={t('loadErrorTitle')} description={error} />}
 
       {!loading && !error && groups.length === 0 && (
         <EmptyState
-          title="No screen groups found"
-          description={
-            search
-              ? 'Try adjusting your search.'
-              : 'Create your first group to start organising screens.'
-          }
+          title={t('emptyTitle')}
+          description={search ? t('emptySearchDescription') : t('emptyDescription')}
         />
       )}
 
@@ -210,11 +208,11 @@ export default function ScreenGroupsPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Name</TH>
-                <TH>Category</TH>
-                <TH>Description</TH>
-                <TH className="text-end">Screens</TH>
-                <TH className="text-end">Actions</TH>
+                <TH>{tc('name')}</TH>
+                <TH>{t('columnCategory')}</TH>
+                <TH>{t('columnDescription')}</TH>
+                <TH className="text-end">{t('columnScreens')}</TH>
+                <TH className="text-end">{tc('actions')}</TH>
               </TR>
             </THead>
             <TBody>

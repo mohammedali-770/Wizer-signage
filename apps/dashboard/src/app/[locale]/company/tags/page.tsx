@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -78,6 +78,8 @@ function formFromTag(tag: Tag): FormState {
 
 export default function TagsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.tags');
+  const tc = useTranslations('common');
   const { toast } = useToast();
 
   // Applied (committed) query state.
@@ -192,12 +194,12 @@ export default function TagsPage() {
   return (
     <div>
       <PageHeader
-        title="Tags"
-        description="Label and organize screens — and, in a later phase, content too."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Button onClick={openCreate}>
             <Plus className="size-4" />
-            New Tag
+            {t('new')}
           </Button>
         }
       />
@@ -215,13 +217,13 @@ export default function TagsPage() {
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search tags…"
+              placeholder={t('searchPlaceholder')}
               className="ps-9"
-              aria-label="Search tags"
+              aria-label={t('searchPlaceholder')}
             />
           </div>
           <Button type="submit" variant="outline">
-            Search
+            {tc('search')}
           </Button>
         </form>
 
@@ -229,9 +231,9 @@ export default function TagsPage() {
           value={type}
           onChange={(e) => onTypeChange(e.target.value)}
           className="w-44"
-          aria-label="Filter by type"
+          aria-label={t('filterByType')}
         >
-          <option value="">All types</option>
+          <option value="">{t('allTypes')}</option>
           {TAG_TYPES.map((t) => (
             <option key={t} value={t}>
               {TYPE_LABELS[t]}
@@ -246,16 +248,12 @@ export default function TagsPage() {
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load tags" description={error} />}
+      {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && items.length === 0 && (
         <EmptyState
-          title="No tags found"
-          description={
-            search || type
-              ? 'Try adjusting your search or type filter.'
-              : 'Create your first tag to start organizing screens.'
-          }
+          title={t('emptyTitle')}
+          description={search || type ? t('emptyFiltered') : t('emptyDescription')}
         />
       )}
 
@@ -264,11 +262,11 @@ export default function TagsPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Name</TH>
-                <TH>Type</TH>
-                <TH>Description</TH>
-                <TH className="text-end">Screens</TH>
-                <TH className="text-end">Actions</TH>
+                <TH>{tc('name')}</TH>
+                <TH>{tc('type')}</TH>
+                <TH>{t('columnDescription')}</TH>
+                <TH className="text-end">{t('columnScreens')}</TH>
+                <TH className="text-end">{tc('actions')}</TH>
               </TR>
             </THead>
             <TBody>

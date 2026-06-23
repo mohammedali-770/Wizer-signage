@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Archive,
   ArchiveRestore,
@@ -147,6 +147,8 @@ const BULK_ACTIONS: Record<
 
 export default function ContentLibraryPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.content');
+  const tc = useTranslations('common');
   const { toast } = useToast();
 
   // Committed query state.
@@ -339,15 +341,15 @@ export default function ContentLibraryPage() {
   return (
     <div>
       <PageHeader
-        title="Content Library"
-        description="Images, videos, PDFs, links, and text — managed across your screens."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Link
             href="/company/content/new"
             className="bg-primary text-primary-foreground focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
           >
             <Upload className="size-4" />
-            Upload / New
+            {t('uploadNew')}
           </Link>
         }
       />
@@ -370,7 +372,7 @@ export default function ContentLibraryPage() {
               }
               aria-pressed={status === tab.value}
             >
-              {tab.label}
+              {t(`tabs.${tab.value}`)}
               {usage.data ? (
                 <span className="text-muted-foreground ms-1.5 text-xs">
                   {formatNumber(usage.data.counts.byStatus[tab.value] ?? 0, locale)}
@@ -383,7 +385,7 @@ export default function ContentLibraryPage() {
         {status === 'TRASH' ? (
           <Button variant="danger" onClick={() => setPurgeOpen(true)}>
             <Trash2 className="size-4" />
-            Purge trash older than 14 days
+            {t('purgeOld')}
           </Button>
         ) : null}
       </div>
@@ -402,13 +404,13 @@ export default function ContentLibraryPage() {
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by title…"
+              placeholder={t('searchPlaceholder')}
               className="ps-9"
-              aria-label="Search content"
+              aria-label={t('searchAria')}
             />
           </div>
           <Button type="submit" variant="outline">
-            Search
+            {tc('search')}
           </Button>
         </form>
 
@@ -419,9 +421,9 @@ export default function ContentLibraryPage() {
             resetPage();
           }}
           className="w-36"
-          aria-label="Filter by type"
+          aria-label={t('filterTypeAria')}
         >
-          <option value="">All types</option>
+          <option value="">{t('allTypes')}</option>
           {TYPE_OPTIONS.map((t) => (
             <option key={t} value={t}>
               {TYPE_LABELS[t]}
@@ -436,9 +438,9 @@ export default function ContentLibraryPage() {
             resetPage();
           }}
           className="w-40"
-          aria-label="Filter by orientation"
+          aria-label={t('filterOrientationAria')}
         >
-          <option value="">All orientations</option>
+          <option value="">{t('allOrientations')}</option>
           {ORIENTATION_OPTIONS.map((o) => (
             <option key={o} value={o}>
               {ORIENTATION_LABELS[o]}
@@ -453,9 +455,9 @@ export default function ContentLibraryPage() {
             resetPage();
           }}
           className="w-40"
-          aria-label="Filter by tag"
+          aria-label={t('filterTagAria')}
         >
-          <option value="">All tags</option>
+          <option value="">{t('allTags')}</option>
           {contentTags.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -470,11 +472,11 @@ export default function ContentLibraryPage() {
             resetPage();
           }}
           className="w-44"
-          aria-label="Filter by expiry"
+          aria-label={t('filterExpiryAria')}
         >
           {EXPIRY_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {t(`expiry.${o.value || 'any'}`)}
             </option>
           ))}
         </Select>
@@ -486,11 +488,11 @@ export default function ContentLibraryPage() {
             resetPage();
           }}
           className="w-36"
-          aria-label="Sort"
+          aria-label={t('sortAria')}
         >
           {SORT_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {t(`sort.${o.value}`)}
             </option>
           ))}
         </Select>
@@ -515,21 +517,19 @@ export default function ContentLibraryPage() {
         </div>
       )}
 
-      {error && items.length === 0 && (
-        <EmptyState title="Could not load content" description={error} />
-      )}
+      {error && items.length === 0 && <EmptyState title={t('errorTitle')} description={error} />}
 
       {!loading && !error && items.length === 0 && (
         <EmptyState
-          title="No content found"
+          title={t('emptyTitle')}
           description={
             hasFilters
-              ? 'Try adjusting your search or filters.'
+              ? t('emptyFiltered')
               : status === 'ACTIVE'
-                ? 'Upload your first image, video, PDF, link, or text item to get started.'
+                ? t('emptyActive')
                 : status === 'ARCHIVED'
-                  ? 'Nothing archived yet.'
-                  : 'Trash is empty.'
+                  ? t('emptyArchived')
+                  : t('emptyTrash')
           }
         />
       )}
@@ -548,18 +548,18 @@ export default function ContentLibraryPage() {
                       if (el) el.indeterminate = !allSelected && someSelected;
                     }}
                     onChange={toggleAll}
-                    aria-label="Select all rows on this page"
+                    aria-label={t('selectAllAria')}
                   />
                 </TH>
-                <TH>Title</TH>
-                <TH>Type</TH>
-                <TH>Status</TH>
-                <TH>Orientation</TH>
-                <TH>Tags</TH>
-                <TH>Size</TH>
-                <TH>Expiry</TH>
-                <TH>Created</TH>
-                <TH className="text-end">Actions</TH>
+                <TH>{t('colTitle')}</TH>
+                <TH>{tc('type')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH>{tc('orientation')}</TH>
+                <TH>{tc('tags')}</TH>
+                <TH>{t('colSize')}</TH>
+                <TH>{t('colExpiry')}</TH>
+                <TH>{tc('created')}</TH>
+                <TH className="text-end">{tc('actions')}</TH>
               </TR>
             </THead>
             <TBody>
