@@ -73,6 +73,10 @@ server {
         proxy_request_buffering off;
         proxy_read_timeout      300s;
         proxy_send_timeout      300s;
+        # Dynamic, per-tenant API responses must never be proxy-cached, even if a
+        # cache zone is introduced later. Defensive — honor upstream no-cache too.
+        proxy_no_cache      1;
+        proxy_cache_bypass  1;
     }
 
     location /_next/static/ {
@@ -94,6 +98,8 @@ server {
         proxy_read_timeout  3600s;
         proxy_send_timeout  3600s;
         proxy_buffering     off;
+        # Never compress the WebSocket upgrade/stream.
+        gzip                off;
     }
 
     location / {

@@ -173,16 +173,22 @@ export default function ScreenDetailPage() {
     id ? `/screens/${id}/commands?pageSize=8` : null,
   );
 
-  // Lookups for dialogs (fetched once).
-  const locations = useApiResource<Paginated<LocationListItem>>('/locations?pageSize=100');
-  const allTags = useApiResource<Paginated<Tag>>('/tags?pageSize=100');
-  const allGroups = useApiResource<Paginated<ScreenGroup>>('/screen-groups?pageSize=100');
-
   // Dialog open state.
   const [editOpen, setEditOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [groupsOpen, setGroupsOpen] = useState(false);
+
+  // Dialog lookups: fetched only when the relevant dialog opens (not on page
+  // load), then cached by useApiResource so reopening is instant. Avoids 3 of
+  // the page's mount-time API calls for data only used inside dialogs.
+  const locations = useApiResource<Paginated<LocationListItem>>(
+    moveOpen ? '/locations?pageSize=100' : null,
+  );
+  const allTags = useApiResource<Paginated<Tag>>(tagsOpen ? '/tags?pageSize=100' : null);
+  const allGroups = useApiResource<Paginated<ScreenGroup>>(
+    groupsOpen ? '/screen-groups?pageSize=100' : null,
+  );
   const [pinOpen, setPinOpen] = useState(false);
   const [pairOpen, setPairOpen] = useState(false);
   const [unpairOpen, setUnpairOpen] = useState(false);

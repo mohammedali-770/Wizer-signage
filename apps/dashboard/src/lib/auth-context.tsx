@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { api, ApiError, clearTokens, hasSession, setTokens } from './api';
+import { invalidateApiCache } from './use-api';
 import type { AuthUser, MeResponse } from './types';
 
 type Status = 'loading' | 'unauthenticated' | 'authenticated';
@@ -77,6 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { next: '2fa', challengeToken: res.challengeToken };
       }
       setTokens(res.accessToken!, res.refreshToken!);
+      // Start the new session with a clean cache.
+      invalidateApiCache();
       await reload();
       return { next: res.mustEnableTwoFactor ? 'enroll' : 'authenticated' };
     },
@@ -91,6 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         { auth: false },
       );
       setTokens(res.accessToken, res.refreshToken);
+      // Start the new session with a clean cache (same as login()).
+      invalidateApiCache();
       await reload();
     },
     [reload],
@@ -114,6 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore — clear locally regardless
     }
     clearTokens();
+    // Drop all cached GET responses so a different user logging in on the same
+    // tab never sees the previous session's data.
+    invalidateApiCache();
     setMe(null);
     setStatus('unauthenticated');
   }, []);

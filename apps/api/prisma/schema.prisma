@@ -694,6 +694,8 @@ model ActivityLog {
   @@index([action])
   @@index([category])
   @@index([createdAt])
+  // Perf: tenant-scoped audit views order by time within a company.
+  @@index([companyId, createdAt])
   @@map("activity_logs")
 }
 
@@ -1203,6 +1205,9 @@ model Heartbeat {
   @@index([screenId])
   @@index([companyId])
   @@index([createdAt])
+  // Perf: "latest heartbeat per screen" seek (monitoring reads, every request)
+  // and time-range cleanup, without scanning+sorting all of a screen's rows.
+  @@index([screenId, createdAt])
   @@map("heartbeats")
 }
 
@@ -1512,6 +1517,8 @@ model Alert {
 
   @@index([companyId, status])
   @@index([dedupeKey])
+  // Perf: dedup lookup on every condition event resolves to (dedupeKey, status).
+  @@index([dedupeKey, status])
   @@index([severity])
   @@index([createdAt])
   @@map("alerts")

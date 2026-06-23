@@ -47,6 +47,23 @@ export class EnvironmentVariables {
   @IsString()
   DASHBOARD_URL?: string;
 
+  // --- Performance troubleshooting (all optional) -------------------------
+  @IsOptional()
+  @IsString()
+  PERF_LOG_REQUESTS?: string; // 'true' → log every request line (default: slow-only)
+
+  @IsOptional()
+  @IsString()
+  PERF_LOG_QUERIES?: string; // 'true' → log Prisma SQL + duration (never params)
+
+  @IsOptional()
+  @IsInt()
+  PERF_SLOW_MS?: number; // request slow threshold (default 1000)
+
+  @IsOptional()
+  @IsInt()
+  PERF_SLOW_QUERY_MS?: number; // query slow tag threshold (default 50)
+
   // --- HTTP ---------------------------------------------------------------
   @IsOptional()
   @IsString()

@@ -1,6 +1,11 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
+/** Minimal shape of Prisma's query-event emitter (present when log emit:'event'). */
+interface PrismaQueryEmitter {
+  $on(event: 'query', callback: (event: { query: string; duration: number }) => void): void;
+}
+
 /**
  * Thin wrapper around the generated Prisma client.
  *
@@ -17,7 +22,23 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    super({ log: ['warn', 'error'] });
+    // Opt-in query timing for perf troubleshooting (PERF_LOG_QUERIES=true).
+    // Logs the SQL statement + duration ONLY — never the bound params/values,
+    // which can contain emails, tokens, or other sensitive data.
+    const logQueries = process.env.PERF_LOG_QUERIES === 'true';
+    super({
+      log: logQueries ? [{ emit: 'event', level: 'query' }, 'warn', 'error'] : ['warn', 'error'],
+    });
+
+    if (logQueries) {
+      const slowMs = Number(process.env.PERF_SLOW_QUERY_MS ?? 50);
+      // Cast: the event-emitter $on signature is only present when `log` is
+      // configured with `emit: 'event'` (which it is, above).
+      (this as unknown as PrismaQueryEmitter).$on('query', (event) => {
+        const tag = event.duration >= slowMs ? 'SLOW QUERY' : 'query';
+        this.logger.debug(`[${tag} ${event.duration}ms] ${event.query}`);
+      });
+    }
 
     // Make BigInt JSON-serializable (Prisma BigInt columns -> string in JSON).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

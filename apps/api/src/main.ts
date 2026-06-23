@@ -8,6 +8,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
+import { PerfLoggingInterceptor } from './common/interceptors/perf-logging.interceptor';
 import type { AppConfig } from './config/configuration';
 
 /**
@@ -70,6 +71,11 @@ async function bootstrap(): Promise<void> {
       },
     }),
   );
+
+  // --- Performance request logging ----------------------------------------
+  // Safe per-request timing (method/path/status/duration + user/company ids).
+  // Slow requests warn by default; full logging via PERF_LOG_REQUESTS=true.
+  app.useGlobalInterceptors(new PerfLoggingInterceptor());
 
   // --- Graceful shutdown ---------------------------------------------------
   app.enableShutdownHooks();

@@ -33,10 +33,14 @@ contractual** — application code, Docker Compose files, Nginx, and the root
 
 Core process configuration shared by the API and Dashboard.
 
-| Variable    | Required | Scope  | Description                                                               | Example / Placeholder                  |
-| ----------- | -------- | ------ | ------------------------------------------------------------------------- | -------------------------------------- |
-| `NODE_ENV`  | Yes      | shared | Runtime mode. Controls optimizations, logging verbosity and error detail. | `development` / `production`           |
-| `LOG_LEVEL` | No       | shared | Minimum log severity emitted by the structured logger.                    | `info` (`debug`/`info`/`warn`/`error`) |
+| Variable             | Required | Scope  | Description                                                                                                                                                                                                 | Example / Placeholder                  |
+| -------------------- | -------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `NODE_ENV`           | Yes      | shared | Runtime mode. Controls optimizations, logging verbosity and error detail.                                                                                                                                   | `development` / `production`           |
+| `LOG_LEVEL`          | No       | shared | Minimum log severity emitted by the structured logger.                                                                                                                                                      | `info` (`debug`/`info`/`warn`/`error`) |
+| `PERF_LOG_REQUESTS`  | No       | api    | `true` logs every request (method/path/status/ms + company/user id). Off by default; slow requests warn regardless. Never logs bodies/headers/tokens. See [performance-tuning.md](./performance-tuning.md). | `false`                                |
+| `PERF_SLOW_MS`       | No       | api    | Request duration (ms) that triggers a SLOW warning.                                                                                                                                                         | `1000`                                 |
+| `PERF_LOG_QUERIES`   | No       | api    | `true` logs Prisma SQL + duration (NEVER the bound params/values).                                                                                                                                          | `false`                                |
+| `PERF_SLOW_QUERY_MS` | No       | api    | Query duration (ms) tagged SLOW in query logs.                                                                                                                                                              | `50`                                   |
 
 ---
 

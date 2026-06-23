@@ -6,6 +6,8 @@
  * - Tokens live in localStorage (browser only); all access is SSR-guarded.
  */
 
+import { invalidateApiCache } from './api-cache';
+
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
 
 const ACCESS_KEY = 'ms_access_token';
@@ -101,7 +103,11 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
   if (!res.ok) {
     const error = (json && json.error) || { code: 'ERROR', message: res.statusText };
-    if (res.status === 401) clearTokens();
+    if (res.status === 401) {
+      clearTokens();
+      // Drop cached data tied to the now-invalid session (defense-in-depth).
+      invalidateApiCache();
+    }
     throw new ApiError(error.code, error.message, res.status);
   }
   return json as T;
@@ -128,7 +134,11 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
   const json = text ? JSON.parse(text) : null;
   if (!res.ok) {
     const error = (json && json.error) || { code: 'ERROR', message: res.statusText };
-    if (res.status === 401) clearTokens();
+    if (res.status === 401) {
+      clearTokens();
+      // Drop cached data tied to the now-invalid session (defense-in-depth).
+      invalidateApiCache();
+    }
     throw new ApiError(error.code, error.message, res.status);
   }
   return json as T;
