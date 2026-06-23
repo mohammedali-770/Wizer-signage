@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { AlertTriangle, ArrowLeft, Ban, Pencil, ShieldCheck } from 'lucide-react';
 
 import { Link } from '@/i18n/navigation';
@@ -34,30 +34,34 @@ import {
   useToast,
 } from '@/components/ui';
 
-/** Human label for each usage resource row. */
-const RESOURCE_LABELS: Record<ResourceUsage['key'], string> = {
-  users: 'Users',
-  locations: 'Locations',
-  screens: 'Screens',
-  storageGb: 'Storage',
+/** Translation sub-key for each usage resource row label. */
+const RESOURCE_LABEL_KEYS: Record<ResourceUsage['key'], string> = {
+  users: 'resourceUsers',
+  locations: 'resourceLocations',
+  screens: 'resourceScreens',
+  storageGb: 'resourceStorage',
 };
 
-/** Label + value pairs describing the limits attached to the active plan. */
-const LIMIT_FIELDS: Array<{ key: keyof PlanLimits; label: string }> = [
-  { key: 'maxUsers', label: 'Users' },
-  { key: 'maxLocations', label: 'Locations' },
-  { key: 'maxScreens', label: 'Screens' },
-  { key: 'storageGb', label: 'Storage (GB)' },
-  { key: 'maxFileSizeMb', label: 'Max file size (MB)' },
-  { key: 'autoScreenshotsPerDay', label: 'Screenshots / day' },
-  { key: 'scheduledReports', label: 'Scheduled reports' },
-  { key: 'dataRetentionDays', label: 'Data retention (days)' },
-  { key: 'apiRequestsPerDay', label: 'API requests / day' },
-  { key: 'webhooks', label: 'Webhooks' },
+/** Plan-limit fields paired with their translation sub-key. */
+const LIMIT_FIELDS: Array<{ key: keyof PlanLimits; labelKey: string }> = [
+  { key: 'maxUsers', labelKey: 'limitUsers' },
+  { key: 'maxLocations', labelKey: 'limitLocations' },
+  { key: 'maxScreens', labelKey: 'limitScreens' },
+  { key: 'storageGb', labelKey: 'limitStorageGb' },
+  { key: 'maxFileSizeMb', labelKey: 'limitMaxFileSizeMb' },
+  { key: 'autoScreenshotsPerDay', labelKey: 'limitScreenshotsPerDay' },
+  { key: 'scheduledReports', labelKey: 'limitScheduledReports' },
+  { key: 'dataRetentionDays', labelKey: 'limitDataRetentionDays' },
+  { key: 'apiRequestsPerDay', labelKey: 'limitApiRequestsPerDay' },
+  { key: 'webhooks', labelKey: 'limitWebhooks' },
 ];
 
-function formatLimit(value: number | null | undefined, locale: string): string {
-  if (value === null || value === undefined) return 'Unlimited';
+function formatLimit(
+  value: number | null | undefined,
+  locale: string,
+  unlimitedLabel: string,
+): string {
+  if (value === null || value === undefined) return unlimitedLabel;
   return formatNumber(value, locale);
 }
 
@@ -71,10 +75,11 @@ function ResourceUsageCell({
   usage: UsageEvaluation['usage'];
   locale: string;
 }) {
+  const t = useTranslations('pages.adminCompanyDetail');
   if (resource.key === 'storageGb') {
     const used = formatBytes(usage.storageBytes, locale);
     const limit = resource.unlimited
-      ? 'Unlimited'
+      ? t('unlimited')
       : `${formatNumber(resource.limit ?? 0, locale)} GB`;
     return (
       <span>
@@ -82,7 +87,7 @@ function ResourceUsageCell({
       </span>
     );
   }
-  const limit = resource.unlimited ? 'Unlimited' : formatNumber(resource.limit ?? 0, locale);
+  const limit = resource.unlimited ? t('unlimited') : formatNumber(resource.limit ?? 0, locale);
   return (
     <span>
       {formatNumber(resource.used, locale)} <span className="text-muted-foreground">/ {limit}</span>
@@ -91,9 +96,10 @@ function ResourceUsageCell({
 }
 
 function ResourceStatusBadge({ resource }: { resource: ResourceUsage }) {
-  if (resource.exceeded) return <Badge tone="danger">Exceeded</Badge>;
-  if (resource.approaching) return <Badge tone="warning">Approaching</Badge>;
-  return <Badge tone="success">OK</Badge>;
+  const t = useTranslations('pages.adminCompanyDetail');
+  if (resource.exceeded) return <Badge tone="danger">{t('resourceExceeded')}</Badge>;
+  if (resource.approaching) return <Badge tone="warning">{t('resourceApproaching')}</Badge>;
+  return <Badge tone="success">{t('resourceOk')}</Badge>;
 }
 
 interface EditForm {
@@ -106,6 +112,8 @@ interface EditForm {
 
 export default function CompanyDetailPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.adminCompanyDetail');
+  const tc = useTranslations('common');
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
 
@@ -146,10 +154,10 @@ export default function CompanyDetailPage() {
     setBusy(true);
     try {
       await api.post(`/companies/${id}/reactivate`);
-      toast('Company reactivated.', 'success');
+      toast(t('toastReactivated'), 'success');
       reload();
     } catch (e) {
-      toast(e instanceof ApiError ? e.message : 'Something went wrong.', 'error');
+      toast(e instanceof ApiError ? e.message : t('toastError'), 'error');
     } finally {
       setBusy(false);
     }
@@ -162,12 +170,12 @@ export default function CompanyDetailPage() {
       await api.post(`/companies/${id}/suspend`, {
         reason: suspendReason.trim() || undefined,
       });
-      toast('Company suspended.', 'success');
+      toast(t('toastSuspended'), 'success');
       setSuspendOpen(false);
       setSuspendReason('');
       reload();
     } catch (e) {
-      toast(e instanceof ApiError ? e.message : 'Something went wrong.', 'error');
+      toast(e instanceof ApiError ? e.message : t('toastError'), 'error');
     } finally {
       setBusy(false);
     }
@@ -184,11 +192,11 @@ export default function CompanyDetailPage() {
         primaryColor: form.primaryColor.trim() || null,
         customDomain: form.customDomain.trim() || null,
       });
-      toast('Company updated.', 'success');
+      toast(t('toastUpdated'), 'success');
       setEditOpen(false);
       reload();
     } catch (e) {
-      toast(e instanceof ApiError ? e.message : 'Something went wrong.', 'error');
+      toast(e instanceof ApiError ? e.message : t('toastError'), 'error');
     } finally {
       setBusy(false);
     }
@@ -204,7 +212,7 @@ export default function CompanyDetailPage() {
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition"
       >
         <ArrowLeft className="size-4" />
-        Back to companies
+        {t('backToCompanies')}
       </Link>
 
       {loading && (
@@ -213,7 +221,7 @@ export default function CompanyDetailPage() {
         </div>
       )}
 
-      {error && <EmptyState title="Could not load company" description={error} />}
+      {error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && data && company && (
         <div className="space-y-6">
@@ -225,17 +233,17 @@ export default function CompanyDetailPage() {
                 <StatusBadge status={company.status} />
                 <Button variant="outline" onClick={() => setEditOpen(true)}>
                   <Pencil className="size-4" />
-                  Edit
+                  {tc('edit')}
                 </Button>
                 {company.status === 'SUSPENDED' ? (
                   <Button onClick={handleReactivate} disabled={busy}>
                     <ShieldCheck className="size-4" />
-                    Reactivate
+                    {t('reactivate')}
                   </Button>
                 ) : (
                   <Button variant="danger" onClick={() => setSuspendOpen(true)} disabled={busy}>
                     <Ban className="size-4" />
-                    Suspend
+                    {t('suspend')}
                   </Button>
                 )}
               </>
@@ -247,13 +255,15 @@ export default function CompanyDetailPage() {
             <div className="flex items-start gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
               <Ban className="mt-0.5 size-4 shrink-0" />
               <div>
-                <p className="font-medium">This company is suspended.</p>
+                <p className="font-medium">{t('suspendedNotice')}</p>
                 {company.suspendedReason ? (
-                  <p className="mt-0.5">Reason: {company.suspendedReason}</p>
+                  <p className="mt-0.5">
+                    {t('suspendedReason', { reason: company.suspendedReason })}
+                  </p>
                 ) : null}
                 {company.suspendedAt ? (
                   <p className="mt-0.5 text-red-600/80 dark:text-red-300/80">
-                    Suspended {formatDate(company.suspendedAt, locale)}
+                    {t('suspendedAt', { date: formatDate(company.suspendedAt, locale) })}
                   </p>
                 ) : null}
               </div>
@@ -265,10 +275,10 @@ export default function CompanyDetailPage() {
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <div>
-                <p className="font-medium">Usage limits exceeded — grace period active.</p>
+                <p className="font-medium">{t('graceTitle')}</p>
                 {usage.gracePeriodEndsAt ? (
                   <p className="mt-0.5">
-                    Grace period ends {formatDate(usage.gracePeriodEndsAt, locale)}.
+                    {t('graceEnds', { date: formatDate(usage.gracePeriodEndsAt, locale) })}
                   </p>
                 ) : null}
               </div>
@@ -278,11 +288,8 @@ export default function CompanyDetailPage() {
             <div className="flex items-start gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <div>
-                <p className="font-medium">Usage limits exceeded — account blocked.</p>
-                <p className="mt-0.5">
-                  The grace period has expired. Resources are blocked until usage is reduced or the
-                  plan is upgraded.
-                </p>
+                <p className="font-medium">{t('blockedTitle')}</p>
+                <p className="mt-0.5">{t('blockedDescription')}</p>
               </div>
             </div>
           )}
@@ -290,7 +297,7 @@ export default function CompanyDetailPage() {
           {/* Metrics / usage */}
           <Card>
             <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle>Resource usage</CardTitle>
+              <CardTitle>{t('resourceUsageTitle')}</CardTitle>
               {usage ? <StatusBadge status={usage.status.toUpperCase()} /> : null}
             </CardHeader>
             <CardContent className="px-0 py-0">
@@ -298,16 +305,16 @@ export default function CompanyDetailPage() {
                 <Table>
                   <THead>
                     <TR>
-                      <TH>Resource</TH>
-                      <TH>Used / Limit</TH>
-                      <TH>Usage</TH>
-                      <TH className="text-end">Status</TH>
+                      <TH>{t('resourceColumn')}</TH>
+                      <TH>{t('usedLimitColumn')}</TH>
+                      <TH>{t('usageColumn')}</TH>
+                      <TH className="text-end">{tc('status')}</TH>
                     </TR>
                   </THead>
                   <TBody>
                     {usage.resources.map((resource) => (
                       <TR key={resource.key}>
-                        <TD className="font-medium">{RESOURCE_LABELS[resource.key]}</TD>
+                        <TD className="font-medium">{t(RESOURCE_LABEL_KEYS[resource.key])}</TD>
                         <TD>
                           <ResourceUsageCell
                             resource={resource}
@@ -329,7 +336,7 @@ export default function CompanyDetailPage() {
                 </Table>
               ) : (
                 <div className="px-5 py-4">
-                  <EmptyState title="No usage data available." />
+                  <EmptyState title={t('noUsageData')} />
                 </div>
               )}
             </CardContent>
@@ -338,13 +345,13 @@ export default function CompanyDetailPage() {
           {/* Subscription */}
           <Card>
             <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle>Subscription</CardTitle>
+              <CardTitle>{t('subscriptionTitle')}</CardTitle>
               {subscription ? (
                 <Link
                   href="/admin/subscriptions"
                   className="text-primary text-xs font-medium hover:underline"
                 >
-                  Manage on Subscriptions
+                  {t('manageOnSubscriptions')}
                 </Link>
               ) : null}
             </CardHeader>
@@ -361,7 +368,7 @@ export default function CompanyDetailPage() {
 
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
                     <div>
-                      <dt className="text-muted-foreground text-xs">Trial ends</dt>
+                      <dt className="text-muted-foreground text-xs">{t('trialEnds')}</dt>
                       <dd className="mt-0.5 font-medium">
                         {subscription.trialEndsAt
                           ? formatDate(subscription.trialEndsAt, locale)
@@ -369,7 +376,7 @@ export default function CompanyDetailPage() {
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-muted-foreground text-xs">Period start</dt>
+                      <dt className="text-muted-foreground text-xs">{t('periodStart')}</dt>
                       <dd className="mt-0.5 font-medium">
                         {subscription.currentPeriodStart
                           ? formatDate(subscription.currentPeriodStart, locale)
@@ -377,7 +384,7 @@ export default function CompanyDetailPage() {
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-muted-foreground text-xs">Period end</dt>
+                      <dt className="text-muted-foreground text-xs">{t('periodEnd')}</dt>
                       <dd className="mt-0.5 font-medium">
                         {subscription.currentPeriodEnd
                           ? formatDate(subscription.currentPeriodEnd, locale)
@@ -385,14 +392,14 @@ export default function CompanyDetailPage() {
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-muted-foreground text-xs">Cancel at period end</dt>
+                      <dt className="text-muted-foreground text-xs">{t('cancelAtPeriodEnd')}</dt>
                       <dd className="mt-0.5 font-medium">
-                        {subscription.cancelAtPeriodEnd ? 'Yes' : 'No'}
+                        {subscription.cancelAtPeriodEnd ? t('yes') : t('no')}
                       </dd>
                     </div>
                     {subscription.gracePeriodEndsAt ? (
                       <div>
-                        <dt className="text-muted-foreground text-xs">Grace period ends</dt>
+                        <dt className="text-muted-foreground text-xs">{t('gracePeriodEnds')}</dt>
                         <dd className="mt-0.5 font-medium">
                           {formatDate(subscription.gracePeriodEndsAt, locale)}
                         </dd>
@@ -402,14 +409,14 @@ export default function CompanyDetailPage() {
 
                   <div>
                     <p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
-                      Plan limits
+                      {t('planLimits')}
                     </p>
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3 lg:grid-cols-4">
-                      {LIMIT_FIELDS.map(({ key, label }) => (
+                      {LIMIT_FIELDS.map(({ key, labelKey }) => (
                         <div key={key} className="flex items-center justify-between gap-2">
-                          <dt className="text-muted-foreground">{label}</dt>
+                          <dt className="text-muted-foreground">{t(labelKey)}</dt>
                           <dd className="font-medium">
-                            {formatLimit(subscription.plan.limits[key], locale)}
+                            {formatLimit(subscription.plan.limits[key], locale, t('unlimited'))}
                           </dd>
                         </div>
                       ))}
@@ -418,8 +425,8 @@ export default function CompanyDetailPage() {
                 </div>
               ) : (
                 <EmptyState
-                  title="No active subscription"
-                  description="This company is not currently subscribed to a plan."
+                  title={t('noSubscriptionTitle')}
+                  description={t('noSubscriptionDescription')}
                 />
               )}
             </CardContent>
@@ -431,8 +438,8 @@ export default function CompanyDetailPage() {
       <Dialog
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        title="Edit company"
-        description="Update the company profile and branding."
+        title={t('editDialogTitle')}
+        description={t('editDialogDescription')}
       >
         <form
           className="space-y-4"
@@ -441,7 +448,7 @@ export default function CompanyDetailPage() {
             void handleEditSave();
           }}
         >
-          <Field label="Name">
+          <Field label={tc('name')}>
             <Input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -449,13 +456,13 @@ export default function CompanyDetailPage() {
             />
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Default locale" hint="e.g. en, ar">
+            <Field label={t('defaultLocale')} hint={t('defaultLocaleHint')}>
               <Input
                 value={form.defaultLocale}
                 onChange={(e) => setForm((f) => ({ ...f, defaultLocale: e.target.value }))}
               />
             </Field>
-            <Field label="Timezone" hint="e.g. UTC, Asia/Riyadh">
+            <Field label={t('timezone')} hint={t('timezoneHint')}>
               <Input
                 value={form.timezone}
                 onChange={(e) => setForm((f) => ({ ...f, timezone: e.target.value }))}
@@ -463,7 +470,7 @@ export default function CompanyDetailPage() {
             </Field>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Primary color" hint="Hex, e.g. #2563eb">
+            <Field label={t('primaryColor')} hint={t('primaryColorHint')}>
               <div className="flex items-center gap-2">
                 <Input
                   value={form.primaryColor}
@@ -477,7 +484,7 @@ export default function CompanyDetailPage() {
                 />
               </div>
             </Field>
-            <Field label="Custom domain" hint="e.g. signage.acme.com">
+            <Field label={t('customDomain')} hint={t('customDomainHint')}>
               <Input
                 value={form.customDomain}
                 onChange={(e) => setForm((f) => ({ ...f, customDomain: e.target.value }))}
@@ -491,11 +498,11 @@ export default function CompanyDetailPage() {
               onClick={() => setEditOpen(false)}
               disabled={busy}
             >
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={busy || !form.name.trim()}>
               {busy ? <Spinner className="size-4" /> : null}
-              Save changes
+              {t('saveChanges')}
             </Button>
           </div>
         </form>
@@ -505,8 +512,8 @@ export default function CompanyDetailPage() {
       <Dialog
         open={suspendOpen}
         onClose={() => setSuspendOpen(false)}
-        title="Suspend company"
-        description="Suspending blocks access for all members of this company. You can reactivate later."
+        title={t('suspendDialogTitle')}
+        description={t('suspendDialogDescription')}
       >
         <form
           className="space-y-4"
@@ -515,12 +522,12 @@ export default function CompanyDetailPage() {
             void handleSuspend();
           }}
         >
-          <Field label="Reason (optional)">
+          <Field label={t('reasonLabel')}>
             <Textarea
               rows={3}
               value={suspendReason}
               onChange={(e) => setSuspendReason(e.target.value)}
-              placeholder="Add a note explaining why this company is being suspended."
+              placeholder={t('reasonPlaceholder')}
             />
           </Field>
           <div className="flex justify-end gap-2 pt-2">
@@ -530,11 +537,11 @@ export default function CompanyDetailPage() {
               onClick={() => setSuspendOpen(false)}
               disabled={busy}
             >
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" variant="danger" disabled={busy}>
               {busy ? <Spinner className="size-4" /> : null}
-              Suspend company
+              {t('suspendCompany')}
             </Button>
           </div>
         </form>

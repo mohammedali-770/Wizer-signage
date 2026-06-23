@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ShieldCheck, UserPlus } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -32,6 +32,8 @@ const PAGE_SIZE = 20;
 
 export default function SuperAdminsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.adminSuperAdmins');
+  const tc = useTranslations('common');
   const { toast } = useToast();
 
   const [page, setPage] = useState(1);
@@ -58,14 +60,14 @@ export default function SuperAdminsPage() {
         email: email.trim(),
         ...(name.trim() ? { name: name.trim() } : {}),
       });
-      toast('Invitation sent', 'success');
+      toast(t('toastInvited'), 'success');
       setInviteOpen(false);
       setEmail('');
       setName('');
       setPage(1);
       reload();
     } catch (e) {
-      toast(e instanceof ApiError ? e.message : 'Something went wrong.', 'error');
+      toast(e instanceof ApiError ? e.message : t('toastError'), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -76,14 +78,11 @@ export default function SuperAdminsPage() {
     setBusyId(admin.id);
     try {
       await api.post(`/super-admin/admins/${admin.id}/${action}`);
-      toast(
-        action === 'deactivate' ? 'Super Admin deactivated' : 'Super Admin activated',
-        'success',
-      );
+      toast(action === 'deactivate' ? t('toastDeactivated') : t('toastActivated'), 'success');
       reload();
     } catch (e) {
       // e.g. the API returns 403 when trying to deactivate the last active Super Admin.
-      toast(e instanceof ApiError ? e.message : 'Something went wrong.', 'error');
+      toast(e instanceof ApiError ? e.message : t('toastError'), 'error');
     } finally {
       setBusyId(null);
     }
@@ -92,23 +91,19 @@ export default function SuperAdminsPage() {
   return (
     <div>
       <PageHeader
-        title="Super Admins"
-        description="Manage platform administrators with full cross-tenant access."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Button onClick={() => setInviteOpen(true)}>
             <UserPlus className="size-4" />
-            Invite Super Admin
+            {t('invite')}
           </Button>
         }
       />
 
       <div className="border-border bg-muted/30 text-muted-foreground mb-6 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
         <ShieldCheck className="text-primary mt-0.5 size-4 shrink-0" />
-        <p>
-          Two-factor authentication is mandatory for every Super Admin. Invited administrators must
-          enrol a 2FA device before they can sign in, and the last active Super Admin cannot be
-          deactivated.
-        </p>
+        <p>{t('twoFactorNotice')}</p>
       </div>
 
       {loading && (
@@ -116,13 +111,10 @@ export default function SuperAdminsPage() {
           <Spinner className="text-primary size-6" />
         </div>
       )}
-      {error && <EmptyState title="Could not load Super Admins" description={error} />}
+      {error && <EmptyState title={t('loadError')} description={error} />}
 
       {data && admins.length === 0 && (
-        <EmptyState
-          title="No Super Admins found"
-          description="Invite a Super Admin to grant platform-wide access."
-        />
+        <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       )}
 
       {data && admins.length > 0 && (
@@ -130,12 +122,12 @@ export default function SuperAdminsPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Name</TH>
-                <TH>Email</TH>
-                <TH>Status</TH>
-                <TH>2FA</TH>
-                <TH>Last login</TH>
-                <TH className="text-end">Actions</TH>
+                <TH>{tc('name')}</TH>
+                <TH>{t('colEmail')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH>{t('colTwoFactor')}</TH>
+                <TH>{t('colLastLogin')}</TH>
+                <TH className="text-end">{tc('actions')}</TH>
               </TR>
             </THead>
             <TBody>
@@ -148,11 +140,11 @@ export default function SuperAdminsPage() {
                   </TD>
                   <TD>
                     <Badge tone={admin.twoFactorEnabled ? 'success' : 'warning'}>
-                      {admin.twoFactorEnabled ? 'Enabled' : 'Disabled'}
+                      {admin.twoFactorEnabled ? t('twoFactorEnabled') : t('twoFactorDisabled')}
                     </Badge>
                   </TD>
                   <TD className="text-muted-foreground">
-                    {admin.lastLoginAt ? formatDateTime(admin.lastLoginAt, locale) : 'Never'}
+                    {admin.lastLoginAt ? formatDateTime(admin.lastLoginAt, locale) : t('never')}
                   </TD>
                   <TD className="text-end">
                     {admin.status === 'ACTIVE' ? (
@@ -163,7 +155,7 @@ export default function SuperAdminsPage() {
                         onClick={() => toggleStatus(admin)}
                       >
                         {busyId === admin.id ? <Spinner className="size-3" /> : null}
-                        Deactivate
+                        {t('deactivate')}
                       </Button>
                     ) : (
                       <Button
@@ -173,7 +165,7 @@ export default function SuperAdminsPage() {
                         onClick={() => toggleStatus(admin)}
                       >
                         {busyId === admin.id ? <Spinner className="size-3" /> : null}
-                        Activate
+                        {t('activate')}
                       </Button>
                     )}
                   </TD>
@@ -189,11 +181,11 @@ export default function SuperAdminsPage() {
       <Dialog
         open={inviteOpen}
         onClose={() => (submitting ? undefined : setInviteOpen(false))}
-        title="Invite Super Admin"
-        description="Send an invitation to grant platform-wide administrator access."
+        title={t('invite')}
+        description={t('inviteDescription')}
       >
         <form onSubmit={handleInvite} className="space-y-4">
-          <Field label="Email">
+          <Field label={t('colEmail')}>
             <Input
               type="email"
               required
@@ -203,7 +195,7 @@ export default function SuperAdminsPage() {
               placeholder="admin@example.com"
             />
           </Field>
-          <Field label="Name" hint="Optional. Shown in the admin list and audit logs.">
+          <Field label={tc('name')} hint={t('nameHint')}>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" />
           </Field>
           <div className="flex justify-end gap-2 pt-2">
@@ -213,11 +205,11 @@ export default function SuperAdminsPage() {
               disabled={submitting}
               onClick={() => setInviteOpen(false)}
             >
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={submitting || !email.trim()}>
               {submitting ? <Spinner className="size-4" /> : null}
-              Send invite
+              {t('sendInvite')}
             </Button>
           </div>
         </form>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Plus, Search } from 'lucide-react';
 
 import { useApiResource } from '@/lib/use-api';
@@ -31,6 +31,9 @@ const STATUS_OPTIONS: CompanyStatus[] = ['ACTIVE', 'SUSPENDED', 'PENDING', 'CANC
 
 export default function CompaniesPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.adminCompanies');
+  const tc = useTranslations('common');
+  const te = useTranslations('enums');
 
   // Applied (committed) query state that drives the request.
   const [page, setPage] = useState(1);
@@ -69,15 +72,15 @@ export default function CompaniesPage() {
   return (
     <div>
       <PageHeader
-        title="Companies"
-        description="Tenant accounts across the platform."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Link
             href="/admin/companies/new"
             className="bg-primary text-primary-foreground focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
           >
             <Plus className="size-4" />
-            New Company
+            {t('newCompany')}
           </Link>
         }
       />
@@ -95,13 +98,13 @@ export default function CompaniesPage() {
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by name or slug…"
+              placeholder={t('searchPlaceholder')}
               className="ps-9"
-              aria-label="Search companies"
+              aria-label={t('searchCompanies')}
             />
           </div>
           <Button type="submit" variant="outline">
-            Search
+            {tc('search')}
           </Button>
         </form>
 
@@ -109,12 +112,12 @@ export default function CompaniesPage() {
           value={status}
           onChange={(e) => onStatusChange(e.target.value)}
           className="w-44"
-          aria-label="Filter by status"
+          aria-label={t('filterByStatus')}
         >
-          <option value="">All statuses</option>
+          <option value="">{t('allStatuses')}</option>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {te(`status.${s}`)}
             </option>
           ))}
         </Select>
@@ -126,16 +129,12 @@ export default function CompaniesPage() {
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load companies" description={error} />}
+      {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && items.length === 0 && (
         <EmptyState
-          title="No companies found"
-          description={
-            search || status
-              ? 'Try adjusting your search or status filter.'
-              : 'Create your first company to get started.'
-          }
+          title={t('emptyTitle')}
+          description={search || status ? t('emptyFiltered') : t('emptyCreateFirst')}
         />
       )}
 
@@ -144,14 +143,14 @@ export default function CompaniesPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Name</TH>
-                <TH>Slug</TH>
-                <TH>Status</TH>
-                <TH>Plan</TH>
-                <TH className="text-end">Users</TH>
-                <TH className="text-end">Locations</TH>
-                <TH className="text-end">Screens</TH>
-                <TH>Created</TH>
+                <TH>{tc('name')}</TH>
+                <TH>{t('slug')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH>{t('plan')}</TH>
+                <TH className="text-end">{t('users')}</TH>
+                <TH className="text-end">{t('locations')}</TH>
+                <TH className="text-end">{t('screens')}</TH>
+                <TH>{tc('created')}</TH>
               </TR>
             </THead>
             <TBody>

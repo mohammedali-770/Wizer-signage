@@ -1,3 +1,5 @@
+import { useTranslations } from 'next-intl';
+
 import { cn } from '@/lib/cn';
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
@@ -51,6 +53,9 @@ export function Badge({
   );
 }
 
+// Tone for every backend status/severity code shown in a badge (company + admin).
+// Keys here are also the set of codes StatusBadge localizes via `enums.status` —
+// every key must have a matching label in messages; codes absent here render raw.
 const STATUS_TONES: Record<string, BadgeTone> = {
   ACTIVE: 'success',
   PAID: 'success',
@@ -73,11 +78,47 @@ const STATUS_TONES: Record<string, BadgeTone> = {
   UNPAIRED: 'warning',
   SYNCING: 'info',
   ARCHIVED: 'neutral',
+  // Lifecycle / job / alert / delivery statuses + severities.
+  ACCEPTED: 'success',
+  ACKNOWLEDGED: 'info',
+  CLAIMED: 'info',
+  COMMITTED: 'success',
+  COMPLETED: 'success',
+  CRITICAL: 'danger',
+  DELETED: 'danger',
+  DELIVERED: 'success',
+  DISMISSED: 'neutral',
+  ENDED: 'neutral',
+  FAILED: 'danger',
+  IDLE: 'neutral',
+  INACTIVE: 'neutral',
+  INFO: 'info',
+  INTERRUPTED: 'danger',
+  OFFLINE_PLAYBACK: 'info',
+  OPEN: 'warning',
+  PARTIAL: 'warning',
+  PAUSED: 'warning',
+  READY: 'success',
+  RESOLVED: 'success',
+  REVOKED: 'danger',
+  RUNNING: 'info',
+  SCHEDULED: 'info',
+  SENT: 'success',
+  SKIPPED: 'neutral',
+  STARTED: 'info',
+  SUCCEEDED: 'success',
+  SUCCESS: 'success',
+  TRASH: 'neutral',
+  UPLOADED: 'success',
+  VALIDATED: 'success',
 };
 
-/** Map a domain status string to a coloured Badge. */
+/** Map a domain status string to a coloured, localized Badge. */
 export function StatusBadge({ status }: { status: string }) {
-  return <Badge tone={STATUS_TONES[status] ?? 'neutral'}>{status}</Badge>;
+  const t = useTranslations('enums.status');
+  // Only translate codes we have labels for; unknown codes render raw (no missing-key throw).
+  const label = status in STATUS_TONES ? t(status) : status;
+  return <Badge tone={STATUS_TONES[status] ?? 'neutral'}>{label}</Badge>;
 }
 
 export function PageHeader({

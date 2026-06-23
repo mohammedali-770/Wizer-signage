@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { CreditCard, Database, Lock, ServerCog, ShieldCheck } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle, EmptyState, PageHeader } from '@/components/ui';
@@ -46,51 +47,47 @@ function SettingsCard({
   );
 }
 
-const PLATFORM_ROWS: SettingRow[] = [
-  { label: 'Product', value: 'MasterSignage' },
-  { label: 'Console', value: 'Super Admin' },
-  { label: 'Release phase', value: 'Phase 2' },
-  {
-    label: 'Configuration source',
-    value: 'Managed via environment variables and deployment pipeline',
-  },
-];
-
-const SECURITY_ROWS: SettingRow[] = [
-  { label: 'Password policy', value: 'Minimum 10 characters with complexity requirements' },
-  { label: 'Account lockout', value: '7 failed attempts, locked for 15 minutes' },
-  { label: 'Two-factor authentication', value: 'Required for all Super Admins' },
-  { label: 'Session timeout', value: '30 minutes of inactivity' },
-];
-
-const RETENTION_ROWS: SettingRow[] = [
-  { label: 'Activity logs', value: '90 days (default)' },
-  { label: 'Proof-of-play records', value: '90 days (default)' },
-  { label: 'Player screenshots', value: '90 days (default)' },
-  { label: 'Financial records', value: 'Retained longer for compliance' },
-];
-
-const BILLING_ROWS: SettingRow[] = [
-  { label: 'Payment gateway', value: 'Not integrated in v1' },
-  { label: 'Invoicing', value: 'Manual invoices managed by Super Admins' },
-  { label: 'Default currency', value: 'USD' },
-  { label: 'Billing intervals', value: 'Monthly, Quarterly, Yearly' },
-];
-
 export default function SystemSettingsPage() {
+  const t = useTranslations('pages.adminSettings');
+
+  const PLATFORM_ROWS: SettingRow[] = [
+    { label: t('platformProduct'), value: 'MasterSignage' },
+    { label: t('platformConsole'), value: t('platformConsoleValue') },
+    { label: t('platformPhase'), value: t('platformPhaseValue') },
+    { label: t('platformConfigSource'), value: t('platformConfigSourceValue') },
+  ];
+
+  const SECURITY_ROWS: SettingRow[] = [
+    { label: t('securityPasswordPolicy'), value: t('securityPasswordPolicyValue') },
+    { label: t('securityLockout'), value: t('securityLockoutValue') },
+    { label: t('securityTwoFactor'), value: t('securityTwoFactorValue') },
+    { label: t('securitySessionTimeout'), value: t('securitySessionTimeoutValue') },
+  ];
+
+  const RETENTION_ROWS: SettingRow[] = [
+    { label: t('retentionActivityLogs'), value: t('retentionDefaultValue') },
+    { label: t('retentionProofOfPlay'), value: t('retentionDefaultValue') },
+    { label: t('retentionScreenshots'), value: t('retentionDefaultValue') },
+    { label: t('retentionFinancial'), value: t('retentionFinancialValue') },
+  ];
+
+  const BILLING_ROWS: SettingRow[] = [
+    { label: t('billingGateway'), value: t('billingGatewayValue') },
+    { label: t('billingInvoicing'), value: t('billingInvoicingValue') },
+    { label: t('billingCurrency'), value: 'USD' },
+    { label: t('billingIntervals'), value: t('billingIntervalsValue') },
+  ];
+
   return (
     <div>
-      <PageHeader
-        title="System Settings"
-        description="Platform configuration overview. In this phase these settings are read-only and managed through environment and deployment."
-      />
+      <PageHeader title={t('title')} description={t('description')} />
 
       <div className="space-y-6">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SettingsCard title="Platform" icon={ServerCog} rows={PLATFORM_ROWS} />
-          <SettingsCard title="Security" icon={ShieldCheck} rows={SECURITY_ROWS} />
-          <SettingsCard title="Data retention" icon={Database} rows={RETENTION_ROWS} />
-          <SettingsCard title="Billing" icon={CreditCard} rows={BILLING_ROWS} />
+          <SettingsCard title={t('platform')} icon={ServerCog} rows={PLATFORM_ROWS} />
+          <SettingsCard title={t('security')} icon={ShieldCheck} rows={SECURITY_ROWS} />
+          <SettingsCard title={t('dataRetention')} icon={Database} rows={RETENTION_ROWS} />
+          <SettingsCard title={t('billing')} icon={CreditCard} rows={BILLING_ROWS} />
         </div>
 
         <Card className="bg-muted/20 border-dashed">
@@ -99,19 +96,13 @@ export default function SystemSettingsPage() {
               <Lock className="size-5" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium">These settings are read-only in this phase</p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Platform configuration is currently managed through environment variables and the
-                deployment pipeline. In-app editable settings will arrive in a later phase.
-              </p>
+              <p className="text-sm font-medium">{t('readOnlyTitle')}</p>
+              <p className="text-muted-foreground mt-1 text-sm">{t('readOnlyBody')}</p>
             </div>
           </CardContent>
         </Card>
 
-        <EmptyState
-          title="No editable settings yet"
-          description="Configuration controls for this console are coming in a future release."
-        />
+        <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       </div>
     </div>
   );

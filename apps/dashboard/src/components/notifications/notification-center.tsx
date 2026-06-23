@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/use-api';
@@ -16,19 +16,21 @@ const SEVERITY_TONE: Record<string, 'info' | 'warning' | 'danger' | 'neutral'> =
 };
 
 /** Email-eligible events users can opt out of (matches the backend defaults). */
-const EMAIL_EVENTS: Array<{ key: string; label: string }> = [
-  { key: 'screen.offline', label: 'Screen went offline' },
-  { key: 'screen.online', label: 'Screen back online' },
-  { key: 'emergency.activated', label: 'Emergency broadcast activated' },
-  { key: 'emergency.ended', label: 'Emergency broadcast ended' },
-  { key: 'subscription.expiring', label: 'Subscription expiring' },
-  { key: 'grace.ending', label: 'Plan grace period ending' },
-  { key: 'backup.failed', label: 'Backup failed' },
-  { key: 'report.failed', label: 'Scheduled report failed' },
+const EMAIL_EVENTS: Array<{ key: string; tkey: string }> = [
+  { key: 'screen.offline', tkey: 'screenOffline' },
+  { key: 'screen.online', tkey: 'screenOnline' },
+  { key: 'emergency.activated', tkey: 'emergencyActivated' },
+  { key: 'emergency.ended', tkey: 'emergencyEnded' },
+  { key: 'subscription.expiring', tkey: 'subscriptionExpiring' },
+  { key: 'grace.ending', tkey: 'graceEnding' },
+  { key: 'backup.failed', tkey: 'backupFailed' },
+  { key: 'report.failed', tkey: 'reportFailed' },
 ];
 
 export function NotificationCenter() {
   const locale = useLocale();
+  const t = useTranslations('pages.notificationCenter');
+  const te = useTranslations('enums.status');
   const [page, setPage] = useState(1);
   const { data, loading, reload } = useApiResource<NotificationListResponse>(
     `/notifications?page=${page}&pageSize=20`,
@@ -66,11 +68,11 @@ export function NotificationCenter() {
   return (
     <div>
       <PageHeader
-        title="Notifications"
-        description="Your dashboard notifications and email preferences."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Button variant="outline" onClick={markAll}>
-            Mark all read
+            {t('markAll')}
           </Button>
         }
       />
@@ -80,12 +82,14 @@ export function NotificationCenter() {
           <Spinner className="text-primary size-6" />
         </div>
       ) : !data || data.items.length === 0 ? (
-        <EmptyState title="No notifications" description="Operational notifications appear here." />
+        <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       ) : (
         <Card className="divide-border divide-y">
           {data.items.map((n) => (
             <div key={n.id} className={`flex gap-3 p-4 ${!n.readAt ? 'bg-primary/5' : ''}`}>
-              <Badge tone={SEVERITY_TONE[n.severity] ?? 'neutral'}>{n.severity}</Badge>
+              <Badge tone={SEVERITY_TONE[n.severity] ?? 'neutral'}>
+                {['INFO', 'WARNING', 'CRITICAL'].includes(n.severity) ? te(n.severity) : n.severity}
+              </Badge>
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{n.title}</p>
                 {n.body ? <p className="text-muted-foreground text-sm">{n.body}</p> : null}
@@ -102,7 +106,7 @@ export function NotificationCenter() {
                     reload();
                   }}
                 >
-                  Mark read
+                  {t('markRead')}
                 </Button>
               ) : null}
             </div>
@@ -117,10 +121,8 @@ export function NotificationCenter() {
       ) : null}
 
       <Card className="mt-6 p-4">
-        <p className="mb-3 text-sm font-semibold">Email notifications</p>
-        <p className="text-muted-foreground mb-3 text-xs">
-          Dashboard notifications are always on. Choose which events also send you an email.
-        </p>
+        <p className="mb-3 text-sm font-semibold">{t('emailTitle')}</p>
+        <p className="text-muted-foreground mb-3 text-xs">{t('emailDescription')}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           {EMAIL_EVENTS.map((e) => (
             <label key={e.key} className="flex items-center gap-2 text-sm">
@@ -129,7 +131,7 @@ export function NotificationCenter() {
                 checked={emailEnabled(e.key)}
                 onChange={() => toggleEmail(e.key)}
               />
-              {e.label}
+              {t(`events.${e.tkey}`)}
             </label>
           ))}
         </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -43,12 +43,15 @@ const SUBSCRIPTION_STATUSES: SubscriptionStatus[] = [
 
 const PAGE_SIZE = 20;
 
-function errorMessage(e: unknown): string {
-  return e instanceof ApiError ? e.message : 'Something went wrong.';
+function errorMessage(e: unknown, fallback: string): string {
+  return e instanceof ApiError ? e.message : fallback;
 }
 
 export default function SubscriptionsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.adminSubscriptions');
+  const tc = useTranslations('common');
+  const te = useTranslations('enums');
   const { toast } = useToast();
 
   const [page, setPage] = useState(1);
@@ -99,7 +102,7 @@ export default function SubscriptionsPage() {
 
   async function handleCreate() {
     if (!createCompanyId || !createPlanId) {
-      toast('Select a company and a plan.', 'error');
+      toast(t('toast.selectCompanyPlan'), 'error');
       return;
     }
     setCreating(true);
@@ -112,12 +115,12 @@ export default function SubscriptionsPage() {
       const trial = Number(createTrialDays);
       if (createTrialDays !== '' && Number.isFinite(trial)) body.trialDays = trial;
       await api.post('/subscriptions', body);
-      toast('Subscription created.', 'success');
+      toast(t('toast.created'), 'success');
       setCreateOpen(false);
       resetCreate();
       reload();
     } catch (e) {
-      toast(errorMessage(e), 'error');
+      toast(errorMessage(e, t('toast.generic')), 'error');
     } finally {
       setCreating(false);
     }
@@ -132,7 +135,7 @@ export default function SubscriptionsPage() {
   async function handleChange() {
     if (!changeTarget) return;
     if (!changePlanId) {
-      toast('Select a plan.', 'error');
+      toast(t('toast.selectPlan'), 'error');
       return;
     }
     setChanging(true);
@@ -140,11 +143,11 @@ export default function SubscriptionsPage() {
       const body: Record<string, unknown> = { planId: changePlanId };
       if (changeStatus) body.status = changeStatus;
       await api.patch(`/subscriptions/${changeTarget.id}`, body);
-      toast('Subscription updated.', 'success');
+      toast(t('toast.updated'), 'success');
       setChangeTarget(null);
       reload();
     } catch (e) {
-      toast(errorMessage(e), 'error');
+      toast(errorMessage(e, t('toast.generic')), 'error');
     } finally {
       setChanging(false);
     }
@@ -155,11 +158,11 @@ export default function SubscriptionsPage() {
     setCancelling(true);
     try {
       await api.post(`/subscriptions/${cancelTarget.id}/cancel`);
-      toast('Subscription cancelled.', 'success');
+      toast(t('toast.cancelled'), 'success');
       setCancelTarget(null);
       reload();
     } catch (e) {
-      toast(errorMessage(e), 'error');
+      toast(errorMessage(e, t('toast.generic')), 'error');
     } finally {
       setCancelling(false);
     }
@@ -171,12 +174,12 @@ export default function SubscriptionsPage() {
   return (
     <div>
       <PageHeader
-        title="Subscriptions"
-        description="Manage tenant subscriptions, plan changes and cancellations."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
-            New Subscription
+            {t('newSubscription')}
           </Button>
         }
       />
@@ -189,12 +192,12 @@ export default function SubscriptionsPage() {
               setStatusFilter(e.target.value as SubscriptionStatus | '');
               setPage(1);
             }}
-            aria-label="Filter by status"
+            aria-label={t('filterByStatus')}
           >
-            <option value="">All statuses</option>
+            <option value="">{t('allStatuses')}</option>
             {SUBSCRIPTION_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {te(`status.${s}`)}
               </option>
             ))}
           </Select>
@@ -207,13 +210,10 @@ export default function SubscriptionsPage() {
         </div>
       )}
 
-      {error && <EmptyState title="Could not load subscriptions" description={error} />}
+      {error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && items.length === 0 && (
-        <EmptyState
-          title="No subscriptions found"
-          description="Create a subscription or adjust the status filter."
-        />
+        <EmptyState title={t('empty.title')} description={t('empty.description')} />
       )}
 
       {!loading && !error && items.length > 0 && (
@@ -221,13 +221,13 @@ export default function SubscriptionsPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Company</TH>
-                <TH>Plan</TH>
-                <TH>Status</TH>
-                <TH>Trial ends</TH>
-                <TH>Current period</TH>
-                <TH>Grace ends</TH>
-                <TH className="text-end">Actions</TH>
+                <TH>{t('company')}</TH>
+                <TH>{t('plan')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH>{t('trialEnds')}</TH>
+                <TH>{t('currentPeriod')}</TH>
+                <TH>{t('graceEnds')}</TH>
+                <TH className="text-end">{tc('actions')}</TH>
               </TR>
             </THead>
             <TBody>
@@ -260,7 +260,7 @@ export default function SubscriptionsPage() {
                     <TD>
                       <div className="flex justify-end gap-2">
                         <Button size="sm" variant="outline" onClick={() => openChange(sub)}>
-                          Change plan
+                          {t('changePlan')}
                         </Button>
                         <Button
                           size="sm"
@@ -268,7 +268,7 @@ export default function SubscriptionsPage() {
                           disabled={cancelled}
                           onClick={() => setCancelTarget(sub)}
                         >
-                          Cancel
+                          {tc('cancel')}
                         </Button>
                       </div>
                     </TD>
@@ -288,13 +288,13 @@ export default function SubscriptionsPage() {
         onClose={() => {
           if (!creating) setCreateOpen(false);
         }}
-        title="New Subscription"
-        description="Assign a plan to a company."
+        title={t('dialog.createTitle')}
+        description={t('dialog.createDescription')}
       >
         <div className="space-y-4">
-          <Field label="Company">
+          <Field label={t('company')}>
             <Select value={createCompanyId} onChange={(e) => setCreateCompanyId(e.target.value)}>
-              <option value="">Select a company…</option>
+              <option value="">{t('selectCompany')}</option>
               {companies.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -303,9 +303,9 @@ export default function SubscriptionsPage() {
             </Select>
           </Field>
 
-          <Field label="Plan">
+          <Field label={t('plan')}>
             <Select value={createPlanId} onChange={(e) => setCreatePlanId(e.target.value)}>
-              <option value="">Select a plan…</option>
+              <option value="">{t('selectPlan')}</option>
               {plans.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -314,37 +314,37 @@ export default function SubscriptionsPage() {
             </Select>
           </Field>
 
-          <Field label="Status">
+          <Field label={tc('status')}>
             <Select
               value={createStatus}
               onChange={(e) => setCreateStatus(e.target.value as SubscriptionStatus)}
             >
               {SUBSCRIPTION_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {te(`status.${s}`)}
                 </option>
               ))}
             </Select>
           </Field>
 
-          <Field label="Trial days" hint="Optional. Leave blank to use the plan default.">
+          <Field label={t('trialDays')} hint={t('hint.trialDays')}>
             <input
               type="number"
               min={0}
               value={createTrialDays}
               onChange={(e) => setCreateTrialDays(e.target.value)}
-              placeholder="e.g. 14"
+              placeholder={t('trialDaysPlaceholder')}
               className="border-border bg-background placeholder:text-muted-foreground focus-visible:ring-primary/40 h-10 w-full rounded-md border px-3 text-sm outline-none transition focus-visible:ring-2"
             />
           </Field>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button onClick={handleCreate} disabled={creating}>
               {creating && <Spinner className="size-4" />}
-              Create
+              {tc('create')}
             </Button>
           </div>
         </div>
@@ -356,13 +356,13 @@ export default function SubscriptionsPage() {
         onClose={() => {
           if (!changing) setChangeTarget(null);
         }}
-        title="Change plan"
+        title={t('dialog.changeTitle')}
         description={changeTarget?.company?.name ?? undefined}
       >
         <div className="space-y-4">
-          <Field label="Plan">
+          <Field label={t('plan')}>
             <Select value={changePlanId} onChange={(e) => setChangePlanId(e.target.value)}>
-              <option value="">Select a plan…</option>
+              <option value="">{t('selectPlan')}</option>
               {plans.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -371,15 +371,15 @@ export default function SubscriptionsPage() {
             </Select>
           </Field>
 
-          <Field label="Status" hint="Optional. Leave unchanged to keep the current status.">
+          <Field label={tc('status')} hint={t('hint.changeStatus')}>
             <Select
               value={changeStatus}
               onChange={(e) => setChangeStatus(e.target.value as SubscriptionStatus | '')}
             >
-              <option value="">Keep current status</option>
+              <option value="">{t('keepStatus')}</option>
               {SUBSCRIPTION_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {te(`status.${s}`)}
                 </option>
               ))}
             </Select>
@@ -387,11 +387,11 @@ export default function SubscriptionsPage() {
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setChangeTarget(null)} disabled={changing}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button onClick={handleChange} disabled={changing}>
               {changing && <Spinner className="size-4" />}
-              Save changes
+              {tc('save')}
             </Button>
           </div>
         </div>
@@ -403,20 +403,20 @@ export default function SubscriptionsPage() {
         onClose={() => {
           if (!cancelling) setCancelTarget(null);
         }}
-        title="Cancel subscription"
+        title={t('dialog.cancelTitle')}
         description={
           cancelTarget?.company?.name
-            ? `This will cancel the subscription for ${cancelTarget.company.name}.`
-            : 'This will cancel the subscription.'
+            ? t('dialog.cancelDescriptionNamed', { name: cancelTarget.company.name })
+            : t('dialog.cancelDescription')
         }
       >
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setCancelTarget(null)} disabled={cancelling}>
-            Keep subscription
+            {t('keepSubscription')}
           </Button>
           <Button variant="danger" onClick={handleCancel} disabled={cancelling}>
             {cancelling && <Spinner className="size-4" />}
-            Cancel subscription
+            {t('cancelSubscription')}
           </Button>
         </div>
       </Dialog>

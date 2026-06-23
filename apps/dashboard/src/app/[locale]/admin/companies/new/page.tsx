@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -29,6 +30,8 @@ interface CreateCompanyBody {
 export default function NewCompanyPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('pages.adminCompanyNew');
+  const tc = useTranslations('common');
 
   const { data: plansData } = useApiResource<Paginated<Plan>>('/plans?pageSize=100&isActive=true');
   const plans = plansData?.items ?? [];
@@ -55,10 +58,10 @@ export default function NewCompanyPage() {
     setSubmitting(true);
     try {
       const created = await api.post<Company>('/companies', body);
-      toast('Company created.', 'success');
+      toast(t('toastCreated'), 'success');
       router.push(`/admin/companies/${created.id}`);
     } catch (e) {
-      toast(e instanceof ApiError ? e.message : 'Something went wrong.', 'error');
+      toast(e instanceof ApiError ? e.message : t('toastError'), 'error');
       setSubmitting(false);
     }
   }
@@ -66,13 +69,13 @@ export default function NewCompanyPage() {
   return (
     <div>
       <PageHeader
-        title="New company"
-        description="Provision a new tenant on the platform."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Link href="/admin/companies">
             <Button variant="outline">
               <ArrowLeft className="size-4" />
-              Back to companies
+              {t('backToCompanies')}
             </Button>
           </Link>
         }
@@ -81,7 +84,7 @@ export default function NewCompanyPage() {
       <Card className="max-w-2xl">
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
-            <Field label="Name">
+            <Field label={tc('name')}>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -91,7 +94,7 @@ export default function NewCompanyPage() {
               />
             </Field>
 
-            <Field label="Slug" hint="Auto-generated from the name if left blank.">
+            <Field label={t('slug')} hint={t('slugHint')}>
               <Input
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
@@ -100,14 +103,14 @@ export default function NewCompanyPage() {
             </Field>
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <Field label="Default locale">
+              <Field label={t('defaultLocale')}>
                 <Select value={defaultLocale} onChange={(e) => setDefaultLocale(e.target.value)}>
-                  <option value="en">English (en)</option>
-                  <option value="ar">Arabic (ar)</option>
+                  <option value="en">{t('localeEnglish')}</option>
+                  <option value="ar">{t('localeArabic')}</option>
                 </Select>
               </Field>
 
-              <Field label="Timezone">
+              <Field label={t('timezone')}>
                 <Input
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
@@ -116,9 +119,9 @@ export default function NewCompanyPage() {
               </Field>
             </div>
 
-            <Field label="Plan" hint="Optional. Creates a subscription for the company.">
+            <Field label={t('plan')} hint={t('planHint')}>
               <Select value={planId} onChange={(e) => setPlanId(e.target.value)}>
-                <option value="">No subscription</option>
+                <option value="">{t('noSubscription')}</option>
                 {plans.map((plan) => (
                   <option key={plan.id} value={plan.id}>
                     {plan.name} ({plan.code})
@@ -130,11 +133,11 @@ export default function NewCompanyPage() {
             <div className="border-border flex items-center justify-end gap-2 border-t pt-5">
               <Link href="/admin/companies">
                 <Button type="button" variant="outline">
-                  Cancel
+                  {tc('cancel')}
                 </Button>
               </Link>
               <Button type="submit" disabled={!canSubmit}>
-                {submitting ? 'Creating…' : 'Create company'}
+                {submitting ? t('creating') : t('createCompany')}
               </Button>
             </div>
           </form>

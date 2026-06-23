@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Pencil, Plus } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -34,18 +34,18 @@ const PAGE_SIZE = 20;
 const BILLING_INTERVALS: BillingInterval[] = ['MONTHLY', 'QUARTERLY', 'YEARLY'];
 
 /** The PlanLimits keys rendered as number inputs in the form. */
-const LIMIT_FIELDS: { key: keyof PlanLimits; label: string }[] = [
-  { key: 'maxCompanies', label: 'Max companies' },
-  { key: 'maxLocations', label: 'Max locations' },
-  { key: 'maxScreens', label: 'Max screens' },
-  { key: 'maxUsers', label: 'Max users' },
-  { key: 'storageGb', label: 'Storage (GB)' },
-  { key: 'maxFileSizeMb', label: 'Max file size (MB)' },
-  { key: 'autoScreenshotsPerDay', label: 'Auto screenshots / day' },
-  { key: 'scheduledReports', label: 'Scheduled reports' },
-  { key: 'dataRetentionDays', label: 'Data retention (days)' },
-  { key: 'apiRequestsPerDay', label: 'API requests / day' },
-  { key: 'webhooks', label: 'Webhooks' },
+const LIMIT_FIELDS: { key: keyof PlanLimits; tkey: string }[] = [
+  { key: 'maxCompanies', tkey: 'limits.maxCompanies' },
+  { key: 'maxLocations', tkey: 'limits.maxLocations' },
+  { key: 'maxScreens', tkey: 'limits.maxScreens' },
+  { key: 'maxUsers', tkey: 'limits.maxUsers' },
+  { key: 'storageGb', tkey: 'limits.storageGb' },
+  { key: 'maxFileSizeMb', tkey: 'limits.maxFileSizeMb' },
+  { key: 'autoScreenshotsPerDay', tkey: 'limits.autoScreenshotsPerDay' },
+  { key: 'scheduledReports', tkey: 'limits.scheduledReports' },
+  { key: 'dataRetentionDays', tkey: 'limits.dataRetentionDays' },
+  { key: 'apiRequestsPerDay', tkey: 'limits.apiRequestsPerDay' },
+  { key: 'webhooks', tkey: 'limits.webhooks' },
 ];
 
 type LimitStrings = Record<keyof PlanLimits, string>;
@@ -119,6 +119,9 @@ function limitsPayload(limits: LimitStrings): PlanLimits {
 
 export default function PlansPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.adminPlans');
+  const tc = useTranslations('common');
+  const te = useTranslations('enums');
   const { toast } = useToast();
 
   const [page, setPage] = useState(1);
@@ -154,11 +157,11 @@ export default function PlansPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) {
-      toast('Name is required.', 'error');
+      toast(t('toast.nameRequired'), 'error');
       return;
     }
     if (!editing && !form.code.trim()) {
-      toast('Code is required.', 'error');
+      toast(t('toast.codeRequired'), 'error');
       return;
     }
 
@@ -179,15 +182,15 @@ export default function PlansPage() {
 
       if (editing) {
         await api.patch<Plan>(`/plans/${editing.id}`, base);
-        toast('Plan updated.', 'success');
+        toast(t('toast.updated'), 'success');
       } else {
         await api.post<Plan>('/plans', { ...base, code: form.code.trim() });
-        toast('Plan created.', 'success');
+        toast(t('toast.created'), 'success');
       }
       setDialogOpen(false);
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.generic'), 'error');
     } finally {
       setSaving(false);
     }
@@ -198,14 +201,14 @@ export default function PlansPage() {
     try {
       if (plan.isActive) {
         await api.post(`/plans/${plan.id}/archive`);
-        toast('Plan archived.', 'success');
+        toast(t('toast.archived'), 'success');
       } else {
         await api.post(`/plans/${plan.id}/activate`);
-        toast('Plan activated.', 'success');
+        toast(t('toast.activated'), 'success');
       }
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.generic'), 'error');
     } finally {
       setBusyId(null);
     }
@@ -216,12 +219,12 @@ export default function PlansPage() {
   return (
     <div>
       <PageHeader
-        title="Plans"
-        description="Define subscription tiers, pricing, and resource limits."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Button onClick={openCreate}>
             <Plus className="size-4" />
-            New Plan
+            {t('newPlan')}
           </Button>
         }
       />
@@ -231,12 +234,9 @@ export default function PlansPage() {
           <Spinner className="text-primary size-6" />
         </div>
       )}
-      {error && !loading && <EmptyState title="Could not load plans" description={error} />}
+      {error && !loading && <EmptyState title={t('loadError')} description={error} />}
       {!loading && !error && plans.length === 0 && (
-        <EmptyState
-          title="No plans yet"
-          description="Create your first plan to start onboarding companies."
-        />
+        <EmptyState title={t('empty.title')} description={t('empty.description')} />
       )}
 
       {!loading && !error && plans.length > 0 && (
@@ -244,12 +244,12 @@ export default function PlansPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Name</TH>
-                <TH>Code</TH>
-                <TH>Price</TH>
-                <TH>Trial days</TH>
-                <TH>Status</TH>
-                <TH className="text-end">Actions</TH>
+                <TH>{tc('name')}</TH>
+                <TH>{t('code')}</TH>
+                <TH>{t('price')}</TH>
+                <TH>{t('trialDays')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH className="text-end">{tc('actions')}</TH>
               </TR>
             </THead>
             <TBody>
@@ -263,20 +263,20 @@ export default function PlansPage() {
                     {formatCurrency(plan.priceMonthly, plan.currency, locale)}
                     <span className="text-muted-foreground">
                       {' / '}
-                      {plan.billingInterval.toLowerCase()}
+                      {t(`interval.${plan.billingInterval}`)}
                     </span>
                   </TD>
                   <TD>{formatNumber(plan.trialDays, locale)}</TD>
                   <TD>
                     <Badge tone={plan.isActive ? 'success' : 'neutral'}>
-                      {plan.isActive ? 'Active' : 'Inactive'}
+                      {plan.isActive ? te('status.ACTIVE') : te('status.INACTIVE')}
                     </Badge>
                   </TD>
                   <TD>
                     <div className="flex items-center justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => openEdit(plan)}>
                         <Pencil className="size-3.5" />
-                        Edit
+                        {tc('edit')}
                       </Button>
                       <Button
                         size="sm"
@@ -287,9 +287,9 @@ export default function PlansPage() {
                         {busyId === plan.id ? (
                           <Spinner className="size-3.5" />
                         ) : plan.isActive ? (
-                          'Archive'
+                          t('archive')
                         ) : (
-                          'Activate'
+                          t('activate')
                         )}
                       </Button>
                     </div>
@@ -308,17 +308,13 @@ export default function PlansPage() {
       <Dialog
         open={dialogOpen}
         onClose={closeDialog}
-        title={editing ? 'Edit Plan' : 'New Plan'}
-        description={
-          editing
-            ? 'Update pricing, availability, and resource limits.'
-            : 'Define a new subscription tier.'
-        }
+        title={editing ? t('dialog.editTitle') : t('dialog.createTitle')}
+        description={editing ? t('dialog.editDescription') : t('dialog.createDescription')}
         className="max-h-[90vh] max-w-2xl overflow-y-auto"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Name">
+            <Field label={tc('name')}>
               <Input
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -326,7 +322,7 @@ export default function PlansPage() {
                 required
               />
             </Field>
-            <Field label="Code" hint={editing ? 'Code cannot be changed.' : 'Unique identifier.'}>
+            <Field label={t('code')} hint={editing ? t('hint.codeLocked') : t('hint.codeUnique')}>
               <Input
                 value={form.code}
                 onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
@@ -337,17 +333,17 @@ export default function PlansPage() {
             </Field>
           </div>
 
-          <Field label="Description">
+          <Field label={tc('description')}>
             <Textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="What this plan includes."
+              placeholder={t('descriptionPlaceholder')}
               rows={2}
             />
           </Field>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Field label="Price">
+            <Field label={t('price')}>
               <Input
                 type="number"
                 min="0"
@@ -357,7 +353,7 @@ export default function PlansPage() {
                 placeholder="0.00"
               />
             </Field>
-            <Field label="Currency">
+            <Field label={t('currency')}>
               <Input
                 value={form.currency}
                 onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value.toUpperCase() }))}
@@ -365,7 +361,7 @@ export default function PlansPage() {
                 maxLength={3}
               />
             </Field>
-            <Field label="Billing interval">
+            <Field label={t('billingInterval')}>
               <Select
                 value={form.billingInterval}
                 onChange={(e) =>
@@ -374,7 +370,7 @@ export default function PlansPage() {
               >
                 {BILLING_INTERVALS.map((interval) => (
                   <option key={interval} value={interval}>
-                    {interval.charAt(0) + interval.slice(1).toLowerCase()}
+                    {t(`interval.${interval}`)}
                   </option>
                 ))}
               </Select>
@@ -382,7 +378,7 @@ export default function PlansPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Field label="Trial days">
+            <Field label={t('trialDays')}>
               <Input
                 type="number"
                 min="0"
@@ -400,7 +396,7 @@ export default function PlansPage() {
                 onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
               />
               <Label htmlFor="plan-active" className="mb-0">
-                Active
+                {t('active')}
               </Label>
             </div>
             <div className="flex items-end gap-2 pb-2">
@@ -412,23 +408,23 @@ export default function PlansPage() {
                 onChange={(e) => setForm((f) => ({ ...f, isPublic: e.target.checked }))}
               />
               <Label htmlFor="plan-public" className="mb-0">
-                Public
+                {t('public')}
               </Label>
             </div>
           </div>
 
           <div className="border-border rounded-lg border p-4">
-            <p className="text-sm font-medium">Limits</p>
-            <p className="text-muted-foreground mb-3 text-xs">Leave a field blank for unlimited.</p>
+            <p className="text-sm font-medium">{t('limits.title')}</p>
+            <p className="text-muted-foreground mb-3 text-xs">{t('limits.hint')}</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {LIMIT_FIELDS.map(({ key, label }) => (
-                <Field key={key} label={label}>
+              {LIMIT_FIELDS.map(({ key, tkey }) => (
+                <Field key={key} label={t(tkey)}>
                   <Input
                     type="number"
                     min="0"
                     value={form.limits[key]}
                     onChange={(e) => updateLimit(key, e.target.value)}
-                    placeholder="Unlimited"
+                    placeholder={t('limits.unlimited')}
                   />
                 </Field>
               ))}
@@ -437,11 +433,11 @@ export default function PlansPage() {
 
           <div className="border-border flex justify-end gap-2 border-t pt-4">
             <Button type="button" variant="outline" onClick={closeDialog} disabled={saving}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={saving}>
               {saving && <Spinner className="size-4" />}
-              {editing ? 'Save changes' : 'Create plan'}
+              {editing ? tc('save') : t('createPlan')}
             </Button>
           </div>
         </form>

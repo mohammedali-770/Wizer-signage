@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Building2,
   CreditCard,
@@ -21,16 +22,19 @@ import { LocaleSwitcher } from '@/components/locale-switcher';
 import { NotificationBell } from '@/components/notification-bell';
 import { Button, Spinner } from '@/components/ui';
 
-const NAV = [
-  { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
-  { href: '/admin/companies', label: 'Companies', icon: Building2 },
-  { href: '/admin/plans', label: 'Plans', icon: Package },
-  { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
-  { href: '/admin/invoices', label: 'Invoices', icon: FileText },
-  { href: '/admin/super-admins', label: 'Super Admins', icon: ShieldCheck },
-  { href: '/admin/backups', label: 'Backups', icon: DatabaseBackup },
-  { href: '/admin/settings', label: 'System Settings', icon: Settings },
-  { href: '/admin/activity-logs', label: 'Activity Logs', icon: ScrollText },
+type NavItem = { href: string; tkey: string; icon: typeof LayoutDashboard; exact?: boolean };
+
+// Labels resolve via the `adminNav` i18n namespace (en/ar). Routes are unchanged.
+const NAV: NavItem[] = [
+  { href: '/admin', tkey: 'overview', icon: LayoutDashboard, exact: true },
+  { href: '/admin/companies', tkey: 'companies', icon: Building2 },
+  { href: '/admin/plans', tkey: 'plans', icon: Package },
+  { href: '/admin/subscriptions', tkey: 'subscriptions', icon: CreditCard },
+  { href: '/admin/invoices', tkey: 'invoices', icon: FileText },
+  { href: '/admin/super-admins', tkey: 'superAdmins', icon: ShieldCheck },
+  { href: '/admin/backups', tkey: 'backups', icon: DatabaseBackup },
+  { href: '/admin/settings', tkey: 'settings', icon: Settings },
+  { href: '/admin/activity-logs', tkey: 'activityLogs', icon: ScrollText },
 ];
 
 /** Protected Super Admin shell: auth guard + sidebar + top bar. */
@@ -38,6 +42,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { status, user, needsTwoFactorSetup, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const tNav = useTranslations('adminNav');
+  const tShell = useTranslations('shell');
 
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && needsTwoFactorSetup)) {
@@ -86,20 +92,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <Icon className="size-4" aria-hidden />
-                {item.label}
+                {tNav(item.tkey)}
               </Link>
             );
           })}
         </nav>
         <div className="border-border text-muted-foreground border-t p-4 text-xs">
-          Super Admin Console
+          {tShell('adminConsole')}
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-border bg-card flex h-16 items-center justify-between gap-3 border-b px-4 md:px-6">
           <span className="text-muted-foreground text-xs uppercase tracking-wide">
-            Platform Administration
+            {tShell('platformAdministration')}
           </span>
           <div className="flex items-center gap-2">
             <NotificationBell basePath="/admin" />
@@ -110,7 +116,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <p className="text-muted-foreground text-xs leading-tight">{user?.email}</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => logout()}>
-              Sign out
+              {tShell('signOut')}
             </Button>
           </div>
         </header>

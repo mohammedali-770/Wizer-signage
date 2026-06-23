@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { useApiResource } from '@/lib/use-api';
 import { formatDateTime } from '@/lib/format';
@@ -69,6 +69,13 @@ function metadataPreview(metadata: Record<string, unknown>): string | null {
 
 export default function ActivityLogsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.adminActivityLogs');
+  const te = useTranslations('enums');
+
+  // Known categories live in the central enums.activityCategory group; unknown
+  // codes (e.g. PLAN, SUBSCRIPTION, INVOICE, BILLING) fall back to the raw code.
+  const categoryLabel = (code: string) =>
+    te.has(`activityCategory.${code}`) ? te(`activityCategory.${code}`) : code;
 
   const [page, setPage] = useState(1);
   const [category, setCategory] = useState('');
@@ -102,22 +109,22 @@ export default function ActivityLogsPage() {
 
   return (
     <div>
-      <PageHeader title="Activity Logs" description="Audit trail of platform and tenant actions." />
+      <PageHeader title={t('title')} description={t('description')} />
 
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:max-w-2xl">
-        <Field label="Category">
+        <Field label={t('category')}>
           <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">All categories</option>
+            <option value="">{t('allCategories')}</option>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {c}
+                {categoryLabel(c)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Action">
+        <Field label={t('action')}>
           <Input
-            placeholder="Filter by action…"
+            placeholder={t('actionPlaceholder')}
             value={actionInput}
             onChange={(e) => setActionInput(e.target.value)}
           />
@@ -130,13 +137,10 @@ export default function ActivityLogsPage() {
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load activity logs" description={error} />}
+      {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && items.length === 0 && (
-        <EmptyState
-          title="No activity found"
-          description="No log entries match the current filters."
-        />
+        <EmptyState title={t('emptyTitle')} description={t('emptyFiltered')} />
       )}
 
       {!loading && !error && items.length > 0 && (
@@ -144,12 +148,12 @@ export default function ActivityLogsPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Time</TH>
-                <TH>Category</TH>
-                <TH>Action</TH>
-                <TH>Target</TH>
-                <TH>Actor</TH>
-                <TH>IP</TH>
+                <TH>{t('colTime')}</TH>
+                <TH>{t('category')}</TH>
+                <TH>{t('action')}</TH>
+                <TH>{t('colTarget')}</TH>
+                <TH>{t('colActor')}</TH>
+                <TH>{t('colIp')}</TH>
               </TR>
             </THead>
             <TBody>
@@ -161,7 +165,7 @@ export default function ActivityLogsPage() {
                       {formatDateTime(entry.createdAt, locale)}
                     </TD>
                     <TD>
-                      <Badge>{entry.category}</Badge>
+                      <Badge>{categoryLabel(entry.category)}</Badge>
                     </TD>
                     <TD>
                       <div className="font-medium">{entry.action}</div>
@@ -176,7 +180,7 @@ export default function ActivityLogsPage() {
                     </TD>
                     <TD className="whitespace-nowrap">{formatTarget(entry)}</TD>
                     <TD className="text-muted-foreground whitespace-nowrap font-mono text-xs">
-                      {entry.actorId ? shortId(entry.actorId) : 'system'}
+                      {entry.actorId ? shortId(entry.actorId) : t('systemActor')}
                     </TD>
                     <TD className="text-muted-foreground whitespace-nowrap">{entry.ip ?? '—'}</TD>
                   </TR>

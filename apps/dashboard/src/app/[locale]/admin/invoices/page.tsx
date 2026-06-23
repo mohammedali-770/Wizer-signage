@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Plus, Trash2 } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -45,6 +45,9 @@ function emptyLineItem(): LineItemDraft {
 
 export default function InvoicesPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.adminInvoices');
+  const tc = useTranslations('common');
+  const te = useTranslations('enums');
   const { toast } = useToast();
 
   const [page, setPage] = useState(1);
@@ -71,10 +74,13 @@ export default function InvoicesPage() {
     setUpdatingId(invoice.id);
     try {
       await api.patch(`/invoices/${invoice.id}/status`, { status });
-      toast(`Invoice ${invoice.number} marked ${status}.`, 'success');
+      toast(
+        t('toast.statusChanged', { number: invoice.number, status: te(`status.${status}`) }),
+        'success',
+      );
       reload();
     } catch (e) {
-      toast(e instanceof ApiError ? e.message : 'Something went wrong.', 'error');
+      toast(e instanceof ApiError ? e.message : t('toast.generic'), 'error');
     } finally {
       setUpdatingId(null);
     }
@@ -83,19 +89,19 @@ export default function InvoicesPage() {
   return (
     <div>
       <PageHeader
-        title="Invoices"
-        description="Billing documents across all tenants."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
-            New Invoice
+            {t('newInvoice')}
           </Button>
         }
       />
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="w-48">
-          <Label>Status</Label>
+          <Label>{tc('status')}</Label>
           <Select
             value={statusFilter}
             onChange={(e) => {
@@ -103,10 +109,10 @@ export default function InvoicesPage() {
               setPage(1);
             }}
           >
-            <option value="">All statuses</option>
+            <option value="">{t('allStatuses')}</option>
             {INVOICE_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {te(`status.${s}`)}
               </option>
             ))}
           </Select>
@@ -119,16 +125,12 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {error && !loading && <EmptyState title="Could not load invoices" description={error} />}
+      {error && !loading && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && items.length === 0 && (
         <EmptyState
-          title="No invoices found"
-          description={
-            statusFilter
-              ? 'No invoices match the selected status.'
-              : 'Create your first invoice to get started.'
-          }
+          title={t('empty.title')}
+          description={statusFilter ? t('empty.filtered') : t('empty.description')}
         />
       )}
 
@@ -137,13 +139,13 @@ export default function InvoicesPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Number</TH>
-                <TH>Company</TH>
-                <TH>Status</TH>
-                <TH className="text-end">Total</TH>
-                <TH>Issued</TH>
-                <TH>Due</TH>
-                <TH className="text-end">Actions</TH>
+                <TH>{t('number')}</TH>
+                <TH>{t('company')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH className="text-end">{t('total')}</TH>
+                <TH>{t('issued')}</TH>
+                <TH>{t('due')}</TH>
+                <TH className="text-end">{tc('actions')}</TH>
               </TR>
             </THead>
             <TBody>
@@ -172,7 +174,7 @@ export default function InvoicesPage() {
                       >
                         {INVOICE_STATUSES.map((s) => (
                           <option key={s} value={s}>
-                            {s}
+                            {te(`status.${s}`)}
                           </option>
                         ))}
                       </Select>
@@ -210,6 +212,9 @@ function CreateInvoiceDialog({
   onCreated: () => void;
 }) {
   const locale = useLocale();
+  const t = useTranslations('pages.adminInvoices');
+  const tc = useTranslations('common');
+  const te = useTranslations('enums');
   const { toast } = useToast();
 
   // Only fetch companies when the dialog is open.
@@ -268,7 +273,7 @@ function CreateInvoiceDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!companyId) {
-      toast('Please select a company.', 'error');
+      toast(t('toast.selectCompany'), 'error');
       return;
     }
     const cleanedLineItems = lineItems
@@ -280,7 +285,7 @@ function CreateInvoiceDialog({
       .filter((item) => item.description.length > 0);
 
     if (cleanedLineItems.length === 0) {
-      toast('Add at least one line item with a description.', 'error');
+      toast(t('toast.needLineItem'), 'error');
       return;
     }
     if (
@@ -289,7 +294,7 @@ function CreateInvoiceDialog({
           !Number.isFinite(item.quantity) || !Number.isFinite(item.unitPrice) || item.quantity <= 0,
       )
     ) {
-      toast('Line items need a positive quantity and a valid price.', 'error');
+      toast(t('toast.invalidLineItem'), 'error');
       return;
     }
 
@@ -303,11 +308,11 @@ function CreateInvoiceDialog({
         ...(taxValue > 0 ? { tax: taxValue } : {}),
         ...(dueAt ? { dueAt: new Date(dueAt).toISOString() } : {}),
       });
-      toast('Invoice created.', 'success');
+      toast(t('toast.created'), 'success');
       reset();
       onCreated();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.generic'), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -317,13 +322,13 @@ function CreateInvoiceDialog({
     <Dialog
       open={open}
       onClose={handleClose}
-      title="New Invoice"
-      description="Create a billing document for a tenant company."
+      title={t('dialog.createTitle')}
+      description={t('dialog.createDescription')}
       className="max-w-2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Company">
+          <Field label={t('company')}>
             <Select
               value={companyId}
               onChange={(e) => setCompanyId(e.target.value)}
@@ -331,7 +336,7 @@ function CreateInvoiceDialog({
               required
             >
               <option value="">
-                {companiesLoading ? 'Loading companies…' : 'Select a company'}
+                {companiesLoading ? t('loadingCompanies') : t('selectCompany')}
               </option>
               {companies.map((company) => (
                 <option key={company.id} value={company.id}>
@@ -341,7 +346,7 @@ function CreateInvoiceDialog({
             </Select>
           </Field>
 
-          <Field label="Currency">
+          <Field label={t('currency')}>
             <Input
               value={currency}
               onChange={(e) => setCurrency(e.target.value.toUpperCase())}
@@ -353,26 +358,26 @@ function CreateInvoiceDialog({
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <Label className="mb-0">Line items</Label>
+            <Label className="mb-0">{t('lineItems')}</Label>
             <Button type="button" variant="outline" size="sm" onClick={addLine}>
               <Plus className="size-3.5" />
-              Add line
+              {t('addLine')}
             </Button>
           </div>
 
           <div className="space-y-2">
             <div className="text-muted-foreground hidden grid-cols-[1fr_5rem_7rem_auto] gap-2 px-1 text-xs font-medium uppercase sm:grid">
-              <span>Description</span>
-              <span>Qty</span>
-              <span>Unit price</span>
-              <span className="sr-only">Remove</span>
+              <span>{tc('description')}</span>
+              <span>{t('qty')}</span>
+              <span>{t('unitPrice')}</span>
+              <span className="sr-only">{tc('delete')}</span>
             </div>
             {lineItems.map((item, index) => (
               <div key={index} className="grid grid-cols-[1fr_5rem_7rem_auto] gap-2">
                 <Input
                   value={item.description}
                   onChange={(e) => updateLine(index, { description: e.target.value })}
-                  placeholder="Description"
+                  placeholder={tc('description')}
                 />
                 <Input
                   type="number"
@@ -397,7 +402,7 @@ function CreateInvoiceDialog({
                   className="text-muted-foreground px-2"
                   onClick={() => removeLine(index)}
                   disabled={lineItems.length === 1}
-                  aria-label="Remove line item"
+                  aria-label={t('removeLineItem')}
                 >
                   <Trash2 className="size-4" />
                 </Button>
@@ -407,7 +412,7 @@ function CreateInvoiceDialog({
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="Tax" hint="Optional">
+          <Field label={t('tax')} hint={t('optional')}>
             <Input
               type="number"
               min="0"
@@ -418,46 +423,46 @@ function CreateInvoiceDialog({
               className="text-end"
             />
           </Field>
-          <Field label="Status">
+          <Field label={tc('status')}>
             <Select value={status} onChange={(e) => setStatus(e.target.value as InvoiceStatus)}>
               {INVOICE_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {te(`status.${s}`)}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Due date" hint="Optional">
+          <Field label={t('dueDate')} hint={t('optional')}>
             <Input type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
           </Field>
         </div>
 
         <div className="border-border bg-muted/30 rounded-lg border px-4 py-3 text-sm">
           <div className="text-muted-foreground flex items-center justify-between">
-            <span>Subtotal</span>
+            <span>{t('subtotal')}</span>
             <span className="text-foreground tabular-nums">
               {formatCurrency(subtotal, currency || 'USD', locale)}
             </span>
           </div>
           <div className="text-muted-foreground mt-1 flex items-center justify-between">
-            <span>Tax</span>
+            <span>{t('tax')}</span>
             <span className="text-foreground tabular-nums">
               {formatCurrency(taxValue, currency || 'USD', locale)}
             </span>
           </div>
           <div className="border-border mt-2 flex items-center justify-between border-t pt-2 font-semibold">
-            <span>Total</span>
+            <span>{t('total')}</span>
             <span className="tabular-nums">{formatCurrency(total, currency || 'USD', locale)}</span>
           </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button type="submit" disabled={submitting}>
             {submitting && <Spinner className="size-4" />}
-            Create Invoice
+            {t('createInvoice')}
           </Button>
         </div>
       </form>
