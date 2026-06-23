@@ -733,7 +733,12 @@
         "deviceUnpaired": "تم إلغاء اقتران الجهاز."
       },
       "workingHoursNotConfigured": "غير مُهيأة",
-      "workingHoursActive": "{count, plural, zero {# يوم نشط} one {يوم واحد نشط} two {يومان نشطان} few {# أيام نشطة} many {# يوماً نشطاً} other {# يوم نشط}}"
+      "workingHoursActive": "{count, plural, zero {# يوم نشط} one {يوم واحد نشط} two {يومان نشطان} few {# أيام نشطة} many {# يوماً نشطاً} other {# يوم نشط}}",
+      "sections": {
+        "statusControl": "الحالة والتحكم",
+        "configuration": "الإعدادات",
+        "targeting": "الاستهداف والمحتوى"
+      }
     },
     "playlistEditor": {
       "notFound": "قائمة التشغيل غير موجودة",

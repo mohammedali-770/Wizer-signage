@@ -733,7 +733,12 @@
         "deviceUnpaired": "Device unpaired."
       },
       "workingHoursNotConfigured": "Not configured",
-      "workingHoursActive": "{count, plural, one {# day active} other {# days active}}"
+      "workingHoursActive": "{count, plural, one {# day active} other {# days active}}",
+      "sections": {
+        "statusControl": "Status & control",
+        "configuration": "Configuration",
+        "targeting": "Targeting & content"
+      }
     },
     "playlistEditor": {
       "notFound": "Playlist not found",

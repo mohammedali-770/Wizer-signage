@@ -435,454 +435,477 @@ export default function ScreenDetailPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('cards.identity')}</CardTitle>
-              </CardHeader>
-              <CardContent className="divide-border divide-y">
-                <DetailRow label={tc('location')}>
-                  {screen.location?.name ?? t('unassigned')}
-                </DetailRow>
-                <DetailRow label={t('fields.use')}>
-                  {screen.use ? te(`screenUse.${screen.use}`) : '—'}
-                </DetailRow>
-                <DetailRow label={tc('orientation')}>
-                  {te(`orientation.${screen.orientation}`)}
-                </DetailRow>
-                <DetailRow label={tc('description')}>{screen.description || '—'}</DetailRow>
-                <DetailRow label={t('fields.notes')}>{screen.notes || '—'}</DetailRow>
-                <DetailRow label={tc('created')}>
-                  {formatDateTime(screen.createdAt, locale)}
-                </DetailRow>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('cards.monitoring')}</CardTitle>
-              </CardHeader>
-              <CardContent className="divide-border divide-y">
-                <DetailRow label={tc('status')}>
-                  <StatusBadge status={screen.status} />
-                </DetailRow>
-                <DetailRow label={t('fields.lastHeartbeat')}>
-                  {screen.lastHeartbeatAt
-                    ? formatDateTime(screen.lastHeartbeatAt, locale)
-                    : t('never')}
-                </DetailRow>
-                <DetailRow label={t('fields.lastSync')}>
-                  {screen.lastSyncAt ? formatDateTime(screen.lastSyncAt, locale) : t('never')}
-                </DetailRow>
-                <DetailRow label={t('fields.appVersion')}>{screen.appVersion ?? '—'}</DetailRow>
-                <DetailRow label={t('fields.currentContent')}>
-                  {screen.currentContentId ?? '—'}
-                </DetailRow>
-                <DetailRow label={t('fields.storageUsed')}>
-                  {screen.storageUsedBytes
-                    ? formatBytes(Number(screen.storageUsedBytes), locale)
-                    : '—'}
-                </DetailRow>
-                <p className="text-muted-foreground pt-3 text-xs">{t('monitoringHint')}</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('cards.audio')}</CardTitle>
-              </CardHeader>
-              <CardContent className="divide-border divide-y">
-                <DetailRow label={t('fields.audioEnabled')}>
-                  {screen.audioEnabled ? t('yes') : t('no')}
-                </DetailRow>
-                <DetailRow label={t('fields.volume')}>{screen.volume}</DetailRow>
-                <DetailRow label={t('fields.muted')}>{screen.muted ? t('yes') : t('no')}</DetailRow>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('cards.kiosk')}</CardTitle>
-              </CardHeader>
-              <CardContent className="divide-border divide-y">
-                <DetailRow label={t('fields.kioskMode')}>
-                  {screen.kioskEnabled ? t('enabled') : t('disabled')}
-                </DetailRow>
-                <DetailRow label={t('fields.kioskPin')}>
-                  {screen.hasKioskPin ? (
-                    <Badge tone="success">{t('pinSet')}</Badge>
-                  ) : (
-                    <span className="text-muted-foreground">{t('notSet')}</span>
-                  )}
-                </DetailRow>
-                <DetailRow label={t('fields.autoStart')}>
-                  {screen.autoStartEnabled ? t('yes') : t('no')}
-                </DetailRow>
-                <div className="flex items-center gap-2 pt-3">
-                  <Button size="sm" variant="outline" disabled={busy} onClick={openPin}>
-                    {screen.hasKioskPin ? t('actions.changePin') : t('actions.setPin')}
-                  </Button>
-                  {screen.hasKioskPin && (
-                    <Button size="sm" variant="ghost" disabled={busy} onClick={resetPin}>
-                      {t('actions.removePin')}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('cards.devicePairing')}</CardTitle>
-              </CardHeader>
-              <CardContent className="divide-border divide-y">
-                <DetailRow label={tc('status')}>
-                  {pairing.data?.paired ? (
-                    <Badge tone="success">{t('pairing.paired')}</Badge>
-                  ) : pairing.data?.pendingCollection ? (
-                    <Badge tone="warning">{t('pairing.awaitingDevice')}</Badge>
-                  ) : (
-                    <span className="text-muted-foreground">{t('pairing.notPaired')}</span>
-                  )}
-                </DetailRow>
-                {pairing.data?.device ? (
-                  <>
-                    <DetailRow label={t('fields.device')}>
-                      {pairing.data.device.modelName ??
-                        pairing.data.device.platform ??
-                        pairing.data.device.deviceId}
-                    </DetailRow>
-                    <DetailRow label={t('fields.appVersion')}>
-                      {pairing.data.device.appVersion ?? '—'}
-                    </DetailRow>
-                    <DetailRow label={t('fields.pairedAt')}>
-                      {pairing.data.device.pairedAt
-                        ? formatDateTime(pairing.data.device.pairedAt, locale)
-                        : '—'}
-                    </DetailRow>
-                    <DetailRow label={t('fields.lastSeen')}>
-                      {pairing.data.device.lastSeenAt
-                        ? formatDateTime(pairing.data.device.lastSeenAt, locale)
-                        : '—'}
-                    </DetailRow>
-                  </>
-                ) : null}
-                <div className="flex items-center gap-2 pt-3">
-                  {/* Primary CTA when the screen still needs pairing, so it
-                      stands out; a re-pair on an already-paired screen is secondary. */}
-                  <Button
-                    size="sm"
-                    variant={
-                      pairing.data?.paired || pairing.data?.pendingCollection
-                        ? 'outline'
-                        : 'primary'
-                    }
-                    disabled={busy}
-                    onClick={() => {
-                      setPairCode('');
-                      setPairOpen(true);
-                    }}
-                  >
-                    {pairing.data?.paired || pairing.data?.pendingCollection
-                      ? t('actions.rePair')
-                      : t('actions.pairDevice')}
-                  </Button>
-                  {(pairing.data?.paired || pairing.data?.pendingCollection) && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={busy}
-                      onClick={() => setUnpairOpen(true)}
-                    >
-                      {t('actions.unpair')}
-                    </Button>
-                  )}
-                </div>
-                <p className="text-muted-foreground pt-3 text-xs">{t('pairing.hint')}</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('cards.syncCache')}</CardTitle>
-              </CardHeader>
-              <CardContent className="divide-border divide-y">
-                {pairing.data?.sync ? (
-                  <>
-                    <DetailRow label={t('fields.syncStatus')}>
-                      <Badge tone={syncTone(pairing.data.sync.status)}>
-                        {pairing.data.sync.status}
-                      </Badge>
-                    </DetailRow>
-                    <DetailRow label={t('fields.playingFrom')}>
-                      {pairing.data.sync.manifestSource === 'LOCAL_CACHE' ? (
-                        <Badge tone="warning">{t('sync.offlineCache')}</Badge>
-                      ) : pairing.data.sync.manifestSource === 'REMOTE' ? (
-                        <Badge tone="success">{t('sync.online')}</Badge>
+          <div className="space-y-8">
+            <section className="space-y-3">
+              <h2 className="text-foreground text-base font-semibold">
+                {t('sections.statusControl')}
+              </h2>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('cards.devicePairing')}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-border divide-y">
+                    <DetailRow label={tc('status')}>
+                      {pairing.data?.paired ? (
+                        <Badge tone="success">{t('pairing.paired')}</Badge>
+                      ) : pairing.data?.pendingCollection ? (
+                        <Badge tone="warning">{t('pairing.awaitingDevice')}</Badge>
                       ) : (
-                        '—'
+                        <span className="text-muted-foreground">{t('pairing.notPaired')}</span>
                       )}
                     </DetailRow>
-                    <DetailRow label={t('fields.assetsCached')}>
-                      {pairing.data.sync.cachedAssets ?? 0} /{' '}
-                      {pairing.data.sync.requiredAssets ?? 0}
-                    </DetailRow>
-                    <DetailRow label={t('fields.failedDownloads')}>
-                      {pairing.data.sync.failedDownloads ?? 0}
-                    </DetailRow>
-                    <DetailRow label={t('fields.cacheSize')}>
-                      {pairing.data.sync.cacheSizeBytes
-                        ? formatBytes(Number(pairing.data.sync.cacheSizeBytes), locale)
-                        : '—'}
-                    </DetailRow>
-                    <DetailRow label={t('fields.freeStorage')}>
-                      {pairing.data.sync.availableStorageBytes
-                        ? formatBytes(Number(pairing.data.sync.availableStorageBytes), locale)
-                        : '—'}
-                    </DetailRow>
-                    <DetailRow label={t('fields.lastSync')}>
-                      {pairing.data.sync.lastSyncAt
-                        ? formatDateTime(pairing.data.sync.lastSyncAt, locale)
-                        : '—'}
-                    </DetailRow>
-                    <DetailRow label={t('fields.currentManifest')}>
-                      {manifest.data?.manifestHash ? (
-                        <span className="font-mono text-xs">
-                          {manifest.data.manifestHash.slice(0, 12)}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </DetailRow>
-                    <DetailRow label={t('fields.deviceSyncedTo')}>
-                      {(() => {
-                        // Defensive: TS narrowing from the outer `sync` guard does
-                        // not flow into this closure.
-                        const reported = pairing.data?.sync?.manifestVersion;
-                        if (!reported) return '—';
-                        const isHash = /^[0-9a-f]{64}$/.test(reported);
-                        const current = manifest.data?.manifestHash ?? null;
-                        return (
-                          <span className="flex items-center justify-end gap-2">
-                            <span className="font-mono text-xs">{reported.slice(0, 12)}</span>
-                            {isHash && current ? (
-                              reported === current ? (
-                                <Badge tone="success">{t('sync.inSync')}</Badge>
-                              ) : (
-                                <Badge tone="warning">{t('sync.updatePending')}</Badge>
-                              )
-                            ) : null}
-                          </span>
-                        );
-                      })()}
-                    </DetailRow>
-                    {pairing.data.sync.lastError ? (
-                      <DetailRow label={t('fields.lastError')}>
-                        <span className="text-red-600 dark:text-red-400">
-                          {pairing.data.sync.lastError}
-                        </span>
-                      </DetailRow>
+                    {pairing.data?.device ? (
+                      <>
+                        <DetailRow label={t('fields.device')}>
+                          {pairing.data.device.modelName ??
+                            pairing.data.device.platform ??
+                            pairing.data.device.deviceId}
+                        </DetailRow>
+                        <DetailRow label={t('fields.appVersion')}>
+                          {pairing.data.device.appVersion ?? '—'}
+                        </DetailRow>
+                        <DetailRow label={t('fields.pairedAt')}>
+                          {pairing.data.device.pairedAt
+                            ? formatDateTime(pairing.data.device.pairedAt, locale)
+                            : '—'}
+                        </DetailRow>
+                        <DetailRow label={t('fields.lastSeen')}>
+                          {pairing.data.device.lastSeenAt
+                            ? formatDateTime(pairing.data.device.lastSeenAt, locale)
+                            : '—'}
+                        </DetailRow>
+                      </>
                     ) : null}
-                  </>
-                ) : (
-                  <p className="text-muted-foreground py-2 text-sm">{t('sync.noData')}</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="lg:col-span-2">
-              <CardHeader className="flex items-center justify-between">
-                <CardTitle>{t('cards.monitoringControl')}</CardTitle>
-                {monitoring.data ? (
-                  <Badge tone={liveStatusTone(monitoring.data.status)}>
-                    {monitoring.data.status}
-                  </Badge>
-                ) : null}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="divide-border divide-y">
-                    <DetailRow label={t('fields.playback')}>
-                      {monitoring.data?.telemetry?.playbackState ?? '—'}
-                    </DetailRow>
-                    <DetailRow label={t('fields.network')}>
-                      {monitoring.data?.telemetry?.networkStatus ?? '—'}
+                    <div className="flex items-center gap-2 pt-3">
+                      {/* Primary CTA when the screen still needs pairing, so it
+                          stands out; a re-pair on an already-paired screen is secondary. */}
+                      <Button
+                        size="sm"
+                        variant={
+                          pairing.data?.paired || pairing.data?.pendingCollection
+                            ? 'outline'
+                            : 'primary'
+                        }
+                        disabled={busy}
+                        onClick={() => {
+                          setPairCode('');
+                          setPairOpen(true);
+                        }}
+                      >
+                        {pairing.data?.paired || pairing.data?.pendingCollection
+                          ? t('actions.rePair')
+                          : t('actions.pairDevice')}
+                      </Button>
+                      {(pairing.data?.paired || pairing.data?.pendingCollection) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => setUnpairOpen(true)}
+                        >
+                          {t('actions.unpair')}
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-muted-foreground pt-3 text-xs">{t('pairing.hint')}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('cards.syncCache')}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-border divide-y">
+                    {pairing.data?.sync ? (
+                      <>
+                        <DetailRow label={t('fields.syncStatus')}>
+                          <Badge tone={syncTone(pairing.data.sync.status)}>
+                            {pairing.data.sync.status}
+                          </Badge>
+                        </DetailRow>
+                        <DetailRow label={t('fields.playingFrom')}>
+                          {pairing.data.sync.manifestSource === 'LOCAL_CACHE' ? (
+                            <Badge tone="warning">{t('sync.offlineCache')}</Badge>
+                          ) : pairing.data.sync.manifestSource === 'REMOTE' ? (
+                            <Badge tone="success">{t('sync.online')}</Badge>
+                          ) : (
+                            '—'
+                          )}
+                        </DetailRow>
+                        <DetailRow label={t('fields.assetsCached')}>
+                          {pairing.data.sync.cachedAssets ?? 0} /{' '}
+                          {pairing.data.sync.requiredAssets ?? 0}
+                        </DetailRow>
+                        <DetailRow label={t('fields.failedDownloads')}>
+                          {pairing.data.sync.failedDownloads ?? 0}
+                        </DetailRow>
+                        <DetailRow label={t('fields.cacheSize')}>
+                          {pairing.data.sync.cacheSizeBytes
+                            ? formatBytes(Number(pairing.data.sync.cacheSizeBytes), locale)
+                            : '—'}
+                        </DetailRow>
+                        <DetailRow label={t('fields.freeStorage')}>
+                          {pairing.data.sync.availableStorageBytes
+                            ? formatBytes(Number(pairing.data.sync.availableStorageBytes), locale)
+                            : '—'}
+                        </DetailRow>
+                        <DetailRow label={t('fields.lastSync')}>
+                          {pairing.data.sync.lastSyncAt
+                            ? formatDateTime(pairing.data.sync.lastSyncAt, locale)
+                            : '—'}
+                        </DetailRow>
+                        <DetailRow label={t('fields.currentManifest')}>
+                          {manifest.data?.manifestHash ? (
+                            <span className="font-mono text-xs">
+                              {manifest.data.manifestHash.slice(0, 12)}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </DetailRow>
+                        <DetailRow label={t('fields.deviceSyncedTo')}>
+                          {(() => {
+                            // Defensive: TS narrowing from the outer `sync` guard does
+                            // not flow into this closure.
+                            const reported = pairing.data?.sync?.manifestVersion;
+                            if (!reported) return '—';
+                            const isHash = /^[0-9a-f]{64}$/.test(reported);
+                            const current = manifest.data?.manifestHash ?? null;
+                            return (
+                              <span className="flex items-center justify-end gap-2">
+                                <span className="font-mono text-xs">{reported.slice(0, 12)}</span>
+                                {isHash && current ? (
+                                  reported === current ? (
+                                    <Badge tone="success">{t('sync.inSync')}</Badge>
+                                  ) : (
+                                    <Badge tone="warning">{t('sync.updatePending')}</Badge>
+                                  )
+                                ) : null}
+                              </span>
+                            );
+                          })()}
+                        </DetailRow>
+                        {pairing.data.sync.lastError ? (
+                          <DetailRow label={t('fields.lastError')}>
+                            <span className="text-red-600 dark:text-red-400">
+                              {pairing.data.sync.lastError}
+                            </span>
+                          </DetailRow>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground py-2 text-sm">{t('sync.noData')}</p>
+                    )}
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('cards.monitoring')}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-border divide-y">
+                    <DetailRow label={tc('status')}>
+                      <StatusBadge status={screen.status} />
                     </DetailRow>
                     <DetailRow label={t('fields.lastHeartbeat')}>
-                      {monitoring.data?.lastHeartbeatAt
-                        ? formatDateTime(monitoring.data.lastHeartbeatAt, locale)
+                      {screen.lastHeartbeatAt
+                        ? formatDateTime(screen.lastHeartbeatAt, locale)
                         : t('never')}
                     </DetailRow>
-                    <DetailRow label={t('fields.device')}>
-                      {monitoring.data?.telemetry?.deviceModel ?? '—'}
-                      {monitoring.data?.telemetry?.osVersion
-                        ? ` · ${monitoring.data.telemetry.osVersion}`
-                        : ''}
+                    <DetailRow label={t('fields.lastSync')}>
+                      {screen.lastSyncAt ? formatDateTime(screen.lastSyncAt, locale) : t('never')}
                     </DetailRow>
-                    <DetailRow label={t('fields.appVersion')}>
-                      {monitoring.data?.telemetry?.appVersion ?? '—'}
+                    <DetailRow label={t('fields.appVersion')}>{screen.appVersion ?? '—'}</DetailRow>
+                    <DetailRow label={t('fields.currentContent')}>
+                      {screen.currentContentId ?? '—'}
                     </DetailRow>
-                    {monitoring.data?.warningReason ? (
-                      <DetailRow label={t('fields.warning')}>
-                        <span className="text-amber-600 dark:text-amber-400">
-                          {monitoring.data.warningReason}
-                        </span>
-                      </DetailRow>
+                    <DetailRow label={t('fields.storageUsed')}>
+                      {screen.storageUsedBytes
+                        ? formatBytes(Number(screen.storageUsedBytes), locale)
+                        : '—'}
+                    </DetailRow>
+                    <p className="text-muted-foreground pt-3 text-xs">{t('monitoringHint')}</p>
+                  </CardContent>
+                </Card>
+                <Card className="lg:col-span-2">
+                  <CardHeader className="flex items-center justify-between">
+                    <CardTitle>{t('cards.monitoringControl')}</CardTitle>
+                    {monitoring.data ? (
+                      <Badge tone={liveStatusTone(monitoring.data.status)}>
+                        {monitoring.data.status}
+                      </Badge>
                     ) : null}
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground mb-1 text-xs">{t('latestScreenshot')}</p>
-                    {monitoring.data?.latestScreenshot?.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={monitoring.data.latestScreenshot.url}
-                        alt={t('latestScreenshot')}
-                        className="border-border max-h-48 w-full rounded-md border object-contain"
-                      />
-                    ) : (
-                      <div className="border-border text-muted-foreground flex h-32 items-center justify-center rounded-md border border-dashed text-sm">
-                        {t('noScreenshot')}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="divide-border divide-y">
+                        <DetailRow label={t('fields.playback')}>
+                          {monitoring.data?.telemetry?.playbackState ?? '—'}
+                        </DetailRow>
+                        <DetailRow label={t('fields.network')}>
+                          {monitoring.data?.telemetry?.networkStatus ?? '—'}
+                        </DetailRow>
+                        <DetailRow label={t('fields.lastHeartbeat')}>
+                          {monitoring.data?.lastHeartbeatAt
+                            ? formatDateTime(monitoring.data.lastHeartbeatAt, locale)
+                            : t('never')}
+                        </DetailRow>
+                        <DetailRow label={t('fields.device')}>
+                          {monitoring.data?.telemetry?.deviceModel ?? '—'}
+                          {monitoring.data?.telemetry?.osVersion
+                            ? ` · ${monitoring.data.telemetry.osVersion}`
+                            : ''}
+                        </DetailRow>
+                        <DetailRow label={t('fields.appVersion')}>
+                          {monitoring.data?.telemetry?.appVersion ?? '—'}
+                        </DetailRow>
+                        {monitoring.data?.warningReason ? (
+                          <DetailRow label={t('fields.warning')}>
+                            <span className="text-amber-600 dark:text-amber-400">
+                              {monitoring.data.warningReason}
+                            </span>
+                          </DetailRow>
+                        ) : null}
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="border-border flex flex-wrap gap-2 border-t pt-3">
-                  {/* Primary action — pushes a force-sync so the screen re-fetches
-                      and re-downloads immediately (Req 4). */}
-                  <Button
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => monitorAction('force-sync', t('actions.forceSync'))}
-                  >
-                    {t('actions.forceSync')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => monitorAction('refresh-manifest', t('actions.refreshManifest'))}
-                  >
-                    {t('actions.refreshManifest')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => monitorAction('restart-playback', t('actions.restartPlayback'))}
-                  >
-                    {t('actions.restartPlayback')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => monitorAction('clear-cache', t('actions.clearCache'))}
-                  >
-                    {t('actions.clearCache')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => monitorAction('take-screenshot', t('actions.takeScreenshot'))}
-                  >
-                    {t('actions.takeScreenshot')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() => monitorAction('reboot', t('actions.reboot'))}
-                  >
-                    {t('actions.reboot')}
-                  </Button>
-                </div>
-
-                {commands.data && commands.data.items.length > 0 ? (
-                  <div className="border-border border-t pt-3">
-                    <p className="text-muted-foreground mb-2 text-xs">{t('recentCommands')}</p>
-                    <ul className="space-y-1">
-                      {commands.data.items.map((c) => (
-                        <li key={c.id} className="flex items-center justify-between gap-2 text-sm">
-                          <span>{c.commandType}</span>
-                          <span className="text-muted-foreground flex items-center gap-2">
-                            <Badge tone={commandTone(c.status)}>{c.status}</Badge>
-                            {formatDateTime(c.createdAt, locale)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('cards.workingHours')}</CardTitle>
-              </CardHeader>
-              <CardContent className="divide-border divide-y">
-                <DetailRow label={t('fields.schedule')}>
-                  {workingHoursSummary(screen.workingHours)}
-                </DetailRow>
-                <DetailRow label={t('fields.timezone')}>
-                  {screen.workingHours?.timezone || '—'}
-                </DetailRow>
-                <DetailRow label={t('fields.outsideHours')}>
-                  {screen.workingHours?.outsideHoursBehavior || '—'}
-                </DetailRow>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('cards.tagsGroups')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-muted-foreground mb-2 text-sm">{tc('tags')}</p>
-                  {screen.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {screen.tags.map((tag) => (
-                        <Badge key={tag.id} tone="info">
-                          {tag.name}
-                        </Badge>
-                      ))}
+                      <div>
+                        <p className="text-muted-foreground mb-1 text-xs">
+                          {t('latestScreenshot')}
+                        </p>
+                        {monitoring.data?.latestScreenshot?.url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={monitoring.data.latestScreenshot.url}
+                            alt={t('latestScreenshot')}
+                            className="border-border max-h-48 w-full rounded-md border object-contain"
+                          />
+                        ) : (
+                          <div className="border-border text-muted-foreground flex h-32 items-center justify-center rounded-md border border-dashed text-sm">
+                            {t('noScreenshot')}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm">{t('none')}</p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-muted-foreground mb-2 text-sm">{t('groups')}</p>
-                  {screen.groups.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {screen.groups.map((g) => (
-                        <Badge key={g.id}>{g.name}</Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm">{t('none')}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('cards.fallbackContent')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-muted-foreground text-sm">{t('fallbackHint')}</p>
-                <FallbackContentPicker
-                  value={screen.fallbackContentId}
-                  onChange={onFallbackChange}
-                  orientation={screen.orientation}
-                  busy={busy}
-                />
-              </CardContent>
-            </Card>
+                    <div className="border-border flex flex-wrap gap-2 border-t pt-3">
+                      {/* Primary action — pushes a force-sync so the screen re-fetches
+                          and re-downloads immediately (Req 4). */}
+                      <Button
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => monitorAction('force-sync', t('actions.forceSync'))}
+                      >
+                        {t('actions.forceSync')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() =>
+                          monitorAction('refresh-manifest', t('actions.refreshManifest'))
+                        }
+                      >
+                        {t('actions.refreshManifest')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() =>
+                          monitorAction('restart-playback', t('actions.restartPlayback'))
+                        }
+                      >
+                        {t('actions.restartPlayback')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => monitorAction('clear-cache', t('actions.clearCache'))}
+                      >
+                        {t('actions.clearCache')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() =>
+                          monitorAction('take-screenshot', t('actions.takeScreenshot'))
+                        }
+                      >
+                        {t('actions.takeScreenshot')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => monitorAction('reboot', t('actions.reboot'))}
+                      >
+                        {t('actions.reboot')}
+                      </Button>
+                    </div>
+
+                    {commands.data && commands.data.items.length > 0 ? (
+                      <div className="border-border border-t pt-3">
+                        <p className="text-muted-foreground mb-2 text-xs">{t('recentCommands')}</p>
+                        <ul className="space-y-1">
+                          {commands.data.items.map((c) => (
+                            <li
+                              key={c.id}
+                              className="flex items-center justify-between gap-2 text-sm"
+                            >
+                              <span>{c.commandType}</span>
+                              <span className="text-muted-foreground flex items-center gap-2">
+                                <Badge tone={commandTone(c.status)}>{c.status}</Badge>
+                                {formatDateTime(c.createdAt, locale)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              </div>
+            </section>
+            <section className="space-y-3">
+              <h2 className="text-foreground text-base font-semibold">
+                {t('sections.configuration')}
+              </h2>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('cards.identity')}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-border divide-y">
+                    <DetailRow label={tc('location')}>
+                      {screen.location?.name ?? t('unassigned')}
+                    </DetailRow>
+                    <DetailRow label={t('fields.use')}>
+                      {screen.use ? te(`screenUse.${screen.use}`) : '—'}
+                    </DetailRow>
+                    <DetailRow label={tc('orientation')}>
+                      {te(`orientation.${screen.orientation}`)}
+                    </DetailRow>
+                    <DetailRow label={tc('description')}>{screen.description || '—'}</DetailRow>
+                    <DetailRow label={t('fields.notes')}>{screen.notes || '—'}</DetailRow>
+                    <DetailRow label={tc('created')}>
+                      {formatDateTime(screen.createdAt, locale)}
+                    </DetailRow>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('cards.audio')}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-border divide-y">
+                    <DetailRow label={t('fields.audioEnabled')}>
+                      {screen.audioEnabled ? t('yes') : t('no')}
+                    </DetailRow>
+                    <DetailRow label={t('fields.volume')}>{screen.volume}</DetailRow>
+                    <DetailRow label={t('fields.muted')}>
+                      {screen.muted ? t('yes') : t('no')}
+                    </DetailRow>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('cards.kiosk')}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-border divide-y">
+                    <DetailRow label={t('fields.kioskMode')}>
+                      {screen.kioskEnabled ? t('enabled') : t('disabled')}
+                    </DetailRow>
+                    <DetailRow label={t('fields.kioskPin')}>
+                      {screen.hasKioskPin ? (
+                        <Badge tone="success">{t('pinSet')}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">{t('notSet')}</span>
+                      )}
+                    </DetailRow>
+                    <DetailRow label={t('fields.autoStart')}>
+                      {screen.autoStartEnabled ? t('yes') : t('no')}
+                    </DetailRow>
+                    <div className="flex items-center gap-2 pt-3">
+                      <Button size="sm" variant="outline" disabled={busy} onClick={openPin}>
+                        {screen.hasKioskPin ? t('actions.changePin') : t('actions.setPin')}
+                      </Button>
+                      {screen.hasKioskPin && (
+                        <Button size="sm" variant="ghost" disabled={busy} onClick={resetPin}>
+                          {t('actions.removePin')}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('cards.workingHours')}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-border divide-y">
+                    <DetailRow label={t('fields.schedule')}>
+                      {workingHoursSummary(screen.workingHours)}
+                    </DetailRow>
+                    <DetailRow label={t('fields.timezone')}>
+                      {screen.workingHours?.timezone || '—'}
+                    </DetailRow>
+                    <DetailRow label={t('fields.outsideHours')}>
+                      {screen.workingHours?.outsideHoursBehavior || '—'}
+                    </DetailRow>
+                  </CardContent>
+                </Card>
+              </div>
+            </section>
+            <section className="space-y-3">
+              <h2 className="text-foreground text-base font-semibold">{t('sections.targeting')}</h2>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('cards.tagsGroups')}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <p className="text-muted-foreground mb-2 text-sm">{tc('tags')}</p>
+                      {screen.tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {screen.tags.map((tag) => (
+                            <Badge key={tag.id} tone="info">
+                              {tag.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm">{t('none')}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-2 text-sm">{t('groups')}</p>
+                      {screen.groups.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {screen.groups.map((g) => (
+                            <Badge key={g.id}>{g.name}</Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm">{t('none')}</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('cards.fallbackContent')}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-muted-foreground text-sm">{t('fallbackHint')}</p>
+                    <FallbackContentPicker
+                      value={screen.fallbackContentId}
+                      onChange={onFallbackChange}
+                      orientation={screen.orientation}
+                      busy={busy}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </section>
           </div>
 
           {/* Edit dialog */}
