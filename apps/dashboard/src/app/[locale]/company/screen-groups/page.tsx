@@ -106,7 +106,7 @@ export default function ScreenGroupsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) {
-      toast('Name is required.', 'error');
+      toast(t('toastNameRequired'), 'error');
       return;
     }
 
@@ -119,15 +119,15 @@ export default function ScreenGroupsPage() {
       };
       if (editing) {
         await api.patch<ScreenGroup>(`/screen-groups/${editing.id}`, body);
-        toast('Group updated.', 'success');
+        toast(t('toastUpdated'), 'success');
       } else {
         await api.post<ScreenGroup>('/screen-groups', body);
-        toast('Group created.', 'success');
+        toast(t('toastCreated'), 'success');
       }
       setFormOpen(false);
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toastError'), 'error');
     } finally {
       setSaving(false);
     }
@@ -138,11 +138,11 @@ export default function ScreenGroupsPage() {
     setDeletingBusy(true);
     try {
       await api.del(`/screen-groups/${deleting.id}`);
-      toast('Group deleted.', 'success');
+      toast(t('toastDeleted'), 'success');
       setDeleting(null);
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toastError'), 'error');
     } finally {
       setDeletingBusy(false);
     }
@@ -236,11 +236,11 @@ export default function ScreenGroupsPage() {
                     <div className="flex items-center justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => openEdit(group)}>
                         <Pencil className="size-3.5" />
-                        Edit
+                        {tc('edit')}
                       </Button>
                       <Button size="sm" variant="secondary" onClick={() => setManageGroup(group)}>
                         <Users2 className="size-3.5" />
-                        Manage screens
+                        {t('manageScreens')}
                       </Button>
                       <Button
                         size="sm"
@@ -249,7 +249,7 @@ export default function ScreenGroupsPage() {
                         onClick={() => setDeleting(group)}
                       >
                         <Trash2 className="size-3.5" />
-                        Delete
+                        {tc('delete')}
                       </Button>
                     </div>
                   </TD>
@@ -266,45 +266,41 @@ export default function ScreenGroupsPage() {
       <Dialog
         open={formOpen}
         onClose={closeForm}
-        title={editing ? 'Edit Group' : 'New Group'}
-        description={
-          editing
-            ? 'Update this group’s name, category, and description.'
-            : 'Create a group to organise related screens.'
-        }
+        title={editing ? t('editTitle') : t('newTitle')}
+        description={editing ? t('editDescription') : t('createDescription')}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="Name">
+          <Field label={tc('name')}>
             <Input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Lobby screens"
+              placeholder={t('namePlaceholder')}
               required
             />
           </Field>
-          <Field label="Category" hint="Optional grouping label, e.g. Indoor or Storefront.">
+          <Field label={t('columnCategory')} hint={t('categoryHint')}>
             <Input
               value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-              placeholder="Indoor"
+              placeholder={t('categoryPlaceholder')}
             />
           </Field>
-          <Field label="Description">
+          <Field label={tc('description')}>
             <Textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="What this group is used for."
+              placeholder={t('descriptionPlaceholder')}
               rows={3}
             />
           </Field>
 
           <div className="border-border flex justify-end gap-2 border-t pt-4">
             <Button type="button" variant="outline" onClick={closeForm} disabled={saving}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={saving}>
               {saving && <Spinner className="size-4" />}
-              {editing ? 'Save changes' : 'Create group'}
+              {editing ? t('saveChanges') : t('createGroup')}
             </Button>
           </div>
         </form>
@@ -323,12 +319,8 @@ export default function ScreenGroupsPage() {
       <Dialog
         open={!!deleting}
         onClose={() => !deletingBusy && setDeleting(null)}
-        title="Delete group"
-        description={
-          deleting
-            ? `“${deleting.name}” will be permanently deleted. Screens in this group are not deleted, only removed from the group.`
-            : undefined
-        }
+        title={t('deleteTitle')}
+        description={deleting ? t('deleteConfirm', { name: deleting.name }) : undefined}
       >
         <div className="border-border flex justify-end gap-2 border-t pt-4">
           <Button
@@ -337,11 +329,11 @@ export default function ScreenGroupsPage() {
             onClick={() => setDeleting(null)}
             disabled={deletingBusy}
           >
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button type="button" variant="danger" onClick={confirmDelete} disabled={deletingBusy}>
             {deletingBusy && <Spinner className="size-4" />}
-            Delete group
+            {t('deleteGroup')}
           </Button>
         </div>
       </Dialog>
@@ -363,6 +355,7 @@ function ManageScreensDialog({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const t = useTranslations('pages.screenGroups');
   const { toast } = useToast();
 
   const detail = useApiResource<ScreenGroupDetail>(`/screen-groups/${group.id}`);
@@ -394,14 +387,16 @@ function ManageScreensDialog({
     try {
       await api.post(`/screen-groups/${group.id}/screens`, { screenIds: visibleSelected });
       toast(
-        visibleSelected.length === 1 ? 'Screen added.' : `${visibleSelected.length} screens added.`,
+        visibleSelected.length === 1
+          ? t('toastScreenAdded')
+          : t('toastScreensAdded', { count: visibleSelected.length }),
         'success',
       );
       setSelected([]);
       detail.reload();
       onChanged();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toastError'), 'error');
     } finally {
       setAdding(false);
     }
@@ -414,11 +409,11 @@ function ManageScreensDialog({
         method: 'DELETE',
         body: { screenIds: [screenId] },
       });
-      toast('Screen removed.', 'success');
+      toast(t('toastScreenRemoved'), 'success');
       detail.reload();
       onChanged();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toastError'), 'error');
     } finally {
       setRemovingId(null);
     }
@@ -431,8 +426,8 @@ function ManageScreensDialog({
     <Dialog
       open
       onClose={onClose}
-      title={`Manage screens — ${group.name}`}
-      description="Add or remove the screens that belong to this group."
+      title={t('manageTitle', { name: group.name })}
+      description={t('manageDescription')}
       className="max-h-[90vh] max-w-2xl overflow-y-auto"
     >
       {loading && (
@@ -442,7 +437,7 @@ function ManageScreensDialog({
       )}
 
       {!loading && loadError && (
-        <EmptyState title="Could not load group" description={loadError ?? undefined} />
+        <EmptyState title={t('manageLoadError')} description={loadError ?? undefined} />
       )}
 
       {!loading && !loadError && (
@@ -450,11 +445,12 @@ function ManageScreensDialog({
           {/* Current members */}
           <section>
             <h3 className="mb-2 text-sm font-semibold">
-              Members <span className="text-muted-foreground font-normal">({members.length})</span>
+              {t('members')}{' '}
+              <span className="text-muted-foreground font-normal">({members.length})</span>
             </h3>
             {members.length === 0 ? (
               <p className="border-border text-muted-foreground rounded-lg border border-dashed px-4 py-6 text-center text-sm">
-                No screens in this group yet.
+                {t('noMembers')}
               </p>
             ) : (
               <ul className="divide-border border-border divide-y rounded-lg border">
@@ -476,7 +472,7 @@ function ManageScreensDialog({
                       ) : (
                         <Trash2 className="size-3.5" />
                       )}
-                      Remove
+                      {t('remove')}
                     </Button>
                   </li>
                 ))}
@@ -487,19 +483,21 @@ function ManageScreensDialog({
           {/* Add screens */}
           <section>
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Add screens</h3>
+              <h3 className="text-sm font-semibold">{t('addScreens')}</h3>
               <Button
                 size="sm"
                 onClick={handleAdd}
                 disabled={adding || visibleSelected.length === 0}
               >
                 {adding && <Spinner className="size-3.5" />}
-                Add{visibleSelected.length > 0 ? ` (${visibleSelected.length})` : ''}
+                {visibleSelected.length > 0
+                  ? t('addCount', { count: visibleSelected.length })
+                  : t('add')}
               </Button>
             </div>
             {candidates.length === 0 ? (
               <p className="border-border text-muted-foreground rounded-lg border border-dashed px-4 py-6 text-center text-sm">
-                All available screens are already in this group.
+                {t('noCandidates')}
               </p>
             ) : (
               <ul className="divide-border border-border max-h-64 divide-y overflow-y-auto rounded-lg border">
@@ -533,7 +531,7 @@ function ManageScreensDialog({
 
           <div className="border-border flex justify-end border-t pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
-              Done
+              {t('done')}
             </Button>
           </div>
         </div>

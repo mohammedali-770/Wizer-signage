@@ -31,11 +31,6 @@ const MODES: { value: Mode; icon: typeof Upload }[] = [
 ];
 
 const ORIENTATION_OPTIONS: Orientation[] = ['LANDSCAPE', 'PORTRAIT', 'UNKNOWN'];
-const ORIENTATION_LABELS: Record<Orientation, string> = {
-  LANDSCAPE: 'Landscape',
-  PORTRAIT: 'Portrait',
-  UNKNOWN: 'Unknown',
-};
 
 const FILE_ACCEPT = 'image/*,video/*,application/pdf';
 
@@ -59,6 +54,7 @@ function isHttpUrl(value: string): boolean {
 export default function NewContentPage() {
   const t = useTranslations('pages.contentNew');
   const tc = useTranslations('common');
+  const te = useTranslations('enums');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -308,7 +304,7 @@ export default function NewContentPage() {
                 >
                   {ORIENTATION_OPTIONS.map((o) => (
                     <option key={o} value={o}>
-                      {ORIENTATION_LABELS[o]}
+                      {te(`orientation.${o}`)}
                     </option>
                   ))}
                 </Select>

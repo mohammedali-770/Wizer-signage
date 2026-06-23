@@ -48,39 +48,18 @@ import {
   useToast,
 } from '@/components/ui';
 
-const ORIENTATION_OPTIONS: { value: Orientation; label: string }[] = [
-  { value: 'LANDSCAPE', label: 'Landscape' },
-  { value: 'PORTRAIT', label: 'Portrait' },
-  { value: 'UNKNOWN', label: 'Unknown' },
+const ORIENTATION_OPTIONS: Orientation[] = ['LANDSCAPE', 'PORTRAIT', 'UNKNOWN'];
+
+const USE_OPTIONS: ScreenUse[] = [
+  'MENU_LANDSCAPE',
+  'OFFERS_PORTRAIT',
+  'WAITING_AREA',
+  'CASHIER_DISPLAY',
+  'ENTRANCE',
+  'INDOOR',
+  'OUTDOOR',
+  'GENERIC',
 ];
-
-const USE_OPTIONS: { value: ScreenUse; label: string }[] = [
-  { value: 'MENU_LANDSCAPE', label: 'Menu (Landscape)' },
-  { value: 'OFFERS_PORTRAIT', label: 'Offers (Portrait)' },
-  { value: 'WAITING_AREA', label: 'Waiting Area' },
-  { value: 'CASHIER_DISPLAY', label: 'Cashier Display' },
-  { value: 'ENTRANCE', label: 'Entrance' },
-  { value: 'INDOOR', label: 'Indoor' },
-  { value: 'OUTDOOR', label: 'Outdoor' },
-  { value: 'GENERIC', label: 'Generic/Custom' },
-];
-
-const USE_LABELS: Record<ScreenUse, string> = {
-  MENU_LANDSCAPE: 'Menu (Landscape)',
-  OFFERS_PORTRAIT: 'Offers (Portrait)',
-  WAITING_AREA: 'Waiting Area',
-  CASHIER_DISPLAY: 'Cashier Display',
-  ENTRANCE: 'Entrance',
-  INDOOR: 'Indoor',
-  OUTDOOR: 'Outdoor',
-  GENERIC: 'Generic/Custom',
-};
-
-const ORIENTATION_LABELS: Record<Orientation, string> = {
-  LANDSCAPE: 'Landscape',
-  PORTRAIT: 'Portrait',
-  UNKNOWN: 'Unknown',
-};
 
 const PIN_RE = /^\d{4,8}$/;
 
@@ -145,12 +124,6 @@ function commandTone(
   }
 }
 
-function workingHoursSummary(wh: WorkingHours | null): string {
-  if (!wh || !wh.days || wh.days.length === 0) return 'Not configured';
-  const openDays = wh.days.filter((d) => !d.closed).length;
-  return `${openDays} day${openDays === 1 ? '' : 's'} active`;
-}
-
 export default function ScreenDetailPage() {
   const params = useParams();
   const id = String(params?.id ?? '');
@@ -159,6 +132,13 @@ export default function ScreenDetailPage() {
   const { toast } = useToast();
   const t = useTranslations('pages.screenDetail');
   const tc = useTranslations('common');
+  const te = useTranslations('enums');
+
+  const workingHoursSummary = (wh: WorkingHours | null): string => {
+    if (!wh || !wh.days || wh.days.length === 0) return t('workingHoursNotConfigured');
+    const openDays = wh.days.filter((d) => !d.closed).length;
+    return t('workingHoursActive', { count: openDays });
+  };
 
   const {
     data: screen,
@@ -465,10 +445,10 @@ export default function ScreenDetailPage() {
                   {screen.location?.name ?? t('unassigned')}
                 </DetailRow>
                 <DetailRow label={t('fields.use')}>
-                  {screen.use ? USE_LABELS[screen.use] : '—'}
+                  {screen.use ? te(`screenUse.${screen.use}`) : '—'}
                 </DetailRow>
                 <DetailRow label={tc('orientation')}>
-                  {ORIENTATION_LABELS[screen.orientation]}
+                  {te(`orientation.${screen.orientation}`)}
                 </DetailRow>
                 <DetailRow label={tc('description')}>{screen.description || '—'}</DetailRow>
                 <DetailRow label={t('fields.notes')}>{screen.notes || '—'}</DetailRow>
@@ -939,8 +919,8 @@ export default function ScreenDetailPage() {
                   >
                     <option value="">{t('notSet')}</option>
                     {USE_OPTIONS.map((u) => (
-                      <option key={u.value} value={u.value}>
-                        {u.label}
+                      <option key={u} value={u}>
+                        {te(`screenUse.${u}`)}
                       </option>
                     ))}
                   </Select>
@@ -951,8 +931,8 @@ export default function ScreenDetailPage() {
                     onChange={(e) => setEditOrientation(e.target.value as Orientation)}
                   >
                     {ORIENTATION_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
+                      <option key={o} value={o}>
+                        {te(`orientation.${o}`)}
                       </option>
                     ))}
                   </Select>

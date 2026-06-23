@@ -1,11 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Info, MapPin, MapPinOff, Monitor } from 'lucide-react';
 
 import { useApiResource } from '@/lib/use-api';
-import { formatNumber } from '@/lib/format';
 import type { LocationListItem, LocationStatus, Paginated } from '@/lib/types';
 import { Link } from '@/i18n/navigation';
 import { Badge, Card, EmptyState, PageHeader, Spinner } from '@/components/ui';
@@ -26,22 +25,25 @@ const MAP_PROVIDER = process.env.NEXT_PUBLIC_MAP_PROVIDER;
 
 type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 
+/** Translation key suffix for a derived display status label. */
+type DerivedLabelKey = 'unknownActive' | 'inactive' | 'archived' | 'unknown';
+
 interface DerivedStatus {
   tone: BadgeTone;
-  label: string;
+  labelKey: DerivedLabelKey;
 }
 
 /** Map a location's lifecycle status to a derived display status. */
 function deriveStatus(status: LocationStatus): DerivedStatus {
   switch (status) {
     case 'ACTIVE':
-      return { tone: 'info', label: 'Unknown (active)' };
+      return { tone: 'info', labelKey: 'unknownActive' };
     case 'INACTIVE':
-      return { tone: 'neutral', label: 'Inactive' };
+      return { tone: 'neutral', labelKey: 'inactive' };
     case 'ARCHIVED':
-      return { tone: 'neutral', label: 'Archived' };
+      return { tone: 'neutral', labelKey: 'archived' };
     default:
-      return { tone: 'neutral', label: 'Unknown' };
+      return { tone: 'neutral', labelKey: 'unknown' };
   }
 }
 
@@ -53,11 +55,11 @@ const DOT_TONES: Record<BadgeTone, string> = {
   neutral: 'bg-muted-foreground/50',
 };
 
-const LEGEND: { tone: BadgeTone; label: string }[] = [
-  { tone: 'success', label: 'Online' },
-  { tone: 'danger', label: 'Offline' },
-  { tone: 'warning', label: 'Warning' },
-  { tone: 'info', label: 'Unknown' },
+const LEGEND: { tone: BadgeTone; statusKey: string }[] = [
+  { tone: 'success', statusKey: 'ONLINE' },
+  { tone: 'danger', statusKey: 'OFFLINE' },
+  { tone: 'warning', statusKey: 'WARNING' },
+  { tone: 'info', statusKey: 'UNKNOWN' },
 ];
 
 function hasCoordinates(loc: LocationListItem): boolean {
@@ -65,7 +67,8 @@ function hasCoordinates(loc: LocationListItem): boolean {
 }
 
 export default function MapViewPage() {
-  const locale = useLocale();
+  const t = useTranslations('pages.map');
+  const te = useTranslations('enums');
   const { data, loading, error } =
     useApiResource<Paginated<LocationListItem>>('/locations?pageSize=200');
 
@@ -73,21 +76,17 @@ export default function MapViewPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Map View"
-        description="Your locations at a glance, with coordinates and screen counts. An interactive map can be enabled once a map provider is configured."
-      />
+      <PageHeader title={t('title')} description={t('description')} />
 
       {!MAP_PROVIDER && (
         <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-500/40 bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>
-            Configure{' '}
+            {t('providerHintBefore')}{' '}
             <code className="rounded bg-blue-500/15 px-1 py-0.5 font-mono text-xs">
               NEXT_PUBLIC_MAP_PROVIDER
             </code>{' '}
-            and a map API key to enable an interactive map. Showing the location list with
-            coordinates for now.
+            {t('providerHintAfter')}
           </p>
         </div>
       )}
@@ -98,13 +97,10 @@ export default function MapViewPage() {
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load locations" description={error} />}
+      {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && items.length === 0 && (
-        <EmptyState
-          title="No locations yet"
-          description="Create a location to see it on the map view."
-        />
+        <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       )}
 
       {!loading && !error && items.length > 0 && (
@@ -113,22 +109,19 @@ export default function MapViewPage() {
           <Card className="px-5 py-4">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                Status legend
+                {t('statusLegend')}
               </span>
               {LEGEND.map((entry) => (
-                <span key={entry.label} className="flex items-center gap-2 text-sm">
+                <span key={entry.statusKey} className="flex items-center gap-2 text-sm">
                   <span
                     className={`inline-block size-2.5 rounded-full ${DOT_TONES[entry.tone]}`}
                     aria-hidden
                   />
-                  {entry.label}
+                  {te(`screenStatus.${entry.statusKey}`)}
                 </span>
               ))}
             </div>
-            <p className="text-muted-foreground mt-3 text-xs">
-              Statuses below are derived from each location&apos;s lifecycle status. Real online /
-              offline / warning status arrives with device heartbeats in a later phase.
-            </p>
+            <p className="text-muted-foreground mt-3 text-xs">{t('legendNote')}</p>
           </Card>
 
           {/* Location grid */}
@@ -158,16 +151,13 @@ export default function MapViewPage() {
                     />
                   </div>
 
-                  <p className="text-muted-foreground mt-1 text-sm">
-                    {place || 'No city / region'}
-                  </p>
+                  <p className="text-muted-foreground mt-1 text-sm">{place || t('noCityRegion')}</p>
 
                   <div className="mt-3 flex items-center gap-2">
-                    <Badge tone={derived.tone}>{derived.label}</Badge>
+                    <Badge tone={derived.tone}>{t(`derivedStatus.${derived.labelKey}`)}</Badge>
                     <span className="text-muted-foreground flex items-center gap-1 text-xs">
                       <Monitor className="size-3.5" aria-hidden />
-                      {formatNumber(loc.screenCount, locale)}{' '}
-                      {loc.screenCount === 1 ? 'screen' : 'screens'}
+                      {t('screenCount', { count: loc.screenCount })}
                     </span>
                   </div>
 
@@ -184,13 +174,13 @@ export default function MapViewPage() {
                           rel="noopener noreferrer"
                           className="text-primary text-xs font-medium hover:underline"
                         >
-                          View on map
+                          {t('viewOnMap')}
                         </a>
                       </div>
                     ) : (
                       <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
                         <MapPinOff className="size-3.5" aria-hidden />
-                        No coordinates
+                        {t('noCoordinates')}
                       </span>
                     )}
                   </div>
@@ -200,8 +190,7 @@ export default function MapViewPage() {
           </div>
 
           <p className="text-muted-foreground text-xs">
-            Showing {formatNumber(items.length, locale)}{' '}
-            {items.length === 1 ? 'location' : 'locations'}.
+            {t('showingLocations', { count: items.length })}
           </p>
         </div>
       )}

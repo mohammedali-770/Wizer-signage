@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Archive,
   ArchiveRestore,
@@ -40,20 +40,6 @@ import {
 } from '@/components/ui';
 
 const ORIENTATION_OPTIONS: Orientation[] = ['LANDSCAPE', 'PORTRAIT', 'UNKNOWN'];
-
-const ORIENTATION_LABELS: Record<Orientation, string> = {
-  LANDSCAPE: 'Landscape',
-  PORTRAIT: 'Portrait',
-  UNKNOWN: 'Unknown',
-};
-
-const TYPE_LABELS: Record<ContentType, string> = {
-  IMAGE: 'Image',
-  VIDEO: 'Video',
-  PDF: 'PDF',
-  URL: 'URL',
-  TEXT: 'Text',
-};
 
 const FILE_TYPES: ContentType[] = ['IMAGE', 'VIDEO', 'PDF'];
 
@@ -96,6 +82,9 @@ export default function ContentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const locale = useLocale();
   const { toast } = useToast();
+  const t = useTranslations('pages.contentDetail');
+  const tc = useTranslations('common');
+  const te = useTranslations('enums');
 
   const {
     data: content,
@@ -152,25 +141,22 @@ export default function ContentDetailPage() {
     e.preventDefault();
     if (!content || !form) return;
     if (!form.title.trim()) {
-      toast('Title is required.', 'error');
+      toast(t('toast.titleRequired'), 'error');
       return;
     }
     if (content.type === 'URL' && !form.url.trim()) {
-      toast('URL is required.', 'error');
+      toast(t('toast.urlRequired'), 'error');
       return;
     }
     if (content.type === 'TEXT' && !form.textBody.trim()) {
-      toast('Text body is required.', 'error');
+      toast(t('toast.textBodyRequired'), 'error');
       return;
     }
 
     const durationRaw = form.durationSeconds.trim();
     const duration = durationRaw === '' ? null : Number(durationRaw);
     if (duration !== null && (!Number.isInteger(duration) || duration < 1)) {
-      toast(
-        'Duration must be a whole number of seconds (1 or more), or blank for default.',
-        'error',
-      );
+      toast(t('toast.durationInvalid'), 'error');
       return;
     }
 
@@ -189,11 +175,11 @@ export default function ContentDetailPage() {
     setSaving(true);
     try {
       await api.patch<Content>(`/content/${content.id}`, payload);
-      toast('Content updated.', 'success');
+      toast(t('toast.updated'), 'success');
       setEditOpen(false);
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.error'), 'error');
     } finally {
       setSaving(false);
     }
@@ -210,10 +196,10 @@ export default function ContentDetailPage() {
     setReplacing(true);
     try {
       await api.upload<Content>(`/content/${content.id}/replace`, fd);
-      toast('File replaced.', 'success');
+      toast(t('toast.fileReplaced'), 'success');
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.error'), 'error');
     } finally {
       setReplacing(false);
     }
@@ -228,7 +214,7 @@ export default function ContentDetailPage() {
       setTrashOpen(false);
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.error'), 'error');
     } finally {
       setLifecycleBusy(false);
     }
@@ -242,7 +228,7 @@ export default function ContentDetailPage() {
           className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition"
         >
           <ArrowLeft className="size-4" />
-          Back to Content Library
+          {t('backToLibrary')}
         </Link>
       </div>
 
@@ -252,10 +238,10 @@ export default function ContentDetailPage() {
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load content" description={error} />}
+      {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && !content && (
-        <EmptyState title="Content not found" description="This item may have been deleted." />
+        <EmptyState title={t('notFound')} description={t('notFoundDescription')} />
       )}
 
       {!loading && !error && content && (
@@ -267,7 +253,7 @@ export default function ContentDetailPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" onClick={openEdit}>
                   <Pencil className="size-4" />
-                  Edit
+                  {tc('edit')}
                 </Button>
 
                 {FILE_TYPES.includes(content.type) && (
@@ -277,7 +263,7 @@ export default function ContentDetailPage() {
                       type="file"
                       className="hidden"
                       onChange={onReplaceFile}
-                      aria-label="Replace file"
+                      aria-label={t('replaceFile')}
                     />
                     <Button
                       variant="outline"
@@ -285,7 +271,7 @@ export default function ContentDetailPage() {
                       disabled={replacing}
                     >
                       {replacing ? <Spinner className="size-4" /> : <Upload className="size-4" />}
-                      Replace file
+                      {t('replaceFile')}
                     </Button>
                   </>
                 )}
@@ -293,31 +279,31 @@ export default function ContentDetailPage() {
                 {content.status === 'ACTIVE' && (
                   <Button
                     variant="outline"
-                    onClick={() => runLifecycle('archive', 'Content archived.')}
+                    onClick={() => runLifecycle('archive', t('toast.archived'))}
                     disabled={lifecycleBusy}
                   >
                     <Archive className="size-4" />
-                    Archive
+                    {t('archive')}
                   </Button>
                 )}
                 {content.status === 'ARCHIVED' && (
                   <Button
                     variant="outline"
-                    onClick={() => runLifecycle('unarchive', 'Content unarchived.')}
+                    onClick={() => runLifecycle('unarchive', t('toast.unarchived'))}
                     disabled={lifecycleBusy}
                   >
                     <ArchiveRestore className="size-4" />
-                    Unarchive
+                    {t('unarchive')}
                   </Button>
                 )}
                 {content.status === 'TRASH' ? (
                   <Button
                     variant="outline"
-                    onClick={() => runLifecycle('restore', 'Content restored.')}
+                    onClick={() => runLifecycle('restore', t('toast.restored'))}
                     disabled={lifecycleBusy}
                   >
                     <RotateCcw className="size-4" />
-                    Restore
+                    {t('restore')}
                   </Button>
                 ) : (
                   <Button
@@ -326,7 +312,7 @@ export default function ContentDetailPage() {
                     disabled={lifecycleBusy}
                   >
                     <Trash2 className="size-4" />
-                    Trash
+                    {t('trash')}
                   </Button>
                 )}
               </div>
@@ -335,9 +321,9 @@ export default function ContentDetailPage() {
 
           <div className="mb-6 flex flex-wrap items-center gap-2">
             <StatusBadge status={content.status} />
-            <Badge tone="info">{TYPE_LABELS[content.type]}</Badge>
-            <Badge tone="neutral">{ORIENTATION_LABELS[content.orientation]}</Badge>
-            {content.isExpired && <Badge tone="danger">Expired</Badge>}
+            <Badge tone="info">{te(`contentType.${content.type}`)}</Badge>
+            <Badge tone="neutral">{te(`orientation.${content.orientation}`)}</Badge>
+            {content.isExpired && <Badge tone="danger">{t('expired')}</Badge>}
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -345,7 +331,7 @@ export default function ContentDetailPage() {
             <div className="lg:col-span-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Preview</CardTitle>
+                  <CardTitle>{t('preview')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ContentPreview contentId={content.id} type={content.type} />
@@ -357,28 +343,31 @@ export default function ContentDetailPage() {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Details</CardTitle>
+                  <CardTitle>{t('details')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                  <MetaRow label="Description" value={content.description || '—'} />
-                  <MetaRow label="Type" value={TYPE_LABELS[content.type]} />
-                  <MetaRow label="Orientation" value={ORIENTATION_LABELS[content.orientation]} />
+                  <MetaRow label={tc('description')} value={content.description || '—'} />
+                  <MetaRow label={tc('type')} value={te(`contentType.${content.type}`)} />
+                  <MetaRow
+                    label={tc('orientation')}
+                    value={te(`orientation.${content.orientation}`)}
+                  />
                   {FILE_TYPES.includes(content.type) && (
                     <MetaRow
-                      label="Size"
+                      label={t('size')}
                       value={content.fileSize ? formatBytes(Number(content.fileSize), locale) : '—'}
                     />
                   )}
                   {content.originalFileName && (
-                    <MetaRow label="Original file" value={content.originalFileName} />
+                    <MetaRow label={t('originalFile')} value={content.originalFileName} />
                   )}
-                  {content.mimeType && <MetaRow label="MIME type" value={content.mimeType} />}
+                  {content.mimeType && <MetaRow label={t('mimeType')} value={content.mimeType} />}
                   {content.pageCount != null && (
-                    <MetaRow label="Pages" value={String(content.pageCount)} />
+                    <MetaRow label={t('pages')} value={String(content.pageCount)} />
                   )}
                   {content.type === 'URL' && content.url && (
                     <MetaRow
-                      label="URL"
+                      label={t('url')}
                       value={
                         <a
                           href={content.url}
@@ -392,13 +381,15 @@ export default function ContentDetailPage() {
                     />
                   )}
                   <MetaRow
-                    label="Duration"
+                    label={t('duration')}
                     value={
-                      content.durationSeconds != null ? `${content.durationSeconds}s` : 'Default'
+                      content.durationSeconds != null
+                        ? t('durationSeconds', { value: content.durationSeconds })
+                        : t('default')
                     }
                   />
                   <MetaRow
-                    label="Expiry"
+                    label={t('expiry')}
                     value={
                       content.expiresAt ? (
                         <span
@@ -407,18 +398,24 @@ export default function ContentDetailPage() {
                           }
                         >
                           {formatDate(content.expiresAt, locale)}
-                          {content.isExpired ? ' (expired)' : ''}
+                          {content.isExpired ? ` ${t('expiredSuffix')}` : ''}
                         </span>
                       ) : (
-                        'Never'
+                        t('never')
                       )
                     }
                   />
-                  <MetaRow label="Created" value={formatDateTime(content.createdAt, locale)} />
-                  <MetaRow label="Updated" value={formatDateTime(content.updatedAt, locale)} />
+                  <MetaRow
+                    label={tc('created')}
+                    value={formatDateTime(content.createdAt, locale)}
+                  />
+                  <MetaRow
+                    label={tc('updated')}
+                    value={formatDateTime(content.updatedAt, locale)}
+                  />
                   <div className="flex flex-col gap-1.5 pt-1">
                     <span className="text-muted-foreground text-xs font-medium uppercase">
-                      Tags
+                      {tc('tags')}
                     </span>
                     {content.tags.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
@@ -429,7 +426,7 @@ export default function ContentDetailPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground">No tags</span>
+                      <span className="text-muted-foreground">{t('noTags')}</span>
                     )}
                   </div>
                 </CardContent>
@@ -441,12 +438,12 @@ export default function ContentDetailPage() {
           <Dialog
             open={editOpen}
             onClose={closeEdit}
-            title="Edit content"
-            description="Update metadata, scheduling, and tags for this item."
+            title={t('editTitle')}
+            description={t('editDescription')}
           >
             {form && (
               <form onSubmit={submitEdit} className="max-h-[70vh] space-y-4 overflow-y-auto pe-1">
-                <Field label="Title">
+                <Field label={t('titleLabel')}>
                   <Input
                     value={form.title}
                     onChange={(e) => setForm((f) => (f ? { ...f, title: e.target.value } : f))}
@@ -455,7 +452,7 @@ export default function ContentDetailPage() {
                   />
                 </Field>
 
-                <Field label="Description">
+                <Field label={tc('description')}>
                   <Textarea
                     value={form.description}
                     onChange={(e) =>
@@ -466,7 +463,7 @@ export default function ContentDetailPage() {
                 </Field>
 
                 {content.type === 'URL' && (
-                  <Field label="URL">
+                  <Field label={t('url')}>
                     <Input
                       type="url"
                       value={form.url}
@@ -478,7 +475,7 @@ export default function ContentDetailPage() {
                 )}
 
                 {content.type === 'TEXT' && (
-                  <Field label="Text body">
+                  <Field label={t('textBody')}>
                     <Textarea
                       value={form.textBody}
                       onChange={(e) => setForm((f) => (f ? { ...f, textBody: e.target.value } : f))}
@@ -488,7 +485,7 @@ export default function ContentDetailPage() {
                   </Field>
                 )}
 
-                <Field label="Orientation">
+                <Field label={tc('orientation')}>
                   <Select
                     value={form.orientation}
                     onChange={(e) =>
@@ -497,14 +494,14 @@ export default function ContentDetailPage() {
                   >
                     {ORIENTATION_OPTIONS.map((o) => (
                       <option key={o} value={o}>
-                        {ORIENTATION_LABELS[o]}
+                        {te(`orientation.${o}`)}
                       </option>
                     ))}
                   </Select>
                 </Field>
 
                 <div>
-                  <Label>Expiry date</Label>
+                  <Label>{t('expiryDate')}</Label>
                   <div className="flex items-center gap-2">
                     <Input
                       type="date"
@@ -520,16 +517,13 @@ export default function ContentDetailPage() {
                       onClick={() => setForm((f) => (f ? { ...f, expiresAt: '' } : f))}
                       disabled={!form.expiresAt}
                     >
-                      Clear expiry
+                      {t('clearExpiry')}
                     </Button>
                   </div>
-                  <p className="text-muted-foreground mt-1 text-xs">Leave empty for no expiry.</p>
+                  <p className="text-muted-foreground mt-1 text-xs">{t('expiryHint')}</p>
                 </div>
 
-                <Field
-                  label="Duration (seconds)"
-                  hint="How long this item shows in a playlist. Leave empty for the default."
-                >
+                <Field label={t('durationLabel')} hint={t('durationHint')}>
                   <Input
                     type="number"
                     min={1}
@@ -538,12 +532,12 @@ export default function ContentDetailPage() {
                     onChange={(e) =>
                       setForm((f) => (f ? { ...f, durationSeconds: e.target.value } : f))
                     }
-                    placeholder="Default"
+                    placeholder={t('default')}
                   />
                 </Field>
 
                 <div>
-                  <Label>Tags</Label>
+                  <Label>{tc('tags')}</Label>
                   {contentTags.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {contentTags.map((tag) => {
@@ -571,19 +565,17 @@ export default function ContentDetailPage() {
                       })}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground text-xs">
-                      No content tags available. Create one in Tags.
-                    </p>
+                    <p className="text-muted-foreground text-xs">{t('noContentTags')}</p>
                   )}
                 </div>
 
                 <div className="border-border flex justify-end gap-2 border-t pt-4">
                   <Button type="button" variant="outline" onClick={closeEdit} disabled={saving}>
-                    Cancel
+                    {tc('cancel')}
                   </Button>
                   <Button type="submit" disabled={saving}>
                     {saving && <Spinner className="size-4" />}
-                    Save changes
+                    {t('saveChanges')}
                   </Button>
                 </div>
               </form>
@@ -596,8 +588,8 @@ export default function ContentDetailPage() {
             onClose={() => {
               if (!lifecycleBusy) setTrashOpen(false);
             }}
-            title="Move to trash"
-            description={`Move “${content.title}” to trash? You can restore it later, or purge it permanently from the trash.`}
+            title={t('trashTitle')}
+            description={t('trashConfirm', { title: content.title })}
           >
             <div className="flex justify-end gap-2 pt-2">
               <Button
@@ -606,16 +598,16 @@ export default function ContentDetailPage() {
                 onClick={() => setTrashOpen(false)}
                 disabled={lifecycleBusy}
               >
-                Cancel
+                {tc('cancel')}
               </Button>
               <Button
                 type="button"
                 variant="danger"
-                onClick={() => runLifecycle('trash', 'Content moved to trash.')}
+                onClick={() => runLifecycle('trash', t('toast.movedToTrash'))}
                 disabled={lifecycleBusy}
               >
                 {lifecycleBusy && <Spinner className="size-4" />}
-                Move to trash
+                {t('trashTitle')}
               </Button>
             </div>
           </Dialog>

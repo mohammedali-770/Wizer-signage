@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Megaphone } from 'lucide-react';
 
@@ -41,6 +42,10 @@ const STATUS_TONE: Record<
 
 export default function EmergencyBroadcastDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const locale = useLocale();
+  const t = useTranslations('pages.emergency.detail');
+  const tt = useTranslations('pages.emergency.types');
+  const tc = useTranslations('common');
   const { toast } = useToast();
   const detail = useApiResource<EmergencyBroadcast>(`/emergency-broadcasts/${id}`);
   const validation = useApiResource<EmergencyBroadcastValidation>(
@@ -54,36 +59,36 @@ export default function EmergencyBroadcastDetailPage() {
     validation.reload();
   };
 
-  const act = async (path: string, label: string) => {
+  const act = async (path: string, successMsg: string, errorMsg: string) => {
     setBusy(path);
     setConfirm(null);
     try {
       await api.post(`/emergency-broadcasts/${id}/${path}`);
-      toast(`${label} done.`, 'success');
+      toast(successMsg, 'success');
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : `Could not ${label.toLowerCase()}.`, 'error');
+      toast(err instanceof ApiError ? err.message : errorMsg, 'error');
     } finally {
       setBusy(null);
     }
   };
 
-  const addTarget = async (t: SelectedTarget) => {
+  const addTarget = async (target: SelectedTarget) => {
     try {
-      await api.post(`/emergency-broadcasts/${id}/targets`, t);
+      await api.post(`/emergency-broadcasts/${id}/targets`, target);
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Could not add target.', 'error');
+      toast(err instanceof ApiError ? err.message : t('errAddTarget'), 'error');
     }
   };
 
-  const removeTarget = async (t: { id?: string }) => {
-    if (!t.id) return;
+  const removeTarget = async (target: { id?: string }) => {
+    if (!target.id) return;
     try {
-      await api.del(`/emergency-broadcasts/${id}/targets/${t.id}`);
+      await api.del(`/emergency-broadcasts/${id}/targets/${target.id}`);
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Could not remove target.', 'error');
+      toast(err instanceof ApiError ? err.message : t('errRemoveTarget'), 'error');
     }
   };
 
@@ -95,7 +100,7 @@ export default function EmergencyBroadcastDetailPage() {
     );
   }
   if (detail.error || !detail.data) {
-    return <EmptyState title="Broadcast not found" description={detail.error ?? undefined} />;
+    return <EmptyState title={t('notFound')} description={detail.error ?? undefined} />;
   }
 
   const b = detail.data;
@@ -115,53 +120,59 @@ export default function EmergencyBroadcastDetailPage() {
         href="/company/emergency-broadcasts"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm"
       >
-        <ArrowLeft className="size-4" /> Back to broadcasts
+        <ArrowLeft className="size-4" /> {t('back')}
       </Link>
       <PageHeader
         title={b.title}
-        description={b.description ?? `${b.broadcastType} broadcast`}
+        description={b.description ?? t('typeBroadcast', { type: tt(b.broadcastType) })}
         actions={<Badge tone={STATUS_TONE[b.status]}>{b.status}</Badge>}
       />
 
       {isLive ? (
         <Card className="mb-4 flex items-center gap-2 border-red-500/40 bg-red-500/5 p-3 text-sm text-red-600">
-          <Megaphone className="size-4" /> This broadcast is overriding schedules on{' '}
-          {b.affectedScreens ?? v?.affectedScreens ?? selectedTargets.length} screen target(s) right
-          now.
+          <Megaphone className="size-4" />{' '}
+          {t('overriding', {
+            count: b.affectedScreens ?? v?.affectedScreens ?? selectedTargets.length,
+          })}
         </Card>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Content</CardTitle>
+            <CardTitle>{t('contentTitle')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Type" value={b.broadcastType} />
-            {b.broadcastType === 'TEXT' ? <Row label="Message" value={b.message ?? '—'} /> : null}
-            {b.broadcastType === 'URL' ? <Row label="URL" value={b.url ?? '—'} /> : null}
+            <Row label={tc('type')} value={tt(b.broadcastType)} />
+            {b.broadcastType === 'TEXT' ? (
+              <Row label={t('messageLabel')} value={b.message ?? '—'} />
+            ) : null}
+            {b.broadcastType === 'URL' ? <Row label={t('urlLabel')} value={b.url ?? '—'} /> : null}
             {b.broadcastType === 'CONTENT' ? (
-              <Row label="Content" value={b.contentId ?? '—'} />
+              <Row label={t('contentLabel')} value={b.contentId ?? '—'} />
             ) : null}
             {b.broadcastType === 'PLAYLIST' ? (
-              <Row label="Playlist" value={b.playlistId ?? '—'} />
+              <Row label={t('playlistLabel')} value={b.playlistId ?? '—'} />
             ) : null}
-            <Row label="Priority" value={String(b.priority)} />
-            <Row label="Auto-end" value={b.endAt ? new Date(b.endAt).toLocaleString() : 'Manual'} />
+            <Row label={t('priorityLabel')} value={String(b.priority)} />
+            <Row
+              label={t('autoEndLabel')}
+              value={b.endAt ? new Date(b.endAt).toLocaleString(locale) : t('manual')}
+            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Validation</CardTitle>
+            <CardTitle>{t('validationTitle')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {!v ? (
               <Spinner className="size-4" />
             ) : (
               <>
-                <Row label="Affected screens" value={String(v.affectedScreens)} />
-                <Row label="Ready to activate" value={v.canActivate ? 'Yes' : 'No'} />
+                <Row label={t('affectedScreens')} value={String(v.affectedScreens)} />
+                <Row label={t('readyToActivate')} value={v.canActivate ? t('yes') : t('no')} />
                 {v.errors.map((e) => (
                   <p key={e} className="text-red-600">
                     • {e}
@@ -180,7 +191,7 @@ export default function EmergencyBroadcastDetailPage() {
 
       <Card className="mt-4">
         <CardHeader>
-          <CardTitle>Targets</CardTitle>
+          <CardTitle>{t('targetsTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <TargetSelector
@@ -198,35 +209,35 @@ export default function EmergencyBroadcastDetailPage() {
             onClick={() => setConfirm('activate')}
             disabled={busy !== null || !(v?.canActivate ?? false)}
           >
-            Activate
+            {t('activate')}
           </Button>
         ) : null}
         {isLive ? (
           <>
             <Button
               variant="outline"
-              onClick={() => act('pause', 'Pause')}
+              onClick={() => act('pause', t('pauseDone'), t('pauseError'))}
               disabled={busy !== null}
             >
-              Pause
+              {t('pause')}
             </Button>
             <Button variant="danger" onClick={() => setConfirm('end')} disabled={busy !== null}>
-              End now
+              {t('endNow')}
             </Button>
           </>
         ) : null}
         {b.status === 'PAUSED' ? (
           <Button variant="danger" onClick={() => setConfirm('end')} disabled={busy !== null}>
-            End now
+            {t('endNow')}
           </Button>
         ) : null}
         {b.status === 'ENDED' || b.status === 'DRAFT' ? (
           <Button
             variant="outline"
-            onClick={() => act('archive', 'Archive')}
+            onClick={() => act('archive', t('archiveDone'), t('archiveError'))}
             disabled={busy !== null}
           >
-            Archive
+            {t('archive')}
           </Button>
         ) : null}
       </div>
@@ -234,29 +245,31 @@ export default function EmergencyBroadcastDetailPage() {
       <Dialog
         open={confirm === 'activate'}
         onClose={() => setConfirm(null)}
-        title="Activate emergency broadcast?"
-        description={`This immediately overrides all schedules on ${v?.affectedScreens ?? 0} screen target(s).`}
+        title={t('activateConfirmTitle')}
+        description={t('activateConfirmDescription', { count: v?.affectedScreens ?? 0 })}
       >
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setConfirm(null)}>
-            Cancel
+            {tc('cancel')}
           </Button>
-          <Button onClick={() => act('activate', 'Activate')}>Activate now</Button>
+          <Button onClick={() => act('activate', t('activateDone'), t('activateError'))}>
+            {t('activateNow')}
+          </Button>
         </div>
       </Dialog>
 
       <Dialog
         open={confirm === 'end'}
         onClose={() => setConfirm(null)}
-        title="End emergency broadcast?"
-        description="Targeted screens return to their normal schedule."
+        title={t('endConfirmTitle')}
+        description={t('endConfirmDescription')}
       >
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setConfirm(null)}>
-            Cancel
+            {tc('cancel')}
           </Button>
-          <Button variant="danger" onClick={() => act('end', 'End')}>
-            End broadcast
+          <Button variant="danger" onClick={() => act('end', t('endDone'), t('endError'))}>
+            {t('endBroadcast')}
           </Button>
         </div>
       </Dialog>

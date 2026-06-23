@@ -1,6 +1,6 @@
 'use client';
 
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { RefreshCw } from 'lucide-react';
 
 import { Link } from '@/i18n/navigation';
@@ -40,6 +40,9 @@ const STATUS_TONE: Record<LiveScreenStatus, 'success' | 'danger' | 'warning' | '
 
 export default function MonitoringPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.monitoring');
+  const tc = useTranslations('common');
+  const te = useTranslations('enums');
   const { toast } = useToast();
   const { data, loading, error, reload } =
     useApiResource<MonitoringOverview>('/monitoring/overview');
@@ -49,9 +52,9 @@ export default function MonitoringPage() {
     setBusy(screenId + path);
     try {
       await api.post(`/screens/${screenId}/actions/${path}`);
-      toast(`${label} requested.`, 'success');
+      toast(t('actionRequested', { label }), 'success');
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Action failed.', 'error');
+      toast(err instanceof ApiError ? err.message : t('actionFailed'), 'error');
     } finally {
       setBusy(null);
     }
@@ -60,13 +63,13 @@ export default function MonitoringPage() {
   return (
     <div>
       <PageHeader
-        title="Monitoring"
-        description="Fleet health, sync status, and remote control."
+        title={t('title')}
+        description={t('description')}
         actions={
           <div className="flex gap-2">
-            <ExportButton dataset="screen-health" label="Export health" />
+            <ExportButton dataset="screen-health" label={t('exportHealth')} />
             <Button variant="outline" onClick={reload} disabled={loading}>
-              <RefreshCw className="size-4" /> Refresh
+              <RefreshCw className="size-4" /> {tc('refresh')}
             </Button>
           </div>
         }
@@ -77,25 +80,25 @@ export default function MonitoringPage() {
           <Spinner className="text-primary size-6" />
         </div>
       ) : error ? (
-        <EmptyState title="Could not load monitoring" description={error} />
+        <EmptyState title={t('loadError')} description={error} />
       ) : !data ? null : (
         <>
           <div className="mb-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <StatCard label="Screens" value={data.totals.total} />
-            <StatCard label="Online" value={data.totals.online} />
+            <StatCard label={t('screens')} value={data.totals.total} />
+            <StatCard label={te('screenStatus.ONLINE')} value={data.totals.online} />
             <StatCard
-              label="Offline"
+              label={te('screenStatus.OFFLINE')}
               value={data.totals.offline}
-              hint={`${data.missingHeartbeat} missing heartbeat`}
+              hint={t('missingHeartbeat', { count: data.missingHeartbeat })}
             />
-            <StatCard label="Warning" value={data.totals.warning} />
-            <StatCard label="Unpaired" value={data.totals.unpaired} />
-            <StatCard label="Failed sync" value={data.withFailedDownloads} />
+            <StatCard label={te('screenStatus.WARNING')} value={data.totals.warning} />
+            <StatCard label={te('screenStatus.UNPAIRED')} value={data.totals.unpaired} />
+            <StatCard label={t('failedSync')} value={data.withFailedDownloads} />
           </div>
 
           {data.alerts.length > 0 ? (
             <Card className="mb-4 p-4">
-              <p className="mb-2 text-sm font-semibold">Alerts</p>
+              <p className="mb-2 text-sm font-semibold">{t('alerts')}</p>
               <ul className="space-y-1">
                 {data.alerts.map((a) => (
                   <li key={a.screenId + a.message} className="text-sm">
@@ -116,21 +119,18 @@ export default function MonitoringPage() {
           ) : null}
 
           {data.screens.length === 0 ? (
-            <EmptyState
-              title="No screens yet"
-              description="Create and pair screens to monitor them here."
-            />
+            <EmptyState title={t('noScreensTitle')} description={t('noScreensDescription')} />
           ) : (
             <Table>
               <THead>
                 <TR>
-                  <TH>Screen</TH>
-                  <TH>Status</TH>
-                  <TH>Playback</TH>
-                  <TH>Sync</TH>
-                  <TH>App</TH>
-                  <TH>Last heartbeat</TH>
-                  <TH>Actions</TH>
+                  <TH>{t('screen')}</TH>
+                  <TH>{tc('status')}</TH>
+                  <TH>{t('playback')}</TH>
+                  <TH>{t('sync')}</TH>
+                  <TH>{t('app')}</TH>
+                  <TH>{t('lastHeartbeat')}</TH>
+                  <TH>{tc('actions')}</TH>
                 </TR>
               </THead>
               <TBody>
@@ -154,12 +154,15 @@ export default function MonitoringPage() {
                     <TD className="text-muted-foreground">
                       {s.syncStatus ?? '—'}
                       {s.failedDownloads > 0 ? (
-                        <span className="text-red-600"> · {s.failedDownloads} failed</span>
+                        <span className="text-red-600">
+                          {' '}
+                          · {t('failedCount', { count: s.failedDownloads })}
+                        </span>
                       ) : null}
                     </TD>
                     <TD className="text-muted-foreground">{s.appVersion ?? '—'}</TD>
                     <TD className="text-muted-foreground">
-                      {s.lastHeartbeatAt ? formatDateTime(s.lastHeartbeatAt, locale) : 'Never'}
+                      {s.lastHeartbeatAt ? formatDateTime(s.lastHeartbeatAt, locale) : t('never')}
                     </TD>
                     <TD>
                       <div className="flex gap-1">
@@ -167,17 +170,17 @@ export default function MonitoringPage() {
                           size="sm"
                           variant="ghost"
                           disabled={!s.paired || busy === s.id + 'force-sync'}
-                          onClick={() => action(s.id, 'force-sync', 'Force sync')}
+                          onClick={() => action(s.id, 'force-sync', t('forceSync'))}
                         >
-                          Sync
+                          {t('syncAction')}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
                           disabled={!s.paired || busy === s.id + 'take-screenshot'}
-                          onClick={() => action(s.id, 'take-screenshot', 'Screenshot')}
+                          onClick={() => action(s.id, 'take-screenshot', t('screenshot'))}
                         >
-                          Shot
+                          {t('shotAction')}
                         </Button>
                       </div>
                     </TD>

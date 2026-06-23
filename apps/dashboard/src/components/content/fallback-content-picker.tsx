@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { useApiResource } from '@/lib/use-api';
 import type { Content, Orientation, Paginated } from '@/lib/types';
@@ -23,6 +24,8 @@ export function FallbackContentPicker({
   orientation?: Orientation;
   busy?: boolean;
 }) {
+  const t = useTranslations('pages.fallbackPicker');
+  const te = useTranslations('enums');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const selected = useApiResource<Content>(value ? `/content/${value}` : null);
@@ -30,14 +33,12 @@ export function FallbackContentPicker({
   const current = selected.data;
   const warnings: string[] = [];
   if (value && !selected.loading && selected.error) {
-    warnings.push('The selected content is no longer available (archived, trashed, or removed).');
+    warnings.push(t('warnUnavailable'));
   }
   if (current && current.status !== 'ACTIVE') {
-    warnings.push(
-      `The selected content is ${current.status.toLowerCase()} and will not play until restored.`,
-    );
+    warnings.push(t('warnNotActive', { status: current.status.toLowerCase() }));
   }
-  if (current?.isExpired) warnings.push('The selected content has expired.');
+  if (current?.isExpired) warnings.push(t('warnExpired'));
   if (
     current &&
     orientation &&
@@ -45,7 +46,10 @@ export function FallbackContentPicker({
     current.orientation !== orientation
   ) {
     warnings.push(
-      `Orientation mismatch: content is ${current.orientation}, screen is ${orientation}.`,
+      t('warnOrientationMismatch', {
+        content: te(`orientation.${current.orientation}`),
+        screen: te(`orientation.${orientation}`),
+      }),
     );
   }
 
@@ -54,22 +58,22 @@ export function FallbackContentPicker({
       <div className="flex flex-wrap items-center gap-2">
         {value ? (
           <span className="text-sm">
-            {selected.loading ? 'Loading…' : (current?.title ?? 'Selected content')}
+            {selected.loading ? t('loadingSelected') : (current?.title ?? t('selectedContent'))}
             {current ? (
               <Badge tone="neutral" className="ms-2">
-                {current.type}
+                {te(`contentType.${current.type}`)}
               </Badge>
             ) : null}
           </span>
         ) : (
-          <span className="text-muted-foreground text-sm">No fallback content selected.</span>
+          <span className="text-muted-foreground text-sm">{t('none')}</span>
         )}
         <Button size="sm" variant="outline" disabled={busy} onClick={() => setOpen(true)}>
-          {value ? 'Change' : 'Choose'}
+          {value ? t('change') : t('choose')}
         </Button>
         {value ? (
           <Button size="sm" variant="ghost" disabled={busy} onClick={() => onChange(null)}>
-            Clear
+            {t('clear')}
           </Button>
         ) : null}
       </div>
@@ -83,12 +87,12 @@ export function FallbackContentPicker({
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        title="Select fallback content"
+        title={t('dialogTitle')}
         className="max-w-2xl"
       >
         <div className="space-y-3">
           <Input
-            placeholder="Search content…"
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -106,6 +110,8 @@ export function FallbackContentPicker({
 }
 
 function ContentChooser({ search, onPick }: { search: string; onPick: (id: string) => void }) {
+  const t = useTranslations('pages.fallbackPicker');
+  const te = useTranslations('enums');
   const q = new URLSearchParams({ status: 'ACTIVE', pageSize: '100' });
   if (search) q.set('search', search);
   const { data, loading, error } = useApiResource<Paginated<Content>>(`/content?${q.toString()}`);
@@ -117,14 +123,9 @@ function ContentChooser({ search, onPick }: { search: string; onPick: (id: strin
       </div>
     );
   }
-  if (error) return <EmptyState title="Could not load content" description={error} />;
+  if (error) return <EmptyState title={t('loadError')} description={error} />;
   if (!data || data.items.length === 0) {
-    return (
-      <EmptyState
-        title="No active content"
-        description="Upload content first to use it as fallback."
-      />
-    );
+    return <EmptyState title={t('noActive')} description={t('noActiveHelp')} />;
   }
 
   return (
@@ -137,9 +138,9 @@ function ContentChooser({ search, onPick }: { search: string; onPick: (id: strin
         >
           <span className="truncate">{c.title}</span>
           <span className="flex items-center gap-2">
-            {c.isExpired ? <Badge tone="danger">Expired</Badge> : null}
-            <Badge tone="neutral">{c.type}</Badge>
-            <Badge tone="info">{c.orientation}</Badge>
+            {c.isExpired ? <Badge tone="danger">{t('expired')}</Badge> : null}
+            <Badge tone="neutral">{te(`contentType.${c.type}`)}</Badge>
+            <Badge tone="info">{te(`orientation.${c.orientation}`)}</Badge>
           </span>
         </button>
       ))}

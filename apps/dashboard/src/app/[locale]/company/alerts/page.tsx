@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { api, ApiError } from '@/lib/api';
 import { useApiResource } from '@/lib/use-api';
@@ -40,6 +40,8 @@ const STATUS_TONE: Record<AlertStatus, 'danger' | 'warning' | 'success' | 'neutr
 
 export default function AlertsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.alerts');
+  const tc = useTranslations('common');
   const { toast } = useToast();
   const [status, setStatus] = useState('OPEN');
   const [severity, setSeverity] = useState('');
@@ -63,7 +65,7 @@ export default function AlertsPage() {
       await api.post(`/alerts/${id}/${action}`);
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Action failed.', 'error');
+      toast(err instanceof ApiError ? err.message : t('actionFailed'), 'error');
     } finally {
       setBusy(null);
     }
@@ -72,13 +74,13 @@ export default function AlertsPage() {
   return (
     <div>
       <PageHeader
-        title="Alerts"
-        description="Operational alerts for your screens, sync, storage, and subscription."
+        title={t('title')}
+        description={t('description')}
         actions={<ExportButton dataset="alerts" filters={{ status: status || undefined }} />}
       />
 
       <div className="mb-4 flex flex-wrap gap-3">
-        <Field label="Status">
+        <Field label={tc('status')}>
           <Select
             value={status}
             onChange={(e) => {
@@ -86,14 +88,14 @@ export default function AlertsPage() {
               setPage(1);
             }}
           >
-            <option value="">All</option>
-            <option value="OPEN">Open</option>
-            <option value="ACKNOWLEDGED">Acknowledged</option>
-            <option value="RESOLVED">Resolved</option>
-            <option value="DISMISSED">Dismissed</option>
+            <option value="">{tc('all')}</option>
+            <option value="OPEN">{t('status.open')}</option>
+            <option value="ACKNOWLEDGED">{t('status.acknowledged')}</option>
+            <option value="RESOLVED">{t('status.resolved')}</option>
+            <option value="DISMISSED">{t('status.dismissed')}</option>
           </Select>
         </Field>
-        <Field label="Severity">
+        <Field label={t('severity.label')}>
           <Select
             value={severity}
             onChange={(e) => {
@@ -101,10 +103,10 @@ export default function AlertsPage() {
               setPage(1);
             }}
           >
-            <option value="">All</option>
-            <option value="INFO">Info</option>
-            <option value="WARNING">Warning</option>
-            <option value="CRITICAL">Critical</option>
+            <option value="">{tc('all')}</option>
+            <option value="INFO">{t('severity.info')}</option>
+            <option value="WARNING">{t('severity.warning')}</option>
+            <option value="CRITICAL">{t('severity.critical')}</option>
           </Select>
         </Field>
       </div>
@@ -114,22 +116,19 @@ export default function AlertsPage() {
           <Spinner className="text-primary size-6" />
         </div>
       ) : error ? (
-        <EmptyState title="Could not load alerts" description={error} />
+        <EmptyState title={t('loadError')} description={error} />
       ) : !data || data.items.length === 0 ? (
-        <EmptyState
-          title="No alerts"
-          description="You're all clear — no alerts match this filter."
-        />
+        <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       ) : (
         <>
           <Table>
             <THead>
               <TR>
-                <TH>When</TH>
-                <TH>Severity</TH>
-                <TH>Alert</TH>
-                <TH>Status</TH>
-                <TH>Actions</TH>
+                <TH>{t('column.when')}</TH>
+                <TH>{t('severity.label')}</TH>
+                <TH>{t('column.alert')}</TH>
+                <TH>{tc('status')}</TH>
+                <TH>{tc('actions')}</TH>
               </TR>
             </THead>
             <TBody>
@@ -160,7 +159,7 @@ export default function AlertsPage() {
                             disabled={busy === a.id + 'acknowledge'}
                             onClick={() => act(a.id, 'acknowledge')}
                           >
-                            Ack
+                            {t('action.ack')}
                           </Button>
                         ) : null}
                         <Button
@@ -169,7 +168,7 @@ export default function AlertsPage() {
                           disabled={busy === a.id + 'resolve'}
                           onClick={() => act(a.id, 'resolve')}
                         >
-                          Resolve
+                          {t('action.resolve')}
                         </Button>
                         <Button
                           size="sm"
@@ -177,7 +176,7 @@ export default function AlertsPage() {
                           disabled={busy === a.id + 'dismiss'}
                           onClick={() => act(a.id, 'dismiss')}
                         >
-                          Dismiss
+                          {t('action.dismiss')}
                         </Button>
                       </div>
                     ) : (

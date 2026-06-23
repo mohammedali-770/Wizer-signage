@@ -1,4 +1,5 @@
 import { cloneElement, forwardRef, isValidElement, useId, type ReactElement } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/cn';
 
@@ -133,10 +134,11 @@ export function Field({
 }
 
 export function Spinner({ className }: { className?: string }) {
+  const tc = useTranslations('common');
   return (
     <span
       role="status"
-      aria-label="Loading"
+      aria-label={tc('loading')}
       className={cn(
         'inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent',
         className,

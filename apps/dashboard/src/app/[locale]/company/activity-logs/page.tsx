@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { useApiResource } from '@/lib/use-api';
 import { formatDateTime } from '@/lib/format';
@@ -66,6 +66,8 @@ function metadataPreview(metadata: Record<string, unknown>): string | null {
 
 export default function CompanyActivityLogsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.activityLogs');
+  const te = useTranslations('enums');
 
   const [page, setPage] = useState(1);
   const [category, setCategory] = useState('');
@@ -99,22 +101,22 @@ export default function CompanyActivityLogsPage() {
 
   return (
     <div>
-      <PageHeader title="Activity Logs" description="Audit trail of your company's actions." />
+      <PageHeader title={t('title')} description={t('description')} />
 
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:max-w-2xl">
-        <Field label="Category">
+        <Field label={t('category')}>
           <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">All categories</option>
+            <option value="">{t('allCategories')}</option>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {c}
+                {te(`activityCategory.${c}`)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Action">
+        <Field label={t('action')}>
           <Input
-            placeholder="Filter by action…"
+            placeholder={t('actionPlaceholder')}
             value={actionInput}
             onChange={(e) => setActionInput(e.target.value)}
           />
@@ -127,16 +129,12 @@ export default function CompanyActivityLogsPage() {
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load activity logs" description={error} />}
+      {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && items.length === 0 && (
         <EmptyState
-          title="No activity found"
-          description={
-            category || action
-              ? 'No log entries match the current filters.'
-              : 'Activity from your company will appear here.'
-          }
+          title={t('emptyTitle')}
+          description={category || action ? t('emptyFiltered') : t('emptyDefault')}
         />
       )}
 
@@ -145,12 +143,12 @@ export default function CompanyActivityLogsPage() {
           <Table>
             <THead>
               <TR>
-                <TH>Time</TH>
-                <TH>Category</TH>
-                <TH>Action</TH>
-                <TH>Target</TH>
-                <TH>Actor</TH>
-                <TH>IP</TH>
+                <TH>{t('colTime')}</TH>
+                <TH>{t('category')}</TH>
+                <TH>{t('action')}</TH>
+                <TH>{t('colTarget')}</TH>
+                <TH>{t('colActor')}</TH>
+                <TH>{t('colIp')}</TH>
               </TR>
             </THead>
             <TBody>
@@ -177,7 +175,7 @@ export default function CompanyActivityLogsPage() {
                     </TD>
                     <TD className="whitespace-nowrap">{formatTarget(entry)}</TD>
                     <TD className="text-muted-foreground whitespace-nowrap font-mono text-xs">
-                      {entry.actorId ? shortId(entry.actorId) : 'system'}
+                      {entry.actorId ? shortId(entry.actorId) : t('systemActor')}
                     </TD>
                     <TD className="text-muted-foreground whitespace-nowrap">{entry.ip ?? '—'}</TD>
                   </TR>

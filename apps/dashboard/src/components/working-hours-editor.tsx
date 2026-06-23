@@ -1,19 +1,24 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { DayHours, OutsideHoursBehavior, WorkingHours } from '@/lib/types';
 import { Input, Label, Select } from '@/components/ui';
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-const BEHAVIORS: { value: OutsideHoursBehavior; label: string }[] = [
-  { value: 'FALLBACK', label: 'Show fallback content' },
-  { value: 'BLACK_SCREEN', label: 'Black screen' },
-  { value: 'CUSTOM_MESSAGE', label: 'Custom message' },
-  { value: 'SLEEP', label: 'Attempt sleep / power saving' },
+const BEHAVIOR_VALUES: OutsideHoursBehavior[] = [
+  'FALLBACK',
+  'BLACK_SCREEN',
+  'CUSTOM_MESSAGE',
+  'SLEEP',
 ];
 
 function defaultDays(): DayHours[] {
-  return DAY_LABELS.map((_, day) => ({ day, closed: false, open: '09:00', close: '21:00' }));
+  return Array.from({ length: 7 }, (_, day) => ({
+    day,
+    closed: false,
+    open: '09:00',
+    close: '21:00',
+  }));
 }
 
 /**
@@ -29,6 +34,8 @@ export function WorkingHoursEditor({
   onChange: (next: WorkingHours) => void;
   timezonePlaceholder?: string;
 }) {
+  const t = useTranslations('pages.workingHours');
+  const te = useTranslations('enums');
   const wh: WorkingHours = value ?? {};
   const days = wh.days && wh.days.length ? wh.days : defaultDays();
 
@@ -42,10 +49,10 @@ export function WorkingHoursEditor({
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <Label>Timezone (optional)</Label>
+          <Label>{t('timezone')}</Label>
           <Input
             value={wh.timezone ?? ''}
-            placeholder={timezonePlaceholder ?? 'e.g. Asia/Riyadh'}
+            placeholder={timezonePlaceholder ?? t('timezonePlaceholder')}
             onChange={(e) => patch({ timezone: e.target.value || undefined })}
           />
         </div>
@@ -54,14 +61,14 @@ export function WorkingHoursEditor({
       <div className="space-y-2">
         {days.map((d, i) => (
           <div key={d.day} className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="w-10 font-medium">{DAY_LABELS[d.day]}</span>
+            <span className="w-10 font-medium">{te(`day.${d.day}`)}</span>
             <label className="text-muted-foreground flex items-center gap-1">
               <input
                 type="checkbox"
                 checked={d.closed}
                 onChange={(e) => patchDay(i, { closed: e.target.checked })}
               />
-              Closed
+              {t('closed')}
             </label>
             {!d.closed && (
               <>
@@ -71,7 +78,7 @@ export function WorkingHoursEditor({
                   value={d.open ?? ''}
                   onChange={(e) => patchDay(i, { open: e.target.value })}
                 />
-                <span className="text-muted-foreground">to</span>
+                <span className="text-muted-foreground">{t('to')}</span>
                 <Input
                   type="time"
                   className="h-8 w-28"
@@ -86,23 +93,23 @@ export function WorkingHoursEditor({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <Label>Outside active hours</Label>
+          <Label>{t('outsideActiveHours')}</Label>
           <Select
             value={wh.outsideHoursBehavior ?? 'FALLBACK'}
             onChange={(e) =>
               patch({ outsideHoursBehavior: e.target.value as OutsideHoursBehavior })
             }
           >
-            {BEHAVIORS.map((b) => (
-              <option key={b.value} value={b.value}>
-                {b.label}
+            {BEHAVIOR_VALUES.map((b) => (
+              <option key={b} value={b}>
+                {te(`outsideHours.${b}`)}
               </option>
             ))}
           </Select>
         </div>
         {wh.outsideHoursBehavior === 'CUSTOM_MESSAGE' && (
           <div>
-            <Label>Custom message</Label>
+            <Label>{t('customMessage')}</Label>
             <Input
               value={wh.outsideHoursMessage ?? ''}
               onChange={(e) => patch({ outsideHoursMessage: e.target.value })}
@@ -110,9 +117,7 @@ export function WorkingHoursEditor({
           </div>
         )}
       </div>
-      <p className="text-muted-foreground text-xs">
-        Configuration only in this phase — devices apply working hours in a later phase.
-      </p>
+      <p className="text-muted-foreground text-xs">{t('phaseHelp')}</p>
     </div>
   );
 }

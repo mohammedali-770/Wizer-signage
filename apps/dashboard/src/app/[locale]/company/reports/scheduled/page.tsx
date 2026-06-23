@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -45,6 +45,9 @@ const FREQUENCIES: ReportFrequency[] = ['DAILY', 'WEEKLY', 'MONTHLY'];
 
 export default function ScheduledReportsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.scheduledReports');
+  const tc = useTranslations('common');
+  const te = useTranslations('enums');
   const { toast } = useToast();
   const { data, loading, error, reload } = useApiResource<Paginated<ScheduledReport>>(
     '/scheduled-reports?pageSize=50',
@@ -63,8 +66,8 @@ export default function ScheduledReportsPage() {
       .split(',')
       .map((e) => e.trim())
       .filter(Boolean);
-    if (!name.trim()) return toast('A name is required.', 'error');
-    if (emails.length === 0) return toast('Add at least one recipient email.', 'error');
+    if (!name.trim()) return toast(t('toast.nameRequired'), 'error');
+    if (emails.length === 0) return toast(t('toast.recipientRequired'), 'error');
     setBusy('create');
     try {
       await api.post('/scheduled-reports', {
@@ -74,13 +77,13 @@ export default function ScheduledReportsPage() {
         frequency,
         recipients: emails,
       });
-      toast('Scheduled report created.', 'success');
+      toast(t('toast.created'), 'success');
       setOpen(false);
       setName('');
       setRecipients('');
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Could not create report.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.createFailed'), 'error');
     } finally {
       setBusy(null);
     }
@@ -91,10 +94,10 @@ export default function ScheduledReportsPage() {
     try {
       if (method === 'del') await api.del(`/scheduled-reports/${id}`);
       else await api.post(`/scheduled-reports/${id}/${path}`);
-      toast(`${label} done.`, 'success');
+      toast(t('toast.actionDone', { action: label }), 'success');
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Action failed.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.actionFailed'), 'error');
     } finally {
       setBusy(null);
     }
@@ -103,11 +106,11 @@ export default function ScheduledReportsPage() {
   return (
     <div>
       <PageHeader
-        title="Scheduled Reports"
-        description="Email proof-of-play, screen-health, alerts, activity-log, and billing reports on a schedule."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Button onClick={() => setOpen(true)}>
-            <Plus className="size-4" /> New scheduled report
+            <Plus className="size-4" /> {t('new')}
           </Button>
         }
       />
@@ -117,38 +120,35 @@ export default function ScheduledReportsPage() {
           <Spinner className="text-primary size-6" />
         </div>
       ) : error ? (
-        <EmptyState title="Could not load reports" description={error} />
+        <EmptyState title={t('loadError')} description={error} />
       ) : !data || data.items.length === 0 ? (
-        <EmptyState
-          title="No scheduled reports"
-          description="Create one to receive recurring reports by email."
-        />
+        <EmptyState title={t('empty.title')} description={t('empty.description')} />
       ) : (
         <Table>
           <THead>
             <TR>
-              <TH>Name</TH>
-              <TH>Report</TH>
-              <TH>Format</TH>
-              <TH>Frequency</TH>
-              <TH>Next run</TH>
-              <TH>Status</TH>
-              <TH>Actions</TH>
+              <TH>{tc('name')}</TH>
+              <TH>{t('columns.report')}</TH>
+              <TH>{t('columns.format')}</TH>
+              <TH>{t('columns.frequency')}</TH>
+              <TH>{t('columns.nextRun')}</TH>
+              <TH>{tc('status')}</TH>
+              <TH>{tc('actions')}</TH>
             </TR>
           </THead>
           <TBody>
             {data.items.map((r) => (
               <TR key={r.id}>
                 <TD className="font-medium">{r.name}</TD>
-                <TD className="text-muted-foreground">{r.reportType}</TD>
+                <TD className="text-muted-foreground">{te('reportType.' + r.reportType)}</TD>
                 <TD className="text-muted-foreground">{r.format}</TD>
-                <TD className="text-muted-foreground">{r.frequency}</TD>
+                <TD className="text-muted-foreground">{t('frequencies.' + r.frequency)}</TD>
                 <TD className="text-muted-foreground">
                   {r.nextRunAt ? formatDateTime(r.nextRunAt, locale) : '—'}
                 </TD>
                 <TD>
                   <Badge tone={r.enabled ? 'success' : 'neutral'}>
-                    {r.enabled ? 'Enabled' : 'Disabled'}
+                    {r.enabled ? t('status.enabled') : t('status.disabled')}
                   </Badge>
                 </TD>
                 <TD>
@@ -157,9 +157,9 @@ export default function ScheduledReportsPage() {
                       size="sm"
                       variant="ghost"
                       disabled={busy === r.id + 'run'}
-                      onClick={() => act(r.id, 'run', 'post', 'Run')}
+                      onClick={() => act(r.id, 'run', 'post', t('actions.run'))}
                     >
-                      Run now
+                      {t('actions.runNow')}
                     </Button>
                     <Button
                       size="sm"
@@ -170,19 +170,19 @@ export default function ScheduledReportsPage() {
                           r.id,
                           r.enabled ? 'disable' : 'enable',
                           'post',
-                          r.enabled ? 'Disable' : 'Enable',
+                          r.enabled ? t('actions.disable') : t('actions.enable'),
                         )
                       }
                     >
-                      {r.enabled ? 'Disable' : 'Enable'}
+                      {r.enabled ? t('actions.disable') : t('actions.enable')}
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       disabled={busy === r.id + 'del'}
-                      onClick={() => act(r.id, '', 'del', 'Delete')}
+                      onClick={() => act(r.id, '', 'del', t('actions.delete'))}
                     >
-                      Delete
+                      {tc('delete')}
                     </Button>
                   </div>
                 </TD>
@@ -192,30 +192,30 @@ export default function ScheduledReportsPage() {
         </Table>
       )}
 
-      <Dialog open={open} onClose={() => setOpen(false)} title="New scheduled report">
+      <Dialog open={open} onClose={() => setOpen(false)} title={t('dialog.title')}>
         <div className="space-y-3">
-          <Field label="Name">
+          <Field label={tc('name')}>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={160}
-              placeholder="Weekly proof-of-play"
+              placeholder={t('dialog.namePlaceholder')}
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Report">
+            <Field label={t('columns.report')}>
               <Select
                 value={reportType}
                 onChange={(e) => setReportType(e.target.value as ReportType)}
               >
-                {REPORT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t.replace(/_/g, ' ')}
+                {REPORT_TYPES.map((rt) => (
+                  <option key={rt} value={rt}>
+                    {te('reportType.' + rt)}
                   </option>
                 ))}
               </Select>
             </Field>
-            <Field label="Format">
+            <Field label={t('columns.format')}>
               <Select value={format} onChange={(e) => setFormat(e.target.value as ReportFormat)}>
                 {FORMATS.map((f) => (
                   <option key={f} value={f}>
@@ -225,31 +225,31 @@ export default function ScheduledReportsPage() {
               </Select>
             </Field>
           </div>
-          <Field label="Frequency">
+          <Field label={t('columns.frequency')}>
             <Select
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as ReportFrequency)}
             >
               {FREQUENCIES.map((f) => (
                 <option key={f} value={f}>
-                  {f}
+                  {t('frequencies.' + f)}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Recipients" hint="Comma-separated email addresses.">
+          <Field label={t('dialog.recipients')} hint={t('dialog.recipientsHint')}>
             <Input
               value={recipients}
               onChange={(e) => setRecipients(e.target.value)}
-              placeholder="ops@example.com, manager@example.com"
+              placeholder={t('dialog.recipientsPlaceholder')}
             />
           </Field>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={busy === 'create'}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button onClick={create} disabled={busy === 'create'}>
-              {busy === 'create' ? <Spinner className="size-4" /> : 'Create'}
+              {busy === 'create' ? <Spinner className="size-4" /> : tc('create')}
             </Button>
           </div>
         </div>

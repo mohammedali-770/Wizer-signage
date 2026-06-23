@@ -105,7 +105,11 @@
     "create": "إنشاء",
     "description": "الوصف",
     "back": "رجوع",
-    "saving": "جارٍ الحفظ…"
+    "saving": "جارٍ الحفظ…",
+    "refresh": "تحديث",
+    "loading": "جارٍ التحميل",
+    "export": "تصدير",
+    "close": "إغلاق"
   },
   "theme": {
     "toggle": "تبديل المظهر",
@@ -142,7 +146,8 @@
       "loadError": "تعذّر تحميل الشاشات",
       "emptyTitle": "لا توجد شاشات",
       "emptyFiltered": "حاول تعديل البحث أو عوامل التصفية.",
-      "emptyDefault": "أنشئ أول شاشة لك للبدء."
+      "emptyDefault": "أنشئ أول شاشة لك للبدء.",
+      "unassigned": "غير معيّنة"
     },
     "content": {
       "title": "مكتبة المحتوى",
@@ -187,6 +192,54 @@
         "title": "الاسم (أ–ي)",
         "size": "الحجم",
         "expiry": "تاريخ الانتهاء"
+      },
+      "preview": "معاينة",
+      "viewDetails": "عرض التفاصيل",
+      "addTag": "إضافة وسم",
+      "removeTag": "إزالة وسم",
+      "clear": "مسح",
+      "rowTrash": "نقل إلى المهملات",
+      "selected": "{count} محدد",
+      "selectRow": "تحديد {title}",
+      "toastError": "حدث خطأ ما.",
+      "toastSelectTag": "اختر وسمًا أولًا.",
+      "toastTagAdded": "تمت إضافة الوسم.",
+      "toastTagRemoved": "تمت إزالة الوسم.",
+      "toastPurged": "تم حذف {count} عنصر نهائيًا.",
+      "bulkSuccess": {
+        "archive": "تمت الأرشفة.",
+        "unarchive": "تم إلغاء الأرشفة.",
+        "trash": "تم النقل إلى المهملات.",
+        "restore": "تمت الاستعادة."
+      },
+      "bulkConfirm": "{action} {count} من العناصر المحددة؟",
+      "bulkConfirmRestorable": "يمكن استعادتها من المهملات.",
+      "badge": {
+        "expired": "منتهي الصلاحية",
+        "expiring": "ينتهي قريبًا"
+      },
+      "tagDialog": {
+        "titleAdd": "إضافة وسم إلى التحديد",
+        "titleRemove": "إزالة وسم من التحديد",
+        "descriptionAdd": "إضافة وسم محتوى إلى {count} عنصر محدد.",
+        "descriptionRemove": "إزالة وسم محتوى من {count} عنصر محدد.",
+        "contentTag": "وسم المحتوى",
+        "selectTag": "اختر وسمًا…",
+        "noTags": "لا توجد وسوم محتوى بعد. أنشئ واحدًا من نوع محتوى أو كليهما في صفحة الوسوم."
+      },
+      "purgeDialog": {
+        "title": "إفراغ المهملات",
+        "description": "حذف العناصر المحذوفة الأقدم من 14 يومًا نهائيًا. لا يمكن التراجع عن هذا الإجراء.",
+        "confirm": "إفراغ الآن"
+      },
+      "storage": {
+        "title": "استخدام التخزين",
+        "unlimited": "غير محدود",
+        "percentUsed": "{percent}% مستخدم",
+        "ofLimit": "من {limit}",
+        "blockedBanner": "تم تجاوز حد التخزين وانتهت الفترة السماحية. تم حظر الرفع — أرشف المحتوى أو احذفه، أو قم بترقية باقتك.",
+        "graceBanner": "تم تجاوز حد التخزين — أنت في فترة سماحية. حرّر مساحة لتجنب الانقطاع.",
+        "graceBannerEnding": "تم تجاوز حد التخزين — أنت في فترة سماحية تنتهي في {date}. حرّر مساحة لتجنب الانقطاع."
       }
     },
     "playlists": {
@@ -254,7 +307,40 @@
       "emptyDescription": "أنشئ أول مجموعة لك لبدء تنظيم الشاشات.",
       "columnCategory": "الفئة",
       "columnDescription": "الوصف",
-      "columnScreens": "الشاشات"
+      "columnScreens": "الشاشات",
+      "manageScreens": "إدارة الشاشات",
+      "editTitle": "تعديل المجموعة",
+      "newTitle": "مجموعة جديدة",
+      "editDescription": "تحديث اسم هذه المجموعة وفئتها ووصفها.",
+      "createDescription": "أنشئ مجموعة لتنظيم الشاشات المرتبطة.",
+      "namePlaceholder": "شاشات الردهة",
+      "categoryHint": "تسمية تجميع اختيارية، مثل داخلي أو واجهة المتجر.",
+      "categoryPlaceholder": "داخلي",
+      "descriptionPlaceholder": "الغرض من استخدام هذه المجموعة.",
+      "saveChanges": "حفظ التغييرات",
+      "createGroup": "إنشاء مجموعة",
+      "deleteTitle": "حذف المجموعة",
+      "deleteConfirm": "سيتم حذف «{name}» نهائيًا. لن تُحذف الشاشات الموجودة في هذه المجموعة، بل ستُزال من المجموعة فقط.",
+      "deleteGroup": "حذف المجموعة",
+      "toastNameRequired": "الاسم مطلوب.",
+      "toastUpdated": "تم تحديث المجموعة.",
+      "toastCreated": "تم إنشاء المجموعة.",
+      "toastDeleted": "تم حذف المجموعة.",
+      "toastError": "حدث خطأ ما.",
+      "toastScreenAdded": "تمت إضافة الشاشة.",
+      "toastScreensAdded": "تمت إضافة {count} شاشة.",
+      "toastScreenRemoved": "تمت إزالة الشاشة.",
+      "manageTitle": "إدارة الشاشات — {name}",
+      "manageDescription": "أضف أو أزل الشاشات التي تنتمي إلى هذه المجموعة.",
+      "manageLoadError": "تعذر تحميل المجموعة",
+      "members": "الأعضاء",
+      "noMembers": "لا توجد شاشات في هذه المجموعة بعد.",
+      "remove": "إزالة",
+      "addScreens": "إضافة شاشات",
+      "add": "إضافة",
+      "addCount": "إضافة ({count})",
+      "noCandidates": "جميع الشاشات المتاحة موجودة بالفعل في هذه المجموعة.",
+      "done": "تم"
     },
     "tags": {
       "title": "الوسوم",
@@ -268,7 +354,34 @@
       "loadError": "تعذّر تحميل الوسوم",
       "emptyTitle": "لا توجد وسوم",
       "emptyFiltered": "حاول تعديل البحث أو تصفية النوع.",
-      "emptyDescription": "أنشئ أول وسم لك لبدء تنظيم الشاشات."
+      "emptyDescription": "أنشئ أول وسم لك لبدء تنظيم الشاشات.",
+      "toasts": {
+        "nameRequired": "الاسم مطلوب.",
+        "created": "تم إنشاء الوسم.",
+        "updated": "تم تحديث الوسم.",
+        "deleted": "تم حذف الوسم.",
+        "error": "حدث خطأ ما."
+      },
+      "dialog": {
+        "createTitle": "وسم جديد",
+        "editTitle": "تعديل الوسم",
+        "createDescription": "أنشئ وسمًا لتصنيف شاشاتك وتنظيمها.",
+        "editDescription": "حدّث اسم هذا الوسم ونوعه ولونه ووصفه."
+      },
+      "form": {
+        "namePlaceholder": "مثال: واجهة المتجر",
+        "typeHint": "وسوم الشاشات تُصنّف الشاشات. أما وسوم المحتوى فستُطبَّق على الوسائط لاحقًا.",
+        "colorLabel": "اللون",
+        "useColor": "استخدام لون",
+        "colorHint": "اختياري. يظهر كنقطة بجانب اسم الوسم.",
+        "descriptionPlaceholder": "الغرض من هذا الوسم.",
+        "saveChanges": "حفظ التغييرات",
+        "createTag": "إنشاء الوسم"
+      },
+      "deleteDialog": {
+        "title": "حذف الوسم",
+        "confirm": "حذف “{name}”؟ سيؤدي ذلك إلى إزالته من جميع الشاشات ولا يمكن التراجع عنه."
+      }
     },
     "screensNew": {
       "title": "شاشة جديدة",
@@ -614,7 +727,9 @@
         "deleted": "تم حذف الشاشة.",
         "devicePaired": "تم اقتران الجهاز.",
         "deviceUnpaired": "تم إلغاء اقتران الجهاز."
-      }
+      },
+      "workingHoursNotConfigured": "غير مُهيأة",
+      "workingHoursActive": "{count, plural, zero {# يوم نشط} one {يوم واحد نشط} two {يومان نشطان} few {# أيام نشطة} many {# يوماً نشطاً} other {# يوم نشط}}"
     },
     "playlistEditor": {
       "notFound": "قائمة التشغيل غير موجودة",
@@ -815,6 +930,560 @@
         "archived": "تمت أرشفة الموقع.",
         "deleted": "تم حذف الموقع."
       }
+    },
+    "monitoring": {
+      "title": "المراقبة",
+      "description": "صحة الأسطول وحالة المزامنة والتحكم عن بُعد.",
+      "exportHealth": "تصدير بيانات الصحة",
+      "loadError": "تعذر تحميل المراقبة",
+      "screens": "الشاشات",
+      "missingHeartbeat": "{count} بلا نبضة",
+      "failedSync": "فشل المزامنة",
+      "alerts": "التنبيهات",
+      "noScreensTitle": "لا توجد شاشات بعد",
+      "noScreensDescription": "أنشئ الشاشات وأقرنها لمراقبتها هنا.",
+      "screen": "الشاشة",
+      "playback": "التشغيل",
+      "sync": "المزامنة",
+      "app": "التطبيق",
+      "lastHeartbeat": "آخر نبضة",
+      "failedCount": "{count} فاشلة",
+      "never": "أبدًا",
+      "forceSync": "مزامنة فورية",
+      "screenshot": "لقطة شاشة",
+      "syncAction": "مزامنة",
+      "shotAction": "لقطة",
+      "actionRequested": "تم طلب {label}.",
+      "actionFailed": "فشل الإجراء."
+    },
+    "alerts": {
+      "title": "التنبيهات",
+      "description": "تنبيهات تشغيلية لشاشاتك والمزامنة والتخزين والاشتراك.",
+      "actionFailed": "فشل الإجراء.",
+      "loadError": "تعذر تحميل التنبيهات",
+      "emptyTitle": "لا توجد تنبيهات",
+      "emptyDescription": "كل شيء على ما يرام — لا توجد تنبيهات تطابق عوامل التصفية الحالية.",
+      "severity": {
+        "label": "الخطورة",
+        "info": "معلومة",
+        "warning": "تحذير",
+        "critical": "حرج"
+      },
+      "status": {
+        "open": "مفتوح",
+        "acknowledged": "تم الإقرار",
+        "resolved": "تم الحل",
+        "dismissed": "تم التجاهل"
+      },
+      "column": {
+        "when": "الوقت",
+        "alert": "التنبيه"
+      },
+      "action": {
+        "ack": "إقرار",
+        "resolve": "حل",
+        "dismiss": "تجاهل"
+      }
+    },
+    "emergency": {
+      "types": {
+        "CONTENT": "محتوى من المكتبة",
+        "PLAYLIST": "قائمة التشغيل",
+        "TEXT": "رسالة نصية",
+        "URL": "رابط خارجي"
+      },
+      "list": {
+        "title": "بث الطوارئ",
+        "description": "تجاوز جميع الجداول على الشاشات المستهدفة. استخدمه بحذر.",
+        "quickText": "نص سريع",
+        "newBroadcast": "بث جديد",
+        "liveCount": "{count} نشط الآن",
+        "loadError": "تعذر تحميل عمليات البث",
+        "emptyTitle": "لا توجد عمليات بث طوارئ",
+        "emptyDescription": "أنشئ واحدة لتجاوز الجداول على شاشات محددة أثناء حادث.",
+        "colTitle": "العنوان",
+        "colTargets": "الأهداف",
+        "colPriority": "الأولوية",
+        "quick": {
+          "title": "بث نصي سريع",
+          "description": "أنشئ وفعّل رسالة نصية بملء الشاشة فورًا.",
+          "titleLabel": "العنوان",
+          "titlePlaceholder": "مثال: إنذار حريق",
+          "messageLabel": "الرسالة",
+          "targetsLabel": "الأهداف",
+          "activateNow": "تفعيل الآن",
+          "errTitleMessage": "العنوان والرسالة مطلوبان.",
+          "errTarget": "أضف هدفًا واحدًا على الأقل.",
+          "liveToast": "بث الطوارئ نشط الآن.",
+          "errSend": "تعذر إرسال البث."
+        }
+      },
+      "new": {
+        "back": "العودة إلى عمليات البث",
+        "title": "بث طوارئ جديد",
+        "description": "يُنشأ كمسودة — راجعه ثم فعّله لتجاوز الجداول.",
+        "detailsTitle": "التفاصيل",
+        "descriptionHint": "اختياري (ملاحظة داخلية).",
+        "priorityLabel": "الأولوية",
+        "priorityHint": "الأعلى يفوز بين حالات الطوارئ.",
+        "autoEndLabel": "الإنهاء التلقائي في",
+        "autoEndHint": "اختياري.",
+        "contentTitle": "المحتوى",
+        "messageLabel": "الرسالة",
+        "urlLabel": "الرابط",
+        "contentLabel": "المحتوى",
+        "contentHint": "يمكن بث المحتوى النشط فقط.",
+        "playlistLabel": "قائمة التشغيل",
+        "playlistHint": "يمكن بث قوائم التشغيل النشطة فقط.",
+        "selectPlaceholder": "اختر…",
+        "targetsTitle": "الأهداف",
+        "createDraft": "إنشاء مسودة",
+        "errTitle": "العنوان مطلوب.",
+        "errMessage": "الرسالة مطلوبة للبث النصي.",
+        "errUrl": "الرابط مطلوب لبث الرابط.",
+        "errContent": "اختر المحتوى المراد بثه.",
+        "errPlaylist": "اختر قائمة التشغيل المراد بثها.",
+        "createdToast": "تم إنشاء مسودة البث. فعّلها لتصبح نشطة.",
+        "errCreate": "تعذر إنشاء البث."
+      },
+      "detail": {
+        "back": "العودة إلى عمليات البث",
+        "notFound": "لم يتم العثور على البث",
+        "typeBroadcast": "بث {type}",
+        "overriding": "هذا البث يتجاوز الجداول على {count} هدف شاشة الآن.",
+        "contentTitle": "المحتوى",
+        "messageLabel": "الرسالة",
+        "urlLabel": "الرابط",
+        "contentLabel": "المحتوى",
+        "playlistLabel": "قائمة التشغيل",
+        "priorityLabel": "الأولوية",
+        "autoEndLabel": "الإنهاء التلقائي",
+        "manual": "يدوي",
+        "validationTitle": "التحقق",
+        "affectedScreens": "الشاشات المتأثرة",
+        "readyToActivate": "جاهز للتفعيل",
+        "yes": "نعم",
+        "no": "لا",
+        "targetsTitle": "الأهداف",
+        "activate": "تفعيل",
+        "pause": "إيقاف مؤقت",
+        "endNow": "إنهاء الآن",
+        "archive": "أرشفة",
+        "activateConfirmTitle": "تفعيل بث الطوارئ؟",
+        "activateConfirmDescription": "هذا يتجاوز فورًا جميع الجداول على {count} هدف شاشة.",
+        "activateNow": "تفعيل الآن",
+        "endConfirmTitle": "إنهاء بث الطوارئ؟",
+        "endConfirmDescription": "تعود الشاشات المستهدفة إلى جدولها العادي.",
+        "endBroadcast": "إنهاء البث",
+        "activateDone": "تم التفعيل.",
+        "activateError": "تعذر التفعيل.",
+        "pauseDone": "تم الإيقاف المؤقت.",
+        "pauseError": "تعذر الإيقاف المؤقت.",
+        "endDone": "تم الإنهاء.",
+        "endError": "تعذر الإنهاء.",
+        "archiveDone": "تمت الأرشفة.",
+        "archiveError": "تعذرت الأرشفة.",
+        "errAddTarget": "تعذر إضافة الهدف.",
+        "errRemoveTarget": "تعذر إزالة الهدف."
+      }
+    },
+    "proofOfPlay": {
+      "title": "إثبات التشغيل",
+      "description": "أحداث التشغيل الفعلية المبلّغ عنها من شاشاتك — وليست حالة النبضة أو المزامنة.",
+      "exportCsv": "تصدير CSV",
+      "exporting": "جارٍ التصدير…",
+      "exportError": "تعذّر تصدير ملف CSV.",
+      "loadError": "تعذّر تحميل التقرير",
+      "emptyTitle": "لا توجد أحداث تشغيل",
+      "emptyDescription": "بمجرد أن تبدأ الشاشات المقترنة بتشغيل المحتوى، ستظهر أحداث إثبات التشغيل الخاصة بها هنا.",
+      "filters": {
+        "from": "من",
+        "to": "إلى",
+        "screen": "الشاشة",
+        "allScreens": "كل الشاشات",
+        "source": "المصدر"
+      },
+      "status": {
+        "COMPLETED": "مكتمل",
+        "FAILED": "فشل",
+        "SKIPPED": "تم التخطي",
+        "INTERRUPTED": "تمت المقاطعة",
+        "STARTED": "بدأ"
+      },
+      "sourceType": {
+        "SCHEDULE": "الجدول",
+        "FALLBACK": "احتياطي",
+        "EMERGENCY": "بث الطوارئ",
+        "NONE": "بدون"
+      },
+      "summary": {
+        "totalPlays": "إجمالي مرات التشغيل",
+        "completed": "مكتمل",
+        "failed": "فشل",
+        "skipped": "تم التخطي",
+        "interrupted": "تمت المقاطعة",
+        "totalDuration": "إجمالي المدة"
+      },
+      "columns": {
+        "when": "الوقت",
+        "screen": "الشاشة",
+        "content": "المحتوى",
+        "source": "المصدر",
+        "duration": "المدة",
+        "net": "الشبكة"
+      },
+      "net": {
+        "offline": "غير متصلة",
+        "online": "متصلة"
+      },
+      "mostPlayed": {
+        "title": "المحتوى الأكثر تشغيلاً",
+        "unknown": "غير معروف",
+        "plays": "{count} مرة تشغيل"
+      }
+    },
+    "scheduledReports": {
+      "title": "التقارير المجدولة",
+      "description": "أرسل تقارير إثبات التشغيل وحالة الشاشات والتنبيهات وسجلات النشاط والفوترة بالبريد الإلكتروني وفق جدول.",
+      "new": "تقرير مجدول جديد",
+      "loadError": "تعذر تحميل التقارير",
+      "empty": {
+        "title": "لا توجد تقارير مجدولة",
+        "description": "أنشئ تقريرًا لتلقي تقارير متكررة عبر البريد الإلكتروني."
+      },
+      "columns": {
+        "report": "التقرير",
+        "format": "الصيغة",
+        "frequency": "التكرار",
+        "nextRun": "التشغيل التالي"
+      },
+      "frequencies": {
+        "DAILY": "يومي",
+        "WEEKLY": "أسبوعي",
+        "MONTHLY": "شهري"
+      },
+      "status": {
+        "enabled": "مُفعّل",
+        "disabled": "مُعطّل"
+      },
+      "actions": {
+        "runNow": "تشغيل الآن",
+        "run": "تشغيل",
+        "enable": "تفعيل",
+        "disable": "تعطيل",
+        "delete": "حذف"
+      },
+      "dialog": {
+        "title": "تقرير مجدول جديد",
+        "namePlaceholder": "إثبات التشغيل الأسبوعي",
+        "recipients": "المستلمون",
+        "recipientsHint": "عناوين بريد إلكتروني مفصولة بفواصل.",
+        "recipientsPlaceholder": "ops@example.com, manager@example.com"
+      },
+      "toast": {
+        "nameRequired": "الاسم مطلوب.",
+        "recipientRequired": "أضف بريد مستلم واحدًا على الأقل.",
+        "created": "تم إنشاء التقرير المجدول.",
+        "createFailed": "تعذر إنشاء التقرير.",
+        "actionDone": "تم {action}.",
+        "actionFailed": "فشل الإجراء."
+      }
+    },
+    "imports": {
+      "title": "الاستيراد",
+      "description": "إنشاء المواقع والشاشات والمجموعات والوسوم والمستخدمين بشكل مجمّع من CSV/XLSX.",
+      "newImport": "استيراد جديد",
+      "template": "قالب",
+      "validate": "تحقق",
+      "commitRows": "تأكيد {count} صف",
+      "history": "السجل",
+      "newImportTitle": "استيراد جديد",
+      "summary": {
+        "total": "الإجمالي",
+        "valid": "صالح",
+        "invalid": "غير صالح"
+      },
+      "rowLabel": "الصف {line}",
+      "columns": {
+        "when": "الوقت",
+        "file": "الملف",
+        "rows": "الصفوف"
+      },
+      "empty": {
+        "title": "لا توجد عمليات استيراد بعد",
+        "description": "ارفع ملفًا أعلاه للبدء."
+      },
+      "toast": {
+        "templateFailed": "تعذر تنزيل القالب.",
+        "chooseFile": "اختر ملف CSV أو XLSX.",
+        "validated": "تم التحقق من {total} صف ({valid} صالح).",
+        "uploadFailed": "فشل الرفع.",
+        "imported": "تم استيراد {committed} صف.",
+        "importedWithFailures": "تم استيراد {committed} صف، فشل {failed}.",
+        "commitFailed": "فشل التأكيد."
+      }
+    },
+    "map": {
+      "title": "عرض الخريطة",
+      "description": "مواقعك في لمحة، مع الإحداثيات وأعداد الشاشات. يمكن تفعيل خريطة تفاعلية بمجرد إعداد مزود الخرائط.",
+      "providerHintBefore": "قم بضبط",
+      "providerHintAfter": "ومفتاح واجهة برمجة الخرائط لتفعيل خريطة تفاعلية. يتم عرض قائمة المواقع مع الإحداثيات في الوقت الحالي.",
+      "loadError": "تعذر تحميل المواقع",
+      "emptyTitle": "لا توجد مواقع بعد",
+      "emptyDescription": "أنشئ موقعًا لرؤيته في عرض الخريطة.",
+      "statusLegend": "دليل الحالة",
+      "legendNote": "الحالات أدناه مشتقة من حالة دورة حياة كل موقع. تصل حالة الاتصال / عدم الاتصال / التحذير الفعلية مع نبضات الأجهزة في مرحلة لاحقة.",
+      "noCityRegion": "لا توجد مدينة / منطقة",
+      "screenCount": "{count, plural, zero {# شاشة} one {# شاشة} two {شاشتان} few {# شاشات} many {# شاشة} other {# شاشة}}",
+      "viewOnMap": "عرض على الخريطة",
+      "noCoordinates": "لا توجد إحداثيات",
+      "showingLocations": "عرض {count, plural, zero {# موقع} one {# موقع} two {موقعان} few {# مواقع} many {# موقعًا} other {# موقع}}.",
+      "derivedStatus": {
+        "unknownActive": "غير معروف (نشط)",
+        "inactive": "غير نشط",
+        "archived": "مؤرشف",
+        "unknown": "غير معروف"
+      }
+    },
+    "activityLogs": {
+      "title": "سجلات النشاط",
+      "description": "سجل تدقيق لإجراءات شركتك.",
+      "category": "الفئة",
+      "allCategories": "كل الفئات",
+      "action": "الإجراء",
+      "actionPlaceholder": "تصفية حسب الإجراء…",
+      "loadError": "تعذر تحميل سجلات النشاط",
+      "emptyTitle": "لم يتم العثور على نشاط",
+      "emptyFiltered": "لا توجد إدخالات سجل تطابق عوامل التصفية الحالية.",
+      "emptyDefault": "سيظهر نشاط شركتك هنا.",
+      "colTime": "الوقت",
+      "colTarget": "الهدف",
+      "colActor": "الفاعل",
+      "colIp": "عنوان IP",
+      "systemActor": "النظام"
+    },
+    "companySettings": {
+      "title": "إعدادات الشركة",
+      "description": "إدارة الإعدادات الافتراضية للشركة وأمان وضع الكشك ومراجعة باقتك.",
+      "loadError": "تعذّر تحميل الإعدادات",
+      "general": {
+        "title": "عام",
+        "name": "اسم الشركة",
+        "namePlaceholder": "Acme Inc.",
+        "language": "اللغة الافتراضية",
+        "languageEn": "الإنجليزية (en)",
+        "languageAr": "العربية (ar)",
+        "timezone": "المنطقة الزمنية",
+        "timezoneHint": "منطقة زمنية وفق معيار IANA تُطبَّق كإعداد افتراضي للشركة.",
+        "timezonePlaceholder": "مثال: Asia/Riyadh",
+        "heartbeat": "الفاصل الزمني الافتراضي للنبضة (بالثواني)",
+        "heartbeatHint": "عدد مرات إبلاغ الشاشات افتراضيًا.",
+        "notificationEmails": "البريد الإلكتروني للإشعارات",
+        "notificationEmailsHint": "مفصولة بفواصل. تُرسَل التنبيهات والتقارير إلى هذه العناوين.",
+        "workingHours": "ساعات العمل الافتراضية",
+        "workingHoursHint": "تُطبَّق على المواقع والشاشات الجديدة ما لم يتم تجاوزها.",
+        "save": "حفظ التغييرات"
+      },
+      "fallback": {
+        "title": "المحتوى الاحتياطي",
+        "description": "يُعرَض على الشاشات عند عدم وجود قائمة تشغيل أو جدول نشط. لا يمكن اختيار سوى المحتوى النشط — يُطبَّق هذا الإعداد الافتراضي على كل شاشة لا تحدّد محتوى احتياطيًا خاصًا بها على مستوى الموقع أو الشاشة."
+      },
+      "pin": {
+        "title": "رمز PIN الافتراضي للكشك",
+        "isSet": "تم تعيين رمز PIN افتراضي",
+        "notSet": "لم يتم تعيين رمز PIN افتراضي",
+        "description": "هذا الرمز هو الرمز الافتراضي المستخدَم للخروج من وضع الكشك على الشاشات التي لا تملك رمزًا خاصًا بها. يُخزَّن مشفّرًا ولا يُعرَض أبدًا — عيّن قيمة جديدة لاستبداله.",
+        "set": "تعيين رمز PIN",
+        "update": "تحديث رمز PIN",
+        "clear": "مسح رمز PIN",
+        "hint": "من 4 إلى 8 أرقام."
+      },
+      "plan": {
+        "title": "الباقة",
+        "none": "لم يتم تعيين أي باقة.",
+        "managed": "يُدار اختيار الباقة والفوترة من قِبل مسؤول المنصة (المسؤول الأعلى). تواصل معه للترقية أو خفض المستوى أو تغيير تفاصيل الفوترة."
+      },
+      "toasts": {
+        "nameRequired": "اسم الشركة مطلوب.",
+        "heartbeatInvalid": "يجب أن يكون الفاصل الزمني للنبضة رقمًا موجبًا.",
+        "saved": "تم حفظ الإعدادات.",
+        "pinInvalid": "يجب أن يتكوّن رمز PIN من 4 إلى 8 أرقام.",
+        "pinSaved": "تم حفظ رمز PIN الافتراضي للكشك.",
+        "pinCleared": "تم مسح رمز PIN الافتراضي للكشك.",
+        "fallbackUpdated": "تم تحديث المحتوى الاحتياطي.",
+        "fallbackCleared": "تم مسح المحتوى الاحتياطي.",
+        "error": "حدث خطأ ما."
+      }
+    },
+    "contentDetail": {
+      "backToLibrary": "العودة إلى مكتبة المحتوى",
+      "loadError": "تعذر تحميل المحتوى",
+      "notFound": "المحتوى غير موجود",
+      "notFoundDescription": "ربما تم حذف هذا العنصر.",
+      "replaceFile": "استبدال الملف",
+      "archive": "أرشفة",
+      "unarchive": "إلغاء الأرشفة",
+      "restore": "استعادة",
+      "trash": "نقل إلى المهملات",
+      "expired": "منتهي الصلاحية",
+      "preview": "معاينة",
+      "details": "التفاصيل",
+      "size": "الحجم",
+      "originalFile": "الملف الأصلي",
+      "mimeType": "نوع MIME",
+      "pages": "الصفحات",
+      "url": "الرابط",
+      "duration": "المدة",
+      "durationSeconds": "{value} ثانية",
+      "default": "افتراضي",
+      "expiry": "انتهاء الصلاحية",
+      "expiredSuffix": "(منتهي الصلاحية)",
+      "never": "أبدًا",
+      "noTags": "لا توجد وسوم",
+      "editTitle": "تعديل المحتوى",
+      "editDescription": "تحديث البيانات الوصفية والجدولة والوسوم لهذا العنصر.",
+      "titleLabel": "العنوان",
+      "textBody": "نص المحتوى",
+      "expiryDate": "تاريخ انتهاء الصلاحية",
+      "clearExpiry": "مسح انتهاء الصلاحية",
+      "expiryHint": "اتركه فارغًا لعدم انتهاء الصلاحية.",
+      "durationLabel": "المدة (بالثواني)",
+      "durationHint": "مدة عرض هذا العنصر في قائمة التشغيل. اتركه فارغًا للقيمة الافتراضية.",
+      "noContentTags": "لا توجد وسوم محتوى متاحة. أنشئ واحدًا في الوسوم.",
+      "saveChanges": "حفظ التغييرات",
+      "trashTitle": "نقل إلى المهملات",
+      "trashConfirm": "نقل “{title}” إلى المهملات؟ يمكنك استعادته لاحقًا، أو حذفه نهائيًا من المهملات.",
+      "toast": {
+        "titleRequired": "العنوان مطلوب.",
+        "urlRequired": "الرابط مطلوب.",
+        "textBodyRequired": "نص المحتوى مطلوب.",
+        "durationInvalid": "يجب أن تكون المدة عددًا صحيحًا من الثواني (1 أو أكثر)، أو فارغة للقيمة الافتراضية.",
+        "updated": "تم تحديث المحتوى.",
+        "fileReplaced": "تم استبدال الملف.",
+        "archived": "تمت أرشفة المحتوى.",
+        "unarchived": "تم إلغاء أرشفة المحتوى.",
+        "restored": "تمت استعادة المحتوى.",
+        "movedToTrash": "تم نقل المحتوى إلى المهملات.",
+        "error": "حدث خطأ ما."
+      }
+    },
+    "workingHours": {
+      "timezone": "المنطقة الزمنية (اختياري)",
+      "timezonePlaceholder": "مثال: Asia/Riyadh",
+      "closed": "مغلق",
+      "to": "إلى",
+      "outsideActiveHours": "خارج ساعات العمل",
+      "customMessage": "رسالة مخصصة",
+      "phaseHelp": "الإعداد فقط في هذه المرحلة — تطبّق الأجهزة ساعات العمل في مرحلة لاحقة."
+    },
+    "fallbackPicker": {
+      "warnUnavailable": "المحتوى المحدد لم يعد متاحاً (مؤرشف أو محذوف أو مُزال).",
+      "warnNotActive": "المحتوى المحدد {status} ولن يتم تشغيله حتى تتم استعادته.",
+      "warnExpired": "انتهت صلاحية المحتوى المحدد.",
+      "warnOrientationMismatch": "عدم تطابق الاتجاه: المحتوى {content}، والشاشة {screen}.",
+      "loadingSelected": "جارٍ التحميل…",
+      "selectedContent": "المحتوى المحدد",
+      "none": "لم يتم تحديد محتوى احتياطي.",
+      "change": "تغيير",
+      "choose": "اختيار",
+      "clear": "مسح",
+      "dialogTitle": "اختيار المحتوى الاحتياطي",
+      "searchPlaceholder": "البحث في المحتوى…",
+      "loadError": "تعذر تحميل المحتوى",
+      "noActive": "لا يوجد محتوى نشط",
+      "noActiveHelp": "ارفع محتوى أولاً لاستخدامه كاحتياطي.",
+      "expired": "منتهي الصلاحية"
     }
+  },
+  "enums": {
+    "orientation": {
+      "LANDSCAPE": "أفقي",
+      "PORTRAIT": "عمودي",
+      "UNKNOWN": "غير معروف"
+    },
+    "screenUse": {
+      "MENU_LANDSCAPE": "قائمة طعام (أفقي)",
+      "OFFERS_PORTRAIT": "عروض (عمودي)",
+      "WAITING_AREA": "منطقة الانتظار",
+      "CASHIER_DISPLAY": "شاشة الكاشير",
+      "ENTRANCE": "المدخل",
+      "INDOOR": "داخلي",
+      "OUTDOOR": "خارجي",
+      "GENERIC": "عام / مخصص"
+    },
+    "contentType": {
+      "IMAGE": "صورة",
+      "VIDEO": "فيديو",
+      "PDF": "PDF",
+      "URL": "رابط",
+      "TEXT": "نص"
+    },
+    "tagType": {
+      "SCREEN": "شاشة",
+      "CONTENT": "محتوى",
+      "BOTH": "كلاهما"
+    },
+    "bulkAction": {
+      "archive": "أرشفة",
+      "unarchive": "إلغاء الأرشفة",
+      "trash": "نقل إلى المهملات",
+      "restore": "استعادة"
+    },
+    "day": {
+      "0": "أحد",
+      "1": "اثنين",
+      "2": "ثلاثاء",
+      "3": "أربعاء",
+      "4": "خميس",
+      "5": "جمعة",
+      "6": "سبت"
+    },
+    "outsideHours": {
+      "FALLBACK": "عرض المحتوى الاحتياطي",
+      "BLACK_SCREEN": "شاشة سوداء",
+      "CUSTOM_MESSAGE": "رسالة مخصصة",
+      "SLEEP": "محاولة السكون / توفير الطاقة"
+    },
+    "importType": {
+      "LOCATION": "موقع",
+      "SCREEN": "شاشة",
+      "SCREEN_GROUP": "مجموعة شاشات",
+      "TAG": "وسم",
+      "USER": "مستخدم"
+    },
+    "reportType": {
+      "PROOF_OF_PLAY": "إثبات التشغيل",
+      "SCREEN_HEALTH": "حالة الشاشات",
+      "ALERTS": "التنبيهات",
+      "ACTIVITY_LOGS": "سجلات النشاط",
+      "BILLING": "الفوترة"
+    },
+    "activityCategory": {
+      "COMPANY": "الشركة",
+      "USER": "المستخدم",
+      "SESSION": "الجلسة",
+      "INVITATION": "الدعوة",
+      "TWO_FACTOR": "المصادقة الثنائية",
+      "AUTH": "المصادقة",
+      "SECURITY": "الأمان",
+      "USAGE": "الاستخدام"
+    },
+    "screenStatus": {
+      "ONLINE": "متصلة",
+      "OFFLINE": "غير متصلة",
+      "WARNING": "تحذير",
+      "PAIRING": "قيد الاقتران",
+      "UNPAIRED": "غير مقترنة",
+      "SYNCING": "قيد المزامنة",
+      "DISABLED": "معطّلة",
+      "ARCHIVED": "مؤرشفة",
+      "UNKNOWN": "غير معروف"
+    }
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "markAllRead": "تحديد الكل كمقروء",
+    "empty": "لا توجد إشعارات.",
+    "viewAll": "عرض الكل"
   }
 }

@@ -31,21 +31,17 @@ import {
   useToast,
 } from '@/components/ui';
 
-const ORIENTATION_OPTIONS: { value: Orientation; label: string }[] = [
-  { value: 'LANDSCAPE', label: 'Landscape' },
-  { value: 'PORTRAIT', label: 'Portrait' },
-  { value: 'UNKNOWN', label: 'Unknown' },
-];
+const ORIENTATION_OPTIONS: Orientation[] = ['LANDSCAPE', 'PORTRAIT', 'UNKNOWN'];
 
-const USE_OPTIONS: { value: ScreenUse; label: string }[] = [
-  { value: 'MENU_LANDSCAPE', label: 'Menu (Landscape)' },
-  { value: 'OFFERS_PORTRAIT', label: 'Offers (Portrait)' },
-  { value: 'WAITING_AREA', label: 'Waiting Area' },
-  { value: 'CASHIER_DISPLAY', label: 'Cashier Display' },
-  { value: 'ENTRANCE', label: 'Entrance' },
-  { value: 'INDOOR', label: 'Indoor' },
-  { value: 'OUTDOOR', label: 'Outdoor' },
-  { value: 'GENERIC', label: 'Generic/Custom' },
+const USE_OPTIONS: ScreenUse[] = [
+  'MENU_LANDSCAPE',
+  'OFFERS_PORTRAIT',
+  'WAITING_AREA',
+  'CASHIER_DISPLAY',
+  'ENTRANCE',
+  'INDOOR',
+  'OUTDOOR',
+  'GENERIC',
 ];
 
 const PIN_RE = /^\d{4,8}$/;
@@ -53,6 +49,7 @@ const PIN_RE = /^\d{4,8}$/;
 export default function NewScreenPage() {
   const t = useTranslations('pages.screensNew');
   const tc = useTranslations('common');
+  const te = useTranslations('enums');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -168,8 +165,8 @@ export default function NewScreenPage() {
                 <Select value={use} onChange={(e) => setUse(e.target.value as '' | ScreenUse)}>
                   <option value="">{t('options.notSet')}</option>
                   {USE_OPTIONS.map((u) => (
-                    <option key={u.value} value={u.value}>
-                      {u.label}
+                    <option key={u} value={u}>
+                      {te(`screenUse.${u}`)}
                     </option>
                   ))}
                 </Select>
@@ -180,8 +177,8 @@ export default function NewScreenPage() {
                   onChange={(e) => setOrientation(e.target.value as Orientation)}
                 >
                   {ORIENTATION_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
+                    <option key={o} value={o}>
+                      {te(`orientation.${o}`)}
                     </option>
                   ))}
                 </Select>

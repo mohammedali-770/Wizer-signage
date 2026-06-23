@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
@@ -30,6 +31,9 @@ import {
 } from '@/components/ui';
 
 export default function NewEmergencyBroadcastPage() {
+  const t = useTranslations('pages.emergency.new');
+  const tt = useTranslations('pages.emergency.types');
+  const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
   const contents = useApiResource<Paginated<Content>>('/content?status=ACTIVE&pageSize=100');
@@ -50,15 +54,11 @@ export default function NewEmergencyBroadcastPage() {
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
-    if (!title.trim()) return toast('A title is required.', 'error');
-    if (broadcastType === 'TEXT' && !message.trim())
-      return toast('A message is required for a text broadcast.', 'error');
-    if (broadcastType === 'URL' && !url.trim())
-      return toast('A URL is required for a URL broadcast.', 'error');
-    if (broadcastType === 'CONTENT' && !contentId)
-      return toast('Select the content to broadcast.', 'error');
-    if (broadcastType === 'PLAYLIST' && !playlistId)
-      return toast('Select the playlist to broadcast.', 'error');
+    if (!title.trim()) return toast(t('errTitle'), 'error');
+    if (broadcastType === 'TEXT' && !message.trim()) return toast(t('errMessage'), 'error');
+    if (broadcastType === 'URL' && !url.trim()) return toast(t('errUrl'), 'error');
+    if (broadcastType === 'CONTENT' && !contentId) return toast(t('errContent'), 'error');
+    if (broadcastType === 'PLAYLIST' && !playlistId) return toast(t('errPlaylist'), 'error');
 
     const payload = {
       title: title.trim(),
@@ -78,10 +78,10 @@ export default function NewEmergencyBroadcastPage() {
     setSaving(true);
     try {
       const created = await api.post<EmergencyBroadcast>('/emergency-broadcasts', payload);
-      toast('Draft broadcast created. Activate it to go live.', 'success');
+      toast(t('createdToast'), 'success');
       router.push(`/company/emergency-broadcasts/${created.id}`);
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Could not create broadcast.', 'error');
+      toast(err instanceof ApiError ? err.message : t('errCreate'), 'error');
       setSaving(false);
     }
   };
@@ -92,34 +92,31 @@ export default function NewEmergencyBroadcastPage() {
         href="/company/emergency-broadcasts"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm"
       >
-        <ArrowLeft className="size-4" /> Back to broadcasts
+        <ArrowLeft className="size-4" /> {t('back')}
       </Link>
-      <PageHeader
-        title="New emergency broadcast"
-        description="Created as a draft — review, then activate to override schedules."
-      />
+      <PageHeader title={t('title')} description={t('description')} />
 
       <div className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle>Details</CardTitle>
+            <CardTitle>{t('detailsTitle')}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field label="Title">
+            <Field label={tc('name')}>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
             </Field>
-            <Field label="Type">
+            <Field label={tc('type')}>
               <Select
                 value={broadcastType}
                 onChange={(e) => setBroadcastType(e.target.value as EmergencyBroadcastType)}
               >
-                <option value="TEXT">Text message</option>
-                <option value="CONTENT">Library content</option>
-                <option value="PLAYLIST">Playlist</option>
-                <option value="URL">External URL</option>
+                <option value="TEXT">{tt('TEXT')}</option>
+                <option value="CONTENT">{tt('CONTENT')}</option>
+                <option value="PLAYLIST">{tt('PLAYLIST')}</option>
+                <option value="URL">{tt('URL')}</option>
               </Select>
             </Field>
-            <Field label="Description" hint="Optional (internal note).">
+            <Field label={tc('description')} hint={t('descriptionHint')}>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -128,7 +125,7 @@ export default function NewEmergencyBroadcastPage() {
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Priority" hint="Higher wins between emergencies.">
+              <Field label={t('priorityLabel')} hint={t('priorityHint')}>
                 <Input
                   type="number"
                   min={0}
@@ -136,7 +133,7 @@ export default function NewEmergencyBroadcastPage() {
                   onChange={(e) => setPriority(e.target.value)}
                 />
               </Field>
-              <Field label="Auto-end at" hint="Optional.">
+              <Field label={t('autoEndLabel')} hint={t('autoEndHint')}>
                 <Input
                   type="datetime-local"
                   value={endAt}
@@ -149,11 +146,11 @@ export default function NewEmergencyBroadcastPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Content</CardTitle>
+            <CardTitle>{t('contentTitle')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {broadcastType === 'TEXT' ? (
-              <Field label="Message">
+              <Field label={t('messageLabel')}>
                 <Textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -162,7 +159,7 @@ export default function NewEmergencyBroadcastPage() {
                 />
               </Field>
             ) : broadcastType === 'URL' ? (
-              <Field label="URL">
+              <Field label={t('urlLabel')}>
                 <Input
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
@@ -171,9 +168,9 @@ export default function NewEmergencyBroadcastPage() {
                 />
               </Field>
             ) : broadcastType === 'CONTENT' ? (
-              <Field label="Content" hint="Only ACTIVE content can be broadcast.">
+              <Field label={t('contentLabel')} hint={t('contentHint')}>
                 <Select value={contentId} onChange={(e) => setContentId(e.target.value)}>
-                  <option value="">Select…</option>
+                  <option value="">{t('selectPlaceholder')}</option>
                   {contents.data?.items.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.title}
@@ -182,9 +179,9 @@ export default function NewEmergencyBroadcastPage() {
                 </Select>
               </Field>
             ) : (
-              <Field label="Playlist" hint="Only ACTIVE playlists can be broadcast.">
+              <Field label={t('playlistLabel')} hint={t('playlistHint')}>
                 <Select value={playlistId} onChange={(e) => setPlaylistId(e.target.value)}>
-                  <option value="">Select…</option>
+                  <option value="">{t('selectPlaceholder')}</option>
                   {playlists.data?.items.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.title}
@@ -198,12 +195,12 @@ export default function NewEmergencyBroadcastPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Targets</CardTitle>
+            <CardTitle>{t('targetsTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <TargetSelector
               targets={targets}
-              onAdd={(t) => setTargets((prev) => [...prev, t])}
+              onAdd={(target) => setTargets((prev) => [...prev, target])}
               onRemove={(_t, i) => setTargets((prev) => prev.filter((_, idx) => idx !== i))}
             />
           </CardContent>
@@ -215,10 +212,10 @@ export default function NewEmergencyBroadcastPage() {
             onClick={() => router.push('/company/emergency-broadcasts')}
             disabled={saving}
           >
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button onClick={submit} disabled={saving}>
-            {saving ? <Spinner className="size-4" /> : 'Create draft'}
+            {saving ? <Spinner className="size-4" /> : t('createDraft')}
           </Button>
         </div>
       </div>

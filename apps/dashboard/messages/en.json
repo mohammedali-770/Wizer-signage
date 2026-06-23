@@ -105,7 +105,11 @@
     "create": "Create",
     "description": "Description",
     "back": "Back",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "refresh": "Refresh",
+    "loading": "Loading",
+    "export": "Export",
+    "close": "Close"
   },
   "theme": {
     "toggle": "Toggle theme",
@@ -142,7 +146,8 @@
       "loadError": "Could not load screens",
       "emptyTitle": "No screens found",
       "emptyFiltered": "Try adjusting your search or filters.",
-      "emptyDefault": "Create your first screen to get started."
+      "emptyDefault": "Create your first screen to get started.",
+      "unassigned": "Unassigned"
     },
     "content": {
       "title": "Content Library",
@@ -187,6 +192,54 @@
         "title": "Title (A–Z)",
         "size": "Size",
         "expiry": "Expiry"
+      },
+      "preview": "Preview",
+      "viewDetails": "View details",
+      "addTag": "Add tag",
+      "removeTag": "Remove tag",
+      "clear": "Clear",
+      "rowTrash": "Trash",
+      "selected": "{count} selected",
+      "selectRow": "Select {title}",
+      "toastError": "Something went wrong.",
+      "toastSelectTag": "Select a tag first.",
+      "toastTagAdded": "Tag added.",
+      "toastTagRemoved": "Tag removed.",
+      "toastPurged": "Purged {count} item(s).",
+      "bulkSuccess": {
+        "archive": "Archived.",
+        "unarchive": "Unarchived.",
+        "trash": "Moved to trash.",
+        "restore": "Restored."
+      },
+      "bulkConfirm": "{action} {count} selected item(s)?",
+      "bulkConfirmRestorable": "They can be restored from Trash.",
+      "badge": {
+        "expired": "Expired",
+        "expiring": "Expiring"
+      },
+      "tagDialog": {
+        "titleAdd": "Add tag to selection",
+        "titleRemove": "Remove tag from selection",
+        "descriptionAdd": "Add a content tag to {count} selected item(s).",
+        "descriptionRemove": "Remove a content tag from {count} selected item(s).",
+        "contentTag": "Content tag",
+        "selectTag": "Select a tag…",
+        "noTags": "No content tags exist yet. Create one with type Content or Both on the Tags page."
+      },
+      "purgeDialog": {
+        "title": "Purge trash",
+        "description": "Permanently delete trashed items older than 14 days. This cannot be undone.",
+        "confirm": "Purge now"
+      },
+      "storage": {
+        "title": "Storage usage",
+        "unlimited": "Unlimited",
+        "percentUsed": "{percent}% used",
+        "ofLimit": "of {limit}",
+        "blockedBanner": "Storage limit exceeded and the grace period has ended. Uploads are blocked — archive or delete content, or upgrade your plan.",
+        "graceBanner": "Storage limit exceeded — you are in a grace period. Free up space to avoid disruption.",
+        "graceBannerEnding": "Storage limit exceeded — you are in a grace period ending {date}. Free up space to avoid disruption."
       }
     },
     "playlists": {
@@ -254,7 +307,40 @@
       "emptyDescription": "Create your first group to start organising screens.",
       "columnCategory": "Category",
       "columnDescription": "Description",
-      "columnScreens": "Screens"
+      "columnScreens": "Screens",
+      "manageScreens": "Manage screens",
+      "editTitle": "Edit Group",
+      "newTitle": "New Group",
+      "editDescription": "Update this group’s name, category, and description.",
+      "createDescription": "Create a group to organise related screens.",
+      "namePlaceholder": "Lobby screens",
+      "categoryHint": "Optional grouping label, e.g. Indoor or Storefront.",
+      "categoryPlaceholder": "Indoor",
+      "descriptionPlaceholder": "What this group is used for.",
+      "saveChanges": "Save changes",
+      "createGroup": "Create group",
+      "deleteTitle": "Delete group",
+      "deleteConfirm": "“{name}” will be permanently deleted. Screens in this group are not deleted, only removed from the group.",
+      "deleteGroup": "Delete group",
+      "toastNameRequired": "Name is required.",
+      "toastUpdated": "Group updated.",
+      "toastCreated": "Group created.",
+      "toastDeleted": "Group deleted.",
+      "toastError": "Something went wrong.",
+      "toastScreenAdded": "Screen added.",
+      "toastScreensAdded": "{count} screens added.",
+      "toastScreenRemoved": "Screen removed.",
+      "manageTitle": "Manage screens — {name}",
+      "manageDescription": "Add or remove the screens that belong to this group.",
+      "manageLoadError": "Could not load group",
+      "members": "Members",
+      "noMembers": "No screens in this group yet.",
+      "remove": "Remove",
+      "addScreens": "Add screens",
+      "add": "Add",
+      "addCount": "Add ({count})",
+      "noCandidates": "All available screens are already in this group.",
+      "done": "Done"
     },
     "tags": {
       "title": "Tags",
@@ -268,7 +354,34 @@
       "loadError": "Could not load tags",
       "emptyTitle": "No tags found",
       "emptyFiltered": "Try adjusting your search or type filter.",
-      "emptyDescription": "Create your first tag to start organizing screens."
+      "emptyDescription": "Create your first tag to start organizing screens.",
+      "toasts": {
+        "nameRequired": "Name is required.",
+        "created": "Tag created.",
+        "updated": "Tag updated.",
+        "deleted": "Tag deleted.",
+        "error": "Something went wrong."
+      },
+      "dialog": {
+        "createTitle": "New Tag",
+        "editTitle": "Edit Tag",
+        "createDescription": "Create a tag to label and organize your screens.",
+        "editDescription": "Update this tag’s name, type, color, and description."
+      },
+      "form": {
+        "namePlaceholder": "e.g. Storefront",
+        "typeHint": "Screen tags label screens. Content tags will apply to media later.",
+        "colorLabel": "Color",
+        "useColor": "Use a color",
+        "colorHint": "Optional. Shown as a dot beside the tag name.",
+        "descriptionPlaceholder": "What this tag is for.",
+        "saveChanges": "Save changes",
+        "createTag": "Create tag"
+      },
+      "deleteDialog": {
+        "title": "Delete tag",
+        "confirm": "Delete “{name}”? This removes it from all screens and cannot be undone."
+      }
     },
     "screensNew": {
       "title": "New Screen",
@@ -614,7 +727,9 @@
         "deleted": "Screen deleted.",
         "devicePaired": "Device paired.",
         "deviceUnpaired": "Device unpaired."
-      }
+      },
+      "workingHoursNotConfigured": "Not configured",
+      "workingHoursActive": "{count, plural, one {# day active} other {# days active}}"
     },
     "playlistEditor": {
       "notFound": "Playlist not found",
@@ -815,6 +930,560 @@
         "archived": "Location archived.",
         "deleted": "Location deleted."
       }
+    },
+    "monitoring": {
+      "title": "Monitoring",
+      "description": "Fleet health, sync status, and remote control.",
+      "exportHealth": "Export health",
+      "loadError": "Could not load monitoring",
+      "screens": "Screens",
+      "missingHeartbeat": "{count} missing heartbeat",
+      "failedSync": "Failed sync",
+      "alerts": "Alerts",
+      "noScreensTitle": "No screens yet",
+      "noScreensDescription": "Create and pair screens to monitor them here.",
+      "screen": "Screen",
+      "playback": "Playback",
+      "sync": "Sync",
+      "app": "App",
+      "lastHeartbeat": "Last heartbeat",
+      "failedCount": "{count} failed",
+      "never": "Never",
+      "forceSync": "Force sync",
+      "screenshot": "Screenshot",
+      "syncAction": "Sync",
+      "shotAction": "Shot",
+      "actionRequested": "{label} requested.",
+      "actionFailed": "Action failed."
+    },
+    "alerts": {
+      "title": "Alerts",
+      "description": "Operational alerts for your screens, sync, storage, and subscription.",
+      "actionFailed": "Action failed.",
+      "loadError": "Could not load alerts",
+      "emptyTitle": "No alerts",
+      "emptyDescription": "You're all clear — no alerts match this filter.",
+      "severity": {
+        "label": "Severity",
+        "info": "Info",
+        "warning": "Warning",
+        "critical": "Critical"
+      },
+      "status": {
+        "open": "Open",
+        "acknowledged": "Acknowledged",
+        "resolved": "Resolved",
+        "dismissed": "Dismissed"
+      },
+      "column": {
+        "when": "When",
+        "alert": "Alert"
+      },
+      "action": {
+        "ack": "Ack",
+        "resolve": "Resolve",
+        "dismiss": "Dismiss"
+      }
+    },
+    "emergency": {
+      "types": {
+        "CONTENT": "Library content",
+        "PLAYLIST": "Playlist",
+        "TEXT": "Text message",
+        "URL": "External URL"
+      },
+      "list": {
+        "title": "Emergency Broadcasts",
+        "description": "Override all schedules on targeted screens. Use with care.",
+        "quickText": "Quick text",
+        "newBroadcast": "New broadcast",
+        "liveCount": "{count} live now",
+        "loadError": "Could not load broadcasts",
+        "emptyTitle": "No emergency broadcasts",
+        "emptyDescription": "Create one to override schedules on specific screens during an incident.",
+        "colTitle": "Title",
+        "colTargets": "Targets",
+        "colPriority": "Priority",
+        "quick": {
+          "title": "Quick text broadcast",
+          "description": "Create and activate a full-screen text message immediately.",
+          "titleLabel": "Title",
+          "titlePlaceholder": "e.g. Fire alarm",
+          "messageLabel": "Message",
+          "targetsLabel": "Targets",
+          "activateNow": "Activate now",
+          "errTitleMessage": "Title and message are required.",
+          "errTarget": "Add at least one target.",
+          "liveToast": "Emergency broadcast is live.",
+          "errSend": "Could not send broadcast."
+        }
+      },
+      "new": {
+        "back": "Back to broadcasts",
+        "title": "New emergency broadcast",
+        "description": "Created as a draft — review, then activate to override schedules.",
+        "detailsTitle": "Details",
+        "descriptionHint": "Optional (internal note).",
+        "priorityLabel": "Priority",
+        "priorityHint": "Higher wins between emergencies.",
+        "autoEndLabel": "Auto-end at",
+        "autoEndHint": "Optional.",
+        "contentTitle": "Content",
+        "messageLabel": "Message",
+        "urlLabel": "URL",
+        "contentLabel": "Content",
+        "contentHint": "Only ACTIVE content can be broadcast.",
+        "playlistLabel": "Playlist",
+        "playlistHint": "Only ACTIVE playlists can be broadcast.",
+        "selectPlaceholder": "Select…",
+        "targetsTitle": "Targets",
+        "createDraft": "Create draft",
+        "errTitle": "A title is required.",
+        "errMessage": "A message is required for a text broadcast.",
+        "errUrl": "A URL is required for a URL broadcast.",
+        "errContent": "Select the content to broadcast.",
+        "errPlaylist": "Select the playlist to broadcast.",
+        "createdToast": "Draft broadcast created. Activate it to go live.",
+        "errCreate": "Could not create broadcast."
+      },
+      "detail": {
+        "back": "Back to broadcasts",
+        "notFound": "Broadcast not found",
+        "typeBroadcast": "{type} broadcast",
+        "overriding": "This broadcast is overriding schedules on {count} screen target(s) right now.",
+        "contentTitle": "Content",
+        "messageLabel": "Message",
+        "urlLabel": "URL",
+        "contentLabel": "Content",
+        "playlistLabel": "Playlist",
+        "priorityLabel": "Priority",
+        "autoEndLabel": "Auto-end",
+        "manual": "Manual",
+        "validationTitle": "Validation",
+        "affectedScreens": "Affected screens",
+        "readyToActivate": "Ready to activate",
+        "yes": "Yes",
+        "no": "No",
+        "targetsTitle": "Targets",
+        "activate": "Activate",
+        "pause": "Pause",
+        "endNow": "End now",
+        "archive": "Archive",
+        "activateConfirmTitle": "Activate emergency broadcast?",
+        "activateConfirmDescription": "This immediately overrides all schedules on {count} screen target(s).",
+        "activateNow": "Activate now",
+        "endConfirmTitle": "End emergency broadcast?",
+        "endConfirmDescription": "Targeted screens return to their normal schedule.",
+        "endBroadcast": "End broadcast",
+        "activateDone": "Activate done.",
+        "activateError": "Could not activate.",
+        "pauseDone": "Pause done.",
+        "pauseError": "Could not pause.",
+        "endDone": "End done.",
+        "endError": "Could not end.",
+        "archiveDone": "Archive done.",
+        "archiveError": "Could not archive.",
+        "errAddTarget": "Could not add target.",
+        "errRemoveTarget": "Could not remove target."
+      }
+    },
+    "proofOfPlay": {
+      "title": "Proof of Play",
+      "description": "Actual playback events reported by your screens — not heartbeat or sync status.",
+      "exportCsv": "Export CSV",
+      "exporting": "Exporting…",
+      "exportError": "Could not export CSV.",
+      "loadError": "Could not load report",
+      "emptyTitle": "No playback events",
+      "emptyDescription": "Once paired screens start playing content, their proof-of-play events appear here.",
+      "filters": {
+        "from": "From",
+        "to": "To",
+        "screen": "Screen",
+        "allScreens": "All screens",
+        "source": "Source"
+      },
+      "status": {
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "SKIPPED": "Skipped",
+        "INTERRUPTED": "Interrupted",
+        "STARTED": "Started"
+      },
+      "sourceType": {
+        "SCHEDULE": "Schedule",
+        "FALLBACK": "Fallback",
+        "EMERGENCY": "Emergency",
+        "NONE": "None"
+      },
+      "summary": {
+        "totalPlays": "Total plays",
+        "completed": "Completed",
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "interrupted": "Interrupted",
+        "totalDuration": "Total duration"
+      },
+      "columns": {
+        "when": "When",
+        "screen": "Screen",
+        "content": "Content",
+        "source": "Source",
+        "duration": "Duration",
+        "net": "Net"
+      },
+      "net": {
+        "offline": "Offline",
+        "online": "Online"
+      },
+      "mostPlayed": {
+        "title": "Most played content",
+        "unknown": "Unknown",
+        "plays": "{count} plays"
+      }
+    },
+    "scheduledReports": {
+      "title": "Scheduled Reports",
+      "description": "Email proof-of-play, screen-health, alerts, activity-log, and billing reports on a schedule.",
+      "new": "New scheduled report",
+      "loadError": "Could not load reports",
+      "empty": {
+        "title": "No scheduled reports",
+        "description": "Create one to receive recurring reports by email."
+      },
+      "columns": {
+        "report": "Report",
+        "format": "Format",
+        "frequency": "Frequency",
+        "nextRun": "Next run"
+      },
+      "frequencies": {
+        "DAILY": "Daily",
+        "WEEKLY": "Weekly",
+        "MONTHLY": "Monthly"
+      },
+      "status": {
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "actions": {
+        "runNow": "Run now",
+        "run": "Run",
+        "enable": "Enable",
+        "disable": "Disable",
+        "delete": "Delete"
+      },
+      "dialog": {
+        "title": "New scheduled report",
+        "namePlaceholder": "Weekly proof-of-play",
+        "recipients": "Recipients",
+        "recipientsHint": "Comma-separated email addresses.",
+        "recipientsPlaceholder": "ops@example.com, manager@example.com"
+      },
+      "toast": {
+        "nameRequired": "A name is required.",
+        "recipientRequired": "Add at least one recipient email.",
+        "created": "Scheduled report created.",
+        "createFailed": "Could not create report.",
+        "actionDone": "{action} done.",
+        "actionFailed": "Action failed."
+      }
+    },
+    "imports": {
+      "title": "Imports",
+      "description": "Bulk-create locations, screens, groups, tags, and users from CSV/XLSX.",
+      "newImport": "New import",
+      "template": "Template",
+      "validate": "Validate",
+      "commitRows": "Commit {count} row(s)",
+      "history": "History",
+      "newImportTitle": "New import",
+      "summary": {
+        "total": "Total",
+        "valid": "Valid",
+        "invalid": "Invalid"
+      },
+      "rowLabel": "Row {line}",
+      "columns": {
+        "when": "When",
+        "file": "File",
+        "rows": "Rows"
+      },
+      "empty": {
+        "title": "No imports yet",
+        "description": "Upload a file above to get started."
+      },
+      "toast": {
+        "templateFailed": "Could not download template.",
+        "chooseFile": "Choose a CSV or XLSX file.",
+        "validated": "Validated {total} rows ({valid} valid).",
+        "uploadFailed": "Upload failed.",
+        "imported": "Imported {committed} row(s).",
+        "importedWithFailures": "Imported {committed} row(s), {failed} failed.",
+        "commitFailed": "Commit failed."
+      }
+    },
+    "map": {
+      "title": "Map View",
+      "description": "Your locations at a glance, with coordinates and screen counts. An interactive map can be enabled once a map provider is configured.",
+      "providerHintBefore": "Configure",
+      "providerHintAfter": "and a map API key to enable an interactive map. Showing the location list with coordinates for now.",
+      "loadError": "Could not load locations",
+      "emptyTitle": "No locations yet",
+      "emptyDescription": "Create a location to see it on the map view.",
+      "statusLegend": "Status legend",
+      "legendNote": "Statuses below are derived from each location's lifecycle status. Real online / offline / warning status arrives with device heartbeats in a later phase.",
+      "noCityRegion": "No city / region",
+      "screenCount": "{count, plural, one {# screen} other {# screens}}",
+      "viewOnMap": "View on map",
+      "noCoordinates": "No coordinates",
+      "showingLocations": "Showing {count, plural, one {# location} other {# locations}}.",
+      "derivedStatus": {
+        "unknownActive": "Unknown (active)",
+        "inactive": "Inactive",
+        "archived": "Archived",
+        "unknown": "Unknown"
+      }
+    },
+    "activityLogs": {
+      "title": "Activity Logs",
+      "description": "Audit trail of your company's actions.",
+      "category": "Category",
+      "allCategories": "All categories",
+      "action": "Action",
+      "actionPlaceholder": "Filter by action…",
+      "loadError": "Could not load activity logs",
+      "emptyTitle": "No activity found",
+      "emptyFiltered": "No log entries match the current filters.",
+      "emptyDefault": "Activity from your company will appear here.",
+      "colTime": "Time",
+      "colTarget": "Target",
+      "colActor": "Actor",
+      "colIp": "IP",
+      "systemActor": "system"
+    },
+    "companySettings": {
+      "title": "Company Settings",
+      "description": "Manage company defaults, kiosk security, and review your plan.",
+      "loadError": "Could not load settings",
+      "general": {
+        "title": "General",
+        "name": "Company name",
+        "namePlaceholder": "Acme Inc.",
+        "language": "Default language",
+        "languageEn": "English (en)",
+        "languageAr": "Arabic (ar)",
+        "timezone": "Timezone",
+        "timezoneHint": "IANA timezone applied as the company default.",
+        "timezonePlaceholder": "e.g. Asia/Riyadh",
+        "heartbeat": "Default heartbeat interval (seconds)",
+        "heartbeatHint": "How often screens report in by default.",
+        "notificationEmails": "Notification emails",
+        "notificationEmailsHint": "Comma-separated. Alerts and reports are sent to these addresses.",
+        "workingHours": "Default working hours",
+        "workingHoursHint": "Applied to new locations and screens unless overridden.",
+        "save": "Save changes"
+      },
+      "fallback": {
+        "title": "Fallback content",
+        "description": "Shown on screens when no playlist or schedule is active. Only ACTIVE content can be chosen — this default applies to every screen that does not set its own location- or screen-level fallback."
+      },
+      "pin": {
+        "title": "Default kiosk PIN",
+        "isSet": "A default PIN is set",
+        "notSet": "No default PIN set",
+        "description": "This PIN is the default used to exit kiosk mode on screens that do not have their own PIN. It is stored hashed and is never displayed — set a new value to replace it.",
+        "set": "Set PIN",
+        "update": "Update PIN",
+        "clear": "Clear PIN",
+        "hint": "4 to 8 digits."
+      },
+      "plan": {
+        "title": "Plan",
+        "none": "No plan is assigned.",
+        "managed": "Plan selection and billing are managed by the platform administrator (Super Admin). Contact them to upgrade, downgrade, or change billing details."
+      },
+      "toasts": {
+        "nameRequired": "Company name is required.",
+        "heartbeatInvalid": "Heartbeat interval must be a positive number.",
+        "saved": "Settings saved.",
+        "pinInvalid": "PIN must be 4 to 8 digits.",
+        "pinSaved": "Default kiosk PIN saved.",
+        "pinCleared": "Default kiosk PIN cleared.",
+        "fallbackUpdated": "Fallback content updated.",
+        "fallbackCleared": "Fallback content cleared.",
+        "error": "Something went wrong."
+      }
+    },
+    "contentDetail": {
+      "backToLibrary": "Back to Content Library",
+      "loadError": "Could not load content",
+      "notFound": "Content not found",
+      "notFoundDescription": "This item may have been deleted.",
+      "replaceFile": "Replace file",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "restore": "Restore",
+      "trash": "Trash",
+      "expired": "Expired",
+      "preview": "Preview",
+      "details": "Details",
+      "size": "Size",
+      "originalFile": "Original file",
+      "mimeType": "MIME type",
+      "pages": "Pages",
+      "url": "URL",
+      "duration": "Duration",
+      "durationSeconds": "{value}s",
+      "default": "Default",
+      "expiry": "Expiry",
+      "expiredSuffix": "(expired)",
+      "never": "Never",
+      "noTags": "No tags",
+      "editTitle": "Edit content",
+      "editDescription": "Update metadata, scheduling, and tags for this item.",
+      "titleLabel": "Title",
+      "textBody": "Text body",
+      "expiryDate": "Expiry date",
+      "clearExpiry": "Clear expiry",
+      "expiryHint": "Leave empty for no expiry.",
+      "durationLabel": "Duration (seconds)",
+      "durationHint": "How long this item shows in a playlist. Leave empty for the default.",
+      "noContentTags": "No content tags available. Create one in Tags.",
+      "saveChanges": "Save changes",
+      "trashTitle": "Move to trash",
+      "trashConfirm": "Move “{title}” to trash? You can restore it later, or purge it permanently from the trash.",
+      "toast": {
+        "titleRequired": "Title is required.",
+        "urlRequired": "URL is required.",
+        "textBodyRequired": "Text body is required.",
+        "durationInvalid": "Duration must be a whole number of seconds (1 or more), or blank for default.",
+        "updated": "Content updated.",
+        "fileReplaced": "File replaced.",
+        "archived": "Content archived.",
+        "unarchived": "Content unarchived.",
+        "restored": "Content restored.",
+        "movedToTrash": "Content moved to trash.",
+        "error": "Something went wrong."
+      }
+    },
+    "workingHours": {
+      "timezone": "Timezone (optional)",
+      "timezonePlaceholder": "e.g. Asia/Riyadh",
+      "closed": "Closed",
+      "to": "to",
+      "outsideActiveHours": "Outside active hours",
+      "customMessage": "Custom message",
+      "phaseHelp": "Configuration only in this phase — devices apply working hours in a later phase."
+    },
+    "fallbackPicker": {
+      "warnUnavailable": "The selected content is no longer available (archived, trashed, or removed).",
+      "warnNotActive": "The selected content is {status} and will not play until restored.",
+      "warnExpired": "The selected content has expired.",
+      "warnOrientationMismatch": "Orientation mismatch: content is {content}, screen is {screen}.",
+      "loadingSelected": "Loading…",
+      "selectedContent": "Selected content",
+      "none": "No fallback content selected.",
+      "change": "Change",
+      "choose": "Choose",
+      "clear": "Clear",
+      "dialogTitle": "Select fallback content",
+      "searchPlaceholder": "Search content…",
+      "loadError": "Could not load content",
+      "noActive": "No active content",
+      "noActiveHelp": "Upload content first to use it as fallback.",
+      "expired": "Expired"
     }
+  },
+  "enums": {
+    "orientation": {
+      "LANDSCAPE": "Landscape",
+      "PORTRAIT": "Portrait",
+      "UNKNOWN": "Unknown"
+    },
+    "screenUse": {
+      "MENU_LANDSCAPE": "Menu (Landscape)",
+      "OFFERS_PORTRAIT": "Offers (Portrait)",
+      "WAITING_AREA": "Waiting Area",
+      "CASHIER_DISPLAY": "Cashier Display",
+      "ENTRANCE": "Entrance",
+      "INDOOR": "Indoor",
+      "OUTDOOR": "Outdoor",
+      "GENERIC": "Generic/Custom"
+    },
+    "contentType": {
+      "IMAGE": "Image",
+      "VIDEO": "Video",
+      "PDF": "PDF",
+      "URL": "URL",
+      "TEXT": "Text"
+    },
+    "tagType": {
+      "SCREEN": "Screen",
+      "CONTENT": "Content",
+      "BOTH": "Both"
+    },
+    "bulkAction": {
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "trash": "Move to trash",
+      "restore": "Restore"
+    },
+    "day": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    },
+    "outsideHours": {
+      "FALLBACK": "Show fallback content",
+      "BLACK_SCREEN": "Black screen",
+      "CUSTOM_MESSAGE": "Custom message",
+      "SLEEP": "Attempt sleep / power saving"
+    },
+    "importType": {
+      "LOCATION": "Location",
+      "SCREEN": "Screen",
+      "SCREEN_GROUP": "Screen group",
+      "TAG": "Tag",
+      "USER": "User"
+    },
+    "reportType": {
+      "PROOF_OF_PLAY": "Proof of play",
+      "SCREEN_HEALTH": "Screen health",
+      "ALERTS": "Alerts",
+      "ACTIVITY_LOGS": "Activity logs",
+      "BILLING": "Billing"
+    },
+    "activityCategory": {
+      "COMPANY": "Company",
+      "USER": "User",
+      "SESSION": "Session",
+      "INVITATION": "Invitation",
+      "TWO_FACTOR": "Two-factor",
+      "AUTH": "Auth",
+      "SECURITY": "Security",
+      "USAGE": "Usage"
+    },
+    "screenStatus": {
+      "ONLINE": "Online",
+      "OFFLINE": "Offline",
+      "WARNING": "Warning",
+      "PAIRING": "Pairing",
+      "UNPAIRED": "Unpaired",
+      "SYNCING": "Syncing",
+      "DISABLED": "Disabled",
+      "ARCHIVED": "Archived",
+      "UNKNOWN": "Unknown"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications.",
+    "viewAll": "View all"
   }
 }

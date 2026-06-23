@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Megaphone, Plus, Zap } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
@@ -44,6 +44,9 @@ const STATUS_TONE: Record<
 
 export default function EmergencyBroadcastsPage() {
   const locale = useLocale();
+  const t = useTranslations('pages.emergency.list');
+  const tt = useTranslations('pages.emergency.types');
+  const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
   const { data, loading, error, reload } = useApiResource<Paginated<EmergencyBroadcast>>(
@@ -57,9 +60,8 @@ export default function EmergencyBroadcastsPage() {
   const [sending, setSending] = useState(false);
 
   const sendQuick = async () => {
-    if (!qTitle.trim() || !qMessage.trim())
-      return toast('Title and message are required.', 'error');
-    if (qTargets.length === 0) return toast('Add at least one target.', 'error');
+    if (!qTitle.trim() || !qMessage.trim()) return toast(t('quick.errTitleMessage'), 'error');
+    if (qTargets.length === 0) return toast(t('quick.errTarget'), 'error');
     setSending(true);
     try {
       const created = await api.post<EmergencyBroadcast>('/emergency-broadcasts/quick-text', {
@@ -69,11 +71,11 @@ export default function EmergencyBroadcastsPage() {
           t.targetType === 'COMPANY' ? { targetType: 'COMPANY', targetId: 'company' } : t,
         ),
       });
-      toast('Emergency broadcast is live.', 'success');
+      toast(t('quick.liveToast'), 'success');
       setQuickOpen(false);
       router.push(`/company/emergency-broadcasts/${created.id}`);
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Could not send broadcast.', 'error');
+      toast(err instanceof ApiError ? err.message : t('quick.errSend'), 'error');
       setSending(false);
     }
   };
@@ -83,16 +85,16 @@ export default function EmergencyBroadcastsPage() {
   return (
     <div>
       <PageHeader
-        title="Emergency Broadcasts"
-        description="Override all schedules on targeted screens. Use with care."
+        title={t('title')}
+        description={t('description')}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setQuickOpen(true)}>
-              <Zap className="size-4" /> Quick text
+              <Zap className="size-4" /> {t('quickText')}
             </Button>
             <Link href="/company/emergency-broadcasts/new">
               <Button>
-                <Plus className="size-4" /> New broadcast
+                <Plus className="size-4" /> {t('newBroadcast')}
               </Button>
             </Link>
           </div>
@@ -102,8 +104,7 @@ export default function EmergencyBroadcastsPage() {
       {active.length > 0 ? (
         <Card className="mb-4 border-red-500/40 bg-red-500/5 p-4">
           <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-600">
-            <Megaphone className="size-4" /> {active.length} broadcast{active.length > 1 ? 's' : ''}{' '}
-            live now
+            <Megaphone className="size-4" /> {t('liveCount', { count: active.length })}
           </p>
           <ul className="space-y-1 text-sm">
             {active.map((b) => (
@@ -114,7 +115,7 @@ export default function EmergencyBroadcastsPage() {
                 >
                   {b.title}
                 </Link>{' '}
-                <span className="text-muted-foreground">— {b.broadcastType.toLowerCase()}</span>
+                <span className="text-muted-foreground">— {tt(b.broadcastType)}</span>
               </li>
             ))}
           </ul>
@@ -126,22 +127,19 @@ export default function EmergencyBroadcastsPage() {
           <Spinner className="text-primary size-6" />
         </div>
       ) : error ? (
-        <EmptyState title="Could not load broadcasts" description={error} />
+        <EmptyState title={t('loadError')} description={error} />
       ) : !data || data.items.length === 0 ? (
-        <EmptyState
-          title="No emergency broadcasts"
-          description="Create one to override schedules on specific screens during an incident."
-        />
+        <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       ) : (
         <Table>
           <THead>
             <TR>
-              <TH>Title</TH>
-              <TH>Type</TH>
-              <TH>Status</TH>
-              <TH>Targets</TH>
-              <TH>Priority</TH>
-              <TH>Updated</TH>
+              <TH>{t('colTitle')}</TH>
+              <TH>{tc('type')}</TH>
+              <TH>{tc('status')}</TH>
+              <TH>{t('colTargets')}</TH>
+              <TH>{t('colPriority')}</TH>
+              <TH>{tc('updated')}</TH>
             </TR>
           </THead>
           <TBody>
@@ -155,7 +153,7 @@ export default function EmergencyBroadcastsPage() {
                     {b.title}
                   </Link>
                 </TD>
-                <TD className="text-muted-foreground">{b.broadcastType}</TD>
+                <TD className="text-muted-foreground">{tt(b.broadcastType)}</TD>
                 <TD>
                   <Badge tone={STATUS_TONE[b.status]}>{b.status}</Badge>
                 </TD>
@@ -171,19 +169,19 @@ export default function EmergencyBroadcastsPage() {
       <Dialog
         open={quickOpen}
         onClose={() => setQuickOpen(false)}
-        title="Quick text broadcast"
-        description="Create and activate a full-screen text message immediately."
+        title={t('quick.title')}
+        description={t('quick.description')}
       >
         <div className="space-y-3">
-          <Field label="Title">
+          <Field label={t('quick.titleLabel')}>
             <Input
               value={qTitle}
               onChange={(e) => setQTitle(e.target.value)}
               maxLength={200}
-              placeholder="e.g. Fire alarm"
+              placeholder={t('quick.titlePlaceholder')}
             />
           </Field>
-          <Field label="Message">
+          <Field label={t('quick.messageLabel')}>
             <Textarea
               value={qMessage}
               onChange={(e) => setQMessage(e.target.value)}
@@ -191,7 +189,7 @@ export default function EmergencyBroadcastsPage() {
               maxLength={2000}
             />
           </Field>
-          <Field label="Targets">
+          <Field label={t('quick.targetsLabel')}>
             <TargetSelector
               targets={qTargets}
               onAdd={(t) => setQTargets((prev) => [...prev, t])}
@@ -200,10 +198,10 @@ export default function EmergencyBroadcastsPage() {
           </Field>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setQuickOpen(false)} disabled={sending}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button onClick={sendQuick} disabled={sending}>
-              {sending ? <Spinner className="size-4" /> : 'Activate now'}
+              {sending ? <Spinner className="size-4" /> : t('quick.activateNow')}
             </Button>
           </div>
         </div>
@@ -214,7 +212,7 @@ export default function EmergencyBroadcastsPage() {
           onClick={reload}
           className="text-muted-foreground hover:text-foreground mt-4 text-xs"
         >
-          Refresh
+          {tc('refresh')}
         </button>
       ) : null}
     </div>

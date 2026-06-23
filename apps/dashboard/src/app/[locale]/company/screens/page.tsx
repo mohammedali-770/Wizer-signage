@@ -59,31 +59,13 @@ const USE_OPTIONS: ScreenUse[] = [
   'GENERIC',
 ];
 
-const USE_LABELS: Record<ScreenUse, string> = {
-  MENU_LANDSCAPE: 'Menu (Landscape)',
-  OFFERS_PORTRAIT: 'Offers (Portrait)',
-  WAITING_AREA: 'Waiting Area',
-  CASHIER_DISPLAY: 'Cashier Display',
-  ENTRANCE: 'Entrance',
-  INDOOR: 'Indoor',
-  OUTDOOR: 'Outdoor',
-  GENERIC: 'Generic/Custom',
-};
-
-const ORIENTATION_LABELS: Record<Orientation, string> = {
-  LANDSCAPE: 'Landscape',
-  PORTRAIT: 'Portrait',
-  UNKNOWN: 'Unknown',
-};
-
-function screenUseLabel(use: ScreenUse | null): string {
-  return use ? USE_LABELS[use] : '—';
-}
-
 export default function ScreensPage() {
   const locale = useLocale();
   const t = useTranslations('pages.screens');
   const tc = useTranslations('common');
+  const te = useTranslations('enums');
+
+  const screenUseLabel = (use: ScreenUse | null): string => (use ? te(`screenUse.${use}`) : '—');
 
   // Applied (committed) query state that drives the request.
   const [page, setPage] = useState(1);
@@ -213,7 +195,7 @@ export default function ScreensPage() {
           <option value="">{t('allOrientations')}</option>
           {ORIENTATION_OPTIONS.map((o) => (
             <option key={o} value={o}>
-              {ORIENTATION_LABELS[o]}
+              {te(`orientation.${o}`)}
             </option>
           ))}
         </Select>
@@ -230,7 +212,7 @@ export default function ScreensPage() {
           <option value="">{t('allUses')}</option>
           {USE_OPTIONS.map((u) => (
             <option key={u} value={u}>
-              {USE_LABELS[u]}
+              {te(`screenUse.${u}`)}
             </option>
           ))}
         </Select>
@@ -293,10 +275,12 @@ export default function ScreensPage() {
                       <span className="text-muted-foreground ms-2 text-xs">{screen.code}</span>
                     ) : null}
                   </TD>
-                  <TD className="text-muted-foreground">{screen.location?.name ?? 'Unassigned'}</TD>
+                  <TD className="text-muted-foreground">
+                    {screen.location?.name ?? t('unassigned')}
+                  </TD>
                   <TD className="text-muted-foreground">{screenUseLabel(screen.use)}</TD>
                   <TD className="text-muted-foreground">
-                    {ORIENTATION_LABELS[screen.orientation]}
+                    {te(`orientation.${screen.orientation}`)}
                   </TD>
                   <TD>
                     <StatusBadge status={screen.status} />
