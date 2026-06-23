@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { api, ApiError } from '@/lib/api';
 import { useApiResource } from '@/lib/use-api';
@@ -50,6 +51,8 @@ const USE_OPTIONS: { value: ScreenUse; label: string }[] = [
 const PIN_RE = /^\d{4,8}$/;
 
 export default function NewScreenPage() {
+  const t = useTranslations('pages.screensNew');
+  const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -77,12 +80,12 @@ export default function NewScreenPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast('Name is required.', 'error');
+      toast(t('toast.nameRequired'), 'error');
       return;
     }
     const pin = kioskPin.trim();
     if (pin && !PIN_RE.test(pin)) {
-      toast('Kiosk PIN must be 4-8 digits.', 'error');
+      toast(t('toast.pinInvalid'), 'error');
       return;
     }
 
@@ -105,55 +108,55 @@ export default function NewScreenPage() {
       if (workingHours) payload.workingHours = workingHours;
 
       const created = await api.post<Screen>('/screens', payload);
-      toast('Screen created.', 'success');
+      toast(t('toast.created'), 'success');
       router.push(`/company/screens/${created.id}`);
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.error'), 'error');
       setSaving(false);
     }
   };
 
   return (
     <div>
-      <PageHeader title="New Screen" description="Register a display to manage and pair later." />
+      <PageHeader title={t('title')} description={t('description')} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Details</CardTitle>
+            <CardTitle>{t('sections.details')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Name">
+              <Field label={tc('name')}>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Lobby display"
+                  placeholder={t('placeholders.name')}
                   required
                 />
               </Field>
-              <Field label="Code" hint="Optional internal identifier.">
+              <Field label={t('fields.code')} hint={t('hints.code')}>
                 <Input
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="SCR-001"
+                  placeholder={t('placeholders.code')}
                 />
               </Field>
             </div>
 
-            <Field label="Description">
+            <Field label={tc('description')}>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Where this screen is and what it shows."
+                placeholder={t('placeholders.description')}
                 rows={2}
               />
             </Field>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field label="Location">
+              <Field label={tc('location')}>
                 <Select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-                  <option value="">Unassigned</option>
+                  <option value="">{t('options.unassigned')}</option>
                   {(locations.data?.items ?? []).map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.name}
@@ -161,9 +164,9 @@ export default function NewScreenPage() {
                   ))}
                 </Select>
               </Field>
-              <Field label="Use">
+              <Field label={t('fields.use')}>
                 <Select value={use} onChange={(e) => setUse(e.target.value as '' | ScreenUse)}>
-                  <option value="">Not set</option>
+                  <option value="">{t('options.notSet')}</option>
                   {USE_OPTIONS.map((u) => (
                     <option key={u.value} value={u.value}>
                       {u.label}
@@ -171,7 +174,7 @@ export default function NewScreenPage() {
                   ))}
                 </Select>
               </Field>
-              <Field label="Orientation">
+              <Field label={tc('orientation')}>
                 <Select
                   value={orientation}
                   onChange={(e) => setOrientation(e.target.value as Orientation)}
@@ -189,7 +192,7 @@ export default function NewScreenPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Audio</CardTitle>
+            <CardTitle>{t('sections.audio')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
@@ -201,12 +204,12 @@ export default function NewScreenPage() {
                 onChange={(e) => setAudioEnabled(e.target.checked)}
               />
               <Label htmlFor="audio-enabled" className="mb-0">
-                Audio enabled
+                {t('audio.enabled')}
               </Label>
             </div>
 
             <div>
-              <Label htmlFor="volume">Volume ({volume})</Label>
+              <Label htmlFor="volume">{t('audio.volume', { value: volume })}</Label>
               <input
                 id="volume"
                 type="range"
@@ -229,7 +232,7 @@ export default function NewScreenPage() {
                 onChange={(e) => setMuted(e.target.checked)}
               />
               <Label htmlFor="muted" className="mb-0">
-                Muted
+                {t('audio.muted')}
               </Label>
             </div>
           </CardContent>
@@ -237,7 +240,7 @@ export default function NewScreenPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Kiosk &amp; startup</CardTitle>
+            <CardTitle>{t('sections.kiosk')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
@@ -249,17 +252,17 @@ export default function NewScreenPage() {
                 onChange={(e) => setKioskEnabled(e.target.checked)}
               />
               <Label htmlFor="kiosk-enabled" className="mb-0">
-                Kiosk mode enabled
+                {t('kiosk.enabled')}
               </Label>
             </div>
 
-            <Field label="Kiosk PIN" hint="Optional. 4-8 digits, used to exit kiosk mode.">
+            <Field label={t('fields.kioskPin')} hint={t('hints.kioskPin')}>
               <Input
                 type="password"
                 autoComplete="off"
                 value={kioskPin}
                 onChange={(e) => setKioskPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                placeholder="e.g. 1234"
+                placeholder={t('placeholders.kioskPin')}
                 inputMode="numeric"
                 disabled={!kioskEnabled}
               />
@@ -274,7 +277,7 @@ export default function NewScreenPage() {
                 onChange={(e) => setAutoStartEnabled(e.target.checked)}
               />
               <Label htmlFor="auto-start" className="mb-0">
-                Auto-start on device boot
+                {t('kiosk.autoStart')}
               </Label>
             </div>
           </CardContent>
@@ -282,7 +285,7 @@ export default function NewScreenPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Working hours</CardTitle>
+            <CardTitle>{t('sections.workingHours')}</CardTitle>
           </CardHeader>
           <CardContent>
             <WorkingHoursEditor value={workingHours} onChange={setWorkingHours} />
@@ -294,11 +297,11 @@ export default function NewScreenPage() {
             href="/company/screens"
             className="border-border hover:bg-muted inline-flex h-10 items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition"
           >
-            Cancel
+            {tc('cancel')}
           </Link>
           <Button type="submit" disabled={saving}>
             {saving && <Spinner className="size-4" />}
-            Create screen
+            {t('createScreen')}
           </Button>
         </div>
       </form>

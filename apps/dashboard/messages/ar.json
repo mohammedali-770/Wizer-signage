@@ -101,7 +101,11 @@
     "save": "حفظ",
     "cancel": "إلغاء",
     "edit": "تعديل",
-    "delete": "حذف"
+    "delete": "حذف",
+    "create": "إنشاء",
+    "description": "الوصف",
+    "back": "رجوع",
+    "saving": "جارٍ الحفظ…"
   },
   "theme": {
     "toggle": "تبديل المظهر",
@@ -265,6 +269,352 @@
       "emptyTitle": "لا توجد وسوم",
       "emptyFiltered": "حاول تعديل البحث أو تصفية النوع.",
       "emptyDescription": "أنشئ أول وسم لك لبدء تنظيم الشاشات."
+    },
+    "screensNew": {
+      "title": "شاشة جديدة",
+      "description": "سجّل شاشة عرض لإدارتها وإقرانها لاحقًا.",
+      "createScreen": "إنشاء شاشة",
+      "sections": {
+        "details": "التفاصيل",
+        "audio": "الصوت",
+        "kiosk": "وضع الكشك والتشغيل",
+        "workingHours": "ساعات العمل"
+      },
+      "fields": {
+        "code": "الرمز",
+        "use": "الاستخدام",
+        "kioskPin": "رمز الكشك"
+      },
+      "hints": {
+        "code": "معرّف داخلي اختياري.",
+        "kioskPin": "اختياري. من 4 إلى 8 أرقام، يُستخدم للخروج من وضع الكشك."
+      },
+      "placeholders": {
+        "name": "شاشة الردهة",
+        "code": "SCR-001",
+        "description": "أين توجد هذه الشاشة وما الذي تعرضه.",
+        "kioskPin": "مثال: 1234"
+      },
+      "options": {
+        "unassigned": "غير مُعيّن",
+        "notSet": "غير محدد"
+      },
+      "audio": {
+        "enabled": "الصوت مفعّل",
+        "volume": "مستوى الصوت ({value})",
+        "muted": "صامت"
+      },
+      "kiosk": {
+        "enabled": "وضع الكشك مفعّل",
+        "autoStart": "التشغيل التلقائي عند إقلاع الجهاز"
+      },
+      "toast": {
+        "nameRequired": "الاسم مطلوب.",
+        "pinInvalid": "يجب أن يتكون رمز الكشك من 4 إلى 8 أرقام.",
+        "created": "تم إنشاء الشاشة.",
+        "error": "حدث خطأ ما."
+      }
+    },
+    "contentNew": {
+      "title": "إضافة محتوى",
+      "description": "ارفع ملفًا، أو اربط رابطًا خارجيًا، أو أنشئ شريحة نصية.",
+      "backToContent": "رجوع إلى المحتوى",
+      "modeUpload": "رفع ملف",
+      "modeUrl": "رابط",
+      "modeText": "نص",
+      "fileLabel": "الملف",
+      "fileHint": "صور أو مقاطع فيديو أو ملف PDF. يُعيَّن العنوان تلقائيًا من اسم الملف.",
+      "fileAriaLabel": "الملف المراد رفعه",
+      "urlLabel": "الرابط",
+      "urlHint": "قد تكون الروابط الخارجية غير موثوقة أو محظورة من جهاز العرض. يُفضَّل رفع ملف عند الإمكان.",
+      "urlPlaceholder": "https://example.com/page",
+      "textLabel": "نص الشريحة",
+      "textHint": "النص الذي يظهر على الشريحة.",
+      "textPlaceholder": "اكتب نص الشريحة هنا…",
+      "titleLabel": "العنوان",
+      "titlePlaceholder": "اسم قصير ووصفي",
+      "descriptionPlaceholder": "ملاحظات اختيارية حول هذا المحتوى.",
+      "expiresLabel": "تاريخ الانتهاء",
+      "expiresHint": "اختياري. يُخفى المحتوى بعد هذا التاريخ.",
+      "durationLabel": "المدة (بالثواني)",
+      "durationHint": "اختياري. مدة عرض هذا العنصر ضمن قائمة التشغيل.",
+      "durationPlaceholder": "مثال: 10",
+      "tagsLoading": "جارٍ تحميل الوسوم…",
+      "tagsEmpty": "لا توجد وسوم محتوى متاحة.",
+      "tagsHint": "اختياري. اختر وسمًا واحدًا أو أكثر من وسوم المحتوى.",
+      "submitUpload": "رفع المحتوى",
+      "submitCreate": "إنشاء المحتوى",
+      "toastTitleRequired": "العنوان مطلوب.",
+      "toastChooseFile": "اختر ملفًا لرفعه.",
+      "toastUrlRequired": "الرابط مطلوب.",
+      "toastUrlInvalid": "أدخل رابط http(s) صالحًا.",
+      "toastTextRequired": "نص الشريحة مطلوب.",
+      "toastCreated": "تم إنشاء المحتوى.",
+      "toastError": "حدث خطأ ما."
+    },
+    "playlistsNew": {
+      "title": "قائمة تشغيل جديدة",
+      "description": "سمِّ قائمة التشغيل، ثم أضف المحتوى في الشاشة التالية.",
+      "backToPlaylists": "الرجوع إلى قوائم التشغيل",
+      "titleLabel": "العنوان",
+      "titlePlaceholder": "مثال: حلقة الردهة",
+      "optionalHint": "اختياري.",
+      "statusActive": "نشط",
+      "statusDraft": "مسودة",
+      "createButton": "إنشاء قائمة التشغيل",
+      "titleRequired": "العنوان مطلوب.",
+      "createdToast": "تم إنشاء قائمة التشغيل.",
+      "createError": "تعذّر إنشاء قائمة التشغيل."
+    },
+    "schedulesNew": {
+      "title": "جدول جديد",
+      "description": "قم بإسناد قائمة تشغيل إلى الشاشات مع التوقيت والأولوية.",
+      "backToSchedules": "الرجوع إلى الجداول",
+      "createSchedule": "إنشاء الجدول",
+      "details": {
+        "title": "التفاصيل"
+      },
+      "timing": {
+        "title": "التوقيت"
+      },
+      "targets": {
+        "title": "الأهداف"
+      },
+      "fields": {
+        "playlist": "قائمة التشغيل",
+        "noneYet": "— لا شيء بعد —",
+        "priority": "الأولوية",
+        "startDate": "تاريخ البدء",
+        "endDate": "تاريخ الانتهاء",
+        "allDay": "طوال اليوم",
+        "startTime": "وقت البدء",
+        "endTime": "وقت الانتهاء",
+        "daysOfWeek": "أيام الأسبوع",
+        "timezone": "المنطقة الزمنية"
+      },
+      "types": {
+        "normal": "عادي",
+        "campaign": "حملة"
+      },
+      "statuses": {
+        "active": "نشط (يتطلب قائمة تشغيل وأهدافًا)",
+        "paused": "متوقف مؤقتًا"
+      },
+      "hints": {
+        "optional": "اختياري.",
+        "higherWins": "الأعلى يفوز.",
+        "endDate": "اختياري؛ مفتوح المدة إذا تُرك فارغًا.",
+        "endTime": "الانتهاء قبل البدء يعني العرض الليلي.",
+        "timezone": "اختياري؛ يعتمد افتراضيًا على المنطقة الزمنية للشاشة / الموقع / الشركة."
+      },
+      "placeholders": {
+        "timezone": "مثال: Asia/Riyadh"
+      },
+      "toast": {
+        "nameRequired": "الاسم مطلوب.",
+        "startDateRequired": "تاريخ البدء مطلوب.",
+        "timeRequired": "وقت البدء والانتهاء مطلوبان ما لم يكن طوال اليوم.",
+        "created": "تم إنشاء الجدول.",
+        "createError": "تعذّر إنشاء الجدول."
+      }
+    },
+    "locationsNew": {
+      "title": "موقع جديد",
+      "backToLocations": "رجوع إلى المواقع",
+      "createLocation": "إنشاء الموقع",
+      "sections": {
+        "details": "التفاصيل",
+        "workingHours": "ساعات العمل"
+      },
+      "fields": {
+        "code": "الرمز",
+        "address": "العنوان",
+        "city": "المدينة",
+        "region": "المنطقة",
+        "country": "الدولة",
+        "timezone": "المنطقة الزمنية",
+        "latitude": "خط العرض",
+        "longitude": "خط الطول"
+      },
+      "hints": {
+        "code": "معرّف مختصر اختياري."
+      },
+      "placeholders": {
+        "name": "الفرع الرئيسي",
+        "code": "MB-01",
+        "description": "ملاحظات حول هذا الموقع.",
+        "address": "123 طريق الملك فهد",
+        "city": "الرياض",
+        "region": "منطقة الرياض",
+        "country": "المملكة العربية السعودية"
+      },
+      "toast": {
+        "nameRequired": "الاسم مطلوب.",
+        "created": "تم إنشاء الموقع.",
+        "error": "حدث خطأ ما."
+      }
+    },
+    "screenDetail": {
+      "backToScreens": "رجوع إلى الشاشات",
+      "loadError": "تعذر تحميل الشاشة",
+      "unassigned": "غير معيَّن",
+      "never": "أبدًا",
+      "yes": "نعم",
+      "no": "لا",
+      "enabled": "مُفعَّل",
+      "disabled": "مُعطَّل",
+      "pinSet": "تم تعيين الرمز",
+      "notSet": "غير مُعيَّن",
+      "none": "لا يوجد",
+      "groups": "المجموعات",
+      "monitoringHint": "تظهر قيم المراقبة عند اتصال المشغِّل (في مرحلة لاحقة).",
+      "latestScreenshot": "أحدث لقطة",
+      "noScreenshot": "لا توجد لقطة بعد",
+      "recentCommands": "الأوامر الأخيرة",
+      "fallbackHint": "يُعرض على هذه الشاشة عندما لا تكون هناك قائمة تشغيل أو جدول نشط. يتجاوز الإعدادات الافتراضية للموقع والشركة. يمكن اختيار المحتوى النشط فقط؛ ويظهر تنبيه إذا كان اتجاه المحتوى لا يطابق هذه الشاشة.",
+      "cards": {
+        "identity": "الهوية",
+        "monitoring": "المراقبة",
+        "audio": "الصوت",
+        "kiosk": "وضع الكشك والتشغيل",
+        "devicePairing": "اقتران الجهاز",
+        "syncCache": "المزامنة والتخزين المؤقت",
+        "monitoringControl": "المراقبة والتحكم",
+        "workingHours": "ساعات العمل",
+        "tagsGroups": "الوسوم والمجموعات",
+        "fallbackContent": "المحتوى الاحتياطي"
+      },
+      "fields": {
+        "use": "الاستخدام",
+        "code": "الرمز",
+        "notes": "ملاحظات",
+        "lastHeartbeat": "آخر نبضة",
+        "lastSync": "آخر مزامنة",
+        "appVersion": "إصدار التطبيق",
+        "currentContent": "المحتوى الحالي",
+        "storageUsed": "المساحة المستخدمة",
+        "audioEnabled": "الصوت مُفعَّل",
+        "volume": "مستوى الصوت",
+        "muted": "صامت",
+        "kioskMode": "وضع الكشك",
+        "kioskModeEnabled": "وضع الكشك مُفعَّل",
+        "kioskPin": "رمز الكشك",
+        "autoStart": "التشغيل التلقائي",
+        "autoStartOnBoot": "التشغيل التلقائي عند الإقلاع",
+        "device": "الجهاز",
+        "pairedAt": "تاريخ الاقتران",
+        "lastSeen": "آخر ظهور",
+        "syncStatus": "حالة المزامنة",
+        "playingFrom": "يُشغِّل من",
+        "assetsCached": "الأصول المخزَّنة مؤقتًا",
+        "failedDownloads": "التنزيلات الفاشلة",
+        "cacheSize": "حجم ذاكرة التخزين المؤقت",
+        "freeStorage": "المساحة المتاحة",
+        "currentManifest": "البيان الحالي",
+        "deviceSyncedTo": "الجهاز متزامن مع",
+        "lastError": "آخر خطأ",
+        "playback": "العرض",
+        "network": "الشبكة",
+        "warning": "تحذير",
+        "schedule": "الجدول",
+        "timezone": "المنطقة الزمنية",
+        "outsideHours": "خارج ساعات العمل",
+        "pairingCode": "رمز الاقتران"
+      },
+      "actions": {
+        "move": "نقل",
+        "reactivate": "إعادة التفعيل",
+        "disable": "تعطيل",
+        "archive": "أرشفة",
+        "changePin": "تغيير الرمز",
+        "setPin": "تعيين الرمز",
+        "removePin": "إزالة الرمز",
+        "rePair": "إعادة الاقتران",
+        "pairDevice": "اقتران الجهاز",
+        "unpair": "إلغاء الاقتران",
+        "forceSync": "مزامنة فورية",
+        "refreshManifest": "تحديث البيان",
+        "restartPlayback": "إعادة تشغيل العرض",
+        "clearCache": "مسح ذاكرة التخزين",
+        "takeScreenshot": "التقاط لقطة",
+        "reboot": "إعادة تشغيل"
+      },
+      "pairing": {
+        "paired": "مقترن",
+        "awaitingDevice": "بانتظار الجهاز",
+        "notPaired": "غير مقترن",
+        "hint": "افتح MasterSignage على التلفاز، ثم أدخل الرمز الذي يعرضه هنا للاقتران."
+      },
+      "sync": {
+        "offlineCache": "ذاكرة التخزين دون اتصال",
+        "online": "متصل",
+        "inSync": "متزامن",
+        "updatePending": "تحديث معلَّق",
+        "noData": "لم يُبلَّغ عن بيانات مزامنة بعد."
+      },
+      "editDialog": {
+        "title": "تعديل الشاشة",
+        "description": "تحديث إعدادات الشاشة وتهيئتها.",
+        "submit": "حفظ التغييرات"
+      },
+      "moveDialog": {
+        "title": "نقل الشاشة",
+        "description": "إسناد هذه الشاشة إلى موقع آخر."
+      },
+      "tagsDialog": {
+        "title": "تعديل الوسوم",
+        "description": "اختر الوسوم المطبَّقة على هذه الشاشة.",
+        "empty": "لا توجد وسوم متاحة.",
+        "submit": "حفظ الوسوم"
+      },
+      "groupsDialog": {
+        "title": "تعديل المجموعات",
+        "description": "اختر المجموعات التي تنتمي إليها هذه الشاشة.",
+        "empty": "لا توجد مجموعات متاحة.",
+        "submit": "حفظ المجموعات"
+      },
+      "pinDialog": {
+        "titleChange": "تغيير رمز الكشك",
+        "titleSet": "تعيين رمز الكشك",
+        "description": "أدخل رمزًا من 4 إلى 8 أرقام يُستخدم للخروج من وضع الكشك.",
+        "placeholder": "مثال: 1234",
+        "submit": "حفظ الرمز"
+      },
+      "pairDialog": {
+        "title": "اقتران الجهاز",
+        "description": "افتح MasterSignage على التلفاز وأدخل الرمز الذي يعرضه.",
+        "placeholder": "مثال: A7K9Q2",
+        "submit": "اقتران"
+      },
+      "unpairDialog": {
+        "title": "إلغاء اقتران الجهاز",
+        "description": "يؤدي هذا إلى إبطال رمز الجهاز. تتوقف الشاشة عن العرض حتى يُعاد اقترانها."
+      },
+      "deleteDialog": {
+        "title": "حذف الشاشة",
+        "description": "يؤدي هذا إلى إزالة الشاشة نهائيًا. لا يمكن التراجع عن هذا الإجراء.",
+        "submit": "حذف الشاشة"
+      },
+      "toast": {
+        "genericError": "حدث خطأ ما.",
+        "actionRequested": "تم طلب {action}.",
+        "nameRequired": "الاسم مطلوب.",
+        "updated": "تم تحديث الشاشة.",
+        "moved": "تم نقل الشاشة.",
+        "tagsUpdated": "تم تحديث الوسوم.",
+        "groupsUpdated": "تم تحديث المجموعات.",
+        "pinInvalid": "يجب أن يتكوَّن رمز الكشك من 4 إلى 8 أرقام.",
+        "pinSet": "تم تعيين رمز الكشك.",
+        "pinRemoved": "تمت إزالة رمز الكشك.",
+        "fallbackUpdated": "تم تحديث المحتوى الاحتياطي.",
+        "fallbackCleared": "تم مسح المحتوى الاحتياطي.",
+        "archived": "تمت أرشفة الشاشة.",
+        "disabled": "تم تعطيل الشاشة.",
+        "reactivated": "تمت إعادة تفعيل الشاشة.",
+        "deleted": "تم حذف الشاشة.",
+        "devicePaired": "تم اقتران الجهاز.",
+        "deviceUnpaired": "تم إلغاء اقتران الجهاز."
+      }
     }
   }
 }

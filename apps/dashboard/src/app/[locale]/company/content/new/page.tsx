@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft, FileText, Link2, Upload } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -23,10 +24,10 @@ import {
 
 type Mode = 'upload' | 'url' | 'text';
 
-const MODES: { value: Mode; label: string; icon: typeof Upload }[] = [
-  { value: 'upload', label: 'Upload file', icon: Upload },
-  { value: 'url', label: 'URL', icon: Link2 },
-  { value: 'text', label: 'Text', icon: FileText },
+const MODES: { value: Mode; icon: typeof Upload }[] = [
+  { value: 'upload', icon: Upload },
+  { value: 'url', icon: Link2 },
+  { value: 'text', icon: FileText },
 ];
 
 const ORIENTATION_OPTIONS: Orientation[] = ['LANDSCAPE', 'PORTRAIT', 'UNKNOWN'];
@@ -56,8 +57,16 @@ function isHttpUrl(value: string): boolean {
 }
 
 export default function NewContentPage() {
+  const t = useTranslations('pages.contentNew');
+  const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
+
+  const modeLabels: Record<Mode, string> = {
+    upload: t('modeUpload'),
+    url: t('modeUrl'),
+    text: t('modeText'),
+  };
 
   const [mode, setMode] = useState<Mode>('upload');
 
@@ -111,7 +120,7 @@ export default function NewContentPage() {
 
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      toast('Title is required.', 'error');
+      toast(t('toastTitleRequired'), 'error');
       return;
     }
 
@@ -124,7 +133,7 @@ export default function NewContentPage() {
 
       if (mode === 'upload') {
         if (!file) {
-          toast('Choose a file to upload.', 'error');
+          toast(t('toastChooseFile'), 'error');
           setBusy(false);
           return;
         }
@@ -140,12 +149,12 @@ export default function NewContentPage() {
       } else if (mode === 'url') {
         const trimmedUrl = url.trim();
         if (!trimmedUrl) {
-          toast('URL is required.', 'error');
+          toast(t('toastUrlRequired'), 'error');
           setBusy(false);
           return;
         }
         if (!isHttpUrl(trimmedUrl)) {
-          toast('Enter a valid http(s) URL.', 'error');
+          toast(t('toastUrlInvalid'), 'error');
           setBusy(false);
           return;
         }
@@ -161,7 +170,7 @@ export default function NewContentPage() {
       } else {
         const trimmedBody = textBody.trim();
         if (!trimmedBody) {
-          toast('Text body is required.', 'error');
+          toast(t('toastTextRequired'), 'error');
           setBusy(false);
           return;
         }
@@ -176,10 +185,10 @@ export default function NewContentPage() {
         });
       }
 
-      toast('Content created.', 'success');
+      toast(t('toastCreated'), 'success');
       router.push(`/company/content/${created.id}`);
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toastError'), 'error');
       setBusy(false);
     }
   };
@@ -187,23 +196,24 @@ export default function NewContentPage() {
   return (
     <div>
       <PageHeader
-        title="Add Content"
-        description="Upload a file, link an external URL, or compose a text slide."
+        title={t('title')}
+        description={t('description')}
         actions={
           <Link
             href="/company/content"
             className="border-border hover:bg-muted focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md border bg-transparent px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2"
           >
             <ArrowLeft className="size-4" />
-            Back to Content
+            {t('backToContent')}
           </Link>
         }
       />
 
       {/* Segmented control */}
       <div className="border-border bg-muted/40 mb-6 inline-flex rounded-lg border p-1">
-        {MODES.map(({ value, label, icon: Icon }) => {
+        {MODES.map(({ value, icon: Icon }) => {
           const active = mode === value;
+          const label = modeLabels[value];
           return (
             <button
               key={value}
@@ -230,32 +240,26 @@ export default function NewContentPage() {
           <CardContent className="space-y-5">
             {/* Mode-specific primary inputs */}
             {mode === 'upload' && (
-              <Field
-                label="File"
-                hint="Images, videos, or PDF. The title defaults to the file name."
-              >
+              <Field label={t('fileLabel')} hint={t('fileHint')}>
                 <Input
                   type="file"
                   accept={FILE_ACCEPT}
                   onChange={handleFileChange}
                   disabled={busy}
                   className="file:bg-muted h-auto py-2 file:me-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm file:font-medium"
-                  aria-label="File to upload"
+                  aria-label={t('fileAriaLabel')}
                 />
               </Field>
             )}
 
             {mode === 'url' && (
-              <Field
-                label="URL"
-                hint="External URLs may be unreliable or blocked by the display device. Prefer uploading a file when possible."
-              >
+              <Field label={t('urlLabel')} hint={t('urlHint')}>
                 <Input
                   type="url"
                   inputMode="url"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example.com/page"
+                  placeholder={t('urlPlaceholder')}
                   disabled={busy}
                   required
                 />
@@ -263,11 +267,11 @@ export default function NewContentPage() {
             )}
 
             {mode === 'text' && (
-              <Field label="Text body" hint="The text shown on the slide.">
+              <Field label={t('textLabel')} hint={t('textHint')}>
                 <Textarea
                   value={textBody}
                   onChange={(e) => setTextBody(e.target.value)}
-                  placeholder="Write the slide text here…"
+                  placeholder={t('textPlaceholder')}
                   rows={5}
                   disabled={busy}
                   required
@@ -275,28 +279,28 @@ export default function NewContentPage() {
               </Field>
             )}
 
-            <Field label="Title">
+            <Field label={t('titleLabel')}>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="A short, descriptive name"
+                placeholder={t('titlePlaceholder')}
                 required
                 disabled={busy}
               />
             </Field>
 
-            <Field label="Description">
+            <Field label={tc('description')}>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional notes about this content."
+                placeholder={t('descriptionPlaceholder')}
                 rows={2}
                 disabled={busy}
               />
             </Field>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Orientation">
+              <Field label={tc('orientation')}>
                 <Select
                   value={orientation}
                   onChange={(e) => setOrientation(e.target.value as Orientation)}
@@ -310,7 +314,7 @@ export default function NewContentPage() {
                 </Select>
               </Field>
 
-              <Field label="Expires" hint="Optional. Content is hidden after this date.">
+              <Field label={t('expiresLabel')} hint={t('expiresHint')}>
                 <Input
                   type="date"
                   value={expiresAt}
@@ -320,10 +324,7 @@ export default function NewContentPage() {
               </Field>
             </div>
 
-            <Field
-              label="Duration (seconds)"
-              hint="Optional. How long this item shows in a playlist."
-            >
+            <Field label={t('durationLabel')} hint={t('durationHint')}>
               <Input
                 type="number"
                 min={1}
@@ -331,21 +332,21 @@ export default function NewContentPage() {
                 inputMode="numeric"
                 value={durationSeconds}
                 onChange={(e) => setDurationSeconds(e.target.value)}
-                placeholder="e.g. 10"
+                placeholder={t('durationPlaceholder')}
                 disabled={busy}
                 className="sm:max-w-[12rem]"
               />
             </Field>
 
             <div>
-              <Label>Tags</Label>
+              <Label>{tc('tags')}</Label>
               {tagsResource.loading ? (
                 <div className="text-muted-foreground flex items-center gap-2 py-2 text-sm">
                   <Spinner className="size-4" />
-                  Loading tags…
+                  {t('tagsLoading')}
                 </div>
               ) : contentTags.length === 0 ? (
-                <p className="text-muted-foreground py-1 text-sm">No content tags available.</p>
+                <p className="text-muted-foreground py-1 text-sm">{t('tagsEmpty')}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {contentTags.map((tag) => {
@@ -375,9 +376,7 @@ export default function NewContentPage() {
                   })}
                 </div>
               )}
-              <p className="text-muted-foreground mt-1.5 text-xs">
-                Optional. Select one or more content tags.
-              </p>
+              <p className="text-muted-foreground mt-1.5 text-xs">{t('tagsHint')}</p>
             </div>
 
             <div className="border-border flex justify-end gap-2 border-t pt-4">
@@ -386,11 +385,11 @@ export default function NewContentPage() {
                 className="border-border hover:bg-muted focus-visible:ring-primary/40 inline-flex h-10 items-center justify-center gap-2 rounded-md border bg-transparent px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2"
                 aria-disabled={busy}
               >
-                Cancel
+                {tc('cancel')}
               </Link>
               <Button type="submit" disabled={busy}>
                 {busy && <Spinner className="size-4" />}
-                {mode === 'upload' ? 'Upload content' : 'Create content'}
+                {mode === 'upload' ? t('submitUpload') : t('submitCreate')}
               </Button>
             </div>
           </CardContent>

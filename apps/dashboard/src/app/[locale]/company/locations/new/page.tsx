@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -57,6 +58,8 @@ function numberOrNull(value: string): number | null {
 }
 
 export default function NewLocationPage() {
+  const t = useTranslations('pages.locationsNew');
+  const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -69,7 +72,7 @@ export default function NewLocationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) {
-      toast('Name is required.', 'error');
+      toast(t('toast.nameRequired'), 'error');
       return;
     }
 
@@ -90,10 +93,10 @@ export default function NewLocationPage() {
       };
 
       const created = await api.post<Location>('/locations', payload);
-      toast('Location created.', 'success');
+      toast(t('toast.created'), 'success');
       router.push(`/company/locations/${created.id}`);
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.error'), 'error');
       setSaving(false);
     }
   };
@@ -105,85 +108,85 @@ export default function NewLocationPage() {
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition"
       >
         <ArrowLeft className="size-4" />
-        Back to locations
+        {t('backToLocations')}
       </Link>
 
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">New Location</h1>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight">{t('title')}</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Details</CardTitle>
+            <CardTitle>{t('sections.details')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Name">
+              <Field label={tc('name')}>
                 <Input
                   value={form.name}
                   onChange={(e) => update('name', e.target.value)}
-                  placeholder="Main Branch"
+                  placeholder={t('placeholders.name')}
                   required
                 />
               </Field>
-              <Field label="Code" hint="Optional short identifier.">
+              <Field label={t('fields.code')} hint={t('hints.code')}>
                 <Input
                   value={form.code}
                   onChange={(e) => update('code', e.target.value)}
-                  placeholder="MB-01"
+                  placeholder={t('placeholders.code')}
                 />
               </Field>
             </div>
 
-            <Field label="Description">
+            <Field label={tc('description')}>
               <Textarea
                 value={form.description}
                 onChange={(e) => update('description', e.target.value)}
-                placeholder="Notes about this location."
+                placeholder={t('placeholders.description')}
                 rows={2}
               />
             </Field>
 
-            <Field label="Address">
+            <Field label={t('fields.address')}>
               <Input
                 value={form.address}
                 onChange={(e) => update('address', e.target.value)}
-                placeholder="123 King Fahd Road"
+                placeholder={t('placeholders.address')}
               />
             </Field>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field label="City">
+              <Field label={t('fields.city')}>
                 <Input
                   value={form.city}
                   onChange={(e) => update('city', e.target.value)}
-                  placeholder="Riyadh"
+                  placeholder={t('placeholders.city')}
                 />
               </Field>
-              <Field label="Region">
+              <Field label={t('fields.region')}>
                 <Input
                   value={form.region}
                   onChange={(e) => update('region', e.target.value)}
-                  placeholder="Riyadh Province"
+                  placeholder={t('placeholders.region')}
                 />
               </Field>
-              <Field label="Country">
+              <Field label={t('fields.country')}>
                 <Input
                   value={form.country}
                   onChange={(e) => update('country', e.target.value)}
-                  placeholder="Saudi Arabia"
+                  placeholder={t('placeholders.country')}
                 />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field label="Timezone">
+              <Field label={t('fields.timezone')}>
                 <Input
                   value={form.timezone}
                   onChange={(e) => update('timezone', e.target.value)}
                   placeholder="Asia/Riyadh"
                 />
               </Field>
-              <Field label="Latitude">
+              <Field label={t('fields.latitude')}>
                 <Input
                   type="number"
                   step="any"
@@ -192,7 +195,7 @@ export default function NewLocationPage() {
                   placeholder="24.7136"
                 />
               </Field>
-              <Field label="Longitude">
+              <Field label={t('fields.longitude')}>
                 <Input
                   type="number"
                   step="any"
@@ -207,7 +210,7 @@ export default function NewLocationPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Working hours</CardTitle>
+            <CardTitle>{t('sections.workingHours')}</CardTitle>
           </CardHeader>
           <CardContent>
             <WorkingHoursEditor value={workingHours} onChange={setWorkingHours} />
@@ -219,11 +222,11 @@ export default function NewLocationPage() {
             href="/company/locations"
             className="border-border hover:bg-muted inline-flex h-10 items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition"
           >
-            Cancel
+            {tc('cancel')}
           </Link>
           <Button type="submit" disabled={saving}>
             {saving && <Spinner className="size-4" />}
-            Create location
+            {t('createLocation')}
           </Button>
         </div>
       </form>

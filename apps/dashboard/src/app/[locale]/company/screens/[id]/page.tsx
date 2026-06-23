@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ArrowLeft, Pencil } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -157,6 +157,8 @@ export default function ScreenDetailPage() {
   const locale = useLocale();
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('pages.screenDetail');
+  const tc = useTranslations('common');
 
   const {
     data: screen,
@@ -265,7 +267,7 @@ export default function ScreenDetailPage() {
       if (after) after();
       else reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.genericError'), 'error');
     } finally {
       setBusy(false);
     }
@@ -274,7 +276,7 @@ export default function ScreenDetailPage() {
   const monitorAction = (path: string, label: string) =>
     runAction(
       () => api.post(`/screens/${id}/actions/${path}`),
-      `${label} requested.`,
+      t('toast.actionRequested', { action: label }),
       () => {
         monitoring.reload();
         commands.reload();
@@ -284,7 +286,7 @@ export default function ScreenDetailPage() {
   const submitEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editName.trim()) {
-      toast('Name is required.', 'error');
+      toast(t('toast.nameRequired'), 'error');
       return;
     }
     await runAction(
@@ -303,7 +305,7 @@ export default function ScreenDetailPage() {
           notes: editNotes.trim() || null,
           workingHours: editWorkingHours,
         }),
-      'Screen updated.',
+      t('toast.updated'),
       () => {
         setEditOpen(false);
         reload();
@@ -314,7 +316,7 @@ export default function ScreenDetailPage() {
   const submitMove = async () => {
     await runAction(
       () => api.post(`/screens/${id}/move`, { locationId: moveLocationId || null }),
-      'Screen moved.',
+      t('toast.moved'),
       () => {
         setMoveOpen(false);
         reload();
@@ -325,7 +327,7 @@ export default function ScreenDetailPage() {
   const submitTags = async () => {
     await runAction(
       () => api.put(`/screens/${id}/tags`, { tagIds }),
-      'Tags updated.',
+      t('toast.tagsUpdated'),
       () => {
         setTagsOpen(false);
         reload();
@@ -336,7 +338,7 @@ export default function ScreenDetailPage() {
   const submitGroups = async () => {
     await runAction(
       () => api.put(`/screens/${id}/groups`, { groupIds }),
-      'Groups updated.',
+      t('toast.groupsUpdated'),
       () => {
         setGroupsOpen(false);
         reload();
@@ -347,12 +349,12 @@ export default function ScreenDetailPage() {
   const submitPin = async () => {
     const pin = pinValue.trim();
     if (!PIN_RE.test(pin)) {
-      toast('Kiosk PIN must be 4-8 digits.', 'error');
+      toast(t('toast.pinInvalid'), 'error');
       return;
     }
     await runAction(
       () => api.put(`/screens/${id}/kiosk-pin`, { pin }),
-      'Kiosk PIN set.',
+      t('toast.pinSet'),
       () => {
         setPinOpen(false);
         reload();
@@ -361,24 +363,24 @@ export default function ScreenDetailPage() {
   };
 
   const resetPin = async () => {
-    await runAction(() => api.del(`/screens/${id}/kiosk-pin`), 'Kiosk PIN removed.');
+    await runAction(() => api.del(`/screens/${id}/kiosk-pin`), t('toast.pinRemoved'));
   };
 
   const onFallbackChange = (contentId: string | null) =>
     runAction(
       () => api.patch(`/screens/${id}`, { fallbackContentId: contentId }),
-      contentId ? 'Fallback content updated.' : 'Fallback content cleared.',
+      contentId ? t('toast.fallbackUpdated') : t('toast.fallbackCleared'),
     );
 
-  const archive = () => runAction(() => api.post(`/screens/${id}/archive`), 'Screen archived.');
-  const disable = () => runAction(() => api.post(`/screens/${id}/disable`), 'Screen disabled.');
+  const archive = () => runAction(() => api.post(`/screens/${id}/archive`), t('toast.archived'));
+  const disable = () => runAction(() => api.post(`/screens/${id}/disable`), t('toast.disabled'));
   const reactivate = () =>
-    runAction(() => api.post(`/screens/${id}/reactivate`), 'Screen reactivated.');
+    runAction(() => api.post(`/screens/${id}/reactivate`), t('toast.reactivated'));
 
   const submitDelete = async () => {
     await runAction(
       () => api.del(`/screens/${id}`),
-      'Screen deleted.',
+      t('toast.deleted'),
       () => {
         setDeleteOpen(false);
         router.push('/company/screens');
@@ -397,7 +399,7 @@ export default function ScreenDetailPage() {
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition"
       >
         <ArrowLeft className="size-4" />
-        Back to screens
+        {t('backToScreens')}
       </Link>
 
       {loading && (
@@ -406,7 +408,7 @@ export default function ScreenDetailPage() {
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load screen" description={error} />}
+      {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && screen && (
         <>
@@ -417,16 +419,16 @@ export default function ScreenDetailPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" onClick={openEdit}>
                   <Pencil className="size-4" />
-                  Edit
+                  {tc('edit')}
                 </Button>
                 <Button variant="outline" onClick={openMove}>
-                  Move
+                  {t('actions.move')}
                 </Button>
                 <Button variant="outline" onClick={openTags}>
-                  Tags
+                  {tc('tags')}
                 </Button>
                 <Button variant="outline" onClick={openGroups}>
-                  Groups
+                  {t('groups')}
                 </Button>
               </div>
             }
@@ -436,101 +438,113 @@ export default function ScreenDetailPage() {
             <StatusBadge status={screen.status} />
             {screen.status === 'ARCHIVED' || screen.status === 'DISABLED' ? (
               <Button size="sm" variant="secondary" disabled={busy} onClick={reactivate}>
-                Reactivate
+                {t('actions.reactivate')}
               </Button>
             ) : (
               <>
                 <Button size="sm" variant="ghost" disabled={busy} onClick={disable}>
-                  Disable
+                  {t('actions.disable')}
                 </Button>
                 <Button size="sm" variant="ghost" disabled={busy} onClick={archive}>
-                  Archive
+                  {t('actions.archive')}
                 </Button>
               </>
             )}
             <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleteOpen(true)}>
-              Delete
+              {tc('delete')}
             </Button>
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Identity</CardTitle>
+                <CardTitle>{t('cards.identity')}</CardTitle>
               </CardHeader>
               <CardContent className="divide-border divide-y">
-                <DetailRow label="Location">{screen.location?.name ?? 'Unassigned'}</DetailRow>
-                <DetailRow label="Use">{screen.use ? USE_LABELS[screen.use] : '—'}</DetailRow>
-                <DetailRow label="Orientation">{ORIENTATION_LABELS[screen.orientation]}</DetailRow>
-                <DetailRow label="Description">{screen.description || '—'}</DetailRow>
-                <DetailRow label="Notes">{screen.notes || '—'}</DetailRow>
-                <DetailRow label="Created">{formatDateTime(screen.createdAt, locale)}</DetailRow>
+                <DetailRow label={tc('location')}>
+                  {screen.location?.name ?? t('unassigned')}
+                </DetailRow>
+                <DetailRow label={t('fields.use')}>
+                  {screen.use ? USE_LABELS[screen.use] : '—'}
+                </DetailRow>
+                <DetailRow label={tc('orientation')}>
+                  {ORIENTATION_LABELS[screen.orientation]}
+                </DetailRow>
+                <DetailRow label={tc('description')}>{screen.description || '—'}</DetailRow>
+                <DetailRow label={t('fields.notes')}>{screen.notes || '—'}</DetailRow>
+                <DetailRow label={tc('created')}>
+                  {formatDateTime(screen.createdAt, locale)}
+                </DetailRow>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Monitoring</CardTitle>
+                <CardTitle>{t('cards.monitoring')}</CardTitle>
               </CardHeader>
               <CardContent className="divide-border divide-y">
-                <DetailRow label="Status">
+                <DetailRow label={tc('status')}>
                   <StatusBadge status={screen.status} />
                 </DetailRow>
-                <DetailRow label="Last heartbeat">
+                <DetailRow label={t('fields.lastHeartbeat')}>
                   {screen.lastHeartbeatAt
                     ? formatDateTime(screen.lastHeartbeatAt, locale)
-                    : 'Never'}
+                    : t('never')}
                 </DetailRow>
-                <DetailRow label="Last sync">
-                  {screen.lastSyncAt ? formatDateTime(screen.lastSyncAt, locale) : 'Never'}
+                <DetailRow label={t('fields.lastSync')}>
+                  {screen.lastSyncAt ? formatDateTime(screen.lastSyncAt, locale) : t('never')}
                 </DetailRow>
-                <DetailRow label="App version">{screen.appVersion ?? '—'}</DetailRow>
-                <DetailRow label="Current content">{screen.currentContentId ?? '—'}</DetailRow>
-                <DetailRow label="Storage used">
+                <DetailRow label={t('fields.appVersion')}>{screen.appVersion ?? '—'}</DetailRow>
+                <DetailRow label={t('fields.currentContent')}>
+                  {screen.currentContentId ?? '—'}
+                </DetailRow>
+                <DetailRow label={t('fields.storageUsed')}>
                   {screen.storageUsedBytes
                     ? formatBytes(Number(screen.storageUsedBytes), locale)
                     : '—'}
                 </DetailRow>
-                <p className="text-muted-foreground pt-3 text-xs">
-                  Monitoring values populate when the player connects (later phase).
-                </p>
+                <p className="text-muted-foreground pt-3 text-xs">{t('monitoringHint')}</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Audio</CardTitle>
+                <CardTitle>{t('cards.audio')}</CardTitle>
               </CardHeader>
               <CardContent className="divide-border divide-y">
-                <DetailRow label="Audio enabled">{screen.audioEnabled ? 'Yes' : 'No'}</DetailRow>
-                <DetailRow label="Volume">{screen.volume}</DetailRow>
-                <DetailRow label="Muted">{screen.muted ? 'Yes' : 'No'}</DetailRow>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Kiosk &amp; startup</CardTitle>
-              </CardHeader>
-              <CardContent className="divide-border divide-y">
-                <DetailRow label="Kiosk mode">
-                  {screen.kioskEnabled ? 'Enabled' : 'Disabled'}
+                <DetailRow label={t('fields.audioEnabled')}>
+                  {screen.audioEnabled ? t('yes') : t('no')}
                 </DetailRow>
-                <DetailRow label="Kiosk PIN">
+                <DetailRow label={t('fields.volume')}>{screen.volume}</DetailRow>
+                <DetailRow label={t('fields.muted')}>{screen.muted ? t('yes') : t('no')}</DetailRow>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('cards.kiosk')}</CardTitle>
+              </CardHeader>
+              <CardContent className="divide-border divide-y">
+                <DetailRow label={t('fields.kioskMode')}>
+                  {screen.kioskEnabled ? t('enabled') : t('disabled')}
+                </DetailRow>
+                <DetailRow label={t('fields.kioskPin')}>
                   {screen.hasKioskPin ? (
-                    <Badge tone="success">PIN set</Badge>
+                    <Badge tone="success">{t('pinSet')}</Badge>
                   ) : (
-                    <span className="text-muted-foreground">Not set</span>
+                    <span className="text-muted-foreground">{t('notSet')}</span>
                   )}
                 </DetailRow>
-                <DetailRow label="Auto-start">{screen.autoStartEnabled ? 'Yes' : 'No'}</DetailRow>
+                <DetailRow label={t('fields.autoStart')}>
+                  {screen.autoStartEnabled ? t('yes') : t('no')}
+                </DetailRow>
                 <div className="flex items-center gap-2 pt-3">
                   <Button size="sm" variant="outline" disabled={busy} onClick={openPin}>
-                    {screen.hasKioskPin ? 'Change PIN' : 'Set PIN'}
+                    {screen.hasKioskPin ? t('actions.changePin') : t('actions.setPin')}
                   </Button>
                   {screen.hasKioskPin && (
                     <Button size="sm" variant="ghost" disabled={busy} onClick={resetPin}>
-                      Remove PIN
+                      {t('actions.removePin')}
                     </Button>
                   )}
                 </div>
@@ -539,34 +553,34 @@ export default function ScreenDetailPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Device pairing</CardTitle>
+                <CardTitle>{t('cards.devicePairing')}</CardTitle>
               </CardHeader>
               <CardContent className="divide-border divide-y">
-                <DetailRow label="Status">
+                <DetailRow label={tc('status')}>
                   {pairing.data?.paired ? (
-                    <Badge tone="success">Paired</Badge>
+                    <Badge tone="success">{t('pairing.paired')}</Badge>
                   ) : pairing.data?.pendingCollection ? (
-                    <Badge tone="warning">Awaiting device</Badge>
+                    <Badge tone="warning">{t('pairing.awaitingDevice')}</Badge>
                   ) : (
-                    <span className="text-muted-foreground">Not paired</span>
+                    <span className="text-muted-foreground">{t('pairing.notPaired')}</span>
                   )}
                 </DetailRow>
                 {pairing.data?.device ? (
                   <>
-                    <DetailRow label="Device">
+                    <DetailRow label={t('fields.device')}>
                       {pairing.data.device.modelName ??
                         pairing.data.device.platform ??
                         pairing.data.device.deviceId}
                     </DetailRow>
-                    <DetailRow label="App version">
+                    <DetailRow label={t('fields.appVersion')}>
                       {pairing.data.device.appVersion ?? '—'}
                     </DetailRow>
-                    <DetailRow label="Paired at">
+                    <DetailRow label={t('fields.pairedAt')}>
                       {pairing.data.device.pairedAt
                         ? formatDateTime(pairing.data.device.pairedAt, locale)
                         : '—'}
                     </DetailRow>
-                    <DetailRow label="Last seen">
+                    <DetailRow label={t('fields.lastSeen')}>
                       {pairing.data.device.lastSeenAt
                         ? formatDateTime(pairing.data.device.lastSeenAt, locale)
                         : '—'}
@@ -590,8 +604,8 @@ export default function ScreenDetailPage() {
                     }}
                   >
                     {pairing.data?.paired || pairing.data?.pendingCollection
-                      ? 'Re-pair'
-                      : 'Pair device'}
+                      ? t('actions.rePair')
+                      : t('actions.pairDevice')}
                   </Button>
                   {(pairing.data?.paired || pairing.data?.pendingCollection) && (
                     <Button
@@ -600,60 +614,58 @@ export default function ScreenDetailPage() {
                       disabled={busy}
                       onClick={() => setUnpairOpen(true)}
                     >
-                      Unpair
+                      {t('actions.unpair')}
                     </Button>
                   )}
                 </div>
-                <p className="text-muted-foreground pt-3 text-xs">
-                  Open MasterSignage on the TV, then enter the code it shows here to pair.
-                </p>
+                <p className="text-muted-foreground pt-3 text-xs">{t('pairing.hint')}</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Sync &amp; cache</CardTitle>
+                <CardTitle>{t('cards.syncCache')}</CardTitle>
               </CardHeader>
               <CardContent className="divide-border divide-y">
                 {pairing.data?.sync ? (
                   <>
-                    <DetailRow label="Sync status">
+                    <DetailRow label={t('fields.syncStatus')}>
                       <Badge tone={syncTone(pairing.data.sync.status)}>
                         {pairing.data.sync.status}
                       </Badge>
                     </DetailRow>
-                    <DetailRow label="Playing from">
+                    <DetailRow label={t('fields.playingFrom')}>
                       {pairing.data.sync.manifestSource === 'LOCAL_CACHE' ? (
-                        <Badge tone="warning">Offline cache</Badge>
+                        <Badge tone="warning">{t('sync.offlineCache')}</Badge>
                       ) : pairing.data.sync.manifestSource === 'REMOTE' ? (
-                        <Badge tone="success">Online</Badge>
+                        <Badge tone="success">{t('sync.online')}</Badge>
                       ) : (
                         '—'
                       )}
                     </DetailRow>
-                    <DetailRow label="Assets cached">
+                    <DetailRow label={t('fields.assetsCached')}>
                       {pairing.data.sync.cachedAssets ?? 0} /{' '}
                       {pairing.data.sync.requiredAssets ?? 0}
                     </DetailRow>
-                    <DetailRow label="Failed downloads">
+                    <DetailRow label={t('fields.failedDownloads')}>
                       {pairing.data.sync.failedDownloads ?? 0}
                     </DetailRow>
-                    <DetailRow label="Cache size">
+                    <DetailRow label={t('fields.cacheSize')}>
                       {pairing.data.sync.cacheSizeBytes
                         ? formatBytes(Number(pairing.data.sync.cacheSizeBytes), locale)
                         : '—'}
                     </DetailRow>
-                    <DetailRow label="Free storage">
+                    <DetailRow label={t('fields.freeStorage')}>
                       {pairing.data.sync.availableStorageBytes
                         ? formatBytes(Number(pairing.data.sync.availableStorageBytes), locale)
                         : '—'}
                     </DetailRow>
-                    <DetailRow label="Last sync">
+                    <DetailRow label={t('fields.lastSync')}>
                       {pairing.data.sync.lastSyncAt
                         ? formatDateTime(pairing.data.sync.lastSyncAt, locale)
                         : '—'}
                     </DetailRow>
-                    <DetailRow label="Current manifest">
+                    <DetailRow label={t('fields.currentManifest')}>
                       {manifest.data?.manifestHash ? (
                         <span className="font-mono text-xs">
                           {manifest.data.manifestHash.slice(0, 12)}
@@ -662,7 +674,7 @@ export default function ScreenDetailPage() {
                         '—'
                       )}
                     </DetailRow>
-                    <DetailRow label="Device synced to">
+                    <DetailRow label={t('fields.deviceSyncedTo')}>
                       {(() => {
                         // Defensive: TS narrowing from the outer `sync` guard does
                         // not flow into this closure.
@@ -675,9 +687,9 @@ export default function ScreenDetailPage() {
                             <span className="font-mono text-xs">{reported.slice(0, 12)}</span>
                             {isHash && current ? (
                               reported === current ? (
-                                <Badge tone="success">In sync</Badge>
+                                <Badge tone="success">{t('sync.inSync')}</Badge>
                               ) : (
-                                <Badge tone="warning">Update pending</Badge>
+                                <Badge tone="warning">{t('sync.updatePending')}</Badge>
                               )
                             ) : null}
                           </span>
@@ -685,7 +697,7 @@ export default function ScreenDetailPage() {
                       })()}
                     </DetailRow>
                     {pairing.data.sync.lastError ? (
-                      <DetailRow label="Last error">
+                      <DetailRow label={t('fields.lastError')}>
                         <span className="text-red-600 dark:text-red-400">
                           {pairing.data.sync.lastError}
                         </span>
@@ -693,14 +705,14 @@ export default function ScreenDetailPage() {
                     ) : null}
                   </>
                 ) : (
-                  <p className="text-muted-foreground py-2 text-sm">No sync data reported yet.</p>
+                  <p className="text-muted-foreground py-2 text-sm">{t('sync.noData')}</p>
                 )}
               </CardContent>
             </Card>
 
             <Card className="lg:col-span-2">
               <CardHeader className="flex items-center justify-between">
-                <CardTitle>Monitoring &amp; control</CardTitle>
+                <CardTitle>{t('cards.monitoringControl')}</CardTitle>
                 {monitoring.data ? (
                   <Badge tone={liveStatusTone(monitoring.data.status)}>
                     {monitoring.data.status}
@@ -710,28 +722,28 @@ export default function ScreenDetailPage() {
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="divide-border divide-y">
-                    <DetailRow label="Playback">
+                    <DetailRow label={t('fields.playback')}>
                       {monitoring.data?.telemetry?.playbackState ?? '—'}
                     </DetailRow>
-                    <DetailRow label="Network">
+                    <DetailRow label={t('fields.network')}>
                       {monitoring.data?.telemetry?.networkStatus ?? '—'}
                     </DetailRow>
-                    <DetailRow label="Last heartbeat">
+                    <DetailRow label={t('fields.lastHeartbeat')}>
                       {monitoring.data?.lastHeartbeatAt
                         ? formatDateTime(monitoring.data.lastHeartbeatAt, locale)
-                        : 'Never'}
+                        : t('never')}
                     </DetailRow>
-                    <DetailRow label="Device">
+                    <DetailRow label={t('fields.device')}>
                       {monitoring.data?.telemetry?.deviceModel ?? '—'}
                       {monitoring.data?.telemetry?.osVersion
                         ? ` · ${monitoring.data.telemetry.osVersion}`
                         : ''}
                     </DetailRow>
-                    <DetailRow label="App version">
+                    <DetailRow label={t('fields.appVersion')}>
                       {monitoring.data?.telemetry?.appVersion ?? '—'}
                     </DetailRow>
                     {monitoring.data?.warningReason ? (
-                      <DetailRow label="Warning">
+                      <DetailRow label={t('fields.warning')}>
                         <span className="text-amber-600 dark:text-amber-400">
                           {monitoring.data.warningReason}
                         </span>
@@ -739,17 +751,17 @@ export default function ScreenDetailPage() {
                     ) : null}
                   </div>
                   <div>
-                    <p className="text-muted-foreground mb-1 text-xs">Latest screenshot</p>
+                    <p className="text-muted-foreground mb-1 text-xs">{t('latestScreenshot')}</p>
                     {monitoring.data?.latestScreenshot?.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={monitoring.data.latestScreenshot.url}
-                        alt="Latest screenshot"
+                        alt={t('latestScreenshot')}
                         className="border-border max-h-48 w-full rounded-md border object-contain"
                       />
                     ) : (
                       <div className="border-border text-muted-foreground flex h-32 items-center justify-center rounded-md border border-dashed text-sm">
-                        No screenshot yet
+                        {t('noScreenshot')}
                       </div>
                     )}
                   </div>
@@ -761,55 +773,55 @@ export default function ScreenDetailPage() {
                   <Button
                     size="sm"
                     disabled={busy}
-                    onClick={() => monitorAction('force-sync', 'Force sync')}
+                    onClick={() => monitorAction('force-sync', t('actions.forceSync'))}
                   >
-                    Force sync
+                    {t('actions.forceSync')}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     disabled={busy}
-                    onClick={() => monitorAction('refresh-manifest', 'Refresh manifest')}
+                    onClick={() => monitorAction('refresh-manifest', t('actions.refreshManifest'))}
                   >
-                    Refresh manifest
+                    {t('actions.refreshManifest')}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     disabled={busy}
-                    onClick={() => monitorAction('restart-playback', 'Restart playback')}
+                    onClick={() => monitorAction('restart-playback', t('actions.restartPlayback'))}
                   >
-                    Restart playback
+                    {t('actions.restartPlayback')}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     disabled={busy}
-                    onClick={() => monitorAction('clear-cache', 'Clear cache')}
+                    onClick={() => monitorAction('clear-cache', t('actions.clearCache'))}
                   >
-                    Clear cache
+                    {t('actions.clearCache')}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     disabled={busy}
-                    onClick={() => monitorAction('take-screenshot', 'Screenshot')}
+                    onClick={() => monitorAction('take-screenshot', t('actions.takeScreenshot'))}
                   >
-                    Take screenshot
+                    {t('actions.takeScreenshot')}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     disabled={busy}
-                    onClick={() => monitorAction('reboot', 'Reboot')}
+                    onClick={() => monitorAction('reboot', t('actions.reboot'))}
                   >
-                    Reboot
+                    {t('actions.reboot')}
                   </Button>
                 </div>
 
                 {commands.data && commands.data.items.length > 0 ? (
                   <div className="border-border border-t pt-3">
-                    <p className="text-muted-foreground mb-2 text-xs">Recent commands</p>
+                    <p className="text-muted-foreground mb-2 text-xs">{t('recentCommands')}</p>
                     <ul className="space-y-1">
                       {commands.data.items.map((c) => (
                         <li key={c.id} className="flex items-center justify-between gap-2 text-sm">
@@ -828,12 +840,16 @@ export default function ScreenDetailPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Working hours</CardTitle>
+                <CardTitle>{t('cards.workingHours')}</CardTitle>
               </CardHeader>
               <CardContent className="divide-border divide-y">
-                <DetailRow label="Schedule">{workingHoursSummary(screen.workingHours)}</DetailRow>
-                <DetailRow label="Timezone">{screen.workingHours?.timezone || '—'}</DetailRow>
-                <DetailRow label="Outside hours">
+                <DetailRow label={t('fields.schedule')}>
+                  {workingHoursSummary(screen.workingHours)}
+                </DetailRow>
+                <DetailRow label={t('fields.timezone')}>
+                  {screen.workingHours?.timezone || '—'}
+                </DetailRow>
+                <DetailRow label={t('fields.outsideHours')}>
                   {screen.workingHours?.outsideHoursBehavior || '—'}
                 </DetailRow>
               </CardContent>
@@ -841,25 +857,25 @@ export default function ScreenDetailPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Tags &amp; groups</CardTitle>
+                <CardTitle>{t('cards.tagsGroups')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-muted-foreground mb-2 text-sm">Tags</p>
+                  <p className="text-muted-foreground mb-2 text-sm">{tc('tags')}</p>
                   {screen.tags.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
-                      {screen.tags.map((t) => (
-                        <Badge key={t.id} tone="info">
-                          {t.name}
+                      {screen.tags.map((tag) => (
+                        <Badge key={tag.id} tone="info">
+                          {tag.name}
                         </Badge>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm">None</p>
+                    <p className="text-sm">{t('none')}</p>
                   )}
                 </div>
                 <div>
-                  <p className="text-muted-foreground mb-2 text-sm">Groups</p>
+                  <p className="text-muted-foreground mb-2 text-sm">{t('groups')}</p>
                   {screen.groups.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {screen.groups.map((g) => (
@@ -867,7 +883,7 @@ export default function ScreenDetailPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm">None</p>
+                    <p className="text-sm">{t('none')}</p>
                   )}
                 </div>
               </CardContent>
@@ -875,14 +891,10 @@ export default function ScreenDetailPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Fallback content</CardTitle>
+                <CardTitle>{t('cards.fallbackContent')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-muted-foreground text-sm">
-                  Shown on this screen when no playlist or schedule is active. Overrides the
-                  location and company defaults. Only ACTIVE content can be chosen; a warning
-                  appears if the content orientation does not match this screen.
-                </p>
+                <p className="text-muted-foreground text-sm">{t('fallbackHint')}</p>
                 <FallbackContentPicker
                   value={screen.fallbackContentId}
                   onChange={onFallbackChange}
@@ -897,21 +909,21 @@ export default function ScreenDetailPage() {
           <Dialog
             open={editOpen}
             onClose={() => !busy && setEditOpen(false)}
-            title="Edit Screen"
-            description="Update screen settings and configuration."
+            title={t('editDialog.title')}
+            description={t('editDialog.description')}
             className="max-h-[90vh] max-w-2xl overflow-y-auto"
           >
             <form onSubmit={submitEdit} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Name">
+                <Field label={tc('name')}>
                   <Input value={editName} onChange={(e) => setEditName(e.target.value)} required />
                 </Field>
-                <Field label="Code">
+                <Field label={t('fields.code')}>
                   <Input value={editCode} onChange={(e) => setEditCode(e.target.value)} />
                 </Field>
               </div>
 
-              <Field label="Description">
+              <Field label={tc('description')}>
                 <Textarea
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
@@ -920,12 +932,12 @@ export default function ScreenDetailPage() {
               </Field>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Use">
+                <Field label={t('fields.use')}>
                   <Select
                     value={editUse}
                     onChange={(e) => setEditUse(e.target.value as '' | ScreenUse)}
                   >
-                    <option value="">Not set</option>
+                    <option value="">{t('notSet')}</option>
                     {USE_OPTIONS.map((u) => (
                       <option key={u.value} value={u.value}>
                         {u.label}
@@ -933,7 +945,7 @@ export default function ScreenDetailPage() {
                     ))}
                   </Select>
                 </Field>
-                <Field label="Orientation">
+                <Field label={tc('orientation')}>
                   <Select
                     value={editOrientation}
                     onChange={(e) => setEditOrientation(e.target.value as Orientation)}
@@ -948,7 +960,7 @@ export default function ScreenDetailPage() {
               </div>
 
               <div className="border-border rounded-lg border p-4">
-                <p className="mb-3 text-sm font-medium">Audio</p>
+                <p className="mb-3 text-sm font-medium">{t('cards.audio')}</p>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <input
@@ -959,11 +971,13 @@ export default function ScreenDetailPage() {
                       onChange={(e) => setEditAudioEnabled(e.target.checked)}
                     />
                     <Label htmlFor="edit-audio" className="mb-0">
-                      Audio enabled
+                      {t('fields.audioEnabled')}
                     </Label>
                   </div>
                   <div>
-                    <Label htmlFor="edit-volume">Volume ({editVolume})</Label>
+                    <Label htmlFor="edit-volume">
+                      {t('fields.volume')} ({editVolume})
+                    </Label>
                     <input
                       id="edit-volume"
                       type="range"
@@ -985,7 +999,7 @@ export default function ScreenDetailPage() {
                       onChange={(e) => setEditMuted(e.target.checked)}
                     />
                     <Label htmlFor="edit-muted" className="mb-0">
-                      Muted
+                      {t('fields.muted')}
                     </Label>
                   </div>
                 </div>
@@ -1001,7 +1015,7 @@ export default function ScreenDetailPage() {
                     onChange={(e) => setEditKioskEnabled(e.target.checked)}
                   />
                   <Label htmlFor="edit-kiosk" className="mb-0">
-                    Kiosk mode enabled
+                    {t('fields.kioskModeEnabled')}
                   </Label>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1013,12 +1027,12 @@ export default function ScreenDetailPage() {
                     onChange={(e) => setEditAutoStart(e.target.checked)}
                   />
                   <Label htmlFor="edit-autostart" className="mb-0">
-                    Auto-start on boot
+                    {t('fields.autoStartOnBoot')}
                   </Label>
                 </div>
               </div>
 
-              <Field label="Notes">
+              <Field label={t('fields.notes')}>
                 <Textarea
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
@@ -1027,7 +1041,7 @@ export default function ScreenDetailPage() {
               </Field>
 
               <div className="border-border rounded-lg border p-4">
-                <p className="mb-3 text-sm font-medium">Working hours</p>
+                <p className="mb-3 text-sm font-medium">{t('cards.workingHours')}</p>
                 <WorkingHoursEditor value={editWorkingHours} onChange={setEditWorkingHours} />
               </div>
 
@@ -1038,11 +1052,11 @@ export default function ScreenDetailPage() {
                   onClick={() => setEditOpen(false)}
                   disabled={busy}
                 >
-                  Cancel
+                  {tc('cancel')}
                 </Button>
                 <Button type="submit" disabled={busy}>
                   {busy && <Spinner className="size-4" />}
-                  Save changes
+                  {t('editDialog.submit')}
                 </Button>
               </div>
             </form>
@@ -1052,13 +1066,13 @@ export default function ScreenDetailPage() {
           <Dialog
             open={moveOpen}
             onClose={() => !busy && setMoveOpen(false)}
-            title="Move Screen"
-            description="Assign this screen to a different location."
+            title={t('moveDialog.title')}
+            description={t('moveDialog.description')}
           >
             <div className="space-y-4">
-              <Field label="Location">
+              <Field label={tc('location')}>
                 <Select value={moveLocationId} onChange={(e) => setMoveLocationId(e.target.value)}>
-                  <option value="">Unassigned</option>
+                  <option value="">{t('unassigned')}</option>
                   {(locations.data?.items ?? []).map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.name}
@@ -1073,11 +1087,11 @@ export default function ScreenDetailPage() {
                   onClick={() => setMoveOpen(false)}
                   disabled={busy}
                 >
-                  Cancel
+                  {tc('cancel')}
                 </Button>
                 <Button type="button" onClick={submitMove} disabled={busy}>
                   {busy && <Spinner className="size-4" />}
-                  Move
+                  {t('actions.move')}
                 </Button>
               </div>
             </div>
@@ -1087,24 +1101,24 @@ export default function ScreenDetailPage() {
           <Dialog
             open={tagsOpen}
             onClose={() => !busy && setTagsOpen(false)}
-            title="Edit Tags"
-            description="Select the tags applied to this screen."
+            title={t('tagsDialog.title')}
+            description={t('tagsDialog.description')}
             className="max-h-[80vh] overflow-y-auto"
           >
             <div className="space-y-4">
               {(allTags.data?.items ?? []).length === 0 ? (
-                <p className="text-muted-foreground text-sm">No tags available.</p>
+                <p className="text-muted-foreground text-sm">{t('tagsDialog.empty')}</p>
               ) : (
                 <div className="space-y-2">
-                  {(allTags.data?.items ?? []).map((t) => (
-                    <label key={t.id} className="flex items-center gap-2 text-sm">
+                  {(allTags.data?.items ?? []).map((tag) => (
+                    <label key={tag.id} className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
                         className="border-border accent-primary size-4 rounded"
-                        checked={tagIds.includes(t.id)}
-                        onChange={() => toggleId(t.id, tagIds, setTagIds)}
+                        checked={tagIds.includes(tag.id)}
+                        onChange={() => toggleId(tag.id, tagIds, setTagIds)}
                       />
-                      {t.name}
+                      {tag.name}
                     </label>
                   ))}
                 </div>
@@ -1116,11 +1130,11 @@ export default function ScreenDetailPage() {
                   onClick={() => setTagsOpen(false)}
                   disabled={busy}
                 >
-                  Cancel
+                  {tc('cancel')}
                 </Button>
                 <Button type="button" onClick={submitTags} disabled={busy}>
                   {busy && <Spinner className="size-4" />}
-                  Save tags
+                  {t('tagsDialog.submit')}
                 </Button>
               </div>
             </div>
@@ -1130,13 +1144,13 @@ export default function ScreenDetailPage() {
           <Dialog
             open={groupsOpen}
             onClose={() => !busy && setGroupsOpen(false)}
-            title="Edit Groups"
-            description="Select the groups this screen belongs to."
+            title={t('groupsDialog.title')}
+            description={t('groupsDialog.description')}
             className="max-h-[80vh] overflow-y-auto"
           >
             <div className="space-y-4">
               {(allGroups.data?.items ?? []).length === 0 ? (
-                <p className="text-muted-foreground text-sm">No groups available.</p>
+                <p className="text-muted-foreground text-sm">{t('groupsDialog.empty')}</p>
               ) : (
                 <div className="space-y-2">
                   {(allGroups.data?.items ?? []).map((g) => (
@@ -1159,11 +1173,11 @@ export default function ScreenDetailPage() {
                   onClick={() => setGroupsOpen(false)}
                   disabled={busy}
                 >
-                  Cancel
+                  {tc('cancel')}
                 </Button>
                 <Button type="button" onClick={submitGroups} disabled={busy}>
                   {busy && <Spinner className="size-4" />}
-                  Save groups
+                  {t('groupsDialog.submit')}
                 </Button>
               </div>
             </div>
@@ -1173,17 +1187,17 @@ export default function ScreenDetailPage() {
           <Dialog
             open={pinOpen}
             onClose={() => !busy && setPinOpen(false)}
-            title={screen.hasKioskPin ? 'Change Kiosk PIN' : 'Set Kiosk PIN'}
-            description="Enter a 4-8 digit PIN used to exit kiosk mode."
+            title={screen.hasKioskPin ? t('pinDialog.titleChange') : t('pinDialog.titleSet')}
+            description={t('pinDialog.description')}
           >
             <div className="space-y-4">
-              <Field label="Kiosk PIN">
+              <Field label={t('fields.kioskPin')}>
                 <Input
                   type="password"
                   autoComplete="off"
                   value={pinValue}
                   onChange={(e) => setPinValue(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                  placeholder="e.g. 1234"
+                  placeholder={t('pinDialog.placeholder')}
                   inputMode="numeric"
                 />
               </Field>
@@ -1194,11 +1208,11 @@ export default function ScreenDetailPage() {
                   onClick={() => setPinOpen(false)}
                   disabled={busy}
                 >
-                  Cancel
+                  {tc('cancel')}
                 </Button>
                 <Button type="button" onClick={submitPin} disabled={busy}>
                   {busy && <Spinner className="size-4" />}
-                  Save PIN
+                  {t('pinDialog.submit')}
                 </Button>
               </div>
             </div>
@@ -1208,11 +1222,11 @@ export default function ScreenDetailPage() {
           <Dialog
             open={pairOpen}
             onClose={() => !busy && setPairOpen(false)}
-            title="Pair device"
-            description="Open MasterSignage on the TV and enter the code it displays."
+            title={t('pairDialog.title')}
+            description={t('pairDialog.description')}
           >
             <div className="space-y-4">
-              <Field label="Pairing code">
+              <Field label={t('fields.pairingCode')}>
                 <Input
                   value={pairCode}
                   onChange={(e) =>
@@ -1223,7 +1237,7 @@ export default function ScreenDetailPage() {
                         .slice(0, 8),
                     )
                   }
-                  placeholder="e.g. A7K9Q2"
+                  placeholder={t('pairDialog.placeholder')}
                   autoFocus
                 />
               </Field>
@@ -1234,7 +1248,7 @@ export default function ScreenDetailPage() {
                   onClick={() => setPairOpen(false)}
                   disabled={busy}
                 >
-                  Cancel
+                  {tc('cancel')}
                 </Button>
                 <Button
                   type="button"
@@ -1242,7 +1256,7 @@ export default function ScreenDetailPage() {
                   onClick={() =>
                     runAction(
                       () => api.post(`/screens/${id}/pair`, { pairingCode: pairCode.trim() }),
-                      'Device paired.',
+                      t('toast.devicePaired'),
                       () => {
                         setPairOpen(false);
                         reload();
@@ -1252,7 +1266,7 @@ export default function ScreenDetailPage() {
                   }
                 >
                   {busy && <Spinner className="size-4" />}
-                  Pair
+                  {t('pairDialog.submit')}
                 </Button>
               </div>
             </div>
@@ -1262,8 +1276,8 @@ export default function ScreenDetailPage() {
           <Dialog
             open={unpairOpen}
             onClose={() => !busy && setUnpairOpen(false)}
-            title="Unpair device"
-            description="This revokes the device token. The screen stops playing until it is paired again."
+            title={t('unpairDialog.title')}
+            description={t('unpairDialog.description')}
           >
             <div className="flex justify-end gap-2">
               <Button
@@ -1272,7 +1286,7 @@ export default function ScreenDetailPage() {
                 onClick={() => setUnpairOpen(false)}
                 disabled={busy}
               >
-                Cancel
+                {tc('cancel')}
               </Button>
               <Button
                 type="button"
@@ -1281,7 +1295,7 @@ export default function ScreenDetailPage() {
                 onClick={() =>
                   runAction(
                     () => api.post(`/screens/${id}/unpair`),
-                    'Device unpaired.',
+                    t('toast.deviceUnpaired'),
                     () => {
                       setUnpairOpen(false);
                       reload();
@@ -1291,7 +1305,7 @@ export default function ScreenDetailPage() {
                 }
               >
                 {busy && <Spinner className="size-4" />}
-                Unpair
+                {t('actions.unpair')}
               </Button>
             </div>
           </Dialog>
@@ -1300,8 +1314,8 @@ export default function ScreenDetailPage() {
           <Dialog
             open={deleteOpen}
             onClose={() => !busy && setDeleteOpen(false)}
-            title="Delete Screen"
-            description="This permanently removes the screen. This action cannot be undone."
+            title={t('deleteDialog.title')}
+            description={t('deleteDialog.description')}
           >
             <div className="flex justify-end gap-2">
               <Button
@@ -1310,11 +1324,11 @@ export default function ScreenDetailPage() {
                 onClick={() => setDeleteOpen(false)}
                 disabled={busy}
               >
-                Cancel
+                {tc('cancel')}
               </Button>
               <Button type="button" variant="danger" onClick={submitDelete} disabled={busy}>
                 {busy && <Spinner className="size-4" />}
-                Delete screen
+                {t('deleteDialog.submit')}
               </Button>
             </div>
           </Dialog>

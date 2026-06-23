@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
@@ -20,6 +21,8 @@ import {
 } from '@/components/ui';
 
 export default function NewPlaylistPage() {
+  const t = useTranslations('pages.playlistsNew');
+  const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
   const [title, setTitle] = useState('');
@@ -29,7 +32,7 @@ export default function NewPlaylistPage() {
 
   const submit = async () => {
     if (!title.trim()) {
-      toast('A title is required.', 'error');
+      toast(t('titleRequired'), 'error');
       return;
     }
     setSaving(true);
@@ -39,10 +42,10 @@ export default function NewPlaylistPage() {
         description: description.trim() || undefined,
         status,
       });
-      toast('Playlist created.', 'success');
+      toast(t('createdToast'), 'success');
       router.push(`/company/playlists/${created.id}`);
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Could not create playlist.', 'error');
+      toast(err instanceof ApiError ? err.message : t('createError'), 'error');
       setSaving(false);
     }
   };
@@ -53,24 +56,21 @@ export default function NewPlaylistPage() {
         href="/company/playlists"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm"
       >
-        <ArrowLeft className="size-4" /> Back to playlists
+        <ArrowLeft className="size-4" /> {t('backToPlaylists')}
       </Link>
-      <PageHeader
-        title="New playlist"
-        description="Name your playlist, then add content on the next screen."
-      />
+      <PageHeader title={t('title')} description={t('description')} />
 
       <Card>
         <CardContent className="space-y-4">
-          <Field label="Title">
+          <Field label={t('titleLabel')}>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Lobby loop"
+              placeholder={t('titlePlaceholder')}
               maxLength={200}
             />
           </Field>
-          <Field label="Description" hint="Optional.">
+          <Field label={tc('description')} hint={t('optionalHint')}>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -78,13 +78,13 @@ export default function NewPlaylistPage() {
               maxLength={1000}
             />
           </Field>
-          <Field label="Status">
+          <Field label={tc('status')}>
             <Select
               value={status}
               onChange={(e) => setStatus(e.target.value as 'ACTIVE' | 'DRAFT')}
             >
-              <option value="ACTIVE">Active</option>
-              <option value="DRAFT">Draft</option>
+              <option value="ACTIVE">{t('statusActive')}</option>
+              <option value="DRAFT">{t('statusDraft')}</option>
             </Select>
           </Field>
           <div className="flex justify-end gap-2 pt-2">
@@ -93,10 +93,10 @@ export default function NewPlaylistPage() {
               onClick={() => router.push('/company/playlists')}
               disabled={saving}
             >
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button onClick={submit} disabled={saving}>
-              {saving ? <Spinner className="size-4" /> : 'Create playlist'}
+              {saving ? <Spinner className="size-4" /> : t('createButton')}
             </Button>
           </div>
         </CardContent>

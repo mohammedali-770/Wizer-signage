@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
@@ -36,6 +37,8 @@ function dateToIso(value: string): string | undefined {
 }
 
 export default function NewSchedulePage() {
+  const t = useTranslations('pages.schedulesNew');
+  const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
   const playlists = useApiResource<Paginated<PlaylistListItem>>(
@@ -59,10 +62,9 @@ export default function NewSchedulePage() {
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
-    if (!name.trim()) return toast('A name is required.', 'error');
-    if (!startDate) return toast('A start date is required.', 'error');
-    if (!isAllDay && (!startTime || !endTime))
-      return toast('Start and end time are required unless all-day.', 'error');
+    if (!name.trim()) return toast(t('toast.nameRequired'), 'error');
+    if (!startDate) return toast(t('toast.startDateRequired'), 'error');
+    if (!isAllDay && (!startTime || !endTime)) return toast(t('toast.timeRequired'), 'error');
 
     const payload = {
       name: name.trim(),
@@ -84,10 +86,10 @@ export default function NewSchedulePage() {
     setSaving(true);
     try {
       const created = await api.post<Schedule>('/schedules', payload);
-      toast('Schedule created.', 'success');
+      toast(t('toast.created'), 'success');
       router.push(`/company/schedules/${created.id}`);
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Could not create schedule.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.createError'), 'error');
       setSaving(false);
     }
   };
@@ -98,25 +100,22 @@ export default function NewSchedulePage() {
         href="/company/schedules"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm"
       >
-        <ArrowLeft className="size-4" /> Back to schedules
+        <ArrowLeft className="size-4" /> {t('backToSchedules')}
       </Link>
-      <PageHeader
-        title="New schedule"
-        description="Assign a playlist to screens with timing and priority."
-      />
+      <PageHeader title={t('title')} description={t('description')} />
 
       <div className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle>Details</CardTitle>
+            <CardTitle>{t('details.title')}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field label="Name">
+            <Field label={tc('name')}>
               <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
             </Field>
-            <Field label="Playlist">
+            <Field label={t('fields.playlist')}>
               <Select value={playlistId} onChange={(e) => setPlaylistId(e.target.value)}>
-                <option value="">— none yet —</option>
+                <option value="">{t('fields.noneYet')}</option>
                 {playlists.data?.items.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.title}
@@ -124,7 +123,7 @@ export default function NewSchedulePage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Description" hint="Optional.">
+            <Field label={tc('description')} hint={t('hints.optional')}>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -133,16 +132,16 @@ export default function NewSchedulePage() {
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Type">
+              <Field label={tc('type')}>
                 <Select
                   value={scheduleType}
                   onChange={(e) => setScheduleType(e.target.value as ScheduleType)}
                 >
-                  <option value="NORMAL">Normal</option>
-                  <option value="CAMPAIGN">Campaign</option>
+                  <option value="NORMAL">{t('types.normal')}</option>
+                  <option value="CAMPAIGN">{t('types.campaign')}</option>
                 </Select>
               </Field>
-              <Field label="Priority" hint="Higher wins.">
+              <Field label={t('fields.priority')} hint={t('hints.higherWins')}>
                 <Input
                   type="number"
                   min={0}
@@ -151,10 +150,10 @@ export default function NewSchedulePage() {
                 />
               </Field>
             </div>
-            <Field label="Status">
+            <Field label={tc('status')}>
               <Select value={status} onChange={(e) => setStatus(e.target.value as ScheduleStatus)}>
-                <option value="ACTIVE">Active (needs playlist + targets)</option>
-                <option value="PAUSED">Paused</option>
+                <option value="ACTIVE">{t('statuses.active')}</option>
+                <option value="PAUSED">{t('statuses.paused')}</option>
               </Select>
             </Field>
           </CardContent>
@@ -162,18 +161,18 @@ export default function NewSchedulePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Timing</CardTitle>
+            <CardTitle>{t('timing.title')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Start date">
+              <Field label={t('fields.startDate')}>
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                 />
               </Field>
-              <Field label="End date" hint="Optional; open-ended if blank.">
+              <Field label={t('fields.endDate')} hint={t('hints.endDate')}>
                 <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </Field>
             </div>
@@ -183,33 +182,30 @@ export default function NewSchedulePage() {
                 checked={isAllDay}
                 onChange={(e) => setIsAllDay(e.target.checked)}
               />
-              All day
+              {t('fields.allDay')}
             </label>
             {!isAllDay ? (
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Start time">
+                <Field label={t('fields.startTime')}>
                   <Input
                     type="time"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
                   />
                 </Field>
-                <Field label="End time" hint="An end before start means overnight.">
+                <Field label={t('fields.endTime')} hint={t('hints.endTime')}>
                   <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
                 </Field>
               </div>
             ) : null}
-            <Field label="Days of week">
+            <Field label={t('fields.daysOfWeek')}>
               <DaysOfWeekField value={daysOfWeek} onChange={setDaysOfWeek} />
             </Field>
-            <Field
-              label="Timezone"
-              hint="Optional; defaults to the screen / location / company timezone."
-            >
+            <Field label={t('fields.timezone')} hint={t('hints.timezone')}>
               <Input
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
-                placeholder="e.g. Asia/Riyadh"
+                placeholder={t('placeholders.timezone')}
               />
             </Field>
           </CardContent>
@@ -217,7 +213,7 @@ export default function NewSchedulePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Targets</CardTitle>
+            <CardTitle>{t('targets.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <TargetSelector
@@ -234,10 +230,10 @@ export default function NewSchedulePage() {
             onClick={() => router.push('/company/schedules')}
             disabled={saving}
           >
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button onClick={submit} disabled={saving}>
-            {saving ? <Spinner className="size-4" /> : 'Create schedule'}
+            {saving ? <Spinner className="size-4" /> : t('createSchedule')}
           </Button>
         </div>
       </div>

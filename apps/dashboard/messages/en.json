@@ -101,7 +101,11 @@
     "save": "Save",
     "cancel": "Cancel",
     "edit": "Edit",
-    "delete": "Delete"
+    "delete": "Delete",
+    "create": "Create",
+    "description": "Description",
+    "back": "Back",
+    "saving": "Saving…"
   },
   "theme": {
     "toggle": "Toggle theme",
@@ -265,6 +269,352 @@
       "emptyTitle": "No tags found",
       "emptyFiltered": "Try adjusting your search or type filter.",
       "emptyDescription": "Create your first tag to start organizing screens."
+    },
+    "screensNew": {
+      "title": "New Screen",
+      "description": "Register a display to manage and pair later.",
+      "createScreen": "Create screen",
+      "sections": {
+        "details": "Details",
+        "audio": "Audio",
+        "kiosk": "Kiosk & startup",
+        "workingHours": "Working hours"
+      },
+      "fields": {
+        "code": "Code",
+        "use": "Use",
+        "kioskPin": "Kiosk PIN"
+      },
+      "hints": {
+        "code": "Optional internal identifier.",
+        "kioskPin": "Optional. 4-8 digits, used to exit kiosk mode."
+      },
+      "placeholders": {
+        "name": "Lobby display",
+        "code": "SCR-001",
+        "description": "Where this screen is and what it shows.",
+        "kioskPin": "e.g. 1234"
+      },
+      "options": {
+        "unassigned": "Unassigned",
+        "notSet": "Not set"
+      },
+      "audio": {
+        "enabled": "Audio enabled",
+        "volume": "Volume ({value})",
+        "muted": "Muted"
+      },
+      "kiosk": {
+        "enabled": "Kiosk mode enabled",
+        "autoStart": "Auto-start on device boot"
+      },
+      "toast": {
+        "nameRequired": "Name is required.",
+        "pinInvalid": "Kiosk PIN must be 4-8 digits.",
+        "created": "Screen created.",
+        "error": "Something went wrong."
+      }
+    },
+    "contentNew": {
+      "title": "Add Content",
+      "description": "Upload a file, link an external URL, or compose a text slide.",
+      "backToContent": "Back to Content",
+      "modeUpload": "Upload file",
+      "modeUrl": "URL",
+      "modeText": "Text",
+      "fileLabel": "File",
+      "fileHint": "Images, videos, or PDF. The title defaults to the file name.",
+      "fileAriaLabel": "File to upload",
+      "urlLabel": "URL",
+      "urlHint": "External URLs may be unreliable or blocked by the display device. Prefer uploading a file when possible.",
+      "urlPlaceholder": "https://example.com/page",
+      "textLabel": "Text body",
+      "textHint": "The text shown on the slide.",
+      "textPlaceholder": "Write the slide text here…",
+      "titleLabel": "Title",
+      "titlePlaceholder": "A short, descriptive name",
+      "descriptionPlaceholder": "Optional notes about this content.",
+      "expiresLabel": "Expires",
+      "expiresHint": "Optional. Content is hidden after this date.",
+      "durationLabel": "Duration (seconds)",
+      "durationHint": "Optional. How long this item shows in a playlist.",
+      "durationPlaceholder": "e.g. 10",
+      "tagsLoading": "Loading tags…",
+      "tagsEmpty": "No content tags available.",
+      "tagsHint": "Optional. Select one or more content tags.",
+      "submitUpload": "Upload content",
+      "submitCreate": "Create content",
+      "toastTitleRequired": "Title is required.",
+      "toastChooseFile": "Choose a file to upload.",
+      "toastUrlRequired": "URL is required.",
+      "toastUrlInvalid": "Enter a valid http(s) URL.",
+      "toastTextRequired": "Text body is required.",
+      "toastCreated": "Content created.",
+      "toastError": "Something went wrong."
+    },
+    "playlistsNew": {
+      "title": "New playlist",
+      "description": "Name your playlist, then add content on the next screen.",
+      "backToPlaylists": "Back to playlists",
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. Lobby loop",
+      "optionalHint": "Optional.",
+      "statusActive": "Active",
+      "statusDraft": "Draft",
+      "createButton": "Create playlist",
+      "titleRequired": "A title is required.",
+      "createdToast": "Playlist created.",
+      "createError": "Could not create playlist."
+    },
+    "schedulesNew": {
+      "title": "New schedule",
+      "description": "Assign a playlist to screens with timing and priority.",
+      "backToSchedules": "Back to schedules",
+      "createSchedule": "Create schedule",
+      "details": {
+        "title": "Details"
+      },
+      "timing": {
+        "title": "Timing"
+      },
+      "targets": {
+        "title": "Targets"
+      },
+      "fields": {
+        "playlist": "Playlist",
+        "noneYet": "— none yet —",
+        "priority": "Priority",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "allDay": "All day",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "daysOfWeek": "Days of week",
+        "timezone": "Timezone"
+      },
+      "types": {
+        "normal": "Normal",
+        "campaign": "Campaign"
+      },
+      "statuses": {
+        "active": "Active (needs playlist + targets)",
+        "paused": "Paused"
+      },
+      "hints": {
+        "optional": "Optional.",
+        "higherWins": "Higher wins.",
+        "endDate": "Optional; open-ended if blank.",
+        "endTime": "An end before start means overnight.",
+        "timezone": "Optional; defaults to the screen / location / company timezone."
+      },
+      "placeholders": {
+        "timezone": "e.g. Asia/Riyadh"
+      },
+      "toast": {
+        "nameRequired": "A name is required.",
+        "startDateRequired": "A start date is required.",
+        "timeRequired": "Start and end time are required unless all-day.",
+        "created": "Schedule created.",
+        "createError": "Could not create schedule."
+      }
+    },
+    "locationsNew": {
+      "title": "New Location",
+      "backToLocations": "Back to locations",
+      "createLocation": "Create location",
+      "sections": {
+        "details": "Details",
+        "workingHours": "Working hours"
+      },
+      "fields": {
+        "code": "Code",
+        "address": "Address",
+        "city": "City",
+        "region": "Region",
+        "country": "Country",
+        "timezone": "Timezone",
+        "latitude": "Latitude",
+        "longitude": "Longitude"
+      },
+      "hints": {
+        "code": "Optional short identifier."
+      },
+      "placeholders": {
+        "name": "Main Branch",
+        "code": "MB-01",
+        "description": "Notes about this location.",
+        "address": "123 King Fahd Road",
+        "city": "Riyadh",
+        "region": "Riyadh Province",
+        "country": "Saudi Arabia"
+      },
+      "toast": {
+        "nameRequired": "Name is required.",
+        "created": "Location created.",
+        "error": "Something went wrong."
+      }
+    },
+    "screenDetail": {
+      "backToScreens": "Back to screens",
+      "loadError": "Could not load screen",
+      "unassigned": "Unassigned",
+      "never": "Never",
+      "yes": "Yes",
+      "no": "No",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "pinSet": "PIN set",
+      "notSet": "Not set",
+      "none": "None",
+      "groups": "Groups",
+      "monitoringHint": "Monitoring values populate when the player connects (later phase).",
+      "latestScreenshot": "Latest screenshot",
+      "noScreenshot": "No screenshot yet",
+      "recentCommands": "Recent commands",
+      "fallbackHint": "Shown on this screen when no playlist or schedule is active. Overrides the location and company defaults. Only ACTIVE content can be chosen; a warning appears if the content orientation does not match this screen.",
+      "cards": {
+        "identity": "Identity",
+        "monitoring": "Monitoring",
+        "audio": "Audio",
+        "kiosk": "Kiosk & startup",
+        "devicePairing": "Device pairing",
+        "syncCache": "Sync & cache",
+        "monitoringControl": "Monitoring & control",
+        "workingHours": "Working hours",
+        "tagsGroups": "Tags & groups",
+        "fallbackContent": "Fallback content"
+      },
+      "fields": {
+        "use": "Use",
+        "code": "Code",
+        "notes": "Notes",
+        "lastHeartbeat": "Last heartbeat",
+        "lastSync": "Last sync",
+        "appVersion": "App version",
+        "currentContent": "Current content",
+        "storageUsed": "Storage used",
+        "audioEnabled": "Audio enabled",
+        "volume": "Volume",
+        "muted": "Muted",
+        "kioskMode": "Kiosk mode",
+        "kioskModeEnabled": "Kiosk mode enabled",
+        "kioskPin": "Kiosk PIN",
+        "autoStart": "Auto-start",
+        "autoStartOnBoot": "Auto-start on boot",
+        "device": "Device",
+        "pairedAt": "Paired at",
+        "lastSeen": "Last seen",
+        "syncStatus": "Sync status",
+        "playingFrom": "Playing from",
+        "assetsCached": "Assets cached",
+        "failedDownloads": "Failed downloads",
+        "cacheSize": "Cache size",
+        "freeStorage": "Free storage",
+        "currentManifest": "Current manifest",
+        "deviceSyncedTo": "Device synced to",
+        "lastError": "Last error",
+        "playback": "Playback",
+        "network": "Network",
+        "warning": "Warning",
+        "schedule": "Schedule",
+        "timezone": "Timezone",
+        "outsideHours": "Outside hours",
+        "pairingCode": "Pairing code"
+      },
+      "actions": {
+        "move": "Move",
+        "reactivate": "Reactivate",
+        "disable": "Disable",
+        "archive": "Archive",
+        "changePin": "Change PIN",
+        "setPin": "Set PIN",
+        "removePin": "Remove PIN",
+        "rePair": "Re-pair",
+        "pairDevice": "Pair device",
+        "unpair": "Unpair",
+        "forceSync": "Force sync",
+        "refreshManifest": "Refresh manifest",
+        "restartPlayback": "Restart playback",
+        "clearCache": "Clear cache",
+        "takeScreenshot": "Take screenshot",
+        "reboot": "Reboot"
+      },
+      "pairing": {
+        "paired": "Paired",
+        "awaitingDevice": "Awaiting device",
+        "notPaired": "Not paired",
+        "hint": "Open MasterSignage on the TV, then enter the code it shows here to pair."
+      },
+      "sync": {
+        "offlineCache": "Offline cache",
+        "online": "Online",
+        "inSync": "In sync",
+        "updatePending": "Update pending",
+        "noData": "No sync data reported yet."
+      },
+      "editDialog": {
+        "title": "Edit Screen",
+        "description": "Update screen settings and configuration.",
+        "submit": "Save changes"
+      },
+      "moveDialog": {
+        "title": "Move Screen",
+        "description": "Assign this screen to a different location."
+      },
+      "tagsDialog": {
+        "title": "Edit Tags",
+        "description": "Select the tags applied to this screen.",
+        "empty": "No tags available.",
+        "submit": "Save tags"
+      },
+      "groupsDialog": {
+        "title": "Edit Groups",
+        "description": "Select the groups this screen belongs to.",
+        "empty": "No groups available.",
+        "submit": "Save groups"
+      },
+      "pinDialog": {
+        "titleChange": "Change Kiosk PIN",
+        "titleSet": "Set Kiosk PIN",
+        "description": "Enter a 4-8 digit PIN used to exit kiosk mode.",
+        "placeholder": "e.g. 1234",
+        "submit": "Save PIN"
+      },
+      "pairDialog": {
+        "title": "Pair device",
+        "description": "Open MasterSignage on the TV and enter the code it displays.",
+        "placeholder": "e.g. A7K9Q2",
+        "submit": "Pair"
+      },
+      "unpairDialog": {
+        "title": "Unpair device",
+        "description": "This revokes the device token. The screen stops playing until it is paired again."
+      },
+      "deleteDialog": {
+        "title": "Delete Screen",
+        "description": "This permanently removes the screen. This action cannot be undone.",
+        "submit": "Delete screen"
+      },
+      "toast": {
+        "genericError": "Something went wrong.",
+        "actionRequested": "{action} requested.",
+        "nameRequired": "Name is required.",
+        "updated": "Screen updated.",
+        "moved": "Screen moved.",
+        "tagsUpdated": "Tags updated.",
+        "groupsUpdated": "Groups updated.",
+        "pinInvalid": "Kiosk PIN must be 4-8 digits.",
+        "pinSet": "Kiosk PIN set.",
+        "pinRemoved": "Kiosk PIN removed.",
+        "fallbackUpdated": "Fallback content updated.",
+        "fallbackCleared": "Fallback content cleared.",
+        "archived": "Screen archived.",
+        "disabled": "Screen disabled.",
+        "reactivated": "Screen reactivated.",
+        "deleted": "Screen deleted.",
+        "devicePaired": "Device paired.",
+        "deviceUnpaired": "Device unpaired."
+      }
     }
   }
 }
