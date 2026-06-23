@@ -574,9 +574,15 @@ export default function ScreenDetailPage() {
                   </>
                 ) : null}
                 <div className="flex items-center gap-2 pt-3">
+                  {/* Primary CTA when the screen still needs pairing, so it
+                      stands out; a re-pair on an already-paired screen is secondary. */}
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant={
+                      pairing.data?.paired || pairing.data?.pendingCollection
+                        ? 'outline'
+                        : 'primary'
+                    }
                     disabled={busy}
                     onClick={() => {
                       setPairCode('');

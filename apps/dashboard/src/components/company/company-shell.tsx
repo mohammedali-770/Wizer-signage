@@ -29,24 +29,48 @@ import { LocaleSwitcher } from '@/components/locale-switcher';
 import { Button, Spinner } from '@/components/ui';
 import { NotificationBell } from '@/components/notification-bell';
 
-const NAV = [
-  { href: '/company', label: 'Overview', icon: LayoutDashboard, exact: true },
-  { href: '/company/locations', label: 'Locations', icon: Building2 },
-  { href: '/company/screens', label: 'Screens', icon: Monitor },
-  { href: '/company/monitoring', label: 'Monitoring', icon: Activity },
-  { href: '/company/alerts', label: 'Alerts', icon: Bell },
-  { href: '/company/emergency-broadcasts', label: 'Emergency', icon: Megaphone },
-  { href: '/company/screen-groups', label: 'Screen Groups', icon: Users },
-  { href: '/company/content', label: 'Content Library', icon: Library },
-  { href: '/company/playlists', label: 'Playlists', icon: ListVideo },
-  { href: '/company/schedules', label: 'Schedules', icon: CalendarClock },
-  { href: '/company/reports/proof-of-play', label: 'Proof of Play', icon: BarChart3 },
-  { href: '/company/reports/scheduled', label: 'Scheduled Reports', icon: FileSpreadsheet },
-  { href: '/company/imports', label: 'Imports', icon: Upload },
-  { href: '/company/tags', label: 'Tags', icon: Tags },
-  { href: '/company/map', label: 'Map View', icon: MapPin },
-  { href: '/company/settings', label: 'Settings', icon: Settings },
-  { href: '/company/activity-logs', label: 'Activity Logs', icon: ScrollText },
+type NavItem = { href: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+
+// Grouped navigation — sections keep a 17-item list scannable instead of one
+// long flat column. Routes are unchanged.
+const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
+  { items: [{ href: '/company', label: 'Overview', icon: LayoutDashboard, exact: true }] },
+  {
+    title: 'Operations',
+    items: [
+      { href: '/company/screens', label: 'Screens', icon: Monitor },
+      { href: '/company/screen-groups', label: 'Screen Groups', icon: Users },
+      { href: '/company/locations', label: 'Locations', icon: Building2 },
+      { href: '/company/monitoring', label: 'Monitoring', icon: Activity },
+      { href: '/company/alerts', label: 'Alerts', icon: Bell },
+      { href: '/company/emergency-broadcasts', label: 'Emergency', icon: Megaphone },
+    ],
+  },
+  {
+    title: 'Content',
+    items: [
+      { href: '/company/content', label: 'Content Library', icon: Library },
+      { href: '/company/playlists', label: 'Playlists', icon: ListVideo },
+      { href: '/company/schedules', label: 'Schedules', icon: CalendarClock },
+    ],
+  },
+  {
+    title: 'Reports',
+    items: [
+      { href: '/company/reports/proof-of-play', label: 'Proof of Play', icon: BarChart3 },
+      { href: '/company/reports/scheduled', label: 'Scheduled Reports', icon: FileSpreadsheet },
+      { href: '/company/imports', label: 'Imports', icon: Upload },
+    ],
+  },
+  {
+    title: 'Settings',
+    items: [
+      { href: '/company/tags', label: 'Tags', icon: Tags },
+      { href: '/company/map', label: 'Map View', icon: MapPin },
+      { href: '/company/settings', label: 'Settings', icon: Settings },
+      { href: '/company/activity-logs', label: 'Activity Logs', icon: ScrollText },
+    ],
+  },
 ];
 
 /** Protected Company Admin shell: auth guard + sidebar + top bar. */
@@ -84,28 +108,38 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           <div className="bg-primary size-7 rounded-md" />
           <span className="font-semibold">MasterSignage</span>
         </div>
-        <nav className="flex-1 space-y-1 p-3">
-          {NAV.map((item) => {
-            const active = item.exact
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
-                  active
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                <Icon className="size-4" aria-hidden />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+          {NAV_SECTIONS.map((section, i) => (
+            <div key={section.title ?? `section-${i}`} className="space-y-1">
+              {section.title ? (
+                <p className="text-muted-foreground/70 px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider">
+                  {section.title}
+                </p>
+              ) : null}
+              {section.items.map((item) => {
+                const active = item.exact
+                  ? pathname === item.href
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
+                      active
+                        ? "bg-primary/10 text-primary before:bg-primary font-medium before:absolute before:inset-y-1 before:start-0 before:w-0.5 before:rounded-full before:content-['']"
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
+                  >
+                    <Icon className="size-4 shrink-0" aria-hidden />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
         <div className="border-border text-muted-foreground border-t p-4 text-xs">
           Company Console

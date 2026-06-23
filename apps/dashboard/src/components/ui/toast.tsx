@@ -37,7 +37,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[60] flex w-80 flex-col gap-2">
+      {/* end-4 (logical) keeps toasts on the correct side in RTL; aria-live
+          announces messages to screen readers. */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="fixed bottom-4 end-4 z-[60] flex w-80 flex-col gap-2"
+      >
         {toasts.map((t) => (
           <div
             key={t.id}

@@ -1,4 +1,5 @@
 import { cn } from '@/lib/cn';
+import { Button } from './primitives';
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
@@ -11,7 +12,7 @@ export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTab
 export function THead({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <thead
-      className={cn('bg-muted/50 text-muted-foreground text-left text-xs uppercase', className)}
+      className={cn('bg-muted/50 text-muted-foreground text-start text-xs uppercase', className)}
       {...props}
     />
   );
@@ -54,20 +55,17 @@ export function Pagination({
         Page {page} of {totalPages}
       </span>
       <div className="flex gap-2">
-        <button
-          className="border-border rounded-md border px-3 py-1 disabled:opacity-40"
-          disabled={page <= 1}
-          onClick={() => onPage(page - 1)}
-        >
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
           Previous
-        </button>
-        <button
-          className="border-border rounded-md border px-3 py-1 disabled:opacity-40"
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           disabled={page >= totalPages}
           onClick={() => onPage(page + 1)}
         >
           Next
-        </button>
+        </Button>
       </div>
     </div>
   );

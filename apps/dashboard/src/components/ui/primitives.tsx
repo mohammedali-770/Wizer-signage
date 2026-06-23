@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { cloneElement, forwardRef, isValidElement, useId, type ReactElement } from 'react';
 
 import { cn } from '@/lib/cn';
 
@@ -95,17 +95,39 @@ export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLab
 export function Field({
   label,
   hint,
+  error,
   children,
 }: {
   label: string;
   hint?: string;
+  /** Optional inline validation message (shown in place of the hint, in red). */
+  error?: string;
   children: React.ReactNode;
 }) {
+  // Associate the label with the control for accessibility: generate an id and
+  // attach it to the single child input (unless it already has one).
+  const generatedId = useId();
+  let control = children;
+  let controlId: string | undefined;
+  if (isValidElement(children)) {
+    const el = children as ReactElement<{ id?: string; 'aria-invalid'?: boolean }>;
+    controlId = el.props.id ?? generatedId;
+    control = cloneElement(el, {
+      id: controlId,
+      'aria-invalid': error ? true : el.props['aria-invalid'],
+    });
+  }
   return (
     <div>
-      <Label>{label}</Label>
-      {children}
-      {hint ? <p className="text-muted-foreground mt-1 text-xs">{hint}</p> : null}
+      <Label htmlFor={controlId}>{label}</Label>
+      {control}
+      {error ? (
+        <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">
+          {error}
+        </p>
+      ) : hint ? (
+        <p className="text-muted-foreground mt-1 text-xs">{hint}</p>
+      ) : null}
     </div>
   );
 }

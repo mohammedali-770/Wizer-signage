@@ -65,6 +65,14 @@ const STATUS_TONES: Record<string, BadgeTone> = {
   DISABLED: 'danger',
   LOCKED: 'danger',
   INVITED: 'info',
+  // Screen / device statuses — make fleet health scannable at a glance.
+  ONLINE: 'success',
+  OFFLINE: 'danger',
+  WARNING: 'warning',
+  PAIRING: 'info',
+  UNPAIRED: 'warning',
+  SYNCING: 'info',
+  ARCHIVED: 'neutral',
 };
 
 /** Map a domain status string to a coloured Badge. */
