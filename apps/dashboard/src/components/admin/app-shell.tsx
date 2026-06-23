@@ -135,7 +135,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileNavOpen(false)}
           />
-          <div className="bg-sidebar text-sidebar-foreground border-sidebar-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-xl">
+          <div className="bg-sidebar text-sidebar-foreground border-sidebar-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-lg">
             <div className="border-sidebar-border flex h-16 items-center justify-between border-b px-5">
               <Logo />
               <button

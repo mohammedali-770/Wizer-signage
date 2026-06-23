@@ -87,7 +87,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       {NAV_SECTIONS.map((section, i) => (
         <div key={section.titleKey ?? `section-${i}`} className="space-y-1">
           {section.titleKey ? (
-            <p className="text-sidebar-muted/70 px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider">
+            <p className="text-sidebar-muted/70 px-3 pb-1 text-xs font-semibold uppercase tracking-wider">
               {tNav(`sections.${section.titleKey}`)}
             </p>
           ) : null}
@@ -182,7 +182,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileNavOpen(false)}
           />
-          <div className="bg-sidebar text-sidebar-foreground border-sidebar-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-xl">
+          <div className="bg-sidebar text-sidebar-foreground border-sidebar-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-lg">
             <div className="border-sidebar-border flex h-16 items-center justify-between border-b px-5">
               <Logo />
               <button

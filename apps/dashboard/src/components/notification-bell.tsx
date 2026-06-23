@@ -10,7 +10,7 @@ import type { AppNotification, NotificationListResponse } from '@/lib/types';
 import { cn } from '@/lib/cn';
 
 const SEVERITY_DOT: Record<string, string> = {
-  INFO: 'bg-sky-500',
+  INFO: 'bg-blue-600',
   WARNING: 'bg-amber-500',
   CRITICAL: 'bg-red-500',
 };
@@ -87,7 +87,7 @@ export function NotificationBell({ basePath }: { basePath: string }) {
       </button>
 
       {open ? (
-        <div className="border-border bg-card absolute end-0 z-50 mt-2 w-80 rounded-xl border shadow-xl">
+        <div className="border-border bg-card absolute end-0 z-50 mt-2 w-80 rounded-2xl border shadow-lg">
           <div className="border-border flex items-center justify-between border-b px-4 py-2">
             <span className="text-sm font-semibold">{t('title')}</span>
             <button onClick={markAll} className="text-primary text-xs hover:underline">

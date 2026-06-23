@@ -40,7 +40,7 @@ const TYPE_TONES: Record<TagType, 'info' | 'success' | 'neutral'> = {
   BOTH: 'neutral',
 };
 
-const DEFAULT_COLOR = '#6366f1';
+const DEFAULT_COLOR = '#2563EB';
 
 interface FormState {
   name: string;

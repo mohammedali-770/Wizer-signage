@@ -5,7 +5,7 @@ import { Button } from './primitives';
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="border-border overflow-x-auto rounded-xl border">
+    <div className="border-border overflow-x-auto rounded-2xl border">
       <table className={cn('w-full border-collapse text-sm', className)} {...props} />
     </div>
   );

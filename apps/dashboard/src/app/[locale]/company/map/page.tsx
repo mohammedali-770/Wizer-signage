@@ -51,7 +51,7 @@ const DOT_TONES: Record<BadgeTone, string> = {
   success: 'bg-emerald-500',
   warning: 'bg-amber-500',
   danger: 'bg-red-500',
-  info: 'bg-blue-500',
+  info: 'bg-blue-600',
   neutral: 'bg-muted-foreground/50',
 };
 
@@ -79,11 +79,11 @@ export default function MapViewPage() {
       <PageHeader title={t('title')} description={t('description')} />
 
       {!MAP_PROVIDER && (
-        <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-500/40 bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-600/40 bg-blue-600/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>
             {t('providerHintBefore')}{' '}
-            <code className="rounded bg-blue-500/15 px-1 py-0.5 font-mono text-xs">
+            <code className="rounded bg-blue-600/15 px-1 py-0.5 font-mono text-xs">
               NEXT_PUBLIC_MAP_PROVIDER
             </code>{' '}
             {t('providerHintAfter')}

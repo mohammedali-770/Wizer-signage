@@ -33,7 +33,7 @@ const badgeTones: Record<BadgeTone, string> = {
   success: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   warning: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
   danger: 'bg-red-500/15 text-red-600 dark:text-red-400',
-  info: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+  info: 'bg-blue-600/15 text-blue-600 dark:text-blue-400',
 };
 
 export function Badge({
@@ -155,7 +155,7 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="border-border rounded-xl border border-dashed px-6 py-12 text-center">
+    <div className="border-border rounded-2xl border border-dashed px-6 py-12 text-center">
       {icon ? (
         <div className="text-muted-foreground/50 mb-3 flex justify-center [&>svg]:size-10">
           {icon}
