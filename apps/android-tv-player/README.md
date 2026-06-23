@@ -10,8 +10,13 @@ arrive in later phases. See [`docs/android-player.md`](../../docs/android-player
 "Phase 6 — Player foundation" for the architecture, pairing flow, device-token security,
 and known limitations.
 
-The API base URL is `BuildConfig.API_BASE_URL` in `app/build.gradle.kts` (defaults to the
-emulator host `http://10.0.2.2:3001/api`).
+The API base URL is `BuildConfig.API_BASE_URL` in `app/build.gradle.kts`. It **defaults to
+production** (`https://signage.spicymeal.com.sa/api`) so no build ships the emulator URL by
+accident. For local emulator development, override it at build time:
+
+```bash
+./gradlew assembleDebug -PapiBaseUrl=http://10.0.2.2:3001/api
+```
 
 | | |
 |---|---|
@@ -37,20 +42,28 @@ emulator host `http://10.0.2.2:3001/api`).
 2. Let Android Studio sync Gradle and download dependencies.
 3. Select the `app` run configuration and deploy to an Android TV emulator/device.
 
-### Generate the Gradle wrapper jar
+### Gradle wrapper
 
-The Gradle wrapper **jar is intentionally not committed**. After cloning, generate the
-wrapper (jar + `gradlew`/`gradlew.bat` scripts) once using a locally installed Gradle that
-matches the pinned distribution:
+The complete Gradle wrapper is **committed** — `gradle/wrapper/gradle-wrapper.jar` (Gradle
+8.7, SHA-256 `cb0da6751c2b753a16ac168bb354870ebb1e162e9083f116729cec9c781156b8`, matching
+the official 8.7 wrapper jar), `gradle/wrapper/gradle-wrapper.properties`, and the
+`gradlew`/`gradlew.bat` scripts. A fresh clone can run `./gradlew` immediately:
 
 ```bash
 # from apps/android-tv-player
-gradle wrapper --gradle-version 8.7
+./gradlew clean assembleDebug
 ```
 
-The pinned distribution URL already lives in `gradle/wrapper/gradle-wrapper.properties`.
-After this, use `./gradlew` (or `gradlew.bat` on Windows) for all builds. Android Studio
-also offers to set up the wrapper automatically on first sync.
+### Launcher icon
+
+The launcher icon (`@mipmap/ic_launcher`, also used as the TV `android:banner`) is an
+all-vector adaptive icon: `mipmap-anydpi-v26/ic_launcher.xml` (API 26+) backed by
+`drawable/ic_launcher_{background,foreground}.xml`, with `mipmap/ic_launcher.xml` as the
+API 21–25 fallback. **Known limitation:** a vector in the unqualified `mipmap/` folder is
+not reliably rendered as a launcher icon by some pre-API-26 launchers (it may show blank on
+API 21–25 — build still succeeds and the app runs). Real Android TV targets are API 26+,
+where the adaptive icon renders correctly. Add density-qualified PNG fallbacks
+(`mipmap-*dpi/ic_launcher.png`) if you must support API 21–25 launchers.
 
 ## Project layout
 

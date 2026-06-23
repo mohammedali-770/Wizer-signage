@@ -4,6 +4,13 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// API base URL baked into BuildConfig.API_BASE_URL. Defaults to PRODUCTION so no
+// build (debug or release) ever ships the Android-emulator loopback URL by
+// accident. Override at build time for local emulator development:
+//   ./gradlew assembleDebug -PapiBaseUrl=http://10.0.2.2:3001/api
+val apiBaseUrl: String = (project.findProperty("apiBaseUrl") as String?)
+    ?: "https://signage.spicymeal.com.sa/api"
+
 android {
     namespace = "com.mastersignage.player"
     compileSdk = 34
@@ -17,9 +24,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // API base URL. For the Android emulator, 10.0.2.2 is the host machine.
-        // Override per build type / flavour or via a real HTTPS URL in production.
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3001/api\"")
+        // Production by default (see apiBaseUrl above). Override with
+        // -PapiBaseUrl=http://10.0.2.2:3001/api for the local emulator.
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
     buildTypes {
