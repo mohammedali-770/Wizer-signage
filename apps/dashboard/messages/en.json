@@ -615,6 +615,206 @@
         "devicePaired": "Device paired.",
         "deviceUnpaired": "Device unpaired."
       }
+    },
+    "playlistEditor": {
+      "notFound": "Playlist not found",
+      "actionFailed": "Action failed.",
+      "backToPlaylists": "Back to playlists",
+      "duplicate": "Duplicate",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "archivedToast": "Archived.",
+      "unarchivedToast": "Unarchived.",
+      "totalDuration": "Total duration",
+      "validOfCount": "{valid} valid / {total}",
+      "playbackOrder": "Playback order",
+      "addContent": "Add content",
+      "unarchiveToEdit": "Unarchive to edit items.",
+      "noItems": "No items yet",
+      "noItemsDescription": "Add content from your library to build the sequence.",
+      "addedToast": "Added to playlist.",
+      "removedToast": "Removed.",
+      "invalid": "Invalid",
+      "fullVideo": "Full video",
+      "perPage": "{seconds}s/page",
+      "preview": "Preview",
+      "editItem": "Edit item",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "remove": "Remove",
+      "itemUpdatedToast": "Item updated.",
+      "playlistUpdatedToast": "Playlist updated.",
+      "deleteDialogTitle": "Delete playlist?",
+      "deleteDialogDescription": "This soft-deletes the playlist. Schedules referencing it will lose their assignment.",
+      "deletedToast": "Deleted.",
+      "editItemTitle": "Edit “{title}”",
+      "playFullVideoLength": "Play full video length",
+      "durationSecondsLabel": "Duration (seconds)",
+      "durationHint": "Blank uses the content's default.",
+      "durationPlaceholder": "Default",
+      "perPageDurationLabel": "Per-page duration (seconds)",
+      "perPageDurationHint": "Optional; total time = pages × this value.",
+      "editPlaylistTitle": "Edit playlist",
+      "titleLabel": "Title",
+      "statusActive": "Active",
+      "statusDraft": "Draft"
+    },
+    "scheduleDetail": {
+      "backToSchedules": "Back to schedules",
+      "notFound": "Schedule not found",
+      "priorityValue": "Priority {value}",
+      "statuses": {
+        "ACTIVE": "Active",
+        "PAUSED": "Paused",
+        "ARCHIVED": "Archived"
+      },
+      "types": {
+        "NORMAL": "Normal",
+        "CAMPAIGN": "Campaign"
+      },
+      "actions": {
+        "resume": "Resume",
+        "pause": "Pause",
+        "archive": "Archive"
+      },
+      "cards": {
+        "playlistTiming": "Playlist & timing"
+      },
+      "fields": {
+        "playlist": "Playlist",
+        "dates": "Dates",
+        "time": "Time",
+        "days": "Days",
+        "timezone": "Timezone",
+        "priority": "Priority",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "allDay": "All day",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "daysOfWeek": "Days of week"
+      },
+      "values": {
+        "none": "None",
+        "openEnded": "open-ended",
+        "allDay": "All day",
+        "everyDay": "Every day",
+        "screenLocationDefault": "Screen / location default"
+      },
+      "targets": {
+        "title": "Targets"
+      },
+      "validation": {
+        "title": "Validation",
+        "readyToPlay": "Ready to play",
+        "notPlayableYet": "Not playable yet",
+        "noWarnings": "No warnings.",
+        "overlapping": "Overlapping schedules",
+        "sharedScreens": "{count} shared screen(s)",
+        "thisWins": "this wins",
+        "otherWins": "other wins"
+      },
+      "preview": {
+        "title": "Preview what plays now",
+        "selectScreen": "Select a screen…",
+        "resolveNow": "Resolve now",
+        "sourceType": {
+          "SCHEDULE": "Schedule",
+          "FALLBACK": "Fallback",
+          "EMERGENCY": "Emergency",
+          "NONE": "None"
+        },
+        "outsideHours": "Outside hours: {behavior}",
+        "resolvedAt": "Resolved at {time} ({timezone})",
+        "fullVideo": "full video",
+        "noItems": "No items"
+      },
+      "hints": {
+        "endDate": "Blank = open-ended."
+      },
+      "editDialog": {
+        "title": "Edit schedule"
+      },
+      "deleteDialog": {
+        "title": "Delete schedule?",
+        "description": "This soft-deletes the schedule."
+      },
+      "toast": {
+        "actionFailed": "Action failed.",
+        "manifestError": "Could not resolve the manifest.",
+        "resumed": "Resumed.",
+        "paused": "Paused.",
+        "archived": "Archived.",
+        "targetAdded": "Target added.",
+        "targetRemoved": "Target removed.",
+        "updated": "Schedule updated.",
+        "deleted": "Deleted."
+      }
+    },
+    "locationDetail": {
+      "backToLocations": "Back to locations",
+      "loadError": "Could not load location",
+      "codeLabel": "Code:",
+      "fallbackHint": "Shown on screens at this location when no playlist or schedule is active. Overrides the company default. Screens at this location may have mixed orientations, so pick content that suits them all (or set a per-screen fallback). Only ACTIVE content can be chosen.",
+      "metrics": {
+        "totalScreens": "Total screens",
+        "online": "Online",
+        "offline": "Offline",
+        "warning": "Warning",
+        "other": "Other"
+      },
+      "cards": {
+        "details": "Details",
+        "metadata": "Metadata",
+        "fallbackContent": "Fallback content"
+      },
+      "fields": {
+        "code": "Code",
+        "address": "Address",
+        "city": "City",
+        "region": "Region",
+        "country": "Country",
+        "timezone": "Timezone",
+        "coordinates": "Coordinates",
+        "latitude": "Latitude",
+        "longitude": "Longitude",
+        "workingHours": "Working hours",
+        "configured": "Configured",
+        "notSet": "Not set"
+      },
+      "placeholders": {
+        "name": "Main Branch",
+        "code": "MB-01"
+      },
+      "actions": {
+        "deactivate": "Deactivate",
+        "reactivate": "Reactivate",
+        "archive": "Archive"
+      },
+      "editDialog": {
+        "title": "Edit Location",
+        "description": "Update this location's details and working hours.",
+        "submit": "Save changes"
+      },
+      "archiveDialog": {
+        "title": "Archive location",
+        "description": "Archived locations are hidden from active lists. You can still view this location, but its screens will no longer count toward usage."
+      },
+      "deleteDialog": {
+        "title": "Delete location",
+        "description": "This permanently deletes the location. This action cannot be undone."
+      },
+      "toast": {
+        "genericError": "Something went wrong.",
+        "nameRequired": "Name is required.",
+        "updated": "Location updated.",
+        "fallbackUpdated": "Fallback content updated.",
+        "fallbackCleared": "Fallback content cleared.",
+        "deactivated": "Location deactivated.",
+        "reactivated": "Location reactivated.",
+        "archived": "Location archived.",
+        "deleted": "Location deleted."
+      }
     }
   }
 }

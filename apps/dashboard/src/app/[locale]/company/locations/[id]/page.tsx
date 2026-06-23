@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ArrowLeft, Pencil } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -79,6 +79,8 @@ export default function LocationDetailPage() {
   const locale = useLocale();
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('pages.locationDetail');
+  const tc = useTranslations('common');
 
   const { data, loading, error, reload } = useApiResource<LocationDetail>(`/locations/${id}`);
 
@@ -110,7 +112,7 @@ export default function LocationDetailPage() {
     e.preventDefault();
     if (!form || !data) return;
     if (!form.name.trim()) {
-      toast('Name is required.', 'error');
+      toast(t('toast.nameRequired'), 'error');
       return;
     }
 
@@ -129,11 +131,11 @@ export default function LocationDetailPage() {
         longitude: numberOrNull(form.longitude),
         workingHours: editWorkingHours,
       });
-      toast('Location updated.', 'success');
+      toast(t('toast.updated'), 'success');
       setEditOpen(false);
       reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.genericError'), 'error');
     } finally {
       setSaving(false);
     }
@@ -151,7 +153,7 @@ export default function LocationDetailPage() {
       if (after) after();
       else reload();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.genericError'), 'error');
     } finally {
       setBusy(false);
     }
@@ -160,19 +162,19 @@ export default function LocationDetailPage() {
   const onFallbackChange = (contentId: string | null) =>
     runAction(
       () => api.patch(`/locations/${id}`, { fallbackContentId: contentId }),
-      contentId ? 'Fallback content updated.' : 'Fallback content cleared.',
+      contentId ? t('toast.fallbackUpdated') : t('toast.fallbackCleared'),
     );
 
   const onDeactivate = () =>
-    runAction(() => api.post(`/locations/${id}/deactivate`), 'Location deactivated.');
+    runAction(() => api.post(`/locations/${id}/deactivate`), t('toast.deactivated'));
 
   const onReactivate = () =>
-    runAction(() => api.post(`/locations/${id}/reactivate`), 'Location reactivated.');
+    runAction(() => api.post(`/locations/${id}/reactivate`), t('toast.reactivated'));
 
   const onArchive = () =>
     runAction(
       () => api.post(`/locations/${id}/archive`),
-      'Location archived.',
+      t('toast.archived'),
       () => {
         setArchiveOpen(false);
         reload();
@@ -182,7 +184,7 @@ export default function LocationDetailPage() {
   const onDelete = () =>
     runAction(
       () => api.del(`/locations/${id}`),
-      'Location deleted.',
+      t('toast.deleted'),
       () => {
         setDeleteOpen(false);
         router.push('/company/locations');
@@ -196,7 +198,7 @@ export default function LocationDetailPage() {
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition"
       >
         <ArrowLeft className="size-4" />
-        Back to locations
+        {t('backToLocations')}
       </Link>
 
       {loading && (
@@ -205,7 +207,7 @@ export default function LocationDetailPage() {
         </div>
       )}
 
-      {!loading && error && <EmptyState title="Could not load location" description={error} />}
+      {!loading && error && <EmptyState title={t('loadError')} description={error} />}
 
       {!loading && !error && data && (
         <>
@@ -217,76 +219,89 @@ export default function LocationDetailPage() {
               </div>
               {data.code ? (
                 <p className="text-muted-foreground mt-1 text-sm">
-                  Code: <code className="bg-muted rounded px-1.5 py-0.5 text-xs">{data.code}</code>
+                  {t('codeLabel')}{' '}
+                  <code className="bg-muted rounded px-1.5 py-0.5 text-xs">{data.code}</code>
                 </p>
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" onClick={openEdit}>
                 <Pencil className="size-4" />
-                Edit
+                {tc('edit')}
               </Button>
               {data.status === 'ACTIVE' && (
                 <Button variant="outline" onClick={onDeactivate} disabled={busy}>
-                  Deactivate
+                  {t('actions.deactivate')}
                 </Button>
               )}
               {data.status === 'INACTIVE' && (
                 <Button variant="secondary" onClick={onReactivate} disabled={busy}>
-                  Reactivate
+                  {t('actions.reactivate')}
                 </Button>
               )}
               {data.status !== 'ARCHIVED' && (
                 <Button variant="ghost" onClick={() => setArchiveOpen(true)} disabled={busy}>
-                  Archive
+                  {t('actions.archive')}
                 </Button>
               )}
               <Button variant="danger" onClick={() => setDeleteOpen(true)} disabled={busy}>
-                Delete
+                {tc('delete')}
               </Button>
             </div>
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-            <StatCard label="Total screens" value={formatNumber(data.metrics.total, locale)} />
-            <StatCard label="Online" value={formatNumber(data.metrics.online, locale)} />
-            <StatCard label="Offline" value={formatNumber(data.metrics.offline, locale)} />
-            <StatCard label="Warning" value={formatNumber(data.metrics.warning, locale)} />
-            <StatCard label="Other" value={formatNumber(data.metrics.other, locale)} />
+            <StatCard
+              label={t('metrics.totalScreens')}
+              value={formatNumber(data.metrics.total, locale)}
+            />
+            <StatCard
+              label={t('metrics.online')}
+              value={formatNumber(data.metrics.online, locale)}
+            />
+            <StatCard
+              label={t('metrics.offline')}
+              value={formatNumber(data.metrics.offline, locale)}
+            />
+            <StatCard
+              label={t('metrics.warning')}
+              value={formatNumber(data.metrics.warning, locale)}
+            />
+            <StatCard label={t('metrics.other')} value={formatNumber(data.metrics.other, locale)} />
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Details</CardTitle>
+                <CardTitle>{t('cards.details')}</CardTitle>
               </CardHeader>
               <CardContent className="py-2">
                 <DetailRow
-                  label="Description"
+                  label={tc('description')}
                   value={data.description ?? <span className="text-muted-foreground">—</span>}
                 />
                 <DetailRow
-                  label="Address"
+                  label={t('fields.address')}
                   value={data.address ?? <span className="text-muted-foreground">—</span>}
                 />
                 <DetailRow
-                  label="City"
+                  label={t('fields.city')}
                   value={data.city ?? <span className="text-muted-foreground">—</span>}
                 />
                 <DetailRow
-                  label="Region"
+                  label={t('fields.region')}
                   value={data.region ?? <span className="text-muted-foreground">—</span>}
                 />
                 <DetailRow
-                  label="Country"
+                  label={t('fields.country')}
                   value={data.country ?? <span className="text-muted-foreground">—</span>}
                 />
                 <DetailRow
-                  label="Timezone"
+                  label={t('fields.timezone')}
                   value={data.timezone ?? <span className="text-muted-foreground">—</span>}
                 />
                 <DetailRow
-                  label="Coordinates"
+                  label={t('fields.coordinates')}
                   value={
                     data.latitude !== null && data.longitude !== null ? (
                       `${data.latitude}, ${data.longitude}`
@@ -300,37 +315,32 @@ export default function LocationDetailPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Metadata</CardTitle>
+                <CardTitle>{t('cards.metadata')}</CardTitle>
               </CardHeader>
               <CardContent className="py-2">
-                <DetailRow label="Status" value={<StatusBadge status={data.status} />} />
+                <DetailRow label={tc('status')} value={<StatusBadge status={data.status} />} />
                 <DetailRow
-                  label="Working hours"
+                  label={t('fields.workingHours')}
                   value={
                     data.workingHours ? (
-                      'Configured'
+                      t('fields.configured')
                     ) : (
-                      <span className="text-muted-foreground">Not set</span>
+                      <span className="text-muted-foreground">{t('fields.notSet')}</span>
                     )
                   }
                 />
-                <DetailRow label="Created" value={formatDate(data.createdAt, locale)} />
-                <DetailRow label="Updated" value={formatDate(data.updatedAt, locale)} />
+                <DetailRow label={tc('created')} value={formatDate(data.createdAt, locale)} />
+                <DetailRow label={tc('updated')} value={formatDate(data.updatedAt, locale)} />
               </CardContent>
             </Card>
           </div>
 
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Fallback content</CardTitle>
+              <CardTitle>{t('cards.fallbackContent')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-muted-foreground text-sm">
-                Shown on screens at this location when no playlist or schedule is active. Overrides
-                the company default. Screens at this location may have mixed orientations, so pick
-                content that suits them all (or set a per-screen fallback). Only ACTIVE content can
-                be chosen.
-              </p>
+              <p className="text-muted-foreground text-sm">{t('fallbackHint')}</p>
               <FallbackContentPicker
                 value={data.fallbackContentId}
                 onChange={onFallbackChange}
@@ -345,31 +355,31 @@ export default function LocationDetailPage() {
       <Dialog
         open={editOpen}
         onClose={closeEdit}
-        title="Edit Location"
-        description="Update this location's details and working hours."
+        title={t('editDialog.title')}
+        description={t('editDialog.description')}
         className="max-h-[90vh] max-w-2xl overflow-y-auto"
       >
         {form && (
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Name">
+              <Field label={tc('name')}>
                 <Input
                   value={form.name}
                   onChange={(e) => update('name', e.target.value)}
-                  placeholder="Main Branch"
+                  placeholder={t('placeholders.name')}
                   required
                 />
               </Field>
-              <Field label="Code">
+              <Field label={t('fields.code')}>
                 <Input
                   value={form.code}
                   onChange={(e) => update('code', e.target.value)}
-                  placeholder="MB-01"
+                  placeholder={t('placeholders.code')}
                 />
               </Field>
             </div>
 
-            <Field label="Description">
+            <Field label={tc('description')}>
               <Textarea
                 value={form.description}
                 onChange={(e) => update('description', e.target.value)}
@@ -377,31 +387,31 @@ export default function LocationDetailPage() {
               />
             </Field>
 
-            <Field label="Address">
+            <Field label={t('fields.address')}>
               <Input value={form.address} onChange={(e) => update('address', e.target.value)} />
             </Field>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field label="City">
+              <Field label={t('fields.city')}>
                 <Input value={form.city} onChange={(e) => update('city', e.target.value)} />
               </Field>
-              <Field label="Region">
+              <Field label={t('fields.region')}>
                 <Input value={form.region} onChange={(e) => update('region', e.target.value)} />
               </Field>
-              <Field label="Country">
+              <Field label={t('fields.country')}>
                 <Input value={form.country} onChange={(e) => update('country', e.target.value)} />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field label="Timezone">
+              <Field label={t('fields.timezone')}>
                 <Input
                   value={form.timezone}
                   onChange={(e) => update('timezone', e.target.value)}
                   placeholder="Asia/Riyadh"
                 />
               </Field>
-              <Field label="Latitude">
+              <Field label={t('fields.latitude')}>
                 <Input
                   type="number"
                   step="any"
@@ -409,7 +419,7 @@ export default function LocationDetailPage() {
                   onChange={(e) => update('latitude', e.target.value)}
                 />
               </Field>
-              <Field label="Longitude">
+              <Field label={t('fields.longitude')}>
                 <Input
                   type="number"
                   step="any"
@@ -420,17 +430,17 @@ export default function LocationDetailPage() {
             </div>
 
             <div className="border-border rounded-lg border p-4">
-              <p className="mb-3 text-sm font-medium">Working hours</p>
+              <p className="mb-3 text-sm font-medium">{t('fields.workingHours')}</p>
               <WorkingHoursEditor value={editWorkingHours} onChange={setEditWorkingHours} />
             </div>
 
             <div className="border-border flex justify-end gap-2 border-t pt-4">
               <Button type="button" variant="outline" onClick={closeEdit} disabled={saving}>
-                Cancel
+                {tc('cancel')}
               </Button>
               <Button type="submit" disabled={saving}>
                 {saving && <Spinner className="size-4" />}
-                Save changes
+                {t('editDialog.submit')}
               </Button>
             </div>
           </form>
@@ -441,16 +451,16 @@ export default function LocationDetailPage() {
       <Dialog
         open={archiveOpen}
         onClose={() => (busy ? undefined : setArchiveOpen(false))}
-        title="Archive location"
-        description="Archived locations are hidden from active lists. You can still view this location, but its screens will no longer count toward usage."
+        title={t('archiveDialog.title')}
+        description={t('archiveDialog.description')}
       >
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setArchiveOpen(false)} disabled={busy}>
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button variant="danger" onClick={onArchive} disabled={busy}>
             {busy && <Spinner className="size-4" />}
-            Archive
+            {t('actions.archive')}
           </Button>
         </div>
       </Dialog>
@@ -459,16 +469,16 @@ export default function LocationDetailPage() {
       <Dialog
         open={deleteOpen}
         onClose={() => (busy ? undefined : setDeleteOpen(false))}
-        title="Delete location"
-        description="This permanently deletes the location. This action cannot be undone."
+        title={t('deleteDialog.title')}
+        description={t('deleteDialog.description')}
       >
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={busy}>
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button variant="danger" onClick={onDelete} disabled={busy}>
             {busy && <Spinner className="size-4" />}
-            Delete
+            {tc('delete')}
           </Button>
         </div>
       </Dialog>

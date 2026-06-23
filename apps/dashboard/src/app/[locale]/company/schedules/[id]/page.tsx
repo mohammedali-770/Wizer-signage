@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ArrowLeft, Pause, Play, Trash2 } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
@@ -40,6 +40,8 @@ import {
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function ScheduleDetailPage() {
+  const t = useTranslations('pages.scheduleDetail');
+  const tc = useTranslations('common');
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const locale = useLocale();
@@ -74,7 +76,7 @@ export default function ScheduleDetailPage() {
       reloadAll();
       after?.();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Action failed.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.actionFailed'), 'error');
     } finally {
       setBusy(false);
     }
@@ -86,7 +88,7 @@ export default function ScheduleDetailPage() {
     try {
       setManifest(await api.get<PlaybackManifest>(`/screens/${previewScreenId}/playback-manifest`));
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Could not resolve the manifest.', 'error');
+      toast(err instanceof ApiError ? err.message : t('toast.manifestError'), 'error');
     } finally {
       setManifestBusy(false);
     }
@@ -100,7 +102,7 @@ export default function ScheduleDetailPage() {
     );
   }
   if (error || !schedule) {
-    return <EmptyState title="Schedule not found" description={error ?? undefined} />;
+    return <EmptyState title={t('notFound')} description={error ?? undefined} />;
   }
 
   const targets: SelectedTarget[] = schedule.targets.map((t) => ({
@@ -114,7 +116,7 @@ export default function ScheduleDetailPage() {
         href="/company/schedules"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm"
       >
-        <ArrowLeft className="size-4" /> Back to schedules
+        <ArrowLeft className="size-4" /> {t('backToSchedules')}
       </Link>
 
       <PageHeader
@@ -123,33 +125,33 @@ export default function ScheduleDetailPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setEditOpen(true)} disabled={busy}>
-              Edit
+              {tc('edit')}
             </Button>
             {schedule.status !== 'ACTIVE' ? (
               <Button
                 variant="outline"
-                onClick={() => run(() => api.post(`/schedules/${id}/resume`), 'Resumed.')}
+                onClick={() => run(() => api.post(`/schedules/${id}/resume`), t('toast.resumed'))}
                 disabled={busy}
               >
-                <Play className="size-4" /> Resume
+                <Play className="size-4" /> {t('actions.resume')}
               </Button>
             ) : null}
             {schedule.status === 'ACTIVE' ? (
               <Button
                 variant="outline"
-                onClick={() => run(() => api.post(`/schedules/${id}/pause`), 'Paused.')}
+                onClick={() => run(() => api.post(`/schedules/${id}/pause`), t('toast.paused'))}
                 disabled={busy}
               >
-                <Pause className="size-4" /> Pause
+                <Pause className="size-4" /> {t('actions.pause')}
               </Button>
             ) : null}
             {schedule.status !== 'ARCHIVED' ? (
               <Button
                 variant="outline"
-                onClick={() => run(() => api.post(`/schedules/${id}/archive`), 'Archived.')}
+                onClick={() => run(() => api.post(`/schedules/${id}/archive`), t('toast.archived'))}
                 disabled={busy}
               >
-                Archive
+                {t('actions.archive')}
               </Button>
             ) : null}
             <Button variant="danger" onClick={() => setDeleteOpen(true)} disabled={busy}>
@@ -169,21 +171,21 @@ export default function ScheduleDetailPage() {
                 : 'neutral'
           }
         >
-          {schedule.status}
+          {t(`statuses.${schedule.status}`)}
         </Badge>
         <Badge tone={schedule.scheduleType === 'CAMPAIGN' ? 'info' : 'neutral'}>
-          {schedule.scheduleType}
+          {t(`types.${schedule.scheduleType}`)}
         </Badge>
-        <Badge tone="neutral">Priority {schedule.priority}</Badge>
+        <Badge tone="neutral">{t('priorityValue', { value: schedule.priority })}</Badge>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Playlist & timing</CardTitle>
+            <CardTitle>{t('cards.playlistTiming')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Playlist">
+            <Row label={t('fields.playlist')}>
               {schedule.playlist ? (
                 <Link
                   href={`/company/playlists/${schedule.playlist.id}`}
@@ -192,49 +194,56 @@ export default function ScheduleDetailPage() {
                   {schedule.playlist.title}
                 </Link>
               ) : (
-                <span className="text-muted-foreground">None</span>
+                <span className="text-muted-foreground">{t('values.none')}</span>
               )}
             </Row>
-            <Row label="Dates">
+            <Row label={t('fields.dates')}>
               {schedule.startDate ? formatDate(schedule.startDate, locale) : '—'}
-              {schedule.endDate ? ` → ${formatDate(schedule.endDate, locale)}` : ' → open-ended'}
+              {schedule.endDate
+                ? ` → ${formatDate(schedule.endDate, locale)}`
+                : ` → ${t('values.openEnded')}`}
             </Row>
-            <Row label="Time">
+            <Row label={t('fields.time')}>
               {schedule.isAllDay
-                ? 'All day'
+                ? t('values.allDay')
                 : `${schedule.startTime ?? '—'} – ${schedule.endTime ?? '—'}`}
             </Row>
-            <Row label="Days">
+            <Row label={t('fields.days')}>
               {schedule.daysOfWeek.length
                 ? schedule.daysOfWeek.map((d) => DAY_LABELS[d]).join(', ')
-                : 'Every day'}
+                : t('values.everyDay')}
             </Row>
-            <Row label="Timezone">{schedule.timezone ?? 'Screen / location default'}</Row>
+            <Row label={t('fields.timezone')}>
+              {schedule.timezone ?? t('values.screenLocationDefault')}
+            </Row>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Targets</CardTitle>
+            <CardTitle>{t('targets.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <TargetSelector
               targets={targets}
               busy={busy}
-              onAdd={(t) =>
+              onAdd={(target) =>
                 run(
                   () =>
                     api.post(
                       `/schedules/${id}/targets`,
-                      t.targetType === 'COMPANY' ? { targetType: 'COMPANY' } : t,
+                      target.targetType === 'COMPANY' ? { targetType: 'COMPANY' } : target,
                     ),
-                  'Target added.',
+                  t('toast.targetAdded'),
                 )
               }
               onRemove={(_t, i) => {
                 const target = schedule.targets[i];
                 if (target)
-                  run(() => api.del(`/schedules/${id}/targets/${target.id}`), 'Target removed.');
+                  run(
+                    () => api.del(`/schedules/${id}/targets/${target.id}`),
+                    t('toast.targetRemoved'),
+                  );
               }}
             />
           </CardContent>
@@ -244,7 +253,7 @@ export default function ScheduleDetailPage() {
       {/* Validation + warnings */}
       <Card className="mt-4">
         <CardHeader>
-          <CardTitle>Validation</CardTitle>
+          <CardTitle>{t('validation.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           {validation.loading ? (
@@ -253,9 +262,9 @@ export default function ScheduleDetailPage() {
             <>
               <div className="flex items-center gap-2">
                 {validation.data.schedulable ? (
-                  <Badge tone="success">Ready to play</Badge>
+                  <Badge tone="success">{t('validation.readyToPlay')}</Badge>
                 ) : (
-                  <Badge tone="warning">Not playable yet</Badge>
+                  <Badge tone="warning">{t('validation.notPlayableYet')}</Badge>
                 )}
               </div>
               {validation.data.warnings.length > 0 ? (
@@ -267,11 +276,11 @@ export default function ScheduleDetailPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground">No warnings.</p>
+                <p className="text-muted-foreground">{t('validation.noWarnings')}</p>
               )}
               {validation.data.conflicts.length > 0 ? (
                 <div>
-                  <p className="font-medium">Overlapping schedules</p>
+                  <p className="font-medium">{t('validation.overlapping')}</p>
                   <ul className="mt-1 space-y-1">
                     {validation.data.conflicts.map((c) => (
                       <li key={c.scheduleId} className="text-muted-foreground">
@@ -281,11 +290,11 @@ export default function ScheduleDetailPage() {
                         >
                           {c.name}
                         </Link>{' '}
-                        — {c.sharedScreenIds.length} shared screen(s){' '}
+                        — {t('validation.sharedScreens', { count: c.sharedScreenIds.length })}{' '}
                         {c.winnerId === schedule.id ? (
-                          <Badge tone="success">this wins</Badge>
+                          <Badge tone="success">{t('validation.thisWins')}</Badge>
                         ) : (
-                          <Badge tone="warning">other wins</Badge>
+                          <Badge tone="warning">{t('validation.otherWins')}</Badge>
                         )}
                       </li>
                     ))}
@@ -300,7 +309,7 @@ export default function ScheduleDetailPage() {
       {/* Manifest preview */}
       <Card className="mt-4">
         <CardHeader>
-          <CardTitle>Preview what plays now</CardTitle>
+          <CardTitle>{t('preview.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
@@ -309,7 +318,7 @@ export default function ScheduleDetailPage() {
               onChange={(e) => setPreviewScreenId(e.target.value)}
               className="w-64"
             >
-              <option value="">Select a screen…</option>
+              <option value="">{t('preview.selectScreen')}</option>
               {screens.data?.items.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -321,7 +330,7 @@ export default function ScheduleDetailPage() {
               onClick={loadManifest}
               disabled={!previewScreenId || manifestBusy}
             >
-              {manifestBusy ? <Spinner className="size-4" /> : 'Resolve now'}
+              {manifestBusy ? <Spinner className="size-4" /> : t('preview.resolveNow')}
             </Button>
           </div>
 
@@ -337,18 +346,23 @@ export default function ScheduleDetailPage() {
                         : 'neutral'
                   }
                 >
-                  {manifest.sourceType}
+                  {t(`preview.sourceType.${manifest.sourceType}`)}
                 </Badge>
                 {manifest.scheduleName ? <span>{manifest.scheduleName}</span> : null}
                 {manifest.playlistTitle ? (
                   <span className="text-muted-foreground">· {manifest.playlistTitle}</span>
                 ) : null}
                 {manifest.outsideHours ? (
-                  <Badge tone="warning">Outside hours: {manifest.outsideHoursBehavior}</Badge>
+                  <Badge tone="warning">
+                    {t('preview.outsideHours', { behavior: manifest.outsideHoursBehavior })}
+                  </Badge>
                 ) : null}
               </div>
               <p className="text-muted-foreground mt-1 text-xs">
-                Resolved at {formatDateTime(manifest.generatedAt, locale)} ({manifest.timezone})
+                {t('preview.resolvedAt', {
+                  time: formatDateTime(manifest.generatedAt, locale),
+                  timezone: manifest.timezone,
+                })}
               </p>
               {manifest.items.length > 0 ? (
                 <ol className="mt-3 list-decimal space-y-1 ps-5">
@@ -357,7 +371,7 @@ export default function ScheduleDetailPage() {
                       {item.title} <Badge tone="neutral">{item.type}</Badge>{' '}
                       <span className="text-muted-foreground">
                         {item.playFullVideo
-                          ? 'full video'
+                          ? t('preview.fullVideo')
                           : formatDuration(item.durationSeconds, locale)}
                       </span>
                     </li>
@@ -365,7 +379,8 @@ export default function ScheduleDetailPage() {
                 </ol>
               ) : (
                 <p className="text-muted-foreground mt-3">
-                  No items{manifest.message ? ` — ${manifest.message}` : ''}.
+                  {t('preview.noItems')}
+                  {manifest.message ? ` — ${manifest.message}` : ''}.
                 </p>
               )}
               {manifest.warnings.length > 0 ? (
@@ -390,7 +405,7 @@ export default function ScheduleDetailPage() {
           onSave={(body) =>
             run(
               () => api.patch(`/schedules/${id}`, body),
-              'Schedule updated.',
+              t('toast.updated'),
               () => setEditOpen(false),
             )
           }
@@ -400,25 +415,25 @@ export default function ScheduleDetailPage() {
       <Dialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        title="Delete schedule?"
-        description="This soft-deletes the schedule."
+        title={t('deleteDialog.title')}
+        description={t('deleteDialog.description')}
       >
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={busy}>
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button
             variant="danger"
             onClick={() =>
               run(
                 () => api.del(`/schedules/${id}`),
-                'Deleted.',
+                t('toast.deleted'),
                 () => router.push('/company/schedules'),
               )
             }
             disabled={busy}
           >
-            Delete
+            {tc('delete')}
           </Button>
         </div>
       </Dialog>
@@ -446,6 +461,8 @@ function ScheduleEditDialog({
   onClose: () => void;
   onSave: (body: Record<string, unknown>) => void;
 }) {
+  const t = useTranslations('pages.scheduleDetail');
+  const tc = useTranslations('common');
   const [name, setName] = useState(schedule.name);
   const [description, setDescription] = useState(schedule.description ?? '');
   const [scheduleType, setScheduleType] = useState<ScheduleType>(schedule.scheduleType);
@@ -476,12 +493,12 @@ function ScheduleEditDialog({
     });
 
   return (
-    <Dialog open onClose={onClose} title="Edit schedule" className="max-w-xl">
+    <Dialog open onClose={onClose} title={t('editDialog.title')} className="max-w-xl">
       <div className="space-y-4">
-        <Field label="Name">
+        <Field label={tc('name')}>
           <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
         </Field>
-        <Field label="Description">
+        <Field label={tc('description')}>
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -490,16 +507,16 @@ function ScheduleEditDialog({
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Type">
+          <Field label={tc('type')}>
             <Select
               value={scheduleType}
               onChange={(e) => setScheduleType(e.target.value as ScheduleType)}
             >
-              <option value="NORMAL">Normal</option>
-              <option value="CAMPAIGN">Campaign</option>
+              <option value="NORMAL">{t('types.NORMAL')}</option>
+              <option value="CAMPAIGN">{t('types.CAMPAIGN')}</option>
             </Select>
           </Field>
-          <Field label="Priority">
+          <Field label={t('fields.priority')}>
             <Input
               type="number"
               min={0}
@@ -509,10 +526,10 @@ function ScheduleEditDialog({
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Start date">
+          <Field label={t('fields.startDate')}>
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </Field>
-          <Field label="End date" hint="Blank = open-ended.">
+          <Field label={t('fields.endDate')} hint={t('hints.endDate')}>
             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </Field>
         </div>
@@ -522,27 +539,27 @@ function ScheduleEditDialog({
             checked={isAllDay}
             onChange={(e) => setIsAllDay(e.target.checked)}
           />
-          All day
+          {t('fields.allDay')}
         </label>
         {!isAllDay ? (
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Start time">
+            <Field label={t('fields.startTime')}>
               <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             </Field>
-            <Field label="End time">
+            <Field label={t('fields.endTime')}>
               <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
             </Field>
           </div>
         ) : null}
-        <Field label="Days of week">
+        <Field label={t('fields.daysOfWeek')}>
           <DaysOfWeekField value={daysOfWeek} onChange={setDaysOfWeek} />
         </Field>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button onClick={save} disabled={busy}>
-            Save
+            {tc('save')}
           </Button>
         </div>
       </div>

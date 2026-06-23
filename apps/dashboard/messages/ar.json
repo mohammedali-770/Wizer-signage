@@ -615,6 +615,206 @@
         "devicePaired": "تم اقتران الجهاز.",
         "deviceUnpaired": "تم إلغاء اقتران الجهاز."
       }
+    },
+    "playlistEditor": {
+      "notFound": "قائمة التشغيل غير موجودة",
+      "actionFailed": "فشل تنفيذ الإجراء.",
+      "backToPlaylists": "الرجوع إلى قوائم التشغيل",
+      "duplicate": "نسخ",
+      "archive": "أرشفة",
+      "unarchive": "إلغاء الأرشفة",
+      "archivedToast": "تمت الأرشفة.",
+      "unarchivedToast": "تم إلغاء الأرشفة.",
+      "totalDuration": "المدة الإجمالية",
+      "validOfCount": "{valid} صالح / {total}",
+      "playbackOrder": "ترتيب التشغيل",
+      "addContent": "إضافة محتوى",
+      "unarchiveToEdit": "ألغِ الأرشفة لتعديل العناصر.",
+      "noItems": "لا توجد عناصر بعد",
+      "noItemsDescription": "أضِف محتوى من مكتبتك لبناء التسلسل.",
+      "addedToast": "تمت الإضافة إلى قائمة التشغيل.",
+      "removedToast": "تمت الإزالة.",
+      "invalid": "غير صالح",
+      "fullVideo": "الفيديو كاملًا",
+      "perPage": "{seconds} ثانية/صفحة",
+      "preview": "معاينة",
+      "editItem": "تعديل العنصر",
+      "moveUp": "تحريك لأعلى",
+      "moveDown": "تحريك لأسفل",
+      "remove": "إزالة",
+      "itemUpdatedToast": "تم تحديث العنصر.",
+      "playlistUpdatedToast": "تم تحديث قائمة التشغيل.",
+      "deleteDialogTitle": "حذف قائمة التشغيل؟",
+      "deleteDialogDescription": "سيؤدي هذا إلى حذف قائمة التشغيل حذفًا مبدئيًا. ستفقد الجداول التي تشير إليها تعيينها.",
+      "deletedToast": "تم الحذف.",
+      "editItemTitle": "تعديل ”{title}“",
+      "playFullVideoLength": "تشغيل الفيديو بطوله الكامل",
+      "durationSecondsLabel": "المدة (ثوانٍ)",
+      "durationHint": "اتركه فارغًا لاستخدام القيمة الافتراضية للمحتوى.",
+      "durationPlaceholder": "افتراضي",
+      "perPageDurationLabel": "مدة كل صفحة (ثوانٍ)",
+      "perPageDurationHint": "اختياري؛ الوقت الإجمالي = عدد الصفحات × هذه القيمة.",
+      "editPlaylistTitle": "تعديل قائمة التشغيل",
+      "titleLabel": "العنوان",
+      "statusActive": "نشط",
+      "statusDraft": "مسودة"
+    },
+    "scheduleDetail": {
+      "backToSchedules": "الرجوع إلى الجداول",
+      "notFound": "الجدول غير موجود",
+      "priorityValue": "الأولوية {value}",
+      "statuses": {
+        "ACTIVE": "نشط",
+        "PAUSED": "متوقف مؤقتًا",
+        "ARCHIVED": "مؤرشف"
+      },
+      "types": {
+        "NORMAL": "عادي",
+        "CAMPAIGN": "حملة"
+      },
+      "actions": {
+        "resume": "استئناف",
+        "pause": "إيقاف مؤقت",
+        "archive": "أرشفة"
+      },
+      "cards": {
+        "playlistTiming": "قائمة التشغيل والتوقيت"
+      },
+      "fields": {
+        "playlist": "قائمة التشغيل",
+        "dates": "التواريخ",
+        "time": "الوقت",
+        "days": "الأيام",
+        "timezone": "المنطقة الزمنية",
+        "priority": "الأولوية",
+        "startDate": "تاريخ البدء",
+        "endDate": "تاريخ الانتهاء",
+        "allDay": "طوال اليوم",
+        "startTime": "وقت البدء",
+        "endTime": "وقت الانتهاء",
+        "daysOfWeek": "أيام الأسبوع"
+      },
+      "values": {
+        "none": "لا شيء",
+        "openEnded": "مفتوح المدة",
+        "allDay": "طوال اليوم",
+        "everyDay": "كل يوم",
+        "screenLocationDefault": "الإعداد الافتراضي للشاشة / الموقع"
+      },
+      "targets": {
+        "title": "الأهداف"
+      },
+      "validation": {
+        "title": "التحقق",
+        "readyToPlay": "جاهز للتشغيل",
+        "notPlayableYet": "غير قابل للتشغيل بعد",
+        "noWarnings": "لا توجد تحذيرات.",
+        "overlapping": "الجداول المتداخلة",
+        "sharedScreens": "{count} شاشة مشتركة",
+        "thisWins": "هذا يفوز",
+        "otherWins": "الآخر يفوز"
+      },
+      "preview": {
+        "title": "معاينة ما يُعرض الآن",
+        "selectScreen": "اختر شاشة…",
+        "resolveNow": "تحديد الآن",
+        "sourceType": {
+          "SCHEDULE": "الجدول",
+          "FALLBACK": "احتياطي",
+          "EMERGENCY": "طوارئ",
+          "NONE": "لا شيء"
+        },
+        "outsideHours": "خارج ساعات العمل: {behavior}",
+        "resolvedAt": "تم التحديد في {time} ({timezone})",
+        "fullVideo": "الفيديو كاملاً",
+        "noItems": "لا توجد عناصر"
+      },
+      "hints": {
+        "endDate": "فارغ = مفتوح المدة."
+      },
+      "editDialog": {
+        "title": "تعديل الجدول"
+      },
+      "deleteDialog": {
+        "title": "حذف الجدول؟",
+        "description": "سيؤدي هذا إلى حذف الجدول حذفًا مبدئيًا."
+      },
+      "toast": {
+        "actionFailed": "فشل تنفيذ الإجراء.",
+        "manifestError": "تعذّر تحديد بيان التشغيل.",
+        "resumed": "تم الاستئناف.",
+        "paused": "تم الإيقاف المؤقت.",
+        "archived": "تمت الأرشفة.",
+        "targetAdded": "تمت إضافة الهدف.",
+        "targetRemoved": "تمت إزالة الهدف.",
+        "updated": "تم تحديث الجدول.",
+        "deleted": "تم الحذف."
+      }
+    },
+    "locationDetail": {
+      "backToLocations": "رجوع إلى المواقع",
+      "loadError": "تعذر تحميل الموقع",
+      "codeLabel": "الرمز:",
+      "fallbackHint": "يُعرض على الشاشات في هذا الموقع عندما لا تكون هناك قائمة تشغيل أو جدول نشط. يتجاوز الإعداد الافتراضي للشركة. قد تكون للشاشات في هذا الموقع اتجاهات مختلطة، لذا اختر محتوى يناسبها جميعًا (أو عيّن محتوى احتياطيًا لكل شاشة). يمكن اختيار المحتوى النشط فقط.",
+      "metrics": {
+        "totalScreens": "إجمالي الشاشات",
+        "online": "متصلة",
+        "offline": "غير متصلة",
+        "warning": "تحذير",
+        "other": "أخرى"
+      },
+      "cards": {
+        "details": "التفاصيل",
+        "metadata": "البيانات الوصفية",
+        "fallbackContent": "المحتوى الاحتياطي"
+      },
+      "fields": {
+        "code": "الرمز",
+        "address": "العنوان",
+        "city": "المدينة",
+        "region": "المنطقة",
+        "country": "الدولة",
+        "timezone": "المنطقة الزمنية",
+        "coordinates": "الإحداثيات",
+        "latitude": "خط العرض",
+        "longitude": "خط الطول",
+        "workingHours": "ساعات العمل",
+        "configured": "مُهيَّأة",
+        "notSet": "غير مُعيَّنة"
+      },
+      "placeholders": {
+        "name": "الفرع الرئيسي",
+        "code": "MB-01"
+      },
+      "actions": {
+        "deactivate": "إلغاء التفعيل",
+        "reactivate": "إعادة التفعيل",
+        "archive": "أرشفة"
+      },
+      "editDialog": {
+        "title": "تعديل الموقع",
+        "description": "تحديث تفاصيل هذا الموقع وساعات العمل.",
+        "submit": "حفظ التغييرات"
+      },
+      "archiveDialog": {
+        "title": "أرشفة الموقع",
+        "description": "تُخفى المواقع المؤرشفة من القوائم النشطة. لا يزال بإمكانك عرض هذا الموقع، لكن شاشاته لن تُحتسب ضمن الاستخدام."
+      },
+      "deleteDialog": {
+        "title": "حذف الموقع",
+        "description": "يؤدي هذا إلى حذف الموقع نهائيًا. لا يمكن التراجع عن هذا الإجراء."
+      },
+      "toast": {
+        "genericError": "حدث خطأ ما.",
+        "nameRequired": "الاسم مطلوب.",
+        "updated": "تم تحديث الموقع.",
+        "fallbackUpdated": "تم تحديث المحتوى الاحتياطي.",
+        "fallbackCleared": "تم مسح المحتوى الاحتياطي.",
+        "deactivated": "تم إلغاء تفعيل الموقع.",
+        "reactivated": "تمت إعادة تفعيل الموقع.",
+        "archived": "تمت أرشفة الموقع.",
+        "deleted": "تم حذف الموقع."
+      }
     }
   }
 }

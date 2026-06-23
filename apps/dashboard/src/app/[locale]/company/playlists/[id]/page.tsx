@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowUp, Copy, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { api, ApiError } from '@/lib/api';
 import { useApiResource } from '@/lib/use-api';
 import type { Playlist, PlaylistItem } from '@/lib/types';
@@ -34,6 +34,8 @@ import {
 } from '@/components/ui';
 
 export default function PlaylistDetailPage() {
+  const t = useTranslations('pages.playlistEditor');
+  const tc = useTranslations('common');
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const locale = useLocale();
@@ -60,7 +62,7 @@ export default function PlaylistDetailPage() {
       reload();
       after?.();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Action failed.', 'error');
+      toast(err instanceof ApiError ? err.message : t('actionFailed'), 'error');
     } finally {
       setBusy(false);
     }
@@ -74,7 +76,7 @@ export default function PlaylistDetailPage() {
     );
   }
   if (error || !playlist) {
-    return <EmptyState title="Playlist not found" description={error ?? undefined} />;
+    return <EmptyState title={t('notFound')} description={error ?? undefined} />;
   }
 
   const editable = playlist.status !== 'ARCHIVED';
@@ -87,7 +89,7 @@ export default function PlaylistDetailPage() {
           // Videos need a duration or full-play; default to full-length playback.
           ...(content.type === 'VIDEO' ? { playFullVideo: true } : {}),
         }),
-      'Added to playlist.',
+      t('addedToast'),
     );
 
   const move = (index: number, dir: -1 | 1) => {
@@ -106,7 +108,7 @@ export default function PlaylistDetailPage() {
         href="/company/playlists"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm"
       >
-        <ArrowLeft className="size-4" /> Back to playlists
+        <ArrowLeft className="size-4" /> {t('backToPlaylists')}
       </Link>
 
       <PageHeader
@@ -115,7 +117,7 @@ export default function PlaylistDetailPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setMetaOpen(true)} disabled={busy}>
-              <Pencil className="size-4" /> Edit
+              <Pencil className="size-4" /> {tc('edit')}
             </Button>
             <Button
               variant="outline"
@@ -128,23 +130,25 @@ export default function PlaylistDetailPage() {
               }
               disabled={busy}
             >
-              <Copy className="size-4" /> Duplicate
+              <Copy className="size-4" /> {t('duplicate')}
             </Button>
             {playlist.status === 'ARCHIVED' ? (
               <Button
                 variant="outline"
-                onClick={() => run(() => api.post(`/playlists/${id}/unarchive`), 'Unarchived.')}
+                onClick={() =>
+                  run(() => api.post(`/playlists/${id}/unarchive`), t('unarchivedToast'))
+                }
                 disabled={busy}
               >
-                Unarchive
+                {t('unarchive')}
               </Button>
             ) : (
               <Button
                 variant="outline"
-                onClick={() => run(() => api.post(`/playlists/${id}/archive`), 'Archived.')}
+                onClick={() => run(() => api.post(`/playlists/${id}/archive`), t('archivedToast'))}
                 disabled={busy}
               >
-                Archive
+                {t('archive')}
               </Button>
             )}
             <Button variant="danger" onClick={() => setDeleteOpen(true)} disabled={busy}>
@@ -157,7 +161,7 @@ export default function PlaylistDetailPage() {
       {/* Summary */}
       <div className="mb-4 grid gap-3 sm:grid-cols-4">
         <SummaryStat
-          label="Status"
+          label={tc('status')}
           value={
             <Badge
               tone={
@@ -173,15 +177,18 @@ export default function PlaylistDetailPage() {
           }
         />
         <SummaryStat
-          label="Items"
-          value={`${playlist.validItemCount} valid / ${playlist.itemCount}`}
+          label={tc('items')}
+          value={t('validOfCount', {
+            valid: playlist.validItemCount,
+            total: playlist.itemCount,
+          })}
         />
         <SummaryStat
-          label="Total duration"
+          label={t('totalDuration')}
           value={formatDuration(playlist.totalDurationSeconds, locale)}
         />
         <SummaryStat
-          label="Orientation"
+          label={tc('orientation')}
           value={<Badge tone="info">{playlist.orientationProfile}</Badge>}
         />
       </div>
@@ -198,22 +205,19 @@ export default function PlaylistDetailPage() {
 
       <Card>
         <CardHeader className="flex items-center justify-between">
-          <CardTitle>Playback order</CardTitle>
+          <CardTitle>{t('playbackOrder')}</CardTitle>
           {editable ? (
             <Button size="sm" onClick={() => setPickerOpen(true)} disabled={busy}>
-              <Plus className="size-4" /> Add content
+              <Plus className="size-4" /> {t('addContent')}
             </Button>
           ) : (
-            <span className="text-muted-foreground text-xs">Unarchive to edit items.</span>
+            <span className="text-muted-foreground text-xs">{t('unarchiveToEdit')}</span>
           )}
         </CardHeader>
         <CardContent className="p-0">
           {playlist.items.length === 0 ? (
             <div className="p-6">
-              <EmptyState
-                title="No items yet"
-                description="Add content from your library to build the sequence."
-              />
+              <EmptyState title={t('noItems')} description={t('noItemsDescription')} />
             </div>
           ) : (
             <ul className="divide-border divide-y">
@@ -225,14 +229,16 @@ export default function PlaylistDetailPage() {
                       <span className="truncate font-medium">{item.content.title}</span>
                       <Badge tone="neutral">{item.content.type}</Badge>
                       <Badge tone="info">{item.content.orientation}</Badge>
-                      {!item.valid ? <Badge tone="danger">{item.issue ?? 'Invalid'}</Badge> : null}
+                      {!item.valid ? (
+                        <Badge tone="danger">{item.issue ?? t('invalid')}</Badge>
+                      ) : null}
                     </div>
                     <p className="text-muted-foreground mt-0.5 text-xs">
                       {item.content.type === 'VIDEO' && item.playFullVideo
-                        ? 'Full video'
+                        ? t('fullVideo')
                         : `${formatDuration(item.effectiveDurationSeconds, locale)}`}
                       {item.content.type === 'PDF' && item.pdfPageDurationSeconds
-                        ? ` · ${item.pdfPageDurationSeconds}s/page`
+                        ? ` · ${t('perPage', { seconds: item.pdfPageDurationSeconds })}`
                         : ''}
                     </p>
                   </div>
@@ -241,7 +247,7 @@ export default function PlaylistDetailPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => setPreviewItem(item)}
-                      aria-label="Preview"
+                      aria-label={t('preview')}
                     >
                       <Eye className="size-4" />
                     </Button>
@@ -252,7 +258,7 @@ export default function PlaylistDetailPage() {
                           variant="ghost"
                           onClick={() => setEditItem(item)}
                           disabled={busy}
-                          aria-label="Edit item"
+                          aria-label={t('editItem')}
                         >
                           <Pencil className="size-4" />
                         </Button>
@@ -261,7 +267,7 @@ export default function PlaylistDetailPage() {
                           variant="ghost"
                           onClick={() => move(index, -1)}
                           disabled={busy || index === 0}
-                          aria-label="Move up"
+                          aria-label={t('moveUp')}
                         >
                           <ArrowUp className="size-4" />
                         </Button>
@@ -270,7 +276,7 @@ export default function PlaylistDetailPage() {
                           variant="ghost"
                           onClick={() => move(index, 1)}
                           disabled={busy || index === playlist.items.length - 1}
-                          aria-label="Move down"
+                          aria-label={t('moveDown')}
                         >
                           <ArrowDown className="size-4" />
                         </Button>
@@ -278,10 +284,13 @@ export default function PlaylistDetailPage() {
                           size="sm"
                           variant="ghost"
                           onClick={() =>
-                            run(() => api.del(`/playlists/${id}/items/${item.id}`), 'Removed.')
+                            run(
+                              () => api.del(`/playlists/${id}/items/${item.id}`),
+                              t('removedToast'),
+                            )
                           }
                           disabled={busy}
-                          aria-label="Remove"
+                          aria-label={t('remove')}
                         >
                           <Trash2 className="size-4" />
                         </Button>
@@ -321,7 +330,7 @@ export default function PlaylistDetailPage() {
           onSave={(body) =>
             run(
               () => api.patch(`/playlists/${id}/items/${editItem.id}`, body),
-              'Item updated.',
+              t('itemUpdatedToast'),
               () => setEditItem(null),
             )
           }
@@ -336,7 +345,7 @@ export default function PlaylistDetailPage() {
           onSave={(body) =>
             run(
               () => api.patch(`/playlists/${id}`, body),
-              'Playlist updated.',
+              t('playlistUpdatedToast'),
               () => setMetaOpen(false),
             )
           }
@@ -346,25 +355,25 @@ export default function PlaylistDetailPage() {
       <Dialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        title="Delete playlist?"
-        description="This soft-deletes the playlist. Schedules referencing it will lose their assignment."
+        title={t('deleteDialogTitle')}
+        description={t('deleteDialogDescription')}
       >
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={busy}>
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button
             variant="danger"
             onClick={() =>
               run(
                 () => api.del(`/playlists/${id}`),
-                'Deleted.',
+                t('deletedToast'),
                 () => router.push('/company/playlists'),
               )
             }
             disabled={busy}
           >
-            Delete
+            {tc('delete')}
           </Button>
         </div>
       </Dialog>
@@ -392,6 +401,8 @@ function ItemEditDialog({
   onClose: () => void;
   onSave: (body: Record<string, unknown>) => void;
 }) {
+  const t = useTranslations('pages.playlistEditor');
+  const tc = useTranslations('common');
   const isVideo = item.content.type === 'VIDEO';
   const isPdf = item.content.type === 'PDF';
   const [duration, setDuration] = useState(
@@ -419,7 +430,7 @@ function ItemEditDialog({
   };
 
   return (
-    <Dialog open onClose={onClose} title={`Edit “${item.content.title}”`}>
+    <Dialog open onClose={onClose} title={t('editItemTitle', { title: item.content.title })}>
       <div className="space-y-4">
         {isVideo ? (
           <label className="flex items-center gap-2 text-sm">
@@ -428,26 +439,23 @@ function ItemEditDialog({
               checked={playFull}
               onChange={(e) => setPlayFull(e.target.checked)}
             />
-            Play full video length
+            {t('playFullVideoLength')}
           </label>
         ) : null}
         {!(isVideo && playFull) ? (
-          <Field label="Duration (seconds)" hint="Blank uses the content's default.">
+          <Field label={t('durationSecondsLabel')} hint={t('durationHint')}>
             <Input
               type="number"
               min={1}
               step={1}
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
-              placeholder="Default"
+              placeholder={t('durationPlaceholder')}
             />
           </Field>
         ) : null}
         {isPdf ? (
-          <Field
-            label="Per-page duration (seconds)"
-            hint="Optional; total time = pages × this value."
-          >
+          <Field label={t('perPageDurationLabel')} hint={t('perPageDurationHint')}>
             <Input
               type="number"
               min={1}
@@ -460,10 +468,10 @@ function ItemEditDialog({
         ) : null}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button onClick={save} disabled={busy}>
-            Save
+            {tc('save')}
           </Button>
         </div>
       </div>
@@ -482,17 +490,19 @@ function MetaEditDialog({
   onClose: () => void;
   onSave: (body: Record<string, unknown>) => void;
 }) {
+  const t = useTranslations('pages.playlistEditor');
+  const tc = useTranslations('common');
   const [title, setTitle] = useState(playlist.title);
   const [description, setDescription] = useState(playlist.description ?? '');
   const [status, setStatus] = useState(playlist.status === 'ARCHIVED' ? 'ACTIVE' : playlist.status);
 
   return (
-    <Dialog open onClose={onClose} title="Edit playlist">
+    <Dialog open onClose={onClose} title={t('editPlaylistTitle')}>
       <div className="space-y-4">
-        <Field label="Title">
+        <Field label={t('titleLabel')}>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
         </Field>
-        <Field label="Description">
+        <Field label={tc('description')}>
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -500,15 +510,15 @@ function MetaEditDialog({
             maxLength={1000}
           />
         </Field>
-        <Field label="Status">
+        <Field label={tc('status')}>
           <Select value={status} onChange={(e) => setStatus(e.target.value as 'ACTIVE' | 'DRAFT')}>
-            <option value="ACTIVE">Active</option>
-            <option value="DRAFT">Draft</option>
+            <option value="ACTIVE">{t('statusActive')}</option>
+            <option value="DRAFT">{t('statusDraft')}</option>
           </Select>
         </Field>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button
             onClick={() =>
@@ -516,7 +526,7 @@ function MetaEditDialog({
             }
             disabled={busy}
           >
-            Save
+            {tc('save')}
           </Button>
         </div>
       </div>
