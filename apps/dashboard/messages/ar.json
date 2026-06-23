@@ -4,17 +4,88 @@
   },
   "nav": {
     "overview": "نظرة عامة",
-    "screens": "الشاشات",
-    "playlists": "قوائم التشغيل",
-    "media": "الوسائط",
-    "settings": "الإعدادات"
+    "sections": {
+      "operations": "العمليات",
+      "content": "المحتوى",
+      "reports": "التقارير",
+      "settings": "الإعدادات"
+    },
+    "items": {
+      "screens": "الشاشات",
+      "screenGroups": "مجموعات الشاشات",
+      "locations": "المواقع",
+      "monitoring": "المراقبة",
+      "alerts": "التنبيهات",
+      "emergency": "الطوارئ",
+      "content": "مكتبة المحتوى",
+      "playlists": "قوائم التشغيل",
+      "schedules": "الجداول",
+      "proofOfPlay": "إثبات التشغيل",
+      "scheduledReports": "التقارير المجدولة",
+      "imports": "الاستيراد",
+      "tags": "الوسوم",
+      "map": "الخريطة",
+      "settings": "الإعدادات",
+      "activityLogs": "سجلات النشاط"
+    }
+  },
+  "shell": {
+    "companyConsole": "وحدة تحكم الشركة",
+    "companyManagement": "إدارة الشركة",
+    "signOut": "تسجيل الخروج"
   },
   "home": {
-    "title": "هيكل لوحة التحكم جاهز",
-    "subtitle": "تم إرساء أساس التعريب ودعم الكتابة من اليمين إلى اليسار والمظهر.",
-    "phase0Note": "هذه هي واجهة لوحة التحكم للمرحلة صفر. ستتوفر المصادقة وصفحات الميزات في مراحل لاحقة.",
-    "demoNumberLabel": "رقم منسق (أرقام لاتينية)",
-    "localeLabel": "اللغة النشطة"
+    "title": "نظرة عامة",
+    "description": "مواقع شركتك وشاشاتها واستخدام الباقة.",
+    "actions": {
+      "addScreen": "إضافة شاشة",
+      "uploadContent": "رفع محتوى",
+      "createPlaylist": "إنشاء قائمة تشغيل",
+      "createSchedule": "إنشاء جدول"
+    },
+    "fleet": {
+      "title": "حالة الأسطول",
+      "viewMonitoring": "عرض المراقبة",
+      "online": "متصلة",
+      "offline": "غير متصلة",
+      "warning": "تحذير",
+      "unpaired": "غير مقترنة",
+      "empty": "لا توجد شاشات بعد. أضف شاشة واقرن جهاز Android TV للبدء.",
+      "addFirst": "أضف أول شاشة",
+      "error": "تعذّر تحميل حالة الأسطول."
+    },
+    "usage": {
+      "locations": "المواقع",
+      "screens": "الشاشات",
+      "users": "المستخدمون",
+      "plan": "الباقة",
+      "noPlan": "لا توجد باقة",
+      "percentUsed": "{percent}% مستخدَم",
+      "unavailable": "غير متاح",
+      "error": "تعذّر تحميل بيانات الاستخدام"
+    },
+    "banners": {
+      "grace": "تم تجاوز أحد حدود الباقة — أنت في فترة سماح.",
+      "graceEnding": "تم تجاوز أحد حدود الباقة — أنت في فترة سماح تنتهي في {date}.",
+      "blocked": "تم تجاوز أحد حدود الباقة وانتهت فترة السماح. تمت إعاقة إضافة موارد جديدة — تواصل مع المسؤول لترقية الباقة."
+    },
+    "quickLinks": {
+      "title": "روابط سريعة",
+      "locations": "المواقع",
+      "screens": "الشاشات",
+      "screenGroups": "مجموعات الشاشات",
+      "tags": "الوسوم",
+      "map": "الخريطة",
+      "settings": "الإعدادات",
+      "activityLogs": "سجلات النشاط"
+    }
+  },
+  "common": {
+    "pagination": {
+      "pageOf": "صفحة {page} من {total}",
+      "previous": "السابق",
+      "next": "التالي"
+    }
   },
   "theme": {
     "toggle": "تبديل المظهر",

@@ -1,3 +1,5 @@
+import { useTranslations } from 'next-intl';
+
 import { cn } from '@/lib/cn';
 import { Button } from './primitives';
 
@@ -48,15 +50,14 @@ export function Pagination({
   totalPages: number;
   onPage: (page: number) => void;
 }) {
+  const t = useTranslations('common.pagination');
   if (totalPages <= 1) return null;
   return (
     <div className="mt-4 flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">
-        Page {page} of {totalPages}
-      </span>
+      <span className="text-muted-foreground">{t('pageOf', { page, total: totalPages })}</span>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          Previous
+          {t('previous')}
         </Button>
         <Button
           variant="outline"
@@ -64,7 +65,7 @@ export function Pagination({
           disabled={page >= totalPages}
           onClick={() => onPage(page + 1)}
         >
-          Next
+          {t('next')}
         </Button>
       </div>
     </div>

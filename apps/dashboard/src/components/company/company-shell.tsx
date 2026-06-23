@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Activity,
   BarChart3,
@@ -29,46 +30,47 @@ import { LocaleSwitcher } from '@/components/locale-switcher';
 import { Button, Spinner } from '@/components/ui';
 import { NotificationBell } from '@/components/notification-bell';
 
-type NavItem = { href: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+type NavItem = { href: string; tkey: string; icon: typeof LayoutDashboard; exact?: boolean };
 
 // Grouped navigation — sections keep a 17-item list scannable instead of one
-// long flat column. Routes are unchanged.
-const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
-  { items: [{ href: '/company', label: 'Overview', icon: LayoutDashboard, exact: true }] },
+// long flat column. Labels resolve via the `nav` i18n namespace (en/ar). Routes
+// are unchanged.
+const NAV_SECTIONS: { titleKey?: string; items: NavItem[] }[] = [
+  { items: [{ href: '/company', tkey: 'overview', icon: LayoutDashboard, exact: true }] },
   {
-    title: 'Operations',
+    titleKey: 'operations',
     items: [
-      { href: '/company/screens', label: 'Screens', icon: Monitor },
-      { href: '/company/screen-groups', label: 'Screen Groups', icon: Users },
-      { href: '/company/locations', label: 'Locations', icon: Building2 },
-      { href: '/company/monitoring', label: 'Monitoring', icon: Activity },
-      { href: '/company/alerts', label: 'Alerts', icon: Bell },
-      { href: '/company/emergency-broadcasts', label: 'Emergency', icon: Megaphone },
+      { href: '/company/screens', tkey: 'items.screens', icon: Monitor },
+      { href: '/company/screen-groups', tkey: 'items.screenGroups', icon: Users },
+      { href: '/company/locations', tkey: 'items.locations', icon: Building2 },
+      { href: '/company/monitoring', tkey: 'items.monitoring', icon: Activity },
+      { href: '/company/alerts', tkey: 'items.alerts', icon: Bell },
+      { href: '/company/emergency-broadcasts', tkey: 'items.emergency', icon: Megaphone },
     ],
   },
   {
-    title: 'Content',
+    titleKey: 'content',
     items: [
-      { href: '/company/content', label: 'Content Library', icon: Library },
-      { href: '/company/playlists', label: 'Playlists', icon: ListVideo },
-      { href: '/company/schedules', label: 'Schedules', icon: CalendarClock },
+      { href: '/company/content', tkey: 'items.content', icon: Library },
+      { href: '/company/playlists', tkey: 'items.playlists', icon: ListVideo },
+      { href: '/company/schedules', tkey: 'items.schedules', icon: CalendarClock },
     ],
   },
   {
-    title: 'Reports',
+    titleKey: 'reports',
     items: [
-      { href: '/company/reports/proof-of-play', label: 'Proof of Play', icon: BarChart3 },
-      { href: '/company/reports/scheduled', label: 'Scheduled Reports', icon: FileSpreadsheet },
-      { href: '/company/imports', label: 'Imports', icon: Upload },
+      { href: '/company/reports/proof-of-play', tkey: 'items.proofOfPlay', icon: BarChart3 },
+      { href: '/company/reports/scheduled', tkey: 'items.scheduledReports', icon: FileSpreadsheet },
+      { href: '/company/imports', tkey: 'items.imports', icon: Upload },
     ],
   },
   {
-    title: 'Settings',
+    titleKey: 'settings',
     items: [
-      { href: '/company/tags', label: 'Tags', icon: Tags },
-      { href: '/company/map', label: 'Map View', icon: MapPin },
-      { href: '/company/settings', label: 'Settings', icon: Settings },
-      { href: '/company/activity-logs', label: 'Activity Logs', icon: ScrollText },
+      { href: '/company/tags', tkey: 'items.tags', icon: Tags },
+      { href: '/company/map', tkey: 'items.map', icon: MapPin },
+      { href: '/company/settings', tkey: 'items.settings', icon: Settings },
+      { href: '/company/activity-logs', tkey: 'items.activityLogs', icon: ScrollText },
     ],
   },
 ];
@@ -78,6 +80,8 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const { status, user, needsTwoFactorSetup, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const tNav = useTranslations('nav');
+  const tShell = useTranslations('shell');
 
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && needsTwoFactorSetup)) {
@@ -110,10 +114,10 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex-1 space-y-4 overflow-y-auto p-3">
           {NAV_SECTIONS.map((section, i) => (
-            <div key={section.title ?? `section-${i}`} className="space-y-1">
-              {section.title ? (
+            <div key={section.titleKey ?? `section-${i}`} className="space-y-1">
+              {section.titleKey ? (
                 <p className="text-muted-foreground/70 px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider">
-                  {section.title}
+                  {tNav(`sections.${section.titleKey}`)}
                 </p>
               ) : null}
               {section.items.map((item) => {
@@ -134,7 +138,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
                     )}
                   >
                     <Icon className="size-4 shrink-0" aria-hidden />
-                    {item.label}
+                    {tNav(item.tkey)}
                   </Link>
                 );
               })}
@@ -142,14 +146,14 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="border-border text-muted-foreground border-t p-4 text-xs">
-          Company Console
+          {tShell('companyConsole')}
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-border bg-card flex h-16 items-center justify-between gap-3 border-b px-4 md:px-6">
           <span className="text-muted-foreground text-xs uppercase tracking-wide">
-            Company Management
+            {tShell('companyManagement')}
           </span>
           <div className="flex items-center gap-2">
             <NotificationBell basePath="/company" />
@@ -160,7 +164,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
               <p className="text-muted-foreground text-xs leading-tight">{user?.email}</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => logout()}>
-              Sign out
+              {tShell('signOut')}
             </Button>
           </div>
         </header>

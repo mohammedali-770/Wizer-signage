@@ -4,17 +4,88 @@
   },
   "nav": {
     "overview": "Overview",
-    "screens": "Screens",
-    "playlists": "Playlists",
-    "media": "Media",
-    "settings": "Settings"
+    "sections": {
+      "operations": "Operations",
+      "content": "Content",
+      "reports": "Reports",
+      "settings": "Settings"
+    },
+    "items": {
+      "screens": "Screens",
+      "screenGroups": "Screen Groups",
+      "locations": "Locations",
+      "monitoring": "Monitoring",
+      "alerts": "Alerts",
+      "emergency": "Emergency",
+      "content": "Content Library",
+      "playlists": "Playlists",
+      "schedules": "Schedules",
+      "proofOfPlay": "Proof of Play",
+      "scheduledReports": "Scheduled Reports",
+      "imports": "Imports",
+      "tags": "Tags",
+      "map": "Map View",
+      "settings": "Settings",
+      "activityLogs": "Activity Logs"
+    }
+  },
+  "shell": {
+    "companyConsole": "Company Console",
+    "companyManagement": "Company Management",
+    "signOut": "Sign out"
   },
   "home": {
-    "title": "Dashboard shell is ready",
-    "subtitle": "The internationalization, right-to-left, and theming foundation is in place.",
-    "phase0Note": "This is the Phase 0 dashboard shell. Authentication and feature pages arrive in later phases.",
-    "demoNumberLabel": "Formatted number (Latin digits)",
-    "localeLabel": "Active locale"
+    "title": "Overview",
+    "description": "Your company's locations, screens, and plan usage.",
+    "actions": {
+      "addScreen": "Add screen",
+      "uploadContent": "Upload content",
+      "createPlaylist": "Create playlist",
+      "createSchedule": "Create schedule"
+    },
+    "fleet": {
+      "title": "Fleet health",
+      "viewMonitoring": "View monitoring",
+      "online": "Online",
+      "offline": "Offline",
+      "warning": "Warning",
+      "unpaired": "Unpaired",
+      "empty": "No screens yet. Add a screen and pair your Android TV to get started.",
+      "addFirst": "Add your first screen",
+      "error": "Could not load fleet status."
+    },
+    "usage": {
+      "locations": "Locations",
+      "screens": "Screens",
+      "users": "Users",
+      "plan": "Plan",
+      "noPlan": "No plan",
+      "percentUsed": "{percent}% used",
+      "unavailable": "Unavailable",
+      "error": "Could not load usage"
+    },
+    "banners": {
+      "grace": "A plan limit is exceeded — you are in a grace period.",
+      "graceEnding": "A plan limit is exceeded — you are in a grace period ending {date}.",
+      "blocked": "A plan limit is exceeded and the grace period has ended. Adding new resources is blocked — contact your administrator to upgrade the plan."
+    },
+    "quickLinks": {
+      "title": "Quick links",
+      "locations": "Locations",
+      "screens": "Screens",
+      "screenGroups": "Screen Groups",
+      "tags": "Tags",
+      "map": "Map View",
+      "settings": "Settings",
+      "activityLogs": "Activity Logs"
+    }
+  },
+  "common": {
+    "pagination": {
+      "pageOf": "Page {page} of {total}",
+      "previous": "Previous",
+      "next": "Next"
+    }
   },
   "theme": {
     "toggle": "Toggle theme",

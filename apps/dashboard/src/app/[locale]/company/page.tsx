@@ -1,6 +1,6 @@
 'use client';
 
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Building2,
   CalendarClock,
@@ -14,7 +14,7 @@ import {
 
 import { useApiResource } from '@/lib/use-api';
 import { cn } from '@/lib/cn';
-import { formatNumber } from '@/lib/format';
+import { formatDate, formatNumber } from '@/lib/format';
 import type {
   CompanySettings,
   MonitoringOverview,
@@ -35,20 +35,20 @@ import {
 import { Link } from '@/i18n/navigation';
 
 const QUICK_ACTIONS = [
-  { href: '/company/screens/new', label: 'Add screen', icon: Plus, primary: true },
-  { href: '/company/content/new', label: 'Upload content', icon: Upload },
-  { href: '/company/playlists/new', label: 'Create playlist', icon: ListVideo },
-  { href: '/company/schedules/new', label: 'Create schedule', icon: CalendarClock },
+  { href: '/company/screens/new', tkey: 'addScreen', icon: Plus, primary: true },
+  { href: '/company/content/new', tkey: 'uploadContent', icon: Upload },
+  { href: '/company/playlists/new', tkey: 'createPlaylist', icon: ListVideo },
+  { href: '/company/schedules/new', tkey: 'createSchedule', icon: CalendarClock },
 ];
 
 const QUICK_LINKS = [
-  { href: '/company/locations', label: 'Locations' },
-  { href: '/company/screens', label: 'Screens' },
-  { href: '/company/screen-groups', label: 'Screen Groups' },
-  { href: '/company/tags', label: 'Tags' },
-  { href: '/company/map', label: 'Map View' },
-  { href: '/company/settings', label: 'Settings' },
-  { href: '/company/activity-logs', label: 'Activity Logs' },
+  { href: '/company/locations', tkey: 'locations' },
+  { href: '/company/screens', tkey: 'screens' },
+  { href: '/company/screen-groups', tkey: 'screenGroups' },
+  { href: '/company/tags', tkey: 'tags' },
+  { href: '/company/map', tkey: 'map' },
+  { href: '/company/settings', tkey: 'settings' },
+  { href: '/company/activity-logs', tkey: 'activityLogs' },
 ];
 
 function limitLabel(r: ResourceUsage | undefined, locale: string): string {
@@ -66,6 +66,7 @@ function usageTone(r: ResourceUsage | undefined): 'success' | 'warning' | 'dange
 
 export default function CompanyOverviewPage() {
   const locale = useLocale();
+  const t = useTranslations('home');
   // Two independent sources — render each as soon as it arrives instead of
   // blocking the whole page on the slower one.
   const settings = useApiResource<CompanySettings>('/company-settings');
@@ -79,10 +80,7 @@ export default function CompanyOverviewPage() {
 
   return (
     <div>
-      <PageHeader
-        title={company ? company.name : 'Overview'}
-        description="Your company's locations, screens, and plan usage."
-      />
+      <PageHeader title={company ? company.name : t('title')} description={t('description')} />
 
       {/* Quick actions — guide users straight into the common create flows. */}
       <div className="mb-6 flex flex-wrap gap-2">
@@ -100,27 +98,27 @@ export default function CompanyOverviewPage() {
               )}
             >
               <Icon className="size-4" aria-hidden />
-              {a.label}
+              {t(`actions.${a.tkey}`)}
             </Link>
           );
         })}
       </div>
 
       <div className="space-y-6">
-        {/* Fleet health — instant visibility of screen status (Req 4). */}
+        {/* Fleet health — instant visibility of screen status. */}
         <Card>
           <CardHeader className="flex items-center justify-between">
-            <CardTitle>Fleet health</CardTitle>
+            <CardTitle>{t('fleet.title')}</CardTitle>
             <Link
               href="/company/monitoring"
               className="text-primary text-xs font-medium hover:underline"
             >
-              View monitoring →
+              {t('fleet.viewMonitoring')} →
             </Link>
           </CardHeader>
           <CardContent>
             {fleet.error ? (
-              <p className="text-muted-foreground text-sm">Could not load fleet status.</p>
+              <p className="text-muted-foreground text-sm">{t('fleet.error')}</p>
             ) : !totals ? (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -129,23 +127,31 @@ export default function CompanyOverviewPage() {
               </div>
             ) : totals.total === 0 ? (
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-muted-foreground text-sm">
-                  No screens yet. Add a screen and pair your Android TV to get started.
-                </p>
+                <p className="text-muted-foreground text-sm">{t('fleet.empty')}</p>
                 <Link
                   href="/company/screens/new"
                   className="text-primary text-sm font-medium hover:underline"
                 >
-                  Add your first screen →
+                  {t('fleet.addFirst')} →
                 </Link>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <FleetStat label="Online" value={totals.online} tone="success" icon={MonitorPlay} />
-                <FleetStat label="Offline" value={totals.offline} tone="danger" icon={Monitor} />
-                <FleetStat label="Warning" value={totals.warning} tone="warning" icon={Monitor} />
                 <FleetStat
-                  label="Unpaired"
+                  labelKey="online"
+                  value={totals.online}
+                  tone="success"
+                  icon={MonitorPlay}
+                />
+                <FleetStat labelKey="offline" value={totals.offline} tone="danger" icon={Monitor} />
+                <FleetStat
+                  labelKey="warning"
+                  value={totals.warning}
+                  tone="warning"
+                  icon={Monitor}
+                />
+                <FleetStat
+                  labelKey="unpaired"
                   value={totals.unpaired + totals.pairing}
                   tone="info"
                   icon={Monitor}
@@ -154,37 +160,40 @@ export default function CompanyOverviewPage() {
             )}
           </CardContent>
         </Card>
+
         {evalData?.status === 'grace' && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-            A plan limit is exceeded — you are in a grace period
             {evalData.gracePeriodEndsAt
-              ? ` ending ${new Date(evalData.gracePeriodEndsAt).toLocaleDateString()}`
-              : ''}
-            .
+              ? t('banners.graceEnding', { date: formatDate(evalData.gracePeriodEndsAt, locale) })
+              : t('banners.grace')}
           </div>
         )}
         {evalData?.status === 'blocked' && (
           <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-            A plan limit is exceeded and the grace period has ended. Adding new resources is blocked
-            — contact your administrator to upgrade the plan.
+            {t('banners.blocked')}
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {usage.error ? (
             <div className="sm:col-span-2 xl:col-span-4">
-              <EmptyState title="Could not load usage" description={usage.error} />
+              <EmptyState title={t('usage.error')} description={usage.error} />
             </div>
           ) : evalData ? (
             <>
               <UsageCard
                 icon={Building2}
-                label="Locations"
+                labelKey="locations"
                 resource={res('locations')}
                 locale={locale}
               />
-              <UsageCard icon={Monitor} label="Screens" resource={res('screens')} locale={locale} />
-              <UsageCard icon={Users} label="Users" resource={res('users')} locale={locale} />
+              <UsageCard
+                icon={Monitor}
+                labelKey="screens"
+                resource={res('screens')}
+                locale={locale}
+              />
+              <UsageCard icon={Users} labelKey="users" resource={res('users')} locale={locale} />
             </>
           ) : (
             <>
@@ -197,9 +206,9 @@ export default function CompanyOverviewPage() {
           {/* Plan card depends on settings, which loads independently of usage. */}
           {company ? (
             <Card className="p-5">
-              <p className="text-muted-foreground text-sm">Plan</p>
+              <p className="text-muted-foreground text-sm">{t('usage.plan')}</p>
               <p className="mt-2 text-2xl font-semibold tracking-tight">
-                {company.plan?.name ?? 'No plan'}
+                {company.plan?.name ?? t('usage.noPlan')}
               </p>
               {company.plan ? (
                 <Badge tone="info" className="mt-2">
@@ -209,8 +218,10 @@ export default function CompanyOverviewPage() {
             </Card>
           ) : settings.error ? (
             <Card className="p-5">
-              <p className="text-muted-foreground text-sm">Plan</p>
-              <p className="mt-2 text-sm text-red-600 dark:text-red-400">Unavailable</p>
+              <p className="text-muted-foreground text-sm">{t('usage.plan')}</p>
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                {t('usage.unavailable')}
+              </p>
             </Card>
           ) : (
             <StatCardSkeleton />
@@ -219,7 +230,7 @@ export default function CompanyOverviewPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Quick links</CardTitle>
+            <CardTitle>{t('quickLinks.title')}</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {QUICK_LINKS.map((l) => (
@@ -228,7 +239,7 @@ export default function CompanyOverviewPage() {
                 href={l.href}
                 className="border-border hover:bg-muted rounded-lg border px-4 py-3 text-sm font-medium transition"
               >
-                {l.label}
+                {t(`quickLinks.${l.tkey}`)}
               </Link>
             ))}
           </CardContent>
@@ -246,48 +257,53 @@ const FLEET_TONES: Record<'success' | 'danger' | 'warning' | 'info', string> = {
 };
 
 function FleetStat({
-  label,
+  labelKey,
   value,
   tone,
   icon: Icon,
 }: {
-  label: string;
+  labelKey: 'online' | 'offline' | 'warning' | 'unpaired';
   value: number;
   tone: keyof typeof FLEET_TONES;
   icon: typeof Monitor;
 }) {
+  const t = useTranslations('home.fleet');
+  const locale = useLocale();
   return (
     <div className="border-border rounded-lg border p-3">
       <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
         <Icon className={cn('size-3.5', FLEET_TONES[tone])} aria-hidden />
-        {label}
+        {t(labelKey)}
       </div>
-      <p className={cn('mt-1 text-2xl font-semibold tabular-nums', FLEET_TONES[tone])}>{value}</p>
+      <p className={cn('mt-1 text-2xl font-semibold tabular-nums', FLEET_TONES[tone])}>
+        {formatNumber(value, locale)}
+      </p>
     </div>
   );
 }
 
 function UsageCard({
   icon: Icon,
-  label,
+  labelKey,
   resource,
   locale,
 }: {
   icon: typeof Building2;
-  label: string;
+  labelKey: 'locations' | 'screens' | 'users';
   resource: ResourceUsage | undefined;
   locale: string;
 }) {
+  const t = useTranslations('home.usage');
   return (
     <Card className="p-5">
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-sm">{label}</p>
+        <p className="text-muted-foreground text-sm">{t(labelKey)}</p>
         <Icon className="text-muted-foreground size-4" aria-hidden />
       </div>
       <p className="mt-2 text-2xl font-semibold tracking-tight">{limitLabel(resource, locale)}</p>
       {resource && !resource.unlimited && resource.percentUsed !== null ? (
         <Badge tone={usageTone(resource)} className="mt-2">
-          {formatNumber(resource.percentUsed, locale)}% used
+          {t('percentUsed', { percent: formatNumber(resource.percentUsed, locale) })}
         </Badge>
       ) : null}
     </Card>
