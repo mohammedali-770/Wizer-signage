@@ -16,6 +16,10 @@
   :root {
     --radius: 0.625rem;
 
+    /* Brand typography — mapped per locale (Arabic override in [lang='ar']). */
+    --font-sans: var(--font-inter);
+    --font-display: var(--font-manrope);
+
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
 
@@ -27,8 +31,23 @@
 
     --border: 214 32% 91%;
 
+    /* Signal Blue #2563EB */
     --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
+
+    /* Sidebar — Master Navy #0B1220 command-center surface; identical in
+       light + dark so the navigation always reads as the control center. */
+    --sidebar: 222 49% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-muted: 215 20% 65%;
+    --sidebar-border: 222 32% 16%;
+    --sidebar-accent: 217 91% 60%;
+  }
+
+  /* Arabic uses the Thmanyah Sans brand font for body and display. */
+  [lang='ar'] {
+    --font-sans: var(--font-arabic);
+    --font-display: var(--font-arabic);
   }
 
   .dark {

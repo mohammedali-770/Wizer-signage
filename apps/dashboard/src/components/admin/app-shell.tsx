@@ -23,6 +23,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { NotificationBell } from '@/components/notification-bell';
 import { Button, Spinner } from '@/components/ui';
+import { Logo } from '@/components/brand/logo';
 
 type NavItem = { href: string; tkey: string; icon: typeof LayoutDashboard; exact?: boolean };
 
@@ -59,8 +60,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             className={cn(
               'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
               active
-                ? "bg-primary/10 text-primary before:bg-primary font-medium before:absolute before:inset-y-1 before:start-0 before:w-0.5 before:rounded-full before:content-['']"
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                ? "bg-sidebar-accent/15 text-sidebar-accent before:bg-sidebar-accent font-medium before:absolute before:inset-y-1 before:start-0 before:w-0.5 before:rounded-full before:content-['']"
+                : 'text-sidebar-muted hover:text-sidebar-foreground hover:bg-white/5',
             )}
           >
             <Icon className="size-4 shrink-0" aria-hidden />
@@ -115,13 +116,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="bg-background flex min-h-screen">
-      <aside className="border-border bg-card hidden w-64 shrink-0 flex-col border-e md:flex">
-        <div className="border-border flex h-16 items-center gap-2 border-b px-5">
-          <div className="bg-primary size-7 rounded-md" />
-          <span className="font-semibold">MasterSignage</span>
+      <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground hidden w-64 shrink-0 flex-col border-e md:flex">
+        <div className="border-sidebar-border flex h-16 items-center border-b px-5">
+          <Logo />
         </div>
         <NavLinks />
-        <div className="border-border text-muted-foreground border-t p-4 text-xs">
+        <div className="border-sidebar-border text-sidebar-muted border-t p-4 text-xs">
           {tShell('adminConsole')}
         </div>
       </aside>
@@ -135,20 +135,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileNavOpen(false)}
           />
-          <div className="bg-card border-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-xl">
-            <div className="border-border flex h-16 items-center justify-between border-b px-5">
-              <span className="font-semibold">MasterSignage</span>
+          <div className="bg-sidebar text-sidebar-foreground border-sidebar-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-xl">
+            <div className="border-sidebar-border flex h-16 items-center justify-between border-b px-5">
+              <Logo />
               <button
                 type="button"
                 aria-label={tShell('closeMenu')}
-                className="text-muted-foreground hover:text-foreground rounded-md p-1"
+                className="text-sidebar-muted hover:text-sidebar-foreground rounded-md p-1"
                 onClick={() => setMobileNavOpen(false)}
               >
                 <X className="size-5" />
               </button>
             </div>
             <NavLinks onNavigate={() => setMobileNavOpen(false)} />
-            <div className="border-border text-muted-foreground border-t p-4 text-xs">
+            <div className="border-sidebar-border text-sidebar-muted border-t p-4 text-xs">
               {tShell('adminConsole')}
             </div>
           </div>

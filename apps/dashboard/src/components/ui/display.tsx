@@ -6,7 +6,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        'border-border bg-card text-card-foreground rounded-xl border shadow-sm',
+        'border-border bg-card text-card-foreground rounded-2xl border shadow-sm',
         className,
       )}
       {...props}
@@ -133,7 +133,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{title}</h1>
         {description ? <p className="text-muted-foreground mt-1 text-sm">{description}</p> : null}
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
