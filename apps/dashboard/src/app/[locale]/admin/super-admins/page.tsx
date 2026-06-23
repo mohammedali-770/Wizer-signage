@@ -135,7 +135,7 @@ export default function SuperAdminsPage() {
                 <TH>Status</TH>
                 <TH>2FA</TH>
                 <TH>Last login</TH>
-                <TH className="text-right">Actions</TH>
+                <TH className="text-end">Actions</TH>
               </TR>
             </THead>
             <TBody>
@@ -154,7 +154,7 @@ export default function SuperAdminsPage() {
                   <TD className="text-muted-foreground">
                     {admin.lastLoginAt ? formatDateTime(admin.lastLoginAt, locale) : 'Never'}
                   </TD>
-                  <TD className="text-right">
+                  <TD className="text-end">
                     {admin.status === 'ACTIVE' ? (
                       <Button
                         variant="outline"

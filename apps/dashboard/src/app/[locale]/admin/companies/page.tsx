@@ -91,12 +91,12 @@ export default function CompaniesPage() {
           }}
         >
           <div className="relative max-w-sm flex-1">
-            <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search by name or slug…"
-              className="pl-9"
+              className="ps-9"
               aria-label="Search companies"
             />
           </div>
@@ -148,9 +148,9 @@ export default function CompaniesPage() {
                 <TH>Slug</TH>
                 <TH>Status</TH>
                 <TH>Plan</TH>
-                <TH className="text-right">Users</TH>
-                <TH className="text-right">Locations</TH>
-                <TH className="text-right">Screens</TH>
+                <TH className="text-end">Users</TH>
+                <TH className="text-end">Locations</TH>
+                <TH className="text-end">Screens</TH>
                 <TH>Created</TH>
               </TR>
             </THead>
@@ -179,13 +179,13 @@ export default function CompaniesPage() {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TD>
-                  <TD className="text-right tabular-nums">
+                  <TD className="text-end tabular-nums">
                     {formatNumber(company.metrics.users, locale)}
                   </TD>
-                  <TD className="text-right tabular-nums">
+                  <TD className="text-end tabular-nums">
                     {formatNumber(company.metrics.locations, locale)}
                   </TD>
-                  <TD className="text-right tabular-nums">
+                  <TD className="text-end tabular-nums">
                     {formatNumber(company.metrics.screens, locale)}
                   </TD>
                   <TD className="text-muted-foreground whitespace-nowrap">

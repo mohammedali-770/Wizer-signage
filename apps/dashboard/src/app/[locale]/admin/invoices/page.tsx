@@ -140,10 +140,10 @@ export default function InvoicesPage() {
                 <TH>Number</TH>
                 <TH>Company</TH>
                 <TH>Status</TH>
-                <TH className="text-right">Total</TH>
+                <TH className="text-end">Total</TH>
                 <TH>Issued</TH>
                 <TH>Due</TH>
-                <TH className="text-right">Actions</TH>
+                <TH className="text-end">Actions</TH>
               </TR>
             </THead>
             <TBody>
@@ -154,7 +154,7 @@ export default function InvoicesPage() {
                   <TD>
                     <StatusBadge status={invoice.status} />
                   </TD>
-                  <TD className="text-right tabular-nums">
+                  <TD className="text-end tabular-nums">
                     {formatCurrency(invoice.total, invoice.currency, locale)}
                   </TD>
                   <TD>{invoice.issuedAt ? formatDate(invoice.issuedAt, locale) : '—'}</TD>
@@ -380,7 +380,7 @@ function CreateInvoiceDialog({
                   step="1"
                   value={item.quantity}
                   onChange={(e) => updateLine(index, { quantity: e.target.value })}
-                  className="text-right"
+                  className="text-end"
                 />
                 <Input
                   type="number"
@@ -388,7 +388,7 @@ function CreateInvoiceDialog({
                   step="0.01"
                   value={item.unitPrice}
                   onChange={(e) => updateLine(index, { unitPrice: e.target.value })}
-                  className="text-right"
+                  className="text-end"
                 />
                 <Button
                   type="button"
@@ -415,7 +415,7 @@ function CreateInvoiceDialog({
               value={tax}
               onChange={(e) => setTax(e.target.value)}
               placeholder="0.00"
-              className="text-right"
+              className="text-end"
             />
           </Field>
           <Field label="Status">

@@ -445,7 +445,7 @@ export default function ContentDetailPage() {
             description="Update metadata, scheduling, and tags for this item."
           >
             {form && (
-              <form onSubmit={submitEdit} className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+              <form onSubmit={submitEdit} className="max-h-[70vh] space-y-4 overflow-y-auto pe-1">
                 <Field label="Title">
                   <Input
                     value={form.title}

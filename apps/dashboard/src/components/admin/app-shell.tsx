@@ -105,7 +105,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <NotificationBell basePath="/admin" />
             <LocaleSwitcher />
             <ThemeToggle />
-            <div className="hidden text-right sm:block">
+            <div className="hidden text-end sm:block">
               <p className="text-sm font-medium leading-tight">{user?.name}</p>
               <p className="text-muted-foreground text-xs leading-tight">{user?.email}</p>
             </div>

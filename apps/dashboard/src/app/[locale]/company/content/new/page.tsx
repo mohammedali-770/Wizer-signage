@@ -239,7 +239,7 @@ export default function NewContentPage() {
                   accept={FILE_ACCEPT}
                   onChange={handleFileChange}
                   disabled={busy}
-                  className="file:bg-muted h-auto py-2 file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                  className="file:bg-muted h-auto py-2 file:me-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm file:font-medium"
                   aria-label="File to upload"
                 />
               </Field>

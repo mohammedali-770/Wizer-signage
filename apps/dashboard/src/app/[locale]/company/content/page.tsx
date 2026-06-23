@@ -372,7 +372,7 @@ export default function ContentLibraryPage() {
             >
               {tab.label}
               {usage.data ? (
-                <span className="text-muted-foreground ml-1.5 text-xs">
+                <span className="text-muted-foreground ms-1.5 text-xs">
                   {formatNumber(usage.data.counts.byStatus[tab.value] ?? 0, locale)}
                 </span>
               ) : null}
@@ -398,12 +398,12 @@ export default function ContentLibraryPage() {
           }}
         >
           <div className="relative max-w-sm flex-1">
-            <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search by title…"
-              className="pl-9"
+              className="ps-9"
               aria-label="Search content"
             />
           </div>
@@ -559,7 +559,7 @@ export default function ContentLibraryPage() {
                 <TH>Size</TH>
                 <TH>Expiry</TH>
                 <TH>Created</TH>
-                <TH className="text-right">Actions</TH>
+                <TH className="text-end">Actions</TH>
               </TR>
             </THead>
             <TBody>
@@ -801,7 +801,7 @@ function StorageUsageCard({
           <div className="flex items-baseline justify-between">
             <p className="text-2xl font-semibold tracking-tight">
               {formatBytes(storage.usedBytes, locale)}
-              <span className="text-muted-foreground ml-1.5 text-sm font-normal">
+              <span className="text-muted-foreground ms-1.5 text-sm font-normal">
                 of {limitLabel}
               </span>
             </p>
@@ -866,7 +866,7 @@ function BulkToolbar({
 }) {
   return (
     <div className="border-primary/30 bg-primary/5 mt-4 flex flex-wrap items-center gap-2 rounded-lg border px-4 py-3">
-      <span className="mr-1 text-sm font-medium">{formatNumber(count, locale)} selected</span>
+      <span className="me-1 text-sm font-medium">{formatNumber(count, locale)} selected</span>
 
       {status === 'ACTIVE' && (
         <Button size="sm" variant="outline" onClick={() => onAction('archive')}>
@@ -907,7 +907,7 @@ function BulkToolbar({
         </>
       )}
 
-      <Button size="sm" variant="ghost" className="ml-auto" onClick={onClear}>
+      <Button size="sm" variant="ghost" className="ms-auto" onClick={onClear}>
         Clear
       </Button>
     </div>
@@ -963,7 +963,7 @@ function ContentRow({
             <button
               type="button"
               onClick={onPreview}
-              className="text-foreground hover:text-primary block max-w-[16rem] truncate text-left font-medium hover:underline"
+              className="text-foreground hover:text-primary block max-w-[16rem] truncate text-start font-medium hover:underline"
               title={content.title}
             >
               {content.title}

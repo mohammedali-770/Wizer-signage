@@ -351,7 +351,7 @@ export default function ScheduleDetailPage() {
                 Resolved at {formatDateTime(manifest.generatedAt, locale)} ({manifest.timezone})
               </p>
               {manifest.items.length > 0 ? (
-                <ol className="mt-3 list-decimal space-y-1 pl-5">
+                <ol className="mt-3 list-decimal space-y-1 ps-5">
                   {manifest.items.map((item, i) => (
                     <li key={`${item.contentId}-${i}`}>
                       {item.title} <Badge tone="neutral">{item.type}</Badge>{' '}
@@ -430,7 +430,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return (
     <div className="flex justify-between gap-4">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">{children}</span>
+      <span className="text-end">{children}</span>
     </div>
   );
 }

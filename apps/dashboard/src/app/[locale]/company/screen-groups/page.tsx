@@ -171,12 +171,12 @@ export default function ScreenGroupsPage() {
           }}
         >
           <div className="relative max-w-sm flex-1">
-            <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search groups…"
-              className="pl-9"
+              className="ps-9"
               aria-label="Search groups"
             />
           </div>
@@ -213,8 +213,8 @@ export default function ScreenGroupsPage() {
                 <TH>Name</TH>
                 <TH>Category</TH>
                 <TH>Description</TH>
-                <TH className="text-right">Screens</TH>
-                <TH className="text-right">Actions</TH>
+                <TH className="text-end">Screens</TH>
+                <TH className="text-end">Actions</TH>
               </TR>
             </THead>
             <TBody>
@@ -231,7 +231,7 @@ export default function ScreenGroupsPage() {
                   <TD className="text-muted-foreground max-w-xs truncate">
                     {group.description ?? '—'}
                   </TD>
-                  <TD className="text-right tabular-nums">
+                  <TD className="text-end tabular-nums">
                     {formatNumber(group.screenCount ?? 0, locale)}
                   </TD>
                   <TD>

@@ -83,7 +83,7 @@ export function TargetSelector({
               <span className="opacity-70">{t.targetType.replace('_', ' ').toLowerCase()}:</span>{' '}
               {labelFor(t)}
               {!busy ? (
-                <button onClick={() => onRemove(t, i)} aria-label="Remove target" className="ml-1">
+                <button onClick={() => onRemove(t, i)} aria-label="Remove target" className="ms-1">
                   <X className="size-3" />
                 </button>
               ) : null}

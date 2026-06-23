@@ -301,7 +301,7 @@ export default function CompanyDetailPage() {
                       <TH>Resource</TH>
                       <TH>Used / Limit</TH>
                       <TH>Usage</TH>
-                      <TH className="text-right">Status</TH>
+                      <TH className="text-end">Status</TH>
                     </TR>
                   </THead>
                   <TBody>
@@ -320,7 +320,7 @@ export default function CompanyDetailPage() {
                             ? '—'
                             : `${formatNumber(Math.round(resource.percentUsed), locale)}%`}
                         </TD>
-                        <TD className="text-right">
+                        <TD className="text-end">
                           <ResourceStatusBadge resource={resource} />
                         </TD>
                       </TR>

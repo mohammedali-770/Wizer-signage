@@ -78,7 +78,7 @@ export function NotificationBell({ basePath }: { basePath: string }) {
       >
         <Bell className="size-5" />
         {count > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -end-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
             {count > 99 ? '99+' : count}
           </span>
         ) : null}

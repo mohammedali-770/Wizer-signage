@@ -249,7 +249,7 @@ export default function PlansPage() {
                 <TH>Price</TH>
                 <TH>Trial days</TH>
                 <TH>Status</TH>
-                <TH className="text-right">Actions</TH>
+                <TH className="text-end">Actions</TH>
               </TR>
             </THead>
             <TBody>

@@ -227,7 +227,7 @@ export default function SubscriptionsPage() {
                 <TH>Trial ends</TH>
                 <TH>Current period</TH>
                 <TH>Grace ends</TH>
-                <TH className="text-right">Actions</TH>
+                <TH className="text-end">Actions</TH>
               </TR>
             </THead>
             <TBody>

@@ -15,7 +15,7 @@ function SettingList({ rows }: { rows: SettingRow[] }) {
           className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-6"
         >
           <dt className="text-foreground text-sm font-medium sm:w-1/3 sm:shrink-0">{row.label}</dt>
-          <dd className="text-muted-foreground text-sm sm:flex-1 sm:text-right">{row.value}</dd>
+          <dd className="text-muted-foreground text-sm sm:flex-1 sm:text-end">{row.value}</dd>
         </div>
       ))}
     </dl>

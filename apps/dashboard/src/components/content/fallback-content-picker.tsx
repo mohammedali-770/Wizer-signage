@@ -56,7 +56,7 @@ export function FallbackContentPicker({
           <span className="text-sm">
             {selected.loading ? 'Loading…' : (current?.title ?? 'Selected content')}
             {current ? (
-              <Badge tone="neutral" className="ml-2">
+              <Badge tone="neutral" className="ms-2">
                 {current.type}
               </Badge>
             ) : null}
@@ -133,7 +133,7 @@ function ContentChooser({ search, onPick }: { search: string; onPick: (id: strin
         <button
           key={c.id}
           onClick={() => onPick(c.id)}
-          className="border-border hover:bg-muted flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
+          className="border-border hover:bg-muted flex w-full items-center justify-between rounded-md border px-3 py-2 text-start text-sm transition"
         >
           <span className="truncate">{c.title}</span>
           <span className="flex items-center gap-2">

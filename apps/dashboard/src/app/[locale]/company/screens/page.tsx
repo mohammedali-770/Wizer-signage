@@ -151,12 +151,12 @@ export default function ScreensPage() {
           }}
         >
           <div className="relative max-w-sm flex-1">
-            <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search by name or code…"
-              className="pl-9"
+              className="ps-9"
               aria-label="Search screens"
             />
           </div>
@@ -294,7 +294,7 @@ export default function ScreensPage() {
                       {screen.name}
                     </Link>
                     {screen.code ? (
-                      <span className="text-muted-foreground ml-2 text-xs">{screen.code}</span>
+                      <span className="text-muted-foreground ms-2 text-xs">{screen.code}</span>
                     ) : null}
                   </TD>
                   <TD className="text-muted-foreground">{screen.location?.name ?? 'Unassigned'}</TD>

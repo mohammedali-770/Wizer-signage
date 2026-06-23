@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Activity,
@@ -14,12 +14,14 @@ import {
   ListVideo,
   MapPin,
   Megaphone,
+  Menu,
   Monitor,
   ScrollText,
   Settings,
   Tags,
   Upload,
   Users,
+  X,
 } from 'lucide-react';
 
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -75,13 +77,55 @@ const NAV_SECTIONS: { titleKey?: string; items: NavItem[] }[] = [
   },
 ];
 
+/** Grouped nav links, shared by the desktop sidebar and the mobile drawer. */
+function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
+  const tNav = useTranslations('nav');
+  return (
+    <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+      {NAV_SECTIONS.map((section, i) => (
+        <div key={section.titleKey ?? `section-${i}`} className="space-y-1">
+          {section.titleKey ? (
+            <p className="text-muted-foreground/70 px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider">
+              {tNav(`sections.${section.titleKey}`)}
+            </p>
+          ) : null}
+          {section.items.map((item) => {
+            const active = item.exact
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onNavigate}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
+                  active
+                    ? "bg-primary/10 text-primary before:bg-primary font-medium before:absolute before:inset-y-1 before:start-0 before:w-0.5 before:rounded-full before:content-['']"
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+              >
+                <Icon className="size-4 shrink-0" aria-hidden />
+                {tNav(item.tkey)}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
 /** Protected Company Admin shell: auth guard + sidebar + top bar. */
 export function CompanyShell({ children }: { children: React.ReactNode }) {
   const { status, user, needsTwoFactorSetup, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const tNav = useTranslations('nav');
   const tShell = useTranslations('shell');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && needsTwoFactorSetup)) {
@@ -91,6 +135,17 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       router.replace('/admin');
     }
   }, [status, needsTwoFactorSetup, user?.role, router]);
+
+  // Close the mobile drawer on navigation + on Escape.
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMobileNavOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileNavOpen]);
 
   if (
     status === 'loading' ||
@@ -112,54 +167,61 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           <div className="bg-primary size-7 rounded-md" />
           <span className="font-semibold">MasterSignage</span>
         </div>
-        <nav className="flex-1 space-y-4 overflow-y-auto p-3">
-          {NAV_SECTIONS.map((section, i) => (
-            <div key={section.titleKey ?? `section-${i}`} className="space-y-1">
-              {section.titleKey ? (
-                <p className="text-muted-foreground/70 px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider">
-                  {tNav(`sections.${section.titleKey}`)}
-                </p>
-              ) : null}
-              {section.items.map((item) => {
-                const active = item.exact
-                  ? pathname === item.href
-                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
-                      active
-                        ? "bg-primary/10 text-primary before:bg-primary font-medium before:absolute before:inset-y-1 before:start-0 before:w-0.5 before:rounded-full before:content-['']"
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                    )}
-                  >
-                    <Icon className="size-4 shrink-0" aria-hidden />
-                    {tNav(item.tkey)}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
+        <NavLinks />
         <div className="border-border text-muted-foreground border-t p-4 text-xs">
           {tShell('companyConsole')}
         </div>
       </aside>
 
+      {/* Mobile drawer + backdrop (md:hidden) */}
+      {mobileNavOpen ? (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <div className="bg-card border-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-xl">
+            <div className="border-border flex h-16 items-center justify-between border-b px-5">
+              <span className="font-semibold">MasterSignage</span>
+              <button
+                type="button"
+                aria-label="Close menu"
+                className="text-muted-foreground hover:text-foreground rounded-md p-1"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <NavLinks onNavigate={() => setMobileNavOpen(false)} />
+            <div className="border-border text-muted-foreground border-t p-4 text-xs">
+              {tShell('companyConsole')}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-border bg-card flex h-16 items-center justify-between gap-3 border-b px-4 md:px-6">
-          <span className="text-muted-foreground text-xs uppercase tracking-wide">
-            {tShell('companyManagement')}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Open menu"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground -ms-1 rounded-md p-2 md:hidden"
+              onClick={() => setMobileNavOpen(true)}
+            >
+              <Menu className="size-5" />
+            </button>
+            <span className="text-muted-foreground text-xs uppercase tracking-wide">
+              {tShell('companyManagement')}
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <NotificationBell basePath="/company" />
             <LocaleSwitcher />
             <ThemeToggle />
-            <div className="hidden text-right sm:block">
+            <div className="hidden text-end sm:block">
               <p className="text-sm font-medium leading-tight">{user?.name}</p>
               <p className="text-muted-foreground text-xs leading-tight">{user?.email}</p>
             </div>

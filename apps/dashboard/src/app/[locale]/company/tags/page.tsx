@@ -211,12 +211,12 @@ export default function TagsPage() {
           }}
         >
           <div className="relative max-w-sm flex-1">
-            <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search tags…"
-              className="pl-9"
+              className="ps-9"
               aria-label="Search tags"
             />
           </div>
@@ -267,8 +267,8 @@ export default function TagsPage() {
                 <TH>Name</TH>
                 <TH>Type</TH>
                 <TH>Description</TH>
-                <TH className="text-right">Screens</TH>
-                <TH className="text-right">Actions</TH>
+                <TH className="text-end">Screens</TH>
+                <TH className="text-end">Actions</TH>
               </TR>
             </THead>
             <TBody>
@@ -290,7 +290,7 @@ export default function TagsPage() {
                   <TD className="text-muted-foreground max-w-xs truncate">
                     {tag.description || '—'}
                   </TD>
-                  <TD className="text-right tabular-nums">
+                  <TD className="text-end tabular-nums">
                     {formatNumber(tag.screenCount ?? 0, locale)}
                   </TD>
                   <TD>
@@ -371,7 +371,7 @@ export default function TagsPage() {
                 disabled={!form.colorEnabled}
                 value={form.color}
                 onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-                className="border-border bg-background ml-2 h-9 w-14 cursor-pointer rounded-md border p-1 disabled:cursor-not-allowed disabled:opacity-50"
+                className="border-border bg-background ms-2 h-9 w-14 cursor-pointer rounded-md border p-1 disabled:cursor-not-allowed disabled:opacity-50"
               />
               {form.colorEnabled ? (
                 <span className="text-muted-foreground text-xs">{form.color}</span>

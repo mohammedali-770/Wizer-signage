@@ -91,12 +91,12 @@ export default function LocationsPage() {
           }}
         >
           <div className="relative max-w-sm flex-1">
-            <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search by name or code…"
-              className="pl-9"
+              className="ps-9"
               aria-label="Search locations"
             />
           </div>
@@ -145,7 +145,7 @@ export default function LocationsPage() {
                 <TH>Code</TH>
                 <TH>City</TH>
                 <TH>Status</TH>
-                <TH className="text-right">Screens</TH>
+                <TH className="text-end">Screens</TH>
                 <TH>Created</TH>
               </TR>
             </THead>
@@ -173,7 +173,7 @@ export default function LocationsPage() {
                   <TD>
                     <StatusBadge status={location.status} />
                   </TD>
-                  <TD className="text-right tabular-nums">
+                  <TD className="text-end tabular-nums">
                     {formatNumber(location.screenCount, locale)}
                   </TD>
                   <TD className="text-muted-foreground whitespace-nowrap">

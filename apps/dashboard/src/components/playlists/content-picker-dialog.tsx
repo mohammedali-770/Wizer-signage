@@ -91,7 +91,7 @@ export function ContentPickerDialog({
                 onClick={() =>
                   onPick({ id: c.id, title: c.title, type: c.type, orientation: c.orientation })
                 }
-                className="border-border hover:bg-muted flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition disabled:opacity-50"
+                className="border-border hover:bg-muted flex w-full items-center justify-between rounded-md border px-3 py-2 text-start text-sm transition disabled:opacity-50"
               >
                 <span className="truncate">{c.title}</span>
                 <span className="flex items-center gap-2">
