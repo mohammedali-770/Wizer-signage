@@ -178,7 +178,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 z-50 md:hidden">
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label={tShell('closeMenu')}
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileNavOpen(false)}
           />
@@ -187,7 +187,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
               <span className="font-semibold">MasterSignage</span>
               <button
                 type="button"
-                aria-label="Close menu"
+                aria-label={tShell('closeMenu')}
                 className="text-muted-foreground hover:text-foreground rounded-md p-1"
                 onClick={() => setMobileNavOpen(false)}
               >
@@ -207,7 +207,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              aria-label="Open menu"
+              aria-label={tShell('openMenu')}
               className="text-muted-foreground hover:bg-muted hover:text-foreground -ms-1 rounded-md p-2 md:hidden"
               onClick={() => setMobileNavOpen(true)}
             >

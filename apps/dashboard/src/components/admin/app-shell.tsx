@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Building2,
@@ -8,10 +8,12 @@ import {
   DatabaseBackup,
   FileText,
   LayoutDashboard,
+  Menu,
   Package,
   ScrollText,
   Settings,
   ShieldCheck,
+  X,
 } from 'lucide-react';
 
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -37,13 +39,46 @@ const NAV: NavItem[] = [
   { href: '/admin/activity-logs', tkey: 'activityLogs', icon: ScrollText },
 ];
 
+/** Nav links shared by the desktop sidebar and the mobile drawer. */
+function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
+  const tNav = useTranslations('adminNav');
+  return (
+    <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+      {NAV.map((item) => {
+        const active = item.exact
+          ? pathname === item.href
+          : pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+              'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
+              active
+                ? "bg-primary/10 text-primary before:bg-primary font-medium before:absolute before:inset-y-1 before:start-0 before:w-0.5 before:rounded-full before:content-['']"
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
+          >
+            <Icon className="size-4 shrink-0" aria-hidden />
+            {tNav(item.tkey)}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 /** Protected Super Admin shell: auth guard + sidebar + top bar. */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { status, user, needsTwoFactorSetup, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const tNav = useTranslations('adminNav');
   const tShell = useTranslations('shell');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && needsTwoFactorSetup)) {
@@ -53,6 +88,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       router.replace('/company');
     }
   }, [status, needsTwoFactorSetup, user, router]);
+
+  // Close the mobile drawer on navigation + on Escape.
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMobileNavOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileNavOpen]);
 
   if (
     status === 'loading' ||
@@ -74,39 +120,56 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="bg-primary size-7 rounded-md" />
           <span className="font-semibold">MasterSignage</span>
         </div>
-        <nav className="flex-1 space-y-1 p-3">
-          {NAV.map((item) => {
-            const active = item.exact
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
-                  active
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                <Icon className="size-4" aria-hidden />
-                {tNav(item.tkey)}
-              </Link>
-            );
-          })}
-        </nav>
+        <NavLinks />
         <div className="border-border text-muted-foreground border-t p-4 text-xs">
           {tShell('adminConsole')}
         </div>
       </aside>
 
+      {/* Mobile drawer + backdrop (md:hidden) */}
+      {mobileNavOpen ? (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            aria-label={tShell('closeMenu')}
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <div className="bg-card border-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-xl">
+            <div className="border-border flex h-16 items-center justify-between border-b px-5">
+              <span className="font-semibold">MasterSignage</span>
+              <button
+                type="button"
+                aria-label={tShell('closeMenu')}
+                className="text-muted-foreground hover:text-foreground rounded-md p-1"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <NavLinks onNavigate={() => setMobileNavOpen(false)} />
+            <div className="border-border text-muted-foreground border-t p-4 text-xs">
+              {tShell('adminConsole')}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-border bg-card flex h-16 items-center justify-between gap-3 border-b px-4 md:px-6">
-          <span className="text-muted-foreground text-xs uppercase tracking-wide">
-            {tShell('platformAdministration')}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label={tShell('openMenu')}
+              className="text-muted-foreground hover:bg-muted hover:text-foreground -ms-1 rounded-md p-2 md:hidden"
+              onClick={() => setMobileNavOpen(true)}
+            >
+              <Menu className="size-5" />
+            </button>
+            <span className="text-muted-foreground text-xs uppercase tracking-wide">
+              {tShell('platformAdministration')}
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <NotificationBell basePath="/admin" />
             <LocaleSwitcher />

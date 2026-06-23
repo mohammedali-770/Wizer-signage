@@ -34,7 +34,9 @@
     "companyManagement": "Company Management",
     "signOut": "Sign out",
     "adminConsole": "Super Admin Console",
-    "platformAdministration": "Platform Administration"
+    "platformAdministration": "Platform Administration",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "home": {
     "title": "Overview",

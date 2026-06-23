@@ -34,7 +34,9 @@
     "companyManagement": "إدارة الشركة",
     "signOut": "تسجيل الخروج",
     "adminConsole": "وحدة تحكم المسؤول الأعلى",
-    "platformAdministration": "إدارة المنصة"
+    "platformAdministration": "إدارة المنصة",
+    "openMenu": "فتح القائمة",
+    "closeMenu": "إغلاق القائمة"
   },
   "home": {
     "title": "نظرة عامة",
