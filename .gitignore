@@ -54,3 +54,6 @@ captures/
 # OS
 .DS_Store
 Thumbs.db
+
+# Host-mounted runtime downloads (e.g. Android player APK) — not source
+/downloads/

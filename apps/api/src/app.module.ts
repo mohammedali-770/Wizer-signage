@@ -46,6 +46,7 @@ import { ExportsModule } from './modules/exports/exports.module';
 import { ImportsModule } from './modules/imports/imports.module';
 import { ScheduledReportsModule } from './modules/scheduled-reports/scheduled-reports.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
+import { DownloadsModule } from './modules/downloads/downloads.module';
 
 /**
  * Root application module (Phase 1).
@@ -70,6 +71,7 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
     CommonModule,
     MailModule,
     HealthModule,
+    DownloadsModule,
     ActivityLogModule,
     CompaniesModule,
     SessionsModule,
