@@ -51,11 +51,26 @@ pnpm install --frozen-lockfile
 echo "==> [deploy] Building service images..."
 ${COMPOSE} build
 
-# --- 4. Bring the stack up ---------------------------------------------------
+# --- 4. Apply database migrations --------------------------------------------
+# The migration files are baked into the freshly-built api image above, so this
+# must run AFTER build and BEFORE bringing the stack up. Idempotent.
+echo "==> [deploy] Applying database migrations (prisma migrate deploy)..."
+${COMPOSE} run --rm api npx prisma migrate deploy
+
+# --- 5. Bring the stack up ---------------------------------------------------
 echo "==> [deploy] Starting stack (docker compose up -d)..."
 ${COMPOSE} up -d
 
-# --- 5. Health check loop ----------------------------------------------------
+# --- 6. Restart nginx so it re-resolves the recreated upstreams --------------
+# nginx resolves the `dashboard`/`api` upstream hostnames once at startup and
+# caches their container IPs. `up -d` recreates those containers with NEW IPs,
+# so a long-running nginx keeps proxying to the dead IPs and returns 502 Bad
+# Gateway. Restarting nginx forces it to re-resolve. Always do this after
+# recreating upstreams.
+echo "==> [deploy] Restarting nginx (re-resolve upstream IPs)..."
+${COMPOSE} restart nginx
+
+# --- 7. Health check loop ----------------------------------------------------
 echo "==> [deploy] Waiting for API health at ${HEALTH_URL} ..."
 attempt=1
 until curl -fsS "${HEALTH_URL}" >/dev/null 2>&1; do
