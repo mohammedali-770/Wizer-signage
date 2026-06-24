@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Building2,
   CreditCard,
@@ -79,6 +79,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const tShell = useTranslations('shell');
+  // Pin the sidebar to the left in both languages: chrome is LTR, content keeps locale dir.
+  const contentDir = useLocale() === 'ar' ? 'rtl' : 'ltr';
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
@@ -115,7 +117,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="bg-background flex min-h-screen">
+    <div className="bg-background flex min-h-screen" dir="ltr">
       <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground hidden w-64 shrink-0 flex-col border-e md:flex">
         <div className="border-sidebar-border flex h-16 items-center border-b px-5">
           <Logo />
@@ -183,7 +185,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
+        <main dir={contentDir} className="flex-1 overflow-y-auto p-4 md:p-8">
+          {children}
+        </main>
       </div>
     </div>
   );

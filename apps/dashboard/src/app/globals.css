@@ -35,12 +35,12 @@
     --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
 
-    /* Sidebar — Master Navy #0B1220 command-center surface; identical in
-       light + dark so the navigation always reads as the control center. */
-    --sidebar: 222 49% 8%;
+    /* Sidebar — Deep Slate #1E293B command-center surface (lighter than Master
+       Navy so the logo reads clearly); identical in light + dark. */
+    --sidebar: 217 33% 17%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-muted: 215 20% 65%;
-    --sidebar-border: 222 32% 16%;
+    --sidebar-muted: 215 20% 72%;
+    --sidebar-border: 215 20% 28%;
     --sidebar-accent: 217 91% 60%;
   }
 
