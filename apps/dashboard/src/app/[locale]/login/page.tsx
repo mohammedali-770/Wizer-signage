@@ -5,8 +5,9 @@ import { useEffect, useState } from 'react';
 import { ApiError } from '@/lib/api';
 import { useAuth, type TwoFactorSetup } from '@/lib/auth-context';
 import { useRouter } from '@/i18n/navigation';
+import Image from 'next/image';
+
 import { Button, Card, Field, Input, Spinner, useToast } from '@/components/ui';
-import { Logo } from '@/components/brand/logo';
 import { BrandPattern } from '@/components/brand/pattern';
 
 type Step = 'login' | '2fa' | 'enroll' | 'backup';
@@ -110,7 +111,13 @@ export default function LoginPage() {
       <BrandPattern className="text-foreground/[0.035] pointer-events-none absolute inset-0 h-full w-full" />
       <Card className="relative w-full max-w-md p-8">
         <div className="mb-6 flex justify-center">
-          <Logo />
+          <Image
+            src="/brand/master-signage-logo.png"
+            alt="MasterSignage"
+            width={240}
+            height={160}
+            priority
+          />
         </div>
 
         {step === 'login' && (
