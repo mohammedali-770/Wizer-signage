@@ -43,11 +43,10 @@ git fetch --prune origin
 git checkout "${DEPLOY_BRANCH}"
 git pull --ff-only origin "${DEPLOY_BRANCH}"
 
-# --- 2. Install dependencies -------------------------------------------------
-echo "==> [deploy] Installing dependencies (pnpm install --frozen-lockfile)..."
-pnpm install --frozen-lockfile
+# Note: no host-side `pnpm install` — dependencies are installed INSIDE the
+# Docker images during `compose build`. The host only needs git + docker + curl.
 
-# --- 3. Build images ---------------------------------------------------------
+# --- 2. Build images ---------------------------------------------------------
 echo "==> [deploy] Building service images..."
 ${COMPOSE} build
 
