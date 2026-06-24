@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -28,6 +29,7 @@ export type InvitationCreatedView = InvitationView & { token: string };
 
 @Injectable()
 export class InvitationsService {
+  private readonly logger = new Logger(InvitationsService.name);
   private readonly dashboardUrl: string;
 
   constructor(
@@ -264,14 +266,25 @@ export class InvitationsService {
 
   private async sendInvitationEmail(email: string, rawToken: string, name?: string): Promise<void> {
     const link = `${this.dashboardUrl}/accept-invitation?token=${encodeURIComponent(rawToken)}`;
-    await this.mail.send({
-      to: email,
-      subject: 'You have been invited to MasterSignage',
-      text:
-        `${name ? `Hi ${name},\n\n` : ''}You have been invited to join MasterSignage.\n\n` +
-        `Accept your invitation (valid for ${INVITE_EXPIRY_DAYS} days):\n${link}\n\n` +
-        `If you did not expect this invitation, you can ignore this email.`,
-    });
+    // Best-effort: a transport error (e.g. SMTP not configured) must NOT fail the
+    // invitation. The inviter always gets a copy-link from the create/resend
+    // response, so delivery is non-critical.
+    try {
+      await this.mail.send({
+        to: email,
+        subject: 'You have been invited to MasterSignage',
+        text:
+          `${name ? `Hi ${name},\n\n` : ''}You have been invited to join MasterSignage.\n\n` +
+          `Accept your invitation (valid for ${INVITE_EXPIRY_DAYS} days):\n${link}\n\n` +
+          `If you did not expect this invitation, you can ignore this email.`,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Invitation email to ${email} failed (continuing — the inviter can copy the link): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   }
 
   toView(invitation: Invitation): InvitationView {
