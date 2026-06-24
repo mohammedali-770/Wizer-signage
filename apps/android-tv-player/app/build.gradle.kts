@@ -48,6 +48,10 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        // Media3 (ExoPlayer/PlayerView) APIs are annotated @UnstableApi, which is
+        // @RequiresOptIn(level = ERROR). Opt the whole module in so usages compile
+        // without a per-call @OptIn and Kotlin doesn't fail with opt-in errors.
+        freeCompilerArgs += "-opt-in=androidx.media3.common.util.UnstableApi"
     }
 
     buildFeatures {
