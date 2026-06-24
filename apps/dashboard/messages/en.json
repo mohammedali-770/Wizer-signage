@@ -26,7 +26,8 @@
       "tags": "Tags",
       "map": "Map View",
       "settings": "Settings",
-      "activityLogs": "Activity Logs"
+      "activityLogs": "Activity Logs",
+      "users": "Users"
     }
   },
   "shell": {
@@ -1520,7 +1521,20 @@
       "toastReactivated": "Company reactivated.",
       "toastSuspended": "Company suspended.",
       "toastUpdated": "Company updated.",
-      "toastError": "Something went wrong."
+      "toastError": "Something went wrong.",
+      "invite": {
+        "addAdmin": "Add admin",
+        "dialogTitle": "Add company admin",
+        "dialogDescription": "Create the first administrator for this company. They will get a one-time link to set up their account.",
+        "emailLabel": "Email",
+        "emailPlaceholder": "admin@company.com",
+        "createButton": "Create invitation",
+        "linkLabel": "Invitation link",
+        "linkHint": "Send this link to the admin. It lets them accept the invitation and set their password.",
+        "copyLink": "Copy link",
+        "toastCreated": "Invitation created.",
+        "linkCopied": "Link copied."
+      }
     },
     "adminPlans": {
       "title": "Plans",
@@ -1791,6 +1805,68 @@
         "backupFailed": "Backup failed",
         "reportFailed": "Scheduled report failed"
       }
+    },
+    "acceptInvite": {
+      "title": "Accept your invitation",
+      "description": "Set a password to finish creating your account.",
+      "fullName": "Full name",
+      "password": "Password",
+      "passwordHint": "At least 10 characters.",
+      "confirmPassword": "Confirm password",
+      "submit": "Create account",
+      "invalidTitle": "Invalid invitation",
+      "invalidDescription": "This invitation link is invalid or missing.",
+      "accountCreated": "Account created",
+      "successDescription": "Your account is ready. You can now sign in.",
+      "goToLogin": "Go to sign in",
+      "passwordTooShort": "Password must be at least 10 characters.",
+      "passwordMismatch": "Passwords do not match.",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "users": {
+      "title": "Users",
+      "description": "Invite teammates and manage who has access to your company.",
+      "invite": "Invite user",
+      "email": "Email",
+      "role": "Role",
+      "copyLink": "Copy link",
+      "revoke": "Revoke",
+      "linkCopied": "Invitation link copied to clipboard.",
+      "members": {
+        "title": "Members",
+        "loadError": "Could not load members.",
+        "emptyTitle": "No members yet",
+        "emptyDescription": "Invite your first teammate to get started.",
+        "lastLogin": "Last login",
+        "joined": "Joined"
+      },
+      "pending": {
+        "title": "Pending invitations",
+        "loadError": "Could not load invitations.",
+        "emptyTitle": "No pending invitations",
+        "emptyDescription": "Invitations you send will appear here until they are accepted.",
+        "expires": "Expires"
+      },
+      "inviteDialog": {
+        "title": "Invite a user",
+        "description": "Send an invitation to join your company with a specific role.",
+        "emailPlaceholder": "name@company.com",
+        "roleHint": "Determines what this user can access and manage.",
+        "send": "Send invitation",
+        "linkHelp": "Invitation created. Email delivery may not be configured, so share this link directly with the person you invited.",
+        "linkLabel": "Invitation link"
+      },
+      "revokeDialog": {
+        "title": "Revoke invitation",
+        "confirm": "Revoke the invitation for {email}? The link will stop working."
+      },
+      "toasts": {
+        "invited": "Invitation sent.",
+        "revoked": "Invitation revoked.",
+        "emailRequired": "Please enter an email address.",
+        "error": "Something went wrong.",
+        "copyFailed": "Could not copy the link."
+      }
     }
   },
   "enums": {
@@ -1930,6 +2006,19 @@
       "TRASH": "Trash",
       "UPLOADED": "Uploaded",
       "VALIDATED": "Validated"
+    },
+    "userRole": {
+      "SUPER_ADMIN": "Super Admin",
+      "COMPANY_ADMIN": "Company Admin",
+      "LOCATION_MANAGER": "Location Manager",
+      "CONTENT_MANAGER": "Content Manager",
+      "VIEWER": "Viewer"
+    },
+    "invitationStatus": {
+      "PENDING": "Pending",
+      "ACCEPTED": "Accepted",
+      "REVOKED": "Revoked",
+      "EXPIRED": "Expired"
     }
   },
   "notifications": {

@@ -3,13 +3,19 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { AlertTriangle, ArrowLeft, Ban, Pencil, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Ban, Copy, Pencil, ShieldCheck, UserPlus } from 'lucide-react';
 
 import { Link } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
 import { useApiResource } from '@/lib/use-api';
 import { formatBytes, formatDate, formatNumber } from '@/lib/format';
-import type { CompanyDetail, PlanLimits, ResourceUsage, UsageEvaluation } from '@/lib/types';
+import type {
+  CompanyDetail,
+  Invitation,
+  PlanLimits,
+  ResourceUsage,
+  UsageEvaluation,
+} from '@/lib/types';
 import {
   Badge,
   Button,
@@ -126,6 +132,10 @@ export default function CompanyDetailPage() {
   const [suspendReason, setSuspendReason] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+
   const [form, setForm] = useState<EditForm>({
     name: '',
     defaultLocale: '',
@@ -202,6 +212,36 @@ export default function CompanyDetailPage() {
     }
   }
 
+  function openInvite() {
+    setInviteEmail('');
+    setInviteLink('');
+    setInviteOpen(true);
+  }
+
+  async function handleInvite() {
+    if (!id) return;
+    setBusy(true);
+    try {
+      const inv = await api.post<Invitation>('/invitations', {
+        email: inviteEmail.trim(),
+        role: 'COMPANY_ADMIN',
+        companyId: id,
+      });
+      const link = `${window.location.origin}/${locale}/accept-invitation?token=${inv.token}`;
+      setInviteLink(link);
+      toast(t('invite.toastCreated'), 'success');
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : t('toastError'), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleCopyLink() {
+    if (!inviteLink) return;
+    navigator.clipboard.writeText(inviteLink).then(() => toast(t('invite.linkCopied'), 'success'));
+  }
+
   const subscription = data?.subscription ?? null;
   const usage = data?.usage ?? null;
 
@@ -231,6 +271,10 @@ export default function CompanyDetailPage() {
             actions={
               <>
                 <StatusBadge status={company.status} />
+                <Button variant="outline" onClick={openInvite}>
+                  <UserPlus className="size-4" />
+                  {t('invite.addAdmin')}
+                </Button>
                 <Button variant="outline" onClick={() => setEditOpen(true)}>
                   <Pencil className="size-4" />
                   {tc('edit')}
@@ -433,6 +477,62 @@ export default function CompanyDetailPage() {
           </Card>
         </div>
       )}
+
+      {/* Add admin dialog */}
+      <Dialog
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        title={t('invite.dialogTitle')}
+        description={t('invite.dialogDescription')}
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleInvite();
+          }}
+        >
+          <Field label={t('invite.emailLabel')}>
+            <Input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder={t('invite.emailPlaceholder')}
+              required
+              disabled={!!inviteLink}
+            />
+          </Field>
+
+          {inviteLink ? (
+            <Field label={t('invite.linkLabel')} hint={t('invite.linkHint')}>
+              <div className="flex items-center gap-2">
+                <Input value={inviteLink} readOnly />
+                <Button type="button" variant="outline" onClick={handleCopyLink}>
+                  <Copy className="size-4" />
+                  {t('invite.copyLink')}
+                </Button>
+              </div>
+            </Field>
+          ) : null}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setInviteOpen(false)}
+              disabled={busy}
+            >
+              {inviteLink ? tc('close') : tc('cancel')}
+            </Button>
+            {inviteLink ? null : (
+              <Button type="submit" disabled={busy || !inviteEmail.trim()}>
+                {busy ? <Spinner className="size-4" /> : null}
+                {t('invite.createButton')}
+              </Button>
+            )}
+          </div>
+        </form>
+      </Dialog>
 
       {/* Edit dialog */}
       <Dialog

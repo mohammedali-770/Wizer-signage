@@ -22,6 +22,10 @@ import type { ListInvitationsQueryDto } from './dto/list-invitations.dto';
 
 export type InvitationView = Omit<Invitation, 'tokenHash'>;
 
+/** Create/resend also return the raw token so the inviter can copy the accept
+ *  link (works even when email delivery is not configured). */
+export type InvitationCreatedView = InvitationView & { token: string };
+
 @Injectable()
 export class InvitationsService {
   private readonly dashboardUrl: string;
@@ -39,7 +43,7 @@ export class InvitationsService {
       config.get<AppConfig['app']>('app', { infer: true })?.dashboardUrl ?? 'http://localhost:3000';
   }
 
-  async create(actor: AuthenticatedUser, dto: CreateInvitationDto): Promise<InvitationView> {
+  async create(actor: AuthenticatedUser, dto: CreateInvitationDto): Promise<InvitationCreatedView> {
     const email = dto.email.toLowerCase().trim();
     const companyId = await this.resolveTargetCompany(actor, dto);
 
@@ -98,7 +102,7 @@ export class InvitationsService {
       metadata: { email, role: dto.role },
     });
 
-    return this.toView(invitation);
+    return { ...this.toView(invitation), token: rawToken };
   }
 
   async list(actor: AuthenticatedUser, query: ListInvitationsQueryDto) {
@@ -148,7 +152,7 @@ export class InvitationsService {
     return this.toView(updated);
   }
 
-  async resend(actor: AuthenticatedUser, id: string): Promise<InvitationView> {
+  async resend(actor: AuthenticatedUser, id: string): Promise<InvitationCreatedView> {
     const invitation = await this.getScopedOrThrow(actor, id);
     if (invitation.status === InvitationStatus.ACCEPTED) {
       throw new BadRequestException('This invitation has already been accepted.');
@@ -171,7 +175,7 @@ export class InvitationsService {
       targetType: 'invitation',
       targetId: id,
     });
-    return this.toView(updated);
+    return { ...this.toView(updated), token: rawToken };
   }
 
   // --- Acceptance (used by AuthService) ----------------------------------

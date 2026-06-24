@@ -12,6 +12,32 @@ export type SubscriptionStatus = 'ACTIVE' | 'TRIALING' | 'EXPIRED' | 'SUSPENDED'
 export type InvoiceStatus = 'DRAFT' | 'UNPAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 export type BillingInterval = 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
 export type UserStatus = 'ACTIVE' | 'INVITED' | 'DISABLED' | 'LOCKED';
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+
+/** A user within the current company (GET /users). */
+export interface CompanyUser {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  status: UserStatus;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+/** An invitation (GET /invitations). `token` is only present on create/resend. */
+export interface Invitation {
+  id: string;
+  email: string;
+  role: UserRole;
+  companyId: string | null;
+  status: InvitationStatus;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  token?: string;
+}
 
 export interface PageMeta {
   page: number;

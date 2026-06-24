@@ -20,6 +20,7 @@ import {
   Settings,
   Tags,
   Upload,
+  UserCog,
   Users,
   X,
 } from 'lucide-react';
@@ -70,6 +71,7 @@ const NAV_SECTIONS: { titleKey?: string; items: NavItem[] }[] = [
   {
     titleKey: 'settings',
     items: [
+      { href: '/company/users', tkey: 'items.users', icon: UserCog },
       { href: '/company/tags', tkey: 'items.tags', icon: Tags },
       { href: '/company/map', tkey: 'items.map', icon: MapPin },
       { href: '/company/settings', tkey: 'items.settings', icon: Settings },

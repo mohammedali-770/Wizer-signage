@@ -26,7 +26,8 @@
       "tags": "الوسوم",
       "map": "الخريطة",
       "settings": "الإعدادات",
-      "activityLogs": "سجلات النشاط"
+      "activityLogs": "سجلات النشاط",
+      "users": "المستخدمون"
     }
   },
   "shell": {
@@ -1520,7 +1521,20 @@
       "toastReactivated": "تمت إعادة تفعيل الشركة.",
       "toastSuspended": "تم إيقاف الشركة.",
       "toastUpdated": "تم تحديث الشركة.",
-      "toastError": "حدث خطأ ما."
+      "toastError": "حدث خطأ ما.",
+      "invite": {
+        "addAdmin": "إضافة مسؤول",
+        "dialogTitle": "إضافة مسؤول للشركة",
+        "dialogDescription": "أنشئ أول مسؤول لهذه الشركة. سيحصل على رابط لمرة واحدة لإعداد حسابه.",
+        "emailLabel": "البريد الإلكتروني",
+        "emailPlaceholder": "admin@company.com",
+        "createButton": "إنشاء دعوة",
+        "linkLabel": "رابط الدعوة",
+        "linkHint": "أرسل هذا الرابط إلى المسؤول. يتيح له قبول الدعوة وتعيين كلمة المرور.",
+        "copyLink": "نسخ الرابط",
+        "toastCreated": "تم إنشاء الدعوة.",
+        "linkCopied": "تم نسخ الرابط."
+      }
     },
     "adminPlans": {
       "title": "الباقات",
@@ -1791,6 +1805,68 @@
         "backupFailed": "فشل النسخ الاحتياطي",
         "reportFailed": "فشل التقرير المجدول"
       }
+    },
+    "acceptInvite": {
+      "title": "قبول الدعوة",
+      "description": "عيّن كلمة مرور لإكمال إنشاء حسابك.",
+      "fullName": "الاسم الكامل",
+      "password": "كلمة المرور",
+      "passwordHint": "عشرة أحرف على الأقل.",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "submit": "إنشاء الحساب",
+      "invalidTitle": "دعوة غير صالحة",
+      "invalidDescription": "رابط الدعوة هذا غير صالح أو مفقود.",
+      "accountCreated": "تم إنشاء الحساب",
+      "successDescription": "حسابك جاهز. يمكنك الآن تسجيل الدخول.",
+      "goToLogin": "الانتقال إلى تسجيل الدخول",
+      "passwordTooShort": "يجب ألا تقل كلمة المرور عن 10 أحرف.",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين.",
+      "genericError": "حدث خطأ ما. يرجى المحاولة مرة أخرى."
+    },
+    "users": {
+      "title": "المستخدمون",
+      "description": "ادعُ أعضاء فريقك وأدِر من يملك صلاحية الوصول إلى شركتك.",
+      "invite": "دعوة مستخدم",
+      "email": "البريد الإلكتروني",
+      "role": "الدور",
+      "copyLink": "نسخ الرابط",
+      "revoke": "إلغاء",
+      "linkCopied": "تم نسخ رابط الدعوة إلى الحافظة.",
+      "members": {
+        "title": "الأعضاء",
+        "loadError": "تعذّر تحميل الأعضاء.",
+        "emptyTitle": "لا يوجد أعضاء بعد",
+        "emptyDescription": "ادعُ أول عضو في فريقك للبدء.",
+        "lastLogin": "آخر تسجيل دخول",
+        "joined": "تاريخ الانضمام"
+      },
+      "pending": {
+        "title": "الدعوات المعلّقة",
+        "loadError": "تعذّر تحميل الدعوات.",
+        "emptyTitle": "لا توجد دعوات معلّقة",
+        "emptyDescription": "ستظهر الدعوات التي ترسلها هنا حتى يتم قبولها.",
+        "expires": "تنتهي في"
+      },
+      "inviteDialog": {
+        "title": "دعوة مستخدم",
+        "description": "أرسل دعوة للانضمام إلى شركتك بدور محدّد.",
+        "emailPlaceholder": "name@company.com",
+        "roleHint": "يحدّد ما يمكن لهذا المستخدم الوصول إليه وإدارته.",
+        "send": "إرسال الدعوة",
+        "linkHelp": "تم إنشاء الدعوة. قد لا يكون إرسال البريد الإلكتروني مهيّأً، لذا شارك هذا الرابط مباشرةً مع الشخص الذي دعوته.",
+        "linkLabel": "رابط الدعوة"
+      },
+      "revokeDialog": {
+        "title": "إلغاء الدعوة",
+        "confirm": "هل تريد إلغاء دعوة {email}؟ سيتوقف الرابط عن العمل."
+      },
+      "toasts": {
+        "invited": "تم إرسال الدعوة.",
+        "revoked": "تم إلغاء الدعوة.",
+        "emailRequired": "يرجى إدخال عنوان بريد إلكتروني.",
+        "error": "حدث خطأ ما.",
+        "copyFailed": "تعذّر نسخ الرابط."
+      }
     }
   },
   "enums": {
@@ -1930,6 +2006,19 @@
       "TRASH": "المهملات",
       "UPLOADED": "تم الرفع",
       "VALIDATED": "تم التحقق"
+    },
+    "userRole": {
+      "SUPER_ADMIN": "مسؤول أعلى",
+      "COMPANY_ADMIN": "مدير الشركة",
+      "LOCATION_MANAGER": "مدير موقع",
+      "CONTENT_MANAGER": "مدير المحتوى",
+      "VIEWER": "مشاهد"
+    },
+    "invitationStatus": {
+      "PENDING": "قيد الانتظار",
+      "ACCEPTED": "مقبولة",
+      "REVOKED": "ملغاة",
+      "EXPIRED": "منتهية"
     }
   },
   "notifications": {
