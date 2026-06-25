@@ -55,6 +55,17 @@ export default function OverviewPage() {
               label={t('activeSuperAdmins')}
               value={formatNumber(data.superAdmins.active, locale)}
             />
+            <StatCard label={t('activeTrials')} value={formatNumber(data.trials.active, locale)} />
+            <StatCard
+              label={t('expiredTrials')}
+              value={formatNumber(data.trials.expired, locale)}
+            />
+            <StatCard label={t('paidTenants')} value={formatNumber(data.paidTenants, locale)} />
+            <StatCard
+              label={t('demoRequests')}
+              value={formatNumber(data.demoRequests.total, locale)}
+              hint={t('newHint', { value: formatNumber(data.demoRequests.new, locale) })}
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -85,6 +96,31 @@ export default function OverviewPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('recentSignups')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data.recent.length === 0 ? (
+                <p className="text-muted-foreground text-sm">{t('noRecent')}</p>
+              ) : (
+                <div className="divide-border divide-y">
+                  {data.recent.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between gap-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{c.name}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {c.subscription?.plan?.name ?? '—'}
+                        </p>
+                      </div>
+                      <StatusBadge status={c.subscription?.status ?? c.status} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

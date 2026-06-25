@@ -1417,7 +1417,14 @@
       "users": "Users",
       "activeSuperAdmins": "Active Super Admins",
       "companiesByStatus": "Companies by status",
-      "subscriptionsByStatus": "Subscriptions by status"
+      "subscriptionsByStatus": "Subscriptions by status",
+      "activeTrials": "Active trials",
+      "expiredTrials": "Expired trials",
+      "paidTenants": "Paid tenants",
+      "demoRequests": "Demo requests",
+      "newHint": "{value} new",
+      "recentSignups": "Recent signups",
+      "noRecent": "No recent signups yet."
     },
     "adminCompanies": {
       "title": "Companies",
@@ -1867,6 +1874,44 @@
         "error": "Something went wrong.",
         "copyFailed": "Could not copy the link."
       }
+    },
+    "adminTrials": {
+      "title": "Trials",
+      "description": "Manage trial subscriptions - convert, extend, or disable.",
+      "loadError": "Could not load trials.",
+      "none": "No active trials right now.",
+      "colCompany": "Company",
+      "colPlan": "Plan",
+      "colTrialEnds": "Trial ends",
+      "colDaysLeft": "Status",
+      "colActions": "Actions",
+      "convert": "Convert to paid",
+      "extend": "Extend 14 days",
+      "view": "View",
+      "disable": "Disable",
+      "expired": "Expired",
+      "daysLeft": "{n} days left",
+      "disableTitle": "Disable tenant?",
+      "disableConfirm": "This will suspend {name} and sign out all its users. You can reactivate it from the company page.",
+      "toastConverted": "Converted to a paid subscription.",
+      "toastExtended": "Trial extended by 14 days.",
+      "toastDisabled": "Tenant disabled.",
+      "toastError": "Something went wrong."
+    },
+    "adminDemoRequests": {
+      "title": "Demo Requests",
+      "description": "Leads from the marketing site's Book a Demo form.",
+      "loadError": "Could not load demo requests.",
+      "none": "No demo requests yet.",
+      "allStatuses": "All statuses",
+      "colName": "Name",
+      "colCompany": "Company",
+      "colContact": "Contact",
+      "colScreens": "Screens",
+      "colDate": "Date",
+      "colStatus": "Status",
+      "toastUpdated": "Status updated.",
+      "toastError": "Something went wrong."
     }
   },
   "enums": {
@@ -2019,6 +2064,12 @@
       "ACCEPTED": "Accepted",
       "REVOKED": "Revoked",
       "EXPIRED": "Expired"
+    },
+    "demoStatus": {
+      "NEW": "New",
+      "CONTACTED": "Contacted",
+      "SCHEDULED": "Scheduled",
+      "CLOSED": "Closed"
     }
   },
   "notifications": {
@@ -2036,6 +2087,516 @@
     "superAdmins": "Super Admins",
     "backups": "Backups",
     "settings": "System Settings",
-    "activityLogs": "Activity Logs"
+    "activityLogs": "Activity Logs",
+    "trials": "Trials",
+    "demoRequests": "Demo Requests"
+  },
+  "marketing": {
+    "nav": {
+      "features": "Features",
+      "industries": "Industries",
+      "pricing": "Pricing",
+      "bookDemo": "Book a Demo",
+      "login": "Login",
+      "startTrial": "Start Free Trial",
+      "menu": "Open menu",
+      "close": "Close menu"
+    },
+    "footer": {
+      "tagline": "Your screens, fully under control. Cloud digital signage for businesses across Saudi Arabia and the GCC.",
+      "location": "Riyadh, Saudi Arabia",
+      "columns": {
+        "product": "Product",
+        "company": "Company",
+        "legal": "Legal"
+      },
+      "links": {
+        "features": "Features",
+        "pricing": "Pricing",
+        "industries": "Industries",
+        "startTrial": "Start Free Trial",
+        "bookDemo": "Book a Demo",
+        "login": "Login",
+        "privacy": "Privacy Policy",
+        "terms": "Terms of Service"
+      },
+      "rights": "All rights reserved.",
+      "positioning": "Built for Saudi Arabia & the GCC - Arabic and English."
+    },
+    "common": {
+      "startTrial": "Start Free Trial",
+      "bookDemo": "Book a Demo",
+      "learnMore": "Learn more",
+      "getStarted": "Get started",
+      "contactSales": "Contact Sales",
+      "viewPricing": "View pricing",
+      "perMonth": "/mo",
+      "perYear": "/yr",
+      "sar": "SAR"
+    },
+    "home": {
+      "hero": {
+        "badge": "Cloud digital signage for Saudi Arabia & the GCC",
+        "title": "Control Every Screen From One Dashboard",
+        "subtitle": "Upload content, build playlists, schedule by branch, and monitor every screen in real time - from one cloud dashboard, in Arabic or English.",
+        "ctaPrimary": "Start Free Trial",
+        "ctaSecondary": "Book a Demo",
+        "note": "14-day free trial - No credit card required"
+      },
+      "problem": {
+        "title": "Running screens manually does not scale",
+        "subtitle": "If this sounds familiar, MasterSignage was built for you.",
+        "items": {
+          "usb": {
+            "title": "No more USB sticks",
+            "desc": "Stop driving between branches with a flash drive to change what is on screen."
+          },
+          "whatsapp": {
+            "title": "No more WhatsApp posters",
+            "desc": "Stop sending images over chat and hoping the right one gets displayed."
+          },
+          "outdated": {
+            "title": "No more outdated screens",
+            "desc": "Expired offers and old menus quietly stay on screen for weeks."
+          },
+          "manual": {
+            "title": "No more manual follow-up",
+            "desc": "Stop calling each branch to check whether the screen is even on."
+          }
+        }
+      },
+      "solution": {
+        "title": "Upload, schedule, pair, monitor, control",
+        "subtitle": "One workflow that replaces all the manual work.",
+        "steps": {
+          "upload": {
+            "title": "Upload",
+            "desc": "Add images, videos, and PDFs to a central content library."
+          },
+          "schedule": {
+            "title": "Schedule",
+            "desc": "Decide what plays where and when - down to the branch and screen."
+          },
+          "pair": {
+            "title": "Pair",
+            "desc": "Connect any Android TV with a short pairing code."
+          },
+          "monitor": {
+            "title": "Monitor",
+            "desc": "See which screens are online, offline, or out of sync at a glance."
+          },
+          "control": {
+            "title": "Control",
+            "desc": "Push changes instantly to one screen or your whole network."
+          }
+        }
+      },
+      "featuresPreview": {
+        "title": "Everything you need to run your screens",
+        "subtitle": "A complete signage platform - not just a media player.",
+        "cta": "See all features"
+      },
+      "industriesPreview": {
+        "title": "Built for every kind of business",
+        "subtitle": "From a single cafe to a national franchise.",
+        "cta": "Explore industries"
+      },
+      "how": {
+        "title": "Live in five steps",
+        "subtitle": "Most businesses are up and running the same day.",
+        "steps": [
+          {
+            "title": "Create your account",
+            "desc": "Start a free trial and set up your workspace in minutes."
+          },
+          {
+            "title": "Add your business & branches",
+            "desc": "Create your branches so content can be targeted by location."
+          },
+          {
+            "title": "Pair your Android TV screens",
+            "desc": "Open the player app and enter the pairing code shown on screen."
+          },
+          {
+            "title": "Upload your content",
+            "desc": "Add your images, videos, and menus to the content library."
+          },
+          {
+            "title": "Schedule and publish",
+            "desc": "Build playlists, set schedules, and publish to every screen."
+          }
+        ]
+      },
+      "trust": {
+        "title": "Why teams choose MasterSignage",
+        "subtitle": "Enterprise-ready, and easy enough for anyone on your team.",
+        "items": {
+          "bilingual": {
+            "title": "Arabic & English",
+            "desc": "A fully bilingual dashboard with right-to-left support."
+          },
+          "offline": {
+            "title": "Works offline",
+            "desc": "Screens keep playing from local cache even if the internet drops."
+          },
+          "cloud": {
+            "title": "Cloud control",
+            "desc": "Manage every screen from anywhere - no on-site server."
+          },
+          "roles": {
+            "title": "Roles & permissions",
+            "desc": "Give each teammate exactly the access they need."
+          },
+          "scale": {
+            "title": "Scales with you",
+            "desc": "From one screen to thousands across every branch."
+          },
+          "support": {
+            "title": "Local support",
+            "desc": "Built and supported for the Saudi & GCC market."
+          }
+        }
+      },
+      "pricingPreview": {
+        "title": "Simple, transparent pricing",
+        "subtitle": "Start free. Upgrade when you are ready.",
+        "cta": "See full pricing"
+      },
+      "faq": {
+        "title": "Frequently asked questions",
+        "subtitle": "Everything else you might be wondering."
+      },
+      "finalCta": {
+        "title": "Take control of your screens today",
+        "subtitle": "Start your free 14-day trial - no credit card, no commitment.",
+        "ctaPrimary": "Start Free Trial",
+        "ctaSecondary": "Book a Demo"
+      }
+    },
+    "features": {
+      "title": "Features",
+      "subtitle": "A complete cloud platform to manage screens, content, and branches.",
+      "items": {
+        "pairing": {
+          "title": "Screen pairing",
+          "desc": "Connect any Android TV in seconds with a secure pairing code."
+        },
+        "library": {
+          "title": "Content library",
+          "desc": "Store and organize images, videos, and PDFs in one place."
+        },
+        "playlists": {
+          "title": "Playlist management",
+          "desc": "Sequence content into playlists with per-item durations."
+        },
+        "scheduling": {
+          "title": "Scheduling",
+          "desc": "Play the right content at the right time, by day and hour."
+        },
+        "branches": {
+          "title": "Branch management",
+          "desc": "Organize screens by location and target content per branch."
+        },
+        "offline": {
+          "title": "Offline cache",
+          "desc": "Screens cache content locally and keep playing without internet."
+        },
+        "status": {
+          "title": "Online/offline status",
+          "desc": "Real-time health for every screen - online, offline, or warning."
+        },
+        "bilingual": {
+          "title": "Arabic & English",
+          "desc": "A fully bilingual, right-to-left ready dashboard."
+        },
+        "androidTv": {
+          "title": "Android TV player",
+          "desc": "A purpose-built player app for Android TV devices."
+        },
+        "roles": {
+          "title": "Roles & permissions",
+          "desc": "Granular access control for admins, managers, and viewers."
+        },
+        "cloud": {
+          "title": "Cloud-based control",
+          "desc": "Manage everything from the browser - nothing to install on-site."
+        },
+        "scale": {
+          "title": "Multi-screen scale",
+          "desc": "Run from a single screen to thousands across the network."
+        }
+      }
+    },
+    "industries": {
+      "title": "Industries",
+      "subtitle": "MasterSignage adapts to how your business uses screens.",
+      "items": {
+        "restaurants": {
+          "title": "Restaurants",
+          "desc": "Digital menus and offers that update across every branch instantly."
+        },
+        "cafes": {
+          "title": "Cafes",
+          "desc": "Showcase drinks, seasonal items, and promotions in seconds."
+        },
+        "retail": {
+          "title": "Retail",
+          "desc": "Drive sales with dynamic in-store offers and product highlights."
+        },
+        "clinics": {
+          "title": "Clinics",
+          "desc": "Queue info, health awareness, and announcements in waiting areas."
+        },
+        "gyms": {
+          "title": "Gyms",
+          "desc": "Class schedules, membership offers, and motivation on the floor."
+        },
+        "schools": {
+          "title": "Schools",
+          "desc": "Announcements, timetables, and events across campus screens."
+        },
+        "offices": {
+          "title": "Corporate offices",
+          "desc": "Internal comms, dashboards, and visitor welcome screens."
+        },
+        "hotels": {
+          "title": "Hotels",
+          "desc": "Wayfinding, event boards, and guest information displays."
+        },
+        "franchises": {
+          "title": "Franchises",
+          "desc": "Central brand control with per-location flexibility at scale."
+        }
+      }
+    },
+    "pricing": {
+      "title": "Pricing",
+      "subtitle": "Start with a 14-day free trial. Change or cancel anytime.",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "saveHint": "Save with yearly billing",
+      "mostPopular": "Most popular",
+      "custom": "Custom",
+      "contactSales": "Contact Sales",
+      "choose": "Start Free Trial",
+      "perMonth": "/mo",
+      "perYear": "/yr",
+      "billedYearly": "billed yearly",
+      "loadError": "Could not load live pricing. Please try again.",
+      "featuresHeading": "What is included",
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "tagline": "For a single small business getting started."
+        },
+        "business": {
+          "name": "Business",
+          "tagline": "For multi-branch businesses that need control."
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "tagline": "For large screen networks. Custom pricing & onboarding."
+        }
+      },
+      "limits": {
+        "screens": "{n} screens",
+        "screensUnlimited": "Unlimited screens",
+        "locations": "{n} branches",
+        "locationsUnlimited": "Unlimited branches",
+        "users": "{n} team members",
+        "usersUnlimited": "Unlimited team members",
+        "storage": "{n} GB storage",
+        "storageUnlimited": "Unlimited storage",
+        "playlists": "Playlists & scheduling",
+        "monitoring": "Screen monitoring",
+        "offline": "Offline playback cache",
+        "bilingual": "Arabic & English",
+        "support": "Priority support",
+        "onboarding": "Custom onboarding"
+      }
+    },
+    "faq": {
+      "items": [
+        {
+          "q": "Do I need special hardware?",
+          "a": "No. MasterSignage runs on standard Android TV devices - just install the player app and pair the screen."
+        },
+        {
+          "q": "Does it work in Arabic?",
+          "a": "Yes. The entire dashboard and player are fully bilingual with right-to-left support."
+        },
+        {
+          "q": "What happens if the internet goes down?",
+          "a": "Screens keep playing from their local offline cache and resync automatically when the connection returns."
+        },
+        {
+          "q": "Can I manage multiple branches?",
+          "a": "Yes. Organize screens by branch and target content to specific locations or your whole network."
+        },
+        {
+          "q": "How long is the free trial?",
+          "a": "14 days, with no credit card required. You can upgrade or cancel anytime."
+        },
+        {
+          "q": "Can I control who can do what?",
+          "a": "Yes. Roles and permissions let you give each teammate exactly the access they need."
+        }
+      ]
+    },
+    "trial": {
+      "title": "Start your free trial",
+      "subtitle": "14 days free. No credit card required.",
+      "benefits": [
+        "Full access to every feature",
+        "Up to your plan's screens & branches",
+        "Cancel anytime"
+      ],
+      "fields": {
+        "fullName": "Full name",
+        "companyName": "Company name",
+        "email": "Work email",
+        "phone": "Phone number",
+        "country": "Country",
+        "city": "City",
+        "businessType": "Business type",
+        "branches": "Number of branches",
+        "screens": "Number of screens",
+        "language": "Preferred language",
+        "password": "Password",
+        "confirmPassword": "Confirm password"
+      },
+      "placeholders": {
+        "fullName": "Mohammed Ali",
+        "companyName": "Acme Restaurants",
+        "email": "you@company.com",
+        "phone": "+966 5X XXX XXXX",
+        "city": "Riyadh"
+      },
+      "businessTypes": {
+        "restaurant": "Restaurant",
+        "cafe": "Cafe",
+        "retail": "Retail",
+        "clinic": "Clinic",
+        "gym": "Gym",
+        "school": "School",
+        "office": "Corporate office",
+        "hotel": "Hotel",
+        "franchise": "Franchise",
+        "other": "Other"
+      },
+      "languages": {
+        "en": "English",
+        "ar": "Arabic"
+      },
+      "passwordHint": "At least 10 characters, with upper & lower case, a number, and a symbol.",
+      "submit": "Create my account",
+      "submitting": "Creating your account...",
+      "success": {
+        "title": "Your trial is ready",
+        "desc": "Your account has been created. Sign in to set up your first screens.",
+        "cta": "Go to login"
+      },
+      "errors": {
+        "required": "This field is required.",
+        "email": "Enter a valid email address.",
+        "passwordShort": "Password must be at least 10 characters.",
+        "passwordMismatch": "Passwords do not match.",
+        "duplicate": "An account with this email already exists.",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
+    "demo": {
+      "title": "Book a demo",
+      "subtitle": "See MasterSignage in action. Tell us a bit about your business and our team will reach out.",
+      "fields": {
+        "name": "Full name",
+        "company": "Company",
+        "email": "Work email",
+        "phone": "Phone number",
+        "screens": "Number of screens",
+        "message": "Message"
+      },
+      "placeholders": {
+        "name": "Mohammed Ali",
+        "company": "Acme Restaurants",
+        "email": "you@company.com",
+        "phone": "+966 5X XXX XXXX",
+        "message": "Tell us what you would like to see..."
+      },
+      "submit": "Request demo",
+      "submitting": "Sending...",
+      "success": {
+        "title": "Thanks - we will be in touch",
+        "desc": "Your request has been received. Our team will contact you shortly."
+      },
+      "errors": {
+        "required": "This field is required.",
+        "email": "Enter a valid email address.",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
+    "legal": {
+      "updated": "Last updated: June 2026",
+      "privacy": {
+        "title": "Privacy Policy",
+        "intro": "This Privacy Policy explains how MasterSignage collects, uses, and protects information when you use our website and platform.",
+        "sections": [
+          {
+            "heading": "Information we collect",
+            "body": "We collect account details you provide (such as name, company, email, and phone) and usage data needed to operate the service."
+          },
+          {
+            "heading": "How we use information",
+            "body": "We use your information to provide and improve the service, manage your account, communicate with you, and ensure security."
+          },
+          {
+            "heading": "Data storage & security",
+            "body": "Data is stored securely and access is restricted. Passwords are hashed and never stored in plain text."
+          },
+          {
+            "heading": "Sharing",
+            "body": "We do not sell your data. We share information only with service providers needed to run the platform, or where required by law."
+          },
+          {
+            "heading": "Your rights",
+            "body": "You may request access to, correction of, or deletion of your personal data by contacting us."
+          },
+          {
+            "heading": "Contact",
+            "body": "For privacy questions, contact us at hello@mastersignage.com."
+          }
+        ]
+      },
+      "terms": {
+        "title": "Terms of Service",
+        "intro": "These Terms govern your access to and use of the MasterSignage website and platform.",
+        "sections": [
+          {
+            "heading": "Using the service",
+            "body": "You agree to use the service lawfully and not to misuse, disrupt, or attempt to gain unauthorized access to it."
+          },
+          {
+            "heading": "Accounts",
+            "body": "You are responsible for your account, the security of your credentials, and the activity of users you invite."
+          },
+          {
+            "heading": "Trials & billing",
+            "body": "Free trials run for the stated period. Paid plans are billed per the plan you select; you may change or cancel anytime."
+          },
+          {
+            "heading": "Content",
+            "body": "You retain ownership of content you upload and are responsible for having the rights to display it."
+          },
+          {
+            "heading": "Availability",
+            "body": "We work to keep the service available but do not guarantee uninterrupted operation."
+          },
+          {
+            "heading": "Contact",
+            "body": "For questions about these Terms, contact us at hello@mastersignage.com."
+          }
+        ]
+      }
+    }
   }
 }

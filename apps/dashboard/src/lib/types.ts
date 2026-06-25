@@ -439,6 +439,19 @@ export interface CompanySettings {
   plan: { name: string; code: string; status: SubscriptionStatus; limits: PlanLimits } | null;
 }
 
+export interface OverviewRecentCompany {
+  id: string;
+  name: string;
+  slug: string;
+  status: CompanyStatus;
+  createdAt: string;
+  subscription: {
+    status: SubscriptionStatus;
+    trialEndsAt: string | null;
+    plan: { name: string; code: string } | null;
+  } | null;
+}
+
 export interface Overview {
   companies: { total: number; byStatus: Record<CompanyStatus, number> };
   subscriptions: { total: number; byStatus: Record<SubscriptionStatus, number> };
@@ -446,6 +459,26 @@ export interface Overview {
   invoices: { unpaid: number; unpaidTotal: number };
   users: { total: number };
   superAdmins: { active: number };
+  trials: { active: number; expired: number };
+  paidTenants: number;
+  demoRequests: { total: number; new: number };
+  recent: OverviewRecentCompany[];
+}
+
+export type DemoRequestStatus = 'NEW' | 'CONTACTED' | 'SCHEDULED' | 'CLOSED';
+
+export interface DemoRequest {
+  id: string;
+  name: string;
+  companyName: string | null;
+  email: string;
+  phone: string | null;
+  screens: number | null;
+  message: string | null;
+  locale: string | null;
+  status: DemoRequestStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // --- Phase 6: Device pairing ----------------------------------------------

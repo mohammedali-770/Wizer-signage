@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   Building2,
+  CalendarClock,
   CreditCard,
   DatabaseBackup,
   FileText,
   LayoutDashboard,
+  MessageSquare,
   Menu,
   Package,
   ScrollText,
@@ -33,6 +35,8 @@ const NAV: NavItem[] = [
   { href: '/admin/companies', tkey: 'companies', icon: Building2 },
   { href: '/admin/plans', tkey: 'plans', icon: Package },
   { href: '/admin/subscriptions', tkey: 'subscriptions', icon: CreditCard },
+  { href: '/admin/trials', tkey: 'trials', icon: CalendarClock },
+  { href: '/admin/demo-requests', tkey: 'demoRequests', icon: MessageSquare },
   { href: '/admin/invoices', tkey: 'invoices', icon: FileText },
   { href: '/admin/super-admins', tkey: 'superAdmins', icon: ShieldCheck },
   { href: '/admin/backups', tkey: 'backups', icon: DatabaseBackup },
