@@ -1,12 +1,24 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CompanyStatus, SubscriptionStatus, UserRole, UserStatus } from '@prisma/client';
+import {
+  CompanyStatus,
+  DemoRequestStatus,
+  SubscriptionStatus,
+  UserRole,
+  UserStatus,
+} from '@prisma/client';
 
+import { resolvePagination } from '../../common/dto/pagination.dto';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityCategory, ActivityLogService } from '../activity-log/activity-log.service';
 import { InvitationsService } from '../invitations/invitations.service';
 import { UsersService } from '../users/users.service';
-import type { InviteSuperAdminDto, ListSuperAdminsQueryDto } from './dto/super-admin.dto';
+import type {
+  InviteSuperAdminDto,
+  ListDemoRequestsQueryDto,
+  ListSuperAdminsQueryDto,
+  UpdateDemoRequestDto,
+} from './dto/super-admin.dto';
 
 @Injectable()
 export class SuperAdminService {
@@ -21,6 +33,7 @@ export class SuperAdminService {
   async getOverview() {
     // Read-only counters — Promise.all preserves Prisma's precise groupBy types
     // (which $transaction's tuple inference would widen).
+    const now = new Date();
     const [
       companyGroups,
       subscriptionGroups,
@@ -28,6 +41,12 @@ export class SuperAdminService {
       unpaidInvoices,
       totalUsers,
       activeSuperAdmins,
+      activeTrials,
+      expiredTrials,
+      paidTenants,
+      demoTotal,
+      demoNew,
+      recentCompanies,
     ] = await Promise.all([
       this.prisma.company.groupBy({
         by: ['status'],
@@ -49,6 +68,41 @@ export class SuperAdminService {
       this.prisma.user.count({ where: { deletedAt: null } }),
       this.prisma.user.count({
         where: { role: UserRole.SUPER_ADMIN, status: UserStatus.ACTIVE, deletedAt: null },
+      }),
+      // Active trial = still TRIALING and not past its end date.
+      this.prisma.subscription.count({
+        where: { status: SubscriptionStatus.TRIALING, trialEndsAt: { gt: now } },
+      }),
+      // Expired trial = EXPIRED, or TRIALING but past its end date (job not yet run).
+      this.prisma.subscription.count({
+        where: {
+          OR: [
+            { status: SubscriptionStatus.EXPIRED },
+            { status: SubscriptionStatus.TRIALING, trialEndsAt: { lte: now } },
+          ],
+        },
+      }),
+      this.prisma.subscription.count({ where: { status: SubscriptionStatus.ACTIVE } }),
+      this.prisma.demoRequest.count(),
+      this.prisma.demoRequest.count({ where: { status: DemoRequestStatus.NEW } }),
+      this.prisma.company.findMany({
+        where: { deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          status: true,
+          createdAt: true,
+          subscription: {
+            select: {
+              status: true,
+              trialEndsAt: true,
+              plan: { select: { name: true, code: true } },
+            },
+          },
+        },
       }),
     ]);
 
@@ -74,7 +128,49 @@ export class SuperAdminService {
       },
       users: { total: totalUsers },
       superAdmins: { active: activeSuperAdmins },
+      trials: { active: activeTrials, expired: expiredTrials },
+      paidTenants,
+      demoRequests: { total: demoTotal, new: demoNew },
+      recent: recentCompanies,
     };
+  }
+
+  /** Paginated demo-request leads from the marketing site. */
+  async listDemoRequests(query: ListDemoRequestsQueryDto) {
+    const { skip, take, meta } = resolvePagination(query);
+    const where: Record<string, unknown> = {};
+    if (query.status) where.status = query.status;
+    if (query.search) {
+      where.OR = [
+        { email: { contains: query.search, mode: 'insensitive' } },
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { companyName: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.demoRequest.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      this.prisma.demoRequest.count({ where }),
+    ]);
+    return { items, meta: meta(total) };
+  }
+
+  async updateDemoRequestStatus(actor: AuthenticatedUser, id: string, dto: UpdateDemoRequestDto) {
+    const existing = await this.prisma.demoRequest.findUnique({ where: { id } });
+    if (!existing) throw new BadRequestException('Demo request not found.');
+    const updated = await this.prisma.demoRequest.update({
+      where: { id },
+      data: { status: dto.status },
+    });
+    await this.activityLog.log({
+      action: 'demo_request.updated',
+      category: ActivityCategory.SECURITY,
+      actorId: actor.userId,
+      companyId: null,
+      targetType: 'demo_request',
+      targetId: id,
+      metadata: { status: dto.status },
+    });
+    return updated;
   }
 
   listSuperAdmins(actor: AuthenticatedUser, query: ListSuperAdminsQueryDto) {

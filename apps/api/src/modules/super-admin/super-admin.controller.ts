@@ -1,11 +1,16 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
-import { InviteSuperAdminDto, ListSuperAdminsQueryDto } from './dto/super-admin.dto';
+import {
+  InviteSuperAdminDto,
+  ListDemoRequestsQueryDto,
+  ListSuperAdminsQueryDto,
+  UpdateDemoRequestDto,
+} from './dto/super-admin.dto';
 import { SuperAdminService } from './super-admin.service';
 
 @ApiTags('super-admin')
@@ -45,5 +50,21 @@ export class SuperAdminController {
   @ApiOperation({ summary: 'Deactivate a Super Admin (last active one is protected).' })
   deactivate(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.superAdmin.setStatus(user, id, false);
+  }
+
+  @Get('demo-requests')
+  @ApiOperation({ summary: 'List marketing-site demo requests.' })
+  listDemoRequests(@Query() query: ListDemoRequestsQueryDto) {
+    return this.superAdmin.listDemoRequests(query);
+  }
+
+  @Patch('demo-requests/:id')
+  @ApiOperation({ summary: 'Update a demo request status.' })
+  updateDemoRequest(
+    @Param('id') id: string,
+    @Body() dto: UpdateDemoRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.superAdmin.updateDemoRequestStatus(user, id, dto);
   }
 }

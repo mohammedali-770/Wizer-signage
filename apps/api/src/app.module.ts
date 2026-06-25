@@ -47,6 +47,7 @@ import { ImportsModule } from './modules/imports/imports.module';
 import { ScheduledReportsModule } from './modules/scheduled-reports/scheduled-reports.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { DownloadsModule } from './modules/downloads/downloads.module';
+import { PublicModule } from './modules/public/public.module';
 
 /**
  * Root application module (Phase 1).
@@ -72,6 +73,7 @@ import { DownloadsModule } from './modules/downloads/downloads.module';
     MailModule,
     HealthModule,
     DownloadsModule,
+    PublicModule,
     ActivityLogModule,
     CompaniesModule,
     SessionsModule,

@@ -1635,3 +1635,39 @@ model ScheduledReportDelivery {
   @@index([createdAt])
   @@map("scheduled_report_deliveries")
 }
+
+// =============================================================================
+// Marketing site (public, no tenant) [GLOBAL]
+// =============================================================================
+
+/// Lifecycle of a "Book a Demo" / contact-sales lead from the marketing site.
+enum DemoRequestStatus {
+  NEW
+  CONTACTED
+  SCHEDULED
+  CLOSED
+}
+
+/// A public "Book a Demo" submission from the marketing website. Not tenant
+/// scoped — captured before an account exists. Reviewed in the Super Admin
+/// console (/admin/demo-requests).
+model DemoRequest {
+  id          String            @id @default(uuid())
+  name        String
+  companyName String?
+  email       String
+  phone       String?
+  screens     Int?
+  message     String?
+  locale      String?
+  status      DemoRequestStatus @default(NEW)
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
+  @@map("demo_requests")
+}

@@ -29,6 +29,19 @@ describe('HealthService', () => {
   });
 
   describe('ready (readiness)', () => {
+    // storageConfigured falls back to process.env.STORAGE_LOCAL_DIR, which the
+    // injected config can't override. Clear it so these tests are hermetic and
+    // depend only on the mocked supabase/smtp config (a local .env that sets
+    // STORAGE_LOCAL_DIR must not flip the assertions).
+    const originalStorageDir = process.env.STORAGE_LOCAL_DIR;
+    beforeEach(() => {
+      delete process.env.STORAGE_LOCAL_DIR;
+    });
+    afterEach(() => {
+      if (originalStorageDir === undefined) delete process.env.STORAGE_LOCAL_DIR;
+      else process.env.STORAGE_LOCAL_DIR = originalStorageDir;
+    });
+
     it('reports ok + database up when the DB query succeeds', async () => {
       const r = await build({
         dbOk: true,

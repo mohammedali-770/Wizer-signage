@@ -83,6 +83,13 @@ export interface MapConfig {
   readonly apiKey?: string;
 }
 
+export interface TrialConfig {
+  /** Trial length in days for marketing-site self-service signups. */
+  readonly days: number;
+  /** Plan `code` assigned to new trial accounts (falls back to cheapest active). */
+  readonly defaultPlanCode: string;
+}
+
 export interface AppConfig {
   readonly nodeEnv: NodeEnv;
   readonly logLevel: string;
@@ -96,6 +103,7 @@ export interface AppConfig {
   readonly smtp: SmtpConfig;
   readonly retention: RetentionConfig;
   readonly map: MapConfig;
+  readonly trial: TrialConfig;
   readonly redisUrl?: string;
 }
 
@@ -177,6 +185,10 @@ export default (): AppConfig => {
     map: {
       provider: env.MAP_PROVIDER,
       apiKey: env.MAP_API_KEY,
+    },
+    trial: {
+      days: parseIntEnv(env.TRIAL_DAYS, 14),
+      defaultPlanCode: env.DEFAULT_TRIAL_PLAN ?? 'starter',
     },
     redisUrl: env.REDIS_URL,
   };

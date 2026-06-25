@@ -29,31 +29,83 @@ async function main(): Promise<void> {
   const companyName = process.env.SEED_COMPANY_NAME ?? 'Demo Company';
   const usingDefaults = !process.env.SEED_SUPERADMIN_PASSWORD;
 
-  // --- Starter plan ------------------------------------------------------
-  const plan = await prisma.plan.upsert({
-    where: { code: 'starter' },
-    update: {},
-    create: {
+  // --- Plans: Starter / Business / Enterprise ----------------------------
+  // Defaults in SAR; the marketing pricing page reads these from the DB, so
+  // they are configurable later via the Super Admin / database. Re-seeding
+  // resets the catalog to these values.
+  const planSeed = [
+    {
       name: 'Starter',
       code: 'starter',
-      description: 'Default starter plan (seeded).',
-      priceMonthly: 0,
-      currency: 'USD',
+      description: 'For a single small business getting started with digital signage.',
+      priceMonthly: 199,
+      priceYearly: 1990,
+      currency: 'SAR',
       trialDays: 14,
+      isPublic: true,
       limits: {
-        maxScreens: 10,
-        maxLocations: 3,
-        maxUsers: 10,
+        maxScreens: 5,
+        maxLocations: 1,
+        maxUsers: 3,
         storageGb: 5,
         maxFileSizeMb: 200,
-        autoScreenshotsPerDay: 24,
-        scheduledReports: 5,
-        dataRetentionDays: 90,
+        autoScreenshotsPerDay: 12,
+        scheduledReports: 1,
+        dataRetentionDays: 30,
         apiRequestsPerDay: 0,
         webhooks: 0,
       },
     },
-  });
+    {
+      name: 'Business',
+      code: 'business',
+      description: 'For multi-branch businesses that need monitoring and central control.',
+      priceMonthly: 599,
+      priceYearly: 5990,
+      currency: 'SAR',
+      trialDays: 14,
+      isPublic: true,
+      limits: {
+        maxScreens: 25,
+        maxLocations: 10,
+        maxUsers: 15,
+        storageGb: 50,
+        maxFileSizeMb: 500,
+        autoScreenshotsPerDay: 48,
+        scheduledReports: 10,
+        dataRetentionDays: 90,
+        apiRequestsPerDay: 10_000,
+        webhooks: 5,
+      },
+    },
+    {
+      name: 'Enterprise',
+      code: 'enterprise',
+      description: 'For large screen networks. Custom pricing, SLA, and onboarding.',
+      priceMonthly: 0, // 0 = "custom / contact us" on the pricing page
+      priceYearly: null,
+      currency: 'SAR',
+      trialDays: 14,
+      isPublic: true,
+      limits: {
+        maxScreens: null,
+        maxLocations: null,
+        maxUsers: null,
+        storageGb: null,
+        maxFileSizeMb: 2048,
+        autoScreenshotsPerDay: null,
+        scheduledReports: null,
+        dataRetentionDays: 365,
+        apiRequestsPerDay: null,
+        webhooks: null,
+      },
+    },
+  ];
+  for (const { code, ...rest } of planSeed) {
+    await prisma.plan.upsert({ where: { code }, update: { ...rest }, create: { code, ...rest } });
+  }
+  // The Starter plan backs the demo company's trial subscription below.
+  const plan = await prisma.plan.findUniqueOrThrow({ where: { code: 'starter' } });
 
   // --- Demo company + subscription ---------------------------------------
   const company = await prisma.company.upsert({
