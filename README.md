@@ -119,9 +119,16 @@ overview, a **Trials** page (`/admin/trials` — convert to paid, extend, disabl
 
 Set in `.env` (see `.env.example`): `TRIAL_DAYS=14`, `DEFAULT_TRIAL_PLAN=starter`,
 `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_DASHBOARD_URL`, optional `SALES_NOTIFY_EMAIL`, and SMTP
-for real emails (otherwise emails are logged in dev). `pnpm --filter @master-signage/api db:seed`
-seeds the **Starter / Business / Enterprise** plans (SAR, editable in the DB). Prices are
-configurable from the database — re-seeding restores the catalog defaults.
+for real emails (otherwise emails are logged in dev). The seed is plain CommonJS
+(`prisma/seed.cjs`) so it runs with only `node` + production deps — locally via
+`pnpm --filter @master-signage/api db:seed`, and **in the production container** via:
+
+```bash
+docker compose -f infra/docker/docker-compose.yml exec api node prisma/seed.cjs
+```
+
+It seeds the **Starter / Business / Enterprise** plans (SAR, editable in the DB; idempotent —
+re-seeding restores the catalog defaults but never duplicates the demo company/users).
 
 ### Testing it
 
