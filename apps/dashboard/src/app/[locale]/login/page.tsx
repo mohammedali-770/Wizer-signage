@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { ApiError } from '@/lib/api';
 import { useAuth, type TwoFactorSetup } from '@/lib/auth-context';
 import { useRouter } from '@/i18n/navigation';
+import { roleHome } from '@/lib/roles';
 import Image from 'next/image';
 
 import { Button, Card, Field, Input, Spinner, useToast } from '@/components/ui';
@@ -20,6 +21,7 @@ function errorMessage(e: unknown): string {
 export default function LoginPage() {
   const {
     status,
+    user,
     needsTwoFactorSetup,
     login,
     verifyTwoFactor,
@@ -48,7 +50,7 @@ export default function LoginPage() {
     }
     // Only auto-redirect an already-authenticated visitor — never while showing
     // the one-time backup codes mid-enrolment.
-    if (step === 'login') router.replace('/');
+    if (step === 'login') router.replace(roleHome(user?.role));
   }, [status, needsTwoFactorSetup, step, router]);
 
   // Lazily fetch the TOTP secret/QR when entering the enrolment step.
@@ -72,7 +74,7 @@ export default function LoginPage() {
       } else if (result.next === 'enroll') {
         setStep('enroll');
       } else {
-        router.replace('/');
+        router.replace(roleHome(user?.role));
       }
     } catch (e) {
       toast(errorMessage(e), 'error');
@@ -86,7 +88,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       await verifyTwoFactor(challengeToken, code.trim());
-      router.replace('/');
+      router.replace(roleHome(user?.role));
     } catch (e) {
       toast(errorMessage(e), 'error');
     } finally {
@@ -228,7 +230,7 @@ export default function LoginPage() {
                 <span key={bc}>{bc}</span>
               ))}
             </div>
-            <Button className="w-full" onClick={() => router.replace('/')}>
+            <Button className="w-full" onClick={() => router.replace(roleHome(user?.role))}>
               I have saved them — continue
             </Button>
           </div>
