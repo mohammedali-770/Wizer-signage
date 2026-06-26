@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { ApiError } from '@/lib/api';
 import { useAuth, type TwoFactorSetup } from '@/lib/auth-context';
@@ -27,6 +28,7 @@ export default function LoginPage() {
   } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('pages.login');
 
   const [step, setStep] = useState<Step>('login');
   const [email, setEmail] = useState('');
@@ -123,10 +125,10 @@ export default function LoginPage() {
         {step === 'login' && (
           <form onSubmit={onLogin} className="space-y-4">
             <div>
-              <h1 className="text-xl font-semibold">Sign in</h1>
-              <p className="text-muted-foreground mt-1 text-sm">Super Admin console</p>
+              <h1 className="text-xl font-semibold">{t('title')}</h1>
+              <p className="text-muted-foreground mt-1 text-sm">{t('subtitle')}</p>
             </div>
-            <Field label="Email">
+            <Field label={t('email')}>
               <Input
                 type="email"
                 autoComplete="username"
@@ -135,7 +137,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </Field>
-            <Field label="Password">
+            <Field label={t('password')}>
               <Input
                 type="password"
                 autoComplete="current-password"
@@ -145,7 +147,7 @@ export default function LoginPage() {
               />
             </Field>
             <Button type="submit" className="w-full" disabled={busy}>
-              {busy ? <Spinner /> : 'Sign in'}
+              {busy ? <Spinner /> : t('signIn')}
             </Button>
           </form>
         )}

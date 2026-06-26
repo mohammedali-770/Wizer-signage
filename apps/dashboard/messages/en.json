@@ -1912,6 +1912,13 @@
       "colStatus": "Status",
       "toastUpdated": "Status updated.",
       "toastError": "Something went wrong."
+    },
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Sign in to your MasterSignage account",
+      "email": "Email",
+      "password": "Password",
+      "signIn": "Sign in"
     }
   },
   "enums": {
