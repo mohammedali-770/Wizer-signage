@@ -2472,7 +2472,7 @@
         "fullName": "محمد علي",
         "companyName": "مطاعم أكمي",
         "email": "you@company.com",
-        "phone": "+966 5X XXX XXXX",
+        "phone": "5X XXX XXXX",
         "city": "الرياض"
       },
       "businessTypes": {
@@ -2506,7 +2506,8 @@
         "passwordMismatch": "كلمتا المرور غير متطابقتين.",
         "duplicate": "يوجد حساب بهذا البريد الإلكتروني بالفعل.",
         "generic": "حدث خطأ ما. حاول مرة أخرى."
-      }
+      },
+      "selectCountry": "اختر دولتك"
     },
     "demo": {
       "title": "احجز عرضًا",
@@ -2523,7 +2524,7 @@
         "name": "محمد علي",
         "company": "مطاعم أكمي",
         "email": "you@company.com",
-        "phone": "+966 5X XXX XXXX",
+        "phone": "5X XXX XXXX",
         "message": "أخبرنا بما تود رؤيته..."
       },
       "submit": "اطلب عرضًا",

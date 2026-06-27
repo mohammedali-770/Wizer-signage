@@ -7,8 +7,9 @@ import { Check } from 'lucide-react';
 import { Reveal } from '@/components/marketing/reveal';
 import { Container } from '@/components/marketing/ui';
 import { PairingMock, StatusDot } from '@/components/marketing/visuals';
-import { Card, Field, Input, Spinner, Textarea, useToast } from '@/components/ui';
+import { Card, Field, Input, Select, Spinner, Textarea, useToast } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
+import { COUNTRIES } from '@/lib/countries';
 
 const INPUT_LIGHT =
   'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:ring-[#2563EB]/40';
@@ -26,6 +27,7 @@ export default function DemoPage() {
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [dialCode, setDialCode] = useState('+966');
   const [screens, setScreens] = useState('');
   const [message, setMessage] = useState('');
 
@@ -56,7 +58,7 @@ export default function DemoPage() {
       locale,
     };
     if (company.trim()) body.company = company.trim();
-    if (phone.trim()) body.phone = phone.trim();
+    if (phone.trim()) body.phone = `${dialCode} ${phone.trim()}`;
     if (message.trim()) body.message = message.trim();
     if (screens) body.screens = Number(screens);
 
@@ -172,14 +174,28 @@ export default function DemoPage() {
                       />
                     </Field>
                     <Field label={t('marketing.demo.fields.phone')}>
-                      <Input
-                        className={INPUT_LIGHT}
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder={t('marketing.demo.placeholders.phone')}
-                        autoComplete="tel"
-                      />
+                      <div className="flex gap-2" dir="ltr">
+                        <Select
+                          aria-label={t('marketing.demo.fields.phone')}
+                          className={`${INPUT_LIGHT} w-28 shrink-0`}
+                          value={dialCode}
+                          onChange={(e) => setDialCode(e.target.value)}
+                        >
+                          {COUNTRIES.map((c) => (
+                            <option key={c.iso} value={c.dial}>
+                              {c.dial} {c.iso}
+                            </option>
+                          ))}
+                        </Select>
+                        <Input
+                          className={`${INPUT_LIGHT} flex-1`}
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder={t('marketing.demo.placeholders.phone')}
+                          autoComplete="tel"
+                        />
+                      </div>
                     </Field>
                   </div>
 

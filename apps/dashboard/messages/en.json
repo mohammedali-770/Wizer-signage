@@ -2476,7 +2476,7 @@
         "fullName": "Mohammed Ali",
         "companyName": "Acme Restaurants",
         "email": "you@company.com",
-        "phone": "+966 5X XXX XXXX",
+        "phone": "5X XXX XXXX",
         "city": "Riyadh"
       },
       "businessTypes": {
@@ -2510,7 +2510,8 @@
         "passwordMismatch": "Passwords do not match.",
         "duplicate": "An account with this email already exists.",
         "generic": "Something went wrong. Please try again."
-      }
+      },
+      "selectCountry": "Select your country"
     },
     "demo": {
       "title": "Book a demo",
@@ -2527,7 +2528,7 @@
         "name": "Mohammed Ali",
         "company": "Acme Restaurants",
         "email": "you@company.com",
-        "phone": "+966 5X XXX XXXX",
+        "phone": "5X XXX XXXX",
         "message": "Tell us what you would like to see..."
       },
       "submit": "Request demo",

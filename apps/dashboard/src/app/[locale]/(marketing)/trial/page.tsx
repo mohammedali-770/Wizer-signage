@@ -10,6 +10,7 @@ import { DashboardMockup, StatusDot } from '@/components/marketing/visuals';
 import { Card, Field, Input, Select, Spinner, useToast } from '@/components/ui';
 import { Link } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
+import { COUNTRIES, countryLabel } from '@/lib/countries';
 
 // Shared light styling so the form stays brand-light regardless of theme tokens.
 const INPUT_LIGHT =
@@ -41,6 +42,7 @@ export default function TrialPage() {
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [dialCode, setDialCode] = useState('+966');
   const [country, setCountry] = useState('');
   const [city, setCity] = useState('');
   const [businessType, setBusinessType] = useState('');
@@ -86,7 +88,7 @@ export default function TrialPage() {
       password,
       preferredLanguage: language,
     };
-    if (phone.trim()) body.phone = phone.trim();
+    if (phone.trim()) body.phone = `${dialCode} ${phone.trim()}`;
     if (country.trim()) body.country = country.trim();
     if (city.trim()) body.city = city.trim();
     if (businessType) body.businessType = businessType;
@@ -220,14 +222,28 @@ export default function TrialPage() {
 
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Field label={t('marketing.trial.fields.phone')}>
-                      <Input
-                        className={INPUT_LIGHT}
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder={t('marketing.trial.placeholders.phone')}
-                        autoComplete="tel"
-                      />
+                      <div className="flex gap-2" dir="ltr">
+                        <Select
+                          aria-label={t('marketing.trial.fields.phone')}
+                          className={`${INPUT_LIGHT} w-28 shrink-0`}
+                          value={dialCode}
+                          onChange={(e) => setDialCode(e.target.value)}
+                        >
+                          {COUNTRIES.map((c) => (
+                            <option key={c.iso} value={c.dial}>
+                              {c.dial} {c.iso}
+                            </option>
+                          ))}
+                        </Select>
+                        <Input
+                          className={`${INPUT_LIGHT} flex-1`}
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder={t('marketing.trial.placeholders.phone')}
+                          autoComplete="tel"
+                        />
+                      </div>
                     </Field>
                     <Field label={t('marketing.trial.fields.businessType')}>
                       <Select
@@ -247,12 +263,18 @@ export default function TrialPage() {
 
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Field label={t('marketing.trial.fields.country')}>
-                      <Input
+                      <Select
                         className={INPUT_LIGHT}
                         value={country}
                         onChange={(e) => setCountry(e.target.value)}
-                        autoComplete="country-name"
-                      />
+                      >
+                        <option value="">{t('marketing.trial.selectCountry')}</option>
+                        {COUNTRIES.map((c) => (
+                          <option key={c.iso} value={c.en}>
+                            {countryLabel(c, locale)}
+                          </option>
+                        ))}
+                      </Select>
                     </Field>
                     <Field label={t('marketing.trial.fields.city')}>
                       <Input
