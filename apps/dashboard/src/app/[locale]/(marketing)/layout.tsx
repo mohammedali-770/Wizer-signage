@@ -19,7 +19,7 @@ export default async function MarketingLayout({
   setRequestLocale(locale);
 
   return (
-    <div className="force-light flex min-h-screen flex-col bg-white text-slate-900">
+    <div dir="ltr" className="force-light flex min-h-screen flex-col bg-white text-slate-900">
       <MarketingNavbar />
       <main className="flex-1">{children}</main>
       <MarketingFooter />
