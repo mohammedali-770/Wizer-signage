@@ -170,7 +170,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     <div className="bg-background flex min-h-screen" dir="ltr">
       <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground hidden w-64 shrink-0 flex-col border-e md:flex">
         <div className="border-sidebar-border flex h-16 items-center border-b px-5">
-          <Logo />
+          <Logo product="Signage" />
         </div>
         <NavLinks />
         <div className="border-sidebar-border text-sidebar-muted border-t p-4 text-xs">
@@ -189,7 +189,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           />
           <div className="bg-sidebar text-sidebar-foreground border-sidebar-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-lg">
             <div className="border-sidebar-border flex h-16 items-center justify-between border-b px-5">
-              <Logo />
+              <Logo product="Signage" />
               <button
                 type="button"
                 aria-label={tShell('closeMenu')}

@@ -272,9 +272,9 @@ export class InvitationsService {
     try {
       await this.mail.send({
         to: email,
-        subject: 'You have been invited to MasterSignage',
+        subject: 'You have been invited to Wizer Signage',
         text:
-          `${name ? `Hi ${name},\n\n` : ''}You have been invited to join MasterSignage.\n\n` +
+          `${name ? `Hi ${name},\n\n` : ''}You have been invited to join Wizer Signage.\n\n` +
           `Accept your invitation (valid for ${INVITE_EXPIRY_DAYS} days):\n${link}\n\n` +
           `If you did not expect this invitation, you can ignore this email.`,
       });

@@ -35,7 +35,7 @@ export class TwoFactorService {
     config: ConfigService,
   ) {
     this.issuer =
-      config.get<AppConfig['twoFactor']>('twoFactor', { infer: true })?.issuer ?? 'MasterSignage';
+      config.get<AppConfig['twoFactor']>('twoFactor', { infer: true })?.issuer ?? 'Wizer Signage';
     // Allow ±1 step (±30s) to tolerate clock drift.
     authenticator.options = { window: 1 };
   }

@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "MasterSignage"
+    "name": "Wizer Signage"
   },
   "nav": {
     "overview": "Overview",
@@ -128,7 +128,7 @@
     "ar": "العربية"
   },
   "footer": {
-    "copyright": "MasterSignage — Proprietary. All rights reserved."
+    "copyright": "Wizer Signage — Proprietary. All rights reserved."
   },
   "pages": {
     "screens": {
@@ -661,7 +661,7 @@
         "paired": "Paired",
         "awaitingDevice": "Awaiting device",
         "notPaired": "Not paired",
-        "hint": "Open MasterSignage on the TV, then enter the code it shows here to pair."
+        "hint": "Open Wizer Signage on the TV, then enter the code it shows here to pair."
       },
       "sync": {
         "offlineCache": "Offline cache",
@@ -700,7 +700,7 @@
       },
       "pairDialog": {
         "title": "Pair device",
-        "description": "Open MasterSignage on the TV and enter the code it displays.",
+        "description": "Open Wizer Signage on the TV and enter the code it displays.",
         "placeholder": "e.g. A7K9Q2",
         "submit": "Pair"
       },
@@ -1915,7 +1915,7 @@
     },
     "login": {
       "title": "Sign in",
-      "subtitle": "Sign in to your MasterSignage account",
+      "subtitle": "Sign in to your Wizer Signage account",
       "email": "Email",
       "password": "Password",
       "signIn": "Sign in"
@@ -2152,7 +2152,7 @@
       },
       "problem": {
         "title": "Running screens manually does not scale",
-        "subtitle": "If this sounds familiar, MasterSignage was built for you.",
+        "subtitle": "If this sounds familiar, Wizer Signage was built for you.",
         "items": {
           "usb": {
             "title": "No more USB sticks",
@@ -2235,7 +2235,7 @@
         ]
       },
       "trust": {
-        "title": "Why teams choose MasterSignage",
+        "title": "Why teams choose Wizer Signage",
         "subtitle": "Enterprise-ready, and easy enough for anyone on your team.",
         "items": {
           "bilingual": {
@@ -2336,7 +2336,7 @@
     },
     "industries": {
       "title": "Industries",
-      "subtitle": "MasterSignage adapts to how your business uses screens.",
+      "subtitle": "Wizer Signage adapts to how your business uses screens.",
       "items": {
         "restaurants": {
           "title": "Restaurants",
@@ -2426,7 +2426,7 @@
       "items": [
         {
           "q": "Do I need special hardware?",
-          "a": "No. MasterSignage runs on standard Android TV devices - just install the player app and pair the screen."
+          "a": "No. Wizer Signage runs on standard Android TV devices - just install the player app and pair the screen."
         },
         {
           "q": "Does it work in Arabic?",
@@ -2515,7 +2515,7 @@
     },
     "demo": {
       "title": "Book a demo",
-      "subtitle": "See MasterSignage in action. Tell us a bit about your business and our team will reach out.",
+      "subtitle": "See Wizer Signage in action. Tell us a bit about your business and our team will reach out.",
       "fields": {
         "name": "Full name",
         "company": "Company",
@@ -2547,7 +2547,7 @@
       "updated": "Last updated: June 2026",
       "privacy": {
         "title": "Privacy Policy",
-        "intro": "This Privacy Policy explains how MasterSignage collects, uses, and protects information when you use our website and platform.",
+        "intro": "This Privacy Policy explains how Wizer Signage collects, uses, and protects information when you use our website and platform.",
         "sections": [
           {
             "heading": "Information we collect",
@@ -2577,7 +2577,7 @@
       },
       "terms": {
         "title": "Terms of Service",
-        "intro": "These Terms govern your access to and use of the MasterSignage website and platform.",
+        "intro": "These Terms govern your access to and use of the Wizer Signage website and platform.",
         "sections": [
           {
             "heading": "Using the service",

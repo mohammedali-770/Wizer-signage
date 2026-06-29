@@ -320,7 +320,7 @@ export class AuthService {
       const link = `${this.dashboardUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
       await this.mail.send({
         to: user.email,
-        subject: 'Reset your MasterSignage password',
+        subject: 'Reset your Wizer Signage password',
         text:
           `We received a request to reset your password.\n\n` +
           `Reset it here (valid for 1 hour):\n${link}\n\n` +

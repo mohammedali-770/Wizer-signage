@@ -134,7 +134,7 @@ export default (): AppConfig => {
     nodeEnv: (env.NODE_ENV as NodeEnv) ?? 'development',
     logLevel: env.LOG_LEVEL ?? 'info',
     app: {
-      name: 'MasterSignage',
+      name: 'Wizer Signage',
       dashboardUrl: env.APP_URL ?? env.DASHBOARD_URL ?? 'http://localhost:3000',
     },
     http: {
@@ -167,7 +167,7 @@ export default (): AppConfig => {
       encryptionKey: env.ENCRYPTION_KEY,
     },
     twoFactor: {
-      issuer: env.TWO_FACTOR_ISSUER ?? 'MasterSignage',
+      issuer: env.TWO_FACTOR_ISSUER ?? 'Wizer Signage',
     },
     smtp: {
       host: env.SMTP_HOST,

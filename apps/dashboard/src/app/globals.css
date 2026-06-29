@@ -16,27 +16,37 @@
   :root {
     --radius: 0.625rem;
 
-    /* Brand typography — mapped per locale (Arabic override in [lang='ar']). */
-    --font-sans: var(--font-inter);
-    --font-display: var(--font-manrope);
+    /* WIZER brand typography — mapped per locale (Arabic override in [lang='ar']).
+       English: Montserrat (body) + Saira (display/wordmark); Arabic: Tajawal. */
+    --font-sans: var(--font-montserrat);
+    --font-display: var(--font-saira);
 
     --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    /* WIZER Navy #0B1020 */
+    --foreground: 226 49% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 226 49% 8%;
 
+    /* WIZER Light Background #F1F5F9 */
     --muted: 210 40% 96%;
+    /* WIZER Gray #64748B */
     --muted-foreground: 215 16% 47%;
 
     --border: 214 32% 91%;
 
-    /* Signal Blue #2563EB */
+    /* WIZER Blue #2563EB */
     --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
 
-    /* Sidebar — Deep Slate #1E293B command-center surface (lighter than Master
-       Navy so the logo reads clearly); identical in light + dark. */
+    /* WIZER brand palette (raw HSL channels; also exposed via tailwind `wizer.*`). */
+    --wizer-navy: 226 49% 8%; /* #0B1020 */
+    --wizer-blue: 221 83% 53%; /* #2563EB */
+    --wizer-cyan: 189 94% 43%; /* #06B6D4 */
+    --wizer-light: 210 40% 96%; /* #F1F5F9 */
+    --wizer-gray: 215 16% 47%; /* #64748B */
+
+    /* Sidebar — Deep Slate command-center surface; identical in light + dark. */
     --sidebar: 217 33% 17%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-muted: 215 20% 72%;
@@ -44,10 +54,10 @@
     --sidebar-accent: 217 91% 60%;
   }
 
-  /* Arabic uses the Thmanyah Sans brand font for body and display. */
+  /* Arabic uses the Tajawal brand font for body and display (RTL via dir). */
   [lang='ar'] {
-    --font-sans: var(--font-arabic);
-    --font-display: var(--font-arabic);
+    --font-sans: var(--font-tajawal);
+    --font-display: var(--font-tajawal);
   }
 
   .dark {
@@ -71,9 +81,9 @@
      labels use text-foreground, which would otherwise turn light-on-white. */
   .force-light {
     --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --foreground: 226 49% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 226 49% 8%;
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
     --border: 214 32% 91%;

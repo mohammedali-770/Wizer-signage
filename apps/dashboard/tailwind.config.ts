@@ -21,13 +21,21 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground) / <alpha-value>)',
         },
         border: 'hsl(var(--border) / <alpha-value>)',
-        // Master Navy command-center sidebar (brand).
+        // Deep-slate command-center sidebar (brand).
         sidebar: {
           DEFAULT: 'hsl(var(--sidebar) / <alpha-value>)',
           foreground: 'hsl(var(--sidebar-foreground) / <alpha-value>)',
           muted: 'hsl(var(--sidebar-muted) / <alpha-value>)',
           border: 'hsl(var(--sidebar-border) / <alpha-value>)',
           accent: 'hsl(var(--sidebar-accent) / <alpha-value>)',
+        },
+        // WIZER brand palette — use as wizer-navy / wizer-blue / wizer-cyan etc.
+        wizer: {
+          navy: 'hsl(var(--wizer-navy) / <alpha-value>)',
+          blue: 'hsl(var(--wizer-blue) / <alpha-value>)',
+          cyan: 'hsl(var(--wizer-cyan) / <alpha-value>)',
+          light: 'hsl(var(--wizer-light) / <alpha-value>)',
+          gray: 'hsl(var(--wizer-gray) / <alpha-value>)',
         },
       },
       borderRadius: {
@@ -47,8 +55,10 @@ const config: Config = {
           'Arial',
           'sans-serif',
         ],
-        // Marketing/display headings — Manrope (en) / Thmanyah Sans (ar).
+        // Display headings — Saira (en) / Tajawal (ar).
         display: ['var(--font-display)', 'var(--font-sans)', 'ui-sans-serif', 'sans-serif'],
+        // WIZER Latin wordmark — always Saira regardless of locale.
+        wordmark: ['var(--font-saira)', 'var(--font-display)', 'ui-sans-serif', 'sans-serif'],
       },
     },
   },

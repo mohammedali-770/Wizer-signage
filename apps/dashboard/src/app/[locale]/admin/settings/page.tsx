@@ -51,7 +51,7 @@ export default function SystemSettingsPage() {
   const t = useTranslations('pages.adminSettings');
 
   const PLATFORM_ROWS: SettingRow[] = [
-    { label: t('platformProduct'), value: 'MasterSignage' },
+    { label: t('platformProduct'), value: 'Wizer Signage' },
     { label: t('platformConsole'), value: t('platformConsoleValue') },
     { label: t('platformPhase'), value: t('platformPhaseValue') },
     { label: t('platformConfigSource'), value: t('platformConfigSourceValue') },

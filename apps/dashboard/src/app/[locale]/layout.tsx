@@ -5,12 +5,16 @@ import { getMessages, setRequestLocale } from 'next-intl/server';
 import { ThemeProvider } from 'next-themes';
 import { routing, type Locale } from '@/i18n/routing';
 import { AppProviders } from '@/components/app-providers';
-import { inter, manrope, thmanyah } from '@/lib/fonts';
+import { montserrat, saira, tajawal } from '@/lib/fonts';
 import '../globals.css';
 
 export const metadata: Metadata = {
-  title: 'MasterSignage',
-  description: 'Multi-tenant digital signage management platform.',
+  title: {
+    default: 'WIZER — Smart Systems. Clearer Decisions.',
+    template: '%s · WIZER',
+  },
+  description:
+    'WIZER builds SaaS products that connect systems, organize operations, and turn data into confident decisions. Wizer Signage is our cloud digital signage platform.',
 };
 
 /**
@@ -44,7 +48,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     <html
       lang={locale}
       dir={dir}
-      className={`${inter.variable} ${manrope.variable} ${thmanyah.variable}`}
+      className={`${montserrat.variable} ${saira.variable} ${tajawal.variable}`}
       suppressHydrationWarning
     >
       <body className="bg-background text-foreground min-h-screen font-sans antialiased">

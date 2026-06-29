@@ -273,12 +273,12 @@ export class PublicService {
     const ends = trialEndsAt.toISOString().slice(0, 10);
     const text =
       locale === 'ar'
-        ? `مرحبًا ${name}،\n\nتم تفعيل حسابك التجريبي في ماستر ساينيج وهو صالح حتى ${ends}.\n\nسجّل الدخول: ${loginUrl}\n`
-        : `Hi ${name},\n\nYour MasterSignage trial is active until ${ends}.\n\nSign in: ${loginUrl}\n`;
+        ? `مرحبًا ${name}،\n\nتم تفعيل حسابك التجريبي في وايزر ساينج وهو صالح حتى ${ends}.\n\nسجّل الدخول: ${loginUrl}\n`
+        : `Hi ${name},\n\nYour Wizer Signage trial is active until ${ends}.\n\nSign in: ${loginUrl}\n`;
     try {
       await this.mail.send({
         to: email,
-        subject: locale === 'ar' ? 'مرحبًا بك في ماستر ساينيج' : 'Welcome to MasterSignage',
+        subject: locale === 'ar' ? 'مرحبًا بك في وايزر ساينج' : 'Welcome to Wizer Signage',
         text,
       });
     } catch (err) {

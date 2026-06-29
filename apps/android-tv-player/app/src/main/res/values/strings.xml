@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">MasterSignage</string>
+    <string name="app_name">Wizer Signage</string>
 
     <!-- Phase 0 splash copy. Real, localized strings arrive with the pairing UI. -->
     <string name="splash_subtitle">TV Player</string>

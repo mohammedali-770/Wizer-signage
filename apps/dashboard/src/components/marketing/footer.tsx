@@ -40,14 +40,12 @@ export function MarketingFooter() {
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           {/* brand */}
           <div className="max-w-xs">
-            <span className="text-lg font-bold tracking-tight text-white">
-              Master<span className="text-[#3b82f6]">Signage</span>
-            </span>
+            <span className="font-wordmark text-xl font-bold tracking-wide text-white">WIZER</span>
             <p className="mt-3 text-sm leading-relaxed text-slate-400">{t('tagline')}</p>
             <ul className="mt-5 space-y-2 text-sm">
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-slate-500" aria-hidden />
-                <span>hello@mastersignage.com</span>
+                <span>hello@wizer.sa</span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-slate-500" aria-hidden />
@@ -84,7 +82,7 @@ export function MarketingFooter() {
 
         <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-slate-500">
-            © {year} MasterSignage. {t('rights')}
+            © {year} WIZER. {t('rights')}
           </p>
           <p className="text-xs text-slate-500">{t('positioning')}</p>
         </div>

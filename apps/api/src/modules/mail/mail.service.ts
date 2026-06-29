@@ -23,7 +23,7 @@ export interface MailMessage {
 export class MailService implements OnModuleInit {
   private readonly logger = new Logger(MailService.name);
   private transporter!: nodemailer.Transporter;
-  private fromAddress = 'MasterSignage <no-reply@mastersignage.local>';
+  private fromAddress = 'Wizer Signage <no-reply@wizer.sa>';
   private liveTransport = false;
 
   constructor(private readonly config: ConfigService) {}

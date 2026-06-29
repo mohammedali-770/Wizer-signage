@@ -7,10 +7,10 @@ import { ApiError } from '@/lib/api';
 import { useAuth, type TwoFactorSetup } from '@/lib/auth-context';
 import { useRouter } from '@/i18n/navigation';
 import { roleHome } from '@/lib/roles';
-import Image from 'next/image';
 
 import { Button, Card, Field, Input, Spinner, useToast } from '@/components/ui';
 import { BrandPattern } from '@/components/brand/pattern';
+import { WizerMark } from '@/components/brand/logo';
 
 type Step = 'login' | '2fa' | 'enroll' | 'backup';
 
@@ -114,14 +114,11 @@ export default function LoginPage() {
     <div className="bg-muted/30 relative flex min-h-screen items-center justify-center overflow-hidden p-4">
       <BrandPattern className="text-foreground/[0.035] pointer-events-none absolute inset-0 h-full w-full" />
       <Card className="relative w-full max-w-md p-8">
-        <div className="mb-6 flex justify-center">
-          <Image
-            src="/brand/master-signage-logo.png"
-            alt="MasterSignage"
-            width={240}
-            height={160}
-            priority
-          />
+        <div className="mb-6 flex items-center justify-center gap-3">
+          <WizerMark className="text-foreground h-11 w-11" />
+          <span className="font-wordmark text-foreground text-3xl font-bold tracking-wide">
+            WIZER <span className="text-primary">Signage</span>
+          </span>
         </div>
 
         {step === 'login' && (

@@ -87,8 +87,8 @@ async function bootstrap(): Promise<void> {
   const swaggerEnabled = nodeEnv !== 'production' || process.env.SWAGGER_ENABLED === 'true';
   if (swaggerEnabled) {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('MasterSignage API')
-      .setDescription('Multi-tenant digital signage SaaS platform — REST API.')
+      .setTitle('Wizer Signage API')
+      .setDescription('Wizer Signage — multi-tenant digital signage SaaS platform REST API.')
       .setVersion(process.env.npm_package_version ?? '0.0.0')
       .addBearerAuth()
       .build();
@@ -101,7 +101,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(port, host);
 
   const baseUrl = `http://${host}:${port}`;
-  logger.log(`MasterSignage API (${nodeEnv ?? 'development'}) listening on ${baseUrl}`);
+  logger.log(`Wizer Signage API (${nodeEnv ?? 'development'}) listening on ${baseUrl}`);
   logger.log(`Health:  ${baseUrl}/api/health`);
   if (swaggerEnabled) logger.log(`Swagger: ${baseUrl}/api/docs`);
 }

@@ -3,13 +3,13 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 
 import { api, ApiError } from '@/lib/api';
 import { Link, useRouter } from '@/i18n/navigation';
 
 import { Button, Card, Field, Input, Spinner, useToast } from '@/components/ui';
 import { BrandPattern } from '@/components/brand/pattern';
+import { WizerMark } from '@/components/brand/logo';
 
 const MIN_PASSWORD_LENGTH = 10;
 
@@ -56,14 +56,11 @@ function AcceptInvitationInner() {
     <div className="bg-muted/30 relative flex min-h-screen items-center justify-center overflow-hidden p-4">
       <BrandPattern className="text-foreground/[0.035] pointer-events-none absolute inset-0 h-full w-full" />
       <Card className="relative w-full max-w-md p-8">
-        <div className="mb-6 flex justify-center">
-          <Image
-            src="/brand/master-signage-logo.png"
-            alt="MasterSignage"
-            width={240}
-            height={160}
-            priority
-          />
+        <div className="mb-6 flex items-center justify-center gap-3">
+          <WizerMark className="text-foreground h-11 w-11" />
+          <span className="font-wordmark text-foreground text-3xl font-bold tracking-wide">
+            WIZER <span className="text-primary">Signage</span>
+          </span>
         </div>
 
         {!token ? (
