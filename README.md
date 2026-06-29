@@ -1,8 +1,17 @@
-# MasterSignage
+# Wizer Signage
 
-MasterSignage is a **multi-tenant digital signage SaaS platform** for **Android TV**.
+**Wizer Signage** is a **multi-tenant digital signage SaaS platform** for **Android TV**.
 It lets organizations manage screens, schedule playlists, and stream media to
-networks of Android TV devices from a single, multi-tenant web dashboard.
+networks of Android TV devices from a single, multi-tenant web dashboard — in Arabic or English.
+
+Wizer Signage is a product of **WIZER** — a Saudi SaaS company building smart business
+software. _Smart Systems. Clearer Decisions._
+
+> **Naming note:** internal technical identifiers retain the original `master-signage`
+> name for deployment/compatibility and are **not** user-facing — the npm workspace
+> packages (`@master-signage/*`), the Android package id (`com.mastersignage.player`),
+> Docker image/service names, the nginx config, and the seed company slug. User-facing
+> branding everywhere is **WIZER / Wizer Signage**.
 
 > **Status: Phase 0 — Scaffold.** This repository currently contains the
 > architecture, monorepo skeleton, tooling, and minimal runnable placeholders.
