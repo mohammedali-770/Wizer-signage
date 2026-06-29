@@ -57,3 +57,7 @@ Thumbs.db
 
 # Host-mounted runtime downloads (e.g. Android player APK) — not source
 /downloads/
+
+# Claude Code local files — skills installed via `uipro init` are kept local
+# (not vendored into the repo); local settings + runtime locks never committed.
+.claude/
