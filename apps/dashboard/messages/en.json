@@ -2606,5 +2606,224 @@
         ]
       }
     }
+  },
+  "wizer": {
+    "nav": {
+      "products": "Products",
+      "signage": "Wizer Signage",
+      "futureProducts": "Future Products",
+      "about": "About",
+      "contact": "Contact",
+      "login": "Login",
+      "startTrial": "Start Free Trial",
+      "bookDemo": "Book a Demo",
+      "menu": "Open menu",
+      "close": "Close menu"
+    },
+    "hero": {
+      "badge": "Saudi SaaS company",
+      "title": "Smart Systems. Clearer Decisions.",
+      "subtitle": "WIZER builds SaaS products that connect systems, organize operations, and turn data into confident decisions.",
+      "ctaPrimary": "Book a Demo",
+      "ctaSecondary": "Explore the ecosystem",
+      "note": "Built in Saudi Arabia for growing businesses."
+    },
+    "what": {
+      "title": "Smarter software for growing businesses",
+      "subtitle": "WIZER products are built to work together — one connected ecosystem.",
+      "items": {
+        "connect": {
+          "title": "Connect systems",
+          "desc": "Bring your tools and data into one connected platform instead of scattered apps."
+        },
+        "organize": {
+          "title": "Organize operations",
+          "desc": "Standardize how teams and branches run, with clear roles and workflows."
+        },
+        "decide": {
+          "title": "Decide with confidence",
+          "desc": "Turn operational data into clear, timely insights for better decisions."
+        }
+      }
+    },
+    "ecosystem": {
+      "title": "One ecosystem, many products",
+      "subtitle": "WIZER is the parent platform. Each product shares the same identity, data model, and dashboard experience.",
+      "parentLabel": "Parent SaaS Company",
+      "currentLabel": "Available now",
+      "comingSoon": "Coming soon",
+      "exploreCta": "Explore the ecosystem",
+      "products": {
+        "signage": {
+          "name": "Wizer Signage",
+          "desc": "Cloud digital signage — manage screens, content, playlists, schedules, and devices from one dashboard.",
+          "available": true
+        },
+        "pos": {
+          "name": "Wizer POS",
+          "desc": "Point of sale — sell, track inventory, and sync every branch in real time.",
+          "available": false
+        },
+        "erp": {
+          "name": "Wizer ERP",
+          "desc": "Resource planning — connect finance, inventory, and operations.",
+          "available": false
+        },
+        "crm": {
+          "name": "Wizer CRM",
+          "desc": "Customer relationships — leads, pipelines, and retention in one place.",
+          "available": false
+        },
+        "hr": {
+          "name": "Wizer HR",
+          "desc": "People & payroll — hiring, attendance, and payroll made simple.",
+          "available": false
+        },
+        "ai": {
+          "name": "Wizer AI",
+          "desc": "The intelligence layer — automation and insight across every WIZER product.",
+          "available": false
+        },
+        "analytics": {
+          "name": "Wizer Analytics",
+          "desc": "Dashboards & reports — turn data from every product into decisions.",
+          "available": false
+        }
+      }
+    },
+    "signageSection": {
+      "title": "Wizer Signage",
+      "tagline": "Control every screen from one dashboard.",
+      "subtitle": "Our flagship product: a cloud-based digital signage platform that helps businesses manage screens, content, playlists, schedules, and devices from one dashboard — in Arabic and English.",
+      "features": {
+        "pairing": "Screen pairing",
+        "library": "Content library",
+        "playlists": "Playlist management",
+        "scheduling": "Scheduling",
+        "branches": "Branch management",
+        "status": "Online/offline status",
+        "androidTv": "Android TV player",
+        "offline": "Offline playback cache",
+        "bilingual": "Arabic & English"
+      },
+      "ctaPrimary": "Visit Wizer Signage",
+      "ctaSecondary": "Start Free Trial"
+    },
+    "future": {
+      "title": "Built to grow with you",
+      "subtitle": "More WIZER products are on the way — each one connected to the same ecosystem."
+    },
+    "why": {
+      "title": "Why WIZER",
+      "subtitle": "Enterprise-grade software, designed for the way Saudi businesses actually work.",
+      "items": {
+        "intelligence": {
+          "title": "Smart by design",
+          "desc": "Automation and insight built into every product, not bolted on."
+        },
+        "integration": {
+          "title": "Truly connected",
+          "desc": "Shared identity and data so your products talk to each other."
+        },
+        "saudi": {
+          "title": "Built in Saudi Arabia",
+          "desc": "Made for the Saudi & GCC market — Arabic-first, locally supported."
+        },
+        "enterprise": {
+          "title": "Enterprise-ready",
+          "desc": "Roles, security, and scale from day one."
+        }
+      }
+    },
+    "saudi": {
+      "title": "Built in Saudi Arabia",
+      "subtitle": "WIZER is a Saudi SaaS company building smarter systems for growing businesses across the Kingdom and the GCC."
+    },
+    "cta": {
+      "title": "Ready for smarter systems?",
+      "subtitle": "See how WIZER can connect your operations and clarify your decisions.",
+      "primary": "Book a Demo",
+      "secondary": "Start Free Trial"
+    },
+    "footer": {
+      "tagline": "A Saudi SaaS company. Smart Systems. Clearer Decisions.",
+      "location": "Riyadh, Saudi Arabia",
+      "columns": {
+        "products": "Products",
+        "company": "Company",
+        "legal": "Legal"
+      },
+      "products": {
+        "signage": "Wizer Signage",
+        "pos": "Wizer POS",
+        "erp": "Wizer ERP",
+        "crm": "Wizer CRM",
+        "ai": "Wizer AI"
+      },
+      "company": {
+        "about": "About WIZER",
+        "ecosystem": "Product Ecosystem",
+        "contact": "Contact"
+      },
+      "legal": {
+        "privacy": "Privacy Policy",
+        "terms": "Terms of Service"
+      },
+      "rights": "All rights reserved.",
+      "positioning": "Built in Saudi Arabia — Arabic and English."
+    },
+    "about": {
+      "title": "About WIZER",
+      "subtitle": "Smart systems for growing businesses.",
+      "intro": "WIZER is a Saudi SaaS company building a connected ecosystem of business software — products that share one identity, one data model, and one experience.",
+      "mission": {
+        "title": "Our mission",
+        "body": "Help growing businesses run on smarter systems: connect what is scattered, organize what is manual, and turn data into confident decisions."
+      },
+      "vision": {
+        "title": "Our vision",
+        "body": "A single WIZER ecosystem that powers operations end to end — from screens to sales, people, and intelligence."
+      },
+      "values": {
+        "title": "What we stand for",
+        "items": {
+          "clarity": {
+            "title": "Clarity",
+            "desc": "Simple, premium experiences over cluttered complexity."
+          },
+          "intelligence": {
+            "title": "Intelligence",
+            "desc": "Automation and insight in everything we build."
+          },
+          "trust": {
+            "title": "Trust",
+            "desc": "Security, reliability, and respect for your data."
+          },
+          "local": {
+            "title": "Local roots",
+            "desc": "Built in Saudi Arabia, for the region's businesses."
+          }
+        }
+      }
+    },
+    "products": {
+      "title": "Product Ecosystem",
+      "subtitle": "One connected platform. Each product shares the WIZER identity, data model, and dashboard."
+    },
+    "futureProducts": {
+      "title": "Future Products",
+      "subtitle": "The WIZER roadmap — more connected products, coming soon.",
+      "note": "Want early access? Book a demo and tell us what you need."
+    },
+    "contact": {
+      "title": "Contact WIZER",
+      "subtitle": "Tell us about your business and we’ll show you how WIZER can help.",
+      "infoTitle": "Get in touch",
+      "email": "hello@wizer.sa",
+      "phoneLabel": "Phone",
+      "locationLabel": "Location",
+      "demoCta": "Book a Demo",
+      "trialCta": "Start Free Trial"
+    }
   }
 }

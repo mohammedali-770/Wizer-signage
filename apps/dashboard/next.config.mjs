@@ -13,7 +13,17 @@ const nextConfig = {
     '@master-signage/ui',
     '@master-signage/shared',
     '@master-signage/types'
-  ]
+  ],
+  // Backward-compatible aliases: old MasterSignage marketing paths -> Wizer Signage.
+  // 302 (temporary) so we can adjust later; locale-prefixed variants included.
+  async redirects() {
+    return [
+      { source: '/mastersignage', destination: '/signage', permanent: false },
+      { source: '/master-signage', destination: '/signage', permanent: false },
+      { source: '/:locale/mastersignage', destination: '/:locale/signage', permanent: false },
+      { source: '/:locale/master-signage', destination: '/:locale/signage', permanent: false },
+    ];
+  }
 };
 
 export default withNextIntl(nextConfig);

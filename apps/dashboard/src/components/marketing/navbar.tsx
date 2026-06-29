@@ -10,15 +10,16 @@ import { Logo } from '@/components/brand/logo';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 
 const NAV_LINKS = [
-  { href: '/features', key: 'features' },
-  { href: '/industries', key: 'industries' },
-  { href: '/pricing', key: 'pricing' },
-  { href: '/demo', key: 'bookDemo' },
+  { href: '/products', key: 'products' },
+  { href: '/signage', key: 'signage' },
+  { href: '/future-products', key: 'futureProducts' },
+  { href: '/about', key: 'about' },
+  { href: '/contact', key: 'contact' },
 ] as const;
 
-/** Sticky public marketing header: logo, nav, language switcher, login + CTA. */
+/** Sticky public WIZER header: logo, parent nav, language switcher, login + CTA. */
 export function MarketingNavbar() {
-  const t = useTranslations('marketing.nav');
+  const t = useTranslations('wizer.nav');
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);

@@ -3,21 +3,24 @@ import { Mail, MapPin, Phone } from 'lucide-react';
 
 import { Link } from '@/i18n/navigation';
 
+// Future products have no dedicated page yet -> point to the roadmap (no broken links).
 const COLUMNS = [
   {
-    titleKey: 'product',
+    titleKey: 'products',
     links: [
-      { href: '/features', key: 'features' },
-      { href: '/pricing', key: 'pricing' },
-      { href: '/industries', key: 'industries' },
-      { href: '/trial', key: 'startTrial' },
+      { href: '/signage', key: 'signage' },
+      { href: '/future-products', key: 'pos' },
+      { href: '/future-products', key: 'erp' },
+      { href: '/future-products', key: 'crm' },
+      { href: '/future-products', key: 'ai' },
     ],
   },
   {
     titleKey: 'company',
     links: [
-      { href: '/demo', key: 'bookDemo' },
-      { href: '/login', key: 'login' },
+      { href: '/about', key: 'about' },
+      { href: '/products', key: 'ecosystem' },
+      { href: '/contact', key: 'contact' },
     ],
   },
   {
@@ -29,13 +32,13 @@ const COLUMNS = [
   },
 ] as const;
 
-/** Public marketing footer: brand, link columns, contact, GCC positioning. */
+/** Public WIZER footer: brand, product/company/legal columns, contact, positioning. */
 export function MarketingFooter() {
-  const t = useTranslations('marketing.footer');
+  const t = useTranslations('wizer.footer');
   const year = 2026;
 
   return (
-    <footer className="bg-[#0B1220] text-slate-400">
+    <footer className="bg-wizer-navy text-slate-400">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           {/* brand */}
@@ -65,13 +68,13 @@ export function MarketingFooter() {
                 {t(`columns.${col.titleKey}`)}
               </h3>
               <ul className="mt-4 space-y-3">
-                {col.links.map((l) => (
-                  <li key={l.href}>
+                {col.links.map((l, i) => (
+                  <li key={`${col.titleKey}-${l.key}-${i}`}>
                     <Link
                       href={l.href}
                       className="text-sm text-slate-400 transition-colors hover:text-white"
                     >
-                      {t(`links.${l.key}`)}
+                      {t(`${col.titleKey}.${l.key}`)}
                     </Link>
                   </li>
                 ))}
