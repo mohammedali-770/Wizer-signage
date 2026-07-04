@@ -11,7 +11,7 @@ arrive in later phases. See [`docs/android-player.md`](../../docs/android-player
 and known limitations.
 
 The API base URL is `BuildConfig.API_BASE_URL` in `app/build.gradle.kts`. It **defaults to
-production** (`https://signage.spicymeal.com.sa/api`) so no build ships the emulator URL by
+production** (`https://wizer.sa/api`) so no build ships the emulator URL by
 accident. For local emulator development, override it at build time:
 
 ```bash

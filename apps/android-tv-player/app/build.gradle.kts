@@ -9,7 +9,7 @@ plugins {
 // accident. Override at build time for local emulator development:
 //   ./gradlew assembleDebug -PapiBaseUrl=http://10.0.2.2:3001/api
 val apiBaseUrl: String = (project.findProperty("apiBaseUrl") as String?)
-    ?: "https://signage.spicymeal.com.sa/api"
+    ?: "https://wizer.sa/api"
 
 android {
     namespace = "com.mastersignage.player"

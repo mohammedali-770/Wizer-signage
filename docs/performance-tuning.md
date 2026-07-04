@@ -92,6 +92,6 @@ then `prisma migrate resolve --applied 20260623120000_perf_indexes`.
 ## Verify on production
 
 ```bash
-curl -s -o /dev/null -w "%{time_total}s\n" https://signage.spicymeal.com.sa/api/health
+curl -s -o /dev/null -w "%{time_total}s\n" https://wizer.sa/api/health
 # After deploy, exercise the dashboard and watch: docker compose ... logs -f api | grep SLOW
 ```
