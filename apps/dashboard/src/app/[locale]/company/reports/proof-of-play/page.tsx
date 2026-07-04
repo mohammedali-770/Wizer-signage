@@ -34,8 +34,9 @@ import {
   TR,
   useToast,
 } from '@/components/ui';
+import { API_BASE_URL } from '@/lib/api-base';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+const BASE = API_BASE_URL;
 
 const STATUS_TONE: Record<
   ProofOfPlayStatus,

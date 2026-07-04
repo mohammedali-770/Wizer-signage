@@ -6,9 +6,10 @@
  * - Tokens live in localStorage (browser only); all access is SSR-guarded.
  */
 
+import { API_BASE_URL } from './api-base';
 import { invalidateApiCache } from './api-cache';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+const BASE = API_BASE_URL;
 
 const ACCESS_KEY = 'ms_access_token';
 const REFRESH_KEY = 'ms_refresh_token';

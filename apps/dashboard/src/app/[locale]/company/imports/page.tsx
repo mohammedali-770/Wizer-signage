@@ -28,8 +28,9 @@ import {
   TR,
   useToast,
 } from '@/components/ui';
+import { API_BASE_URL } from '@/lib/api-base';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+const BASE = API_BASE_URL;
 const TYPES: ImportType[] = ['LOCATION', 'SCREEN', 'SCREEN_GROUP', 'TAG', 'USER'];
 const STATUS_TONE: Record<string, 'neutral' | 'info' | 'success' | 'danger' | 'warning'> = {
   UPLOADED: 'neutral',

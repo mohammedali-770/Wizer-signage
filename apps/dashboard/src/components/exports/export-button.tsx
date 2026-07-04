@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { Download } from 'lucide-react';
 
 import { getAccessToken } from '@/lib/api';
+import { API_BASE_URL } from '@/lib/api-base';
 import { Button, useToast } from '@/components/ui';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+const BASE = API_BASE_URL;
 const FORMATS: Array<{ key: string; label: string }> = [
   { key: 'CSV', label: 'CSV' },
   { key: 'XLSX', label: 'Excel' },
