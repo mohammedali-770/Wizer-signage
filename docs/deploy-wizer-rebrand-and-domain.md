@@ -24,10 +24,7 @@ root. Commands assume `bash`, `git`, `docker` (compose plugin), and `curl`.
 
 - [ ] **DNS**: point `wizer.sa` (and `www.wizer.sa` if you want it) at this host's
       public IP. Confirm it resolves **before** issuing the cert (HTTP-01 validates
-      over the public name):
-      `bash
-    dig +short wizer.sa            # must return this host's IP
-    `
+      over the public name) — `dig +short wizer.sa` must return this host's IP.
 - [ ] **DB snapshot** (safety). The database is external (Supabase); take a snapshot
       from the Supabase dashboard, or dump via the maintenance container if you use
       one. **No schema migration is required for this release** — the rename did not
