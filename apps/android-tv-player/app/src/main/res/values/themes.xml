@@ -12,7 +12,7 @@
 -->
 <resources>
 
-    <style name="Theme.Wizer Signage" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.WizerSignage" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/brand_surface_dark</item>
         <item name="android:statusBarColor">@color/brand_surface_dark</item>
         <item name="android:navigationBarColor">@color/brand_surface_dark</item>

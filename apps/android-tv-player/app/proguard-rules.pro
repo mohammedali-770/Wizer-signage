@@ -8,7 +8,7 @@
 #   - Any classes referenced only from the AndroidManifest (services, receivers)
 #
 # Example (commented until needed):
-# -keep class com.mastersignage.player.data.model.** { *; }
+# -keep class com.wizer.signage.data.model.** { *; }
 
 # Keep generic line numbers for readable crash reports.
 -keepattributes SourceFile,LineNumberTable

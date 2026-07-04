@@ -12,7 +12,7 @@ val apiBaseUrl: String = (project.findProperty("apiBaseUrl") as String?)
     ?: "https://wizer.sa/api"
 
 android {
-    namespace = "com.mastersignage.player"
+    namespace = "com.wizer.signage"
     compileSdk = 34
 
     defaultConfig {

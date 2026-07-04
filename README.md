@@ -9,11 +9,11 @@ software. _Smart Systems. Clearer Decisions._
 
 > **Naming note:** the WIZER / Wizer Signage rename is applied throughout — user-facing
 > text, the npm workspace scope (`@wizer/*`), Docker images/containers (`wizer-signage/*`),
-> the API service name, and the Android **app id** (`com.wizer.signage`). One internal
-> identifier is intentionally retained: the Android **source-package namespace**
-> `com.mastersignage.player` (renaming the Kotlin package requires an Android rebuild to
-> verify, so it's deferred to a dedicated pass). The old `/mastersignage` and
-> `/master-signage` URLs still redirect to `/signage` for backward compatibility.
+> the API service name, the Android **app id** _and_ **source package** (`com.wizer.signage`).
+> The Android Kotlin package move (`com.mastersignage.player` → `com.wizer.signage`) is
+> mechanically complete and internally consistent; run a Gradle/APK build to confirm on the
+> next Android CI pass. The old `/mastersignage` and `/master-signage` URLs still redirect to
+> `/signage` for backward compatibility.
 
 > **Status: Phase 0 — Scaffold.** This repository currently contains the
 > architecture, monorepo skeleton, tooling, and minimal runnable placeholders.
