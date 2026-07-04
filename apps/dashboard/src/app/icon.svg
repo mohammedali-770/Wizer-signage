@@ -5,12 +5,12 @@
       <stop offset="1" stop-color="#06B6D4"/>
     </linearGradient>
   </defs>
-  <path d="M22 33 L36 71 M36 71 L50 51 M50 51 L64 71 M64 71 L78 33 M22 33 L50 51 M78 33 L50 51"
-        stroke="url(#g)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M62 4 L64.1 10.9 L71 13 L64.1 15.1 L62 22 L59.9 15.1 L53 13 L59.9 10.9 Z" fill="url(#g)"/>
-  <circle cx="22" cy="33" r="7.5" fill="#2563EB" stroke="url(#g)" stroke-width="5"/>
-  <circle cx="78" cy="33" r="7.5" fill="#06B6D4" stroke="url(#g)" stroke-width="5"/>
-  <circle cx="50" cy="51" r="7.5" fill="#3b82f6" stroke="url(#g)" stroke-width="5"/>
-  <circle cx="36" cy="71" r="7.5" fill="#2563EB" stroke="url(#g)" stroke-width="5"/>
-  <circle cx="64" cy="71" r="7.5" fill="#06B6D4" stroke="url(#g)" stroke-width="5"/>
+  <path d="M15 34 L34 78 M34 78 L50 51 M50 51 L66 78 M66 78 L85 34 M15 34 L50 51 M85 34 L50 51"
+        stroke="url(#g)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M50 17 L51.4 22.6 L55 24 L51.4 25.4 L50 31 L48.6 25.4 L45 24 L48.6 22.6 Z" fill="#2563EB"/>
+  <circle cx="15" cy="34" r="6" fill="#2563EB"/>
+  <circle cx="85" cy="34" r="6" fill="#06B6D4"/>
+  <circle cx="34" cy="78" r="6" fill="#2f74e0"/>
+  <circle cx="66" cy="78" r="6" fill="#12a2cf"/>
+  <circle cx="50" cy="51" r="8" fill="#1e88e5"/>
 </svg>

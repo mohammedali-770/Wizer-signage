@@ -1,19 +1,20 @@
 import { cn } from '@/lib/cn';
 
-/** Node positions of the WIZER "W" network mark (viewBox 0 0 100 100). */
-const WIZER_NODES: ReadonlyArray<readonly [number, number]> = [
-  [22, 33], // top-left
-  [78, 33], // top-right
-  [50, 51], // centre
-  [36, 71], // bottom-left
-  [64, 71], // bottom-right
+/** Outer node positions of the WIZER "W" network mark (viewBox 0 0 100 100). */
+const WIZER_OUTER_NODES: ReadonlyArray<readonly [number, number]> = [
+  [15, 34], // top-left
+  [85, 34], // top-right
+  [34, 78], // bottom-left
+  [66, 78], // bottom-right
 ];
 
 /**
- * Official WIZER mark — a connected "W" node-network with a spark, in the
- * brand blue -> cyan gradient (#2563EB -> #06B6D4). Recreated as a clean,
- * resolution-independent SVG from the WIZER Brand Board. Nodes are white-filled
- * rings, so the mark reads on both light and dark (navy) surfaces.
+ * Official WIZER mark — the connected "W" node-network with a spark, in the
+ * brand blue -> cyan gradient (#2563EB -> #06B6D4). Geometry taken from the
+ * WIZER Brand Board icon: a wide crown-"W" (two top-outer nodes, a larger
+ * centre node, two lower inner nodes) with network crossings to the centre and
+ * a centred vertical spark. Nodes are white-filled rings, so the mark reads on
+ * both light and navy surfaces.
  */
 export function WizerMark({ className }: { className?: string }) {
   return (
@@ -24,31 +25,33 @@ export function WizerMark({ className }: { className?: string }) {
           <stop offset="1" stopColor="#06B6D4" />
         </linearGradient>
       </defs>
-      {/* connections — the W plus the network crossings to the centre node */}
+      {/* connections — the W (TL-BL-C-BR-TR) plus the network crossings to the centre */}
       <path
-        d="M22 33 L36 71 M36 71 L50 51 M50 51 L64 71 M64 71 L78 33 M22 33 L50 51 M78 33 L50 51"
+        d="M15 34 L34 78 M34 78 L50 51 M50 51 L66 78 M66 78 L85 34 M15 34 L50 51 M85 34 L50 51"
         stroke="url(#wizerGrad)"
-        strokeWidth="6"
+        strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* spark */}
+      {/* spark (centred, vertical 4-point) */}
       <path
-        d="M62 4 L64.1 10.9 L71 13 L64.1 15.1 L62 22 L59.9 15.1 L53 13 L59.9 10.9 Z"
-        fill="url(#wizerGrad)"
+        d="M50 18.5 L51.1 22.9 L54 24 L51.1 25.1 L50 29.5 L48.9 25.1 L46 24 L48.9 22.9 Z"
+        fill="#2563EB"
       />
-      {/* nodes */}
-      {WIZER_NODES.map(([cx, cy]) => (
+      {/* outer nodes */}
+      {WIZER_OUTER_NODES.map(([cx, cy]) => (
         <circle
           key={`${cx}-${cy}`}
           cx={cx}
           cy={cy}
-          r="7.5"
+          r="4"
           fill="#fff"
           stroke="url(#wizerGrad)"
-          strokeWidth="5.5"
+          strokeWidth="2.4"
         />
       ))}
+      {/* centre node (larger) */}
+      <circle cx="50" cy="51" r="5.6" fill="#fff" stroke="url(#wizerGrad)" strokeWidth="3" />
     </svg>
   );
 }
