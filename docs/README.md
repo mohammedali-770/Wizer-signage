@@ -24,6 +24,7 @@ This directory is the canonical documentation set for the platform.
 - [local-development.md](./local-development.md) — Getting the monorepo running locally (pnpm, Turborepo, Docker, Supabase).
 - [production-deployment.md](./production-deployment.md) — Phase 11 deployment runbook: server prep, migrations, seed, go-live verification, rollback.
 - [staging-runbook.md](./staging-runbook.md) — **Staging deployment & verification runbook**: 16-step checklist with exact commands to validate the full stack end-to-end before go-live, plus a sign-off report template.
+- [deploy-wizer-rebrand-and-domain.md](./deploy-wizer-rebrand-and-domain.md) — **One-time runbook**: ship the `master-signage*` → `wizer-signage*` rename and the `wizer.sa` domain switch together (remove old containers → issue `wizer.sa` cert → rebuild/bake new URLs → verify).
 - [docker-production.md](./docker-production.md) — Phase 11 Docker stack: images, compose, build args vs runtime env, maintenance worker.
 - [nginx-ssl.md](./nginx-ssl.md) — Phase 11 Nginx reverse proxy, security headers, and Let's Encrypt (host + containerized).
 - [security-hardening.md](./security-hardening.md) — Phase 11 security review + production hardening checklist.
