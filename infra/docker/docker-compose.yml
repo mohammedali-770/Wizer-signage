@@ -1,5 +1,5 @@
 # =============================================================================
-# MasterSignage — Production-oriented Docker Compose (base file)
+# Wizer Signage — Production-oriented Docker Compose (base file)
 # =============================================================================
 # Multi-tenant digital signage SaaS platform.
 #
@@ -41,8 +41,8 @@ services:
       # pnpm workspace (apps/* and packages/*).
       context: ../..
       dockerfile: apps/api/Dockerfile
-    image: master-signage/api:latest
-    container_name: master-signage-api
+    image: wizer-signage/api:latest
+    container_name: wizer-signage-api
     # Load all canonical env vars from the repo-root .env file.
     env_file:
       - ../../.env
@@ -81,7 +81,7 @@ services:
       resources:
         limits: { cpus: '1.5', memory: 768M }
     networks:
-      - master-signage
+      - wizer-signage
 
   # ---------------------------------------------------------------------------
   # Dashboard — Next.js frontend (App Router)
@@ -94,8 +94,8 @@ services:
         # Baked into the client bundle at build time (Next.js inlines
         # NEXT_PUBLIC_*). Point it at your public API origin. NOT a secret.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
-    image: master-signage/dashboard:latest
-    container_name: master-signage-dashboard
+    image: wizer-signage/dashboard:latest
+    container_name: wizer-signage-dashboard
     env_file:
       - ../../.env
     environment:
@@ -124,7 +124,7 @@ services:
       resources:
         limits: { cpus: '1.0', memory: 512M }
     networks:
-      - master-signage
+      - wizer-signage
 
   # ---------------------------------------------------------------------------
   # Maintenance worker — runs the Phase 10 maintenance CLI on a cron schedule
@@ -136,8 +136,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.maintenance
-    image: master-signage/maintenance:latest
-    container_name: master-signage-maintenance
+    image: wizer-signage/maintenance:latest
+    container_name: wizer-signage-maintenance
     env_file:
       - ../../.env
     environment:
@@ -164,7 +164,7 @@ services:
       resources:
         limits: { cpus: '0.5', memory: 384M }
     networks:
-      - master-signage
+      - wizer-signage
 
   # ---------------------------------------------------------------------------
   # Nginx — reverse proxy + TLS termination
@@ -177,7 +177,7 @@ services:
   # ---------------------------------------------------------------------------
   nginx:
     image: nginx:1.27-alpine
-    container_name: master-signage-nginx
+    container_name: wizer-signage-nginx
     ports:
       - '80:80'
       - '443:443'
@@ -194,7 +194,7 @@ services:
       # Main nginx configuration.
       - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       # Domain-agnostic server blocks: rendered to /etc/nginx/conf.d/ at startup
-      # from APP_DOMAIN (replaces the old hardcoded conf.d/master-signage.conf).
+      # from APP_DOMAIN (replaces the old hardcoded conf.d/wizer-signage.conf).
       - ../nginx/templates:/etc/nginx/templates:ro
       # ACME HTTP-01 challenge webroot (shared with certbot).
       - certbot-webroot:/var/www/certbot:ro
@@ -210,14 +210,14 @@ services:
       driver: json-file
       options: { max-size: '10m', max-file: '5' }
     networks:
-      - master-signage
+      - wizer-signage
 
 # -----------------------------------------------------------------------------
 # Networks
 # -----------------------------------------------------------------------------
 networks:
-  master-signage:
-    name: master-signage
+  wizer-signage:
+    name: wizer-signage
     driver: bridge
 
 # -----------------------------------------------------------------------------
@@ -227,9 +227,9 @@ networks:
 # -----------------------------------------------------------------------------
 volumes:
   certbot-webroot:
-    name: master-signage-certbot-webroot
+    name: wizer-signage-certbot-webroot
   letsencrypt:
-    name: master-signage-letsencrypt
+    name: wizer-signage-letsencrypt
   # pg_dump backups written by the maintenance worker (see scripts/backup-db.sh).
   backups:
-    name: master-signage-backups
+    name: wizer-signage-backups

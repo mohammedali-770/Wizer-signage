@@ -1,6 +1,6 @@
 import { cn } from '@/lib/cn';
 
-/* MasterSignage marketing visuals — pure CSS/SVG, brand-exact, no images.
+/* Wizer Signage marketing visuals — pure CSS/SVG, brand-exact, no images.
    Brand: Master Navy #0B1220 · Deep Slate #1E293B · Signal Blue #2563EB
           Online Green #10B981 · Amber #F59E0B · Red #EF4444 · Purple #7C3AED */
 

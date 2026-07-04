@@ -1,4 +1,4 @@
-# MasterSignage TV Player — Gradle version catalog.
+# Wizer Signage TV Player — Gradle version catalog.
 # Kotlin 1.9.24 is paired with Compose Compiler extension 1.5.14 (see app/build.gradle.kts).
 # We intentionally do NOT use the Compose Compiler Gradle plugin (that is Kotlin 2.0+);
 # instead we rely on buildFeatures.compose + composeOptions.kotlinCompilerExtensionVersion.

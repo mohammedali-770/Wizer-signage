@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { hash, verify } from '@node-rs/argon2';
-import { passwordMeetsPolicy, PASSWORD_POLICY } from '@master-signage/shared';
+import { passwordMeetsPolicy, PASSWORD_POLICY } from '@wizer/shared';
 
 import { COMMON_PASSWORDS } from '../security/common-passwords';
 

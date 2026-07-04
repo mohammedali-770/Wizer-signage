@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# MasterSignage — Database backup
+# Wizer Signage — Database backup
 # =============================================================================
 # Creates a compressed, timestamped logical backup (pg_dump) of the configured
 # Postgres/Supabase database and prunes old backups.
@@ -11,7 +11,7 @@
 #
 # SCHEDULING:
 #   Intended to be run from cron, e.g. nightly at 02:30:
-#       30 2 * * *  /opt/master-signage/scripts/backup-db.sh >> /var/log/ms-backup.log 2>&1
+#       30 2 * * *  /opt/wizer-signage/scripts/backup-db.sh >> /var/log/ms-backup.log 2>&1
 #
 # RETENTION:
 #   Routine backups are pruned after RETENTION_DAYS (default 14). NOTE: financial
@@ -44,7 +44,7 @@ fi
 BACKUP_DIR="${BACKUP_DIR:-${ROOT_DIR}/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
-OUTFILE="${BACKUP_DIR}/master-signage_${TIMESTAMP}.sql.gz"
+OUTFILE="${BACKUP_DIR}/wizer-signage_${TIMESTAMP}.sql.gz"
 
 # --- Preconditions -----------------------------------------------------------
 if [[ -z "${DATABASE_URL:-}" ]]; then
@@ -100,7 +100,7 @@ fi
 
 # --- Prune old backups -------------------------------------------------------
 echo "[backup] Pruning backups older than ${RETENTION_DAYS} day(s)..."
-PRUNED="$(find "${BACKUP_DIR}" -maxdepth 1 -type f -name 'master-signage_*.sql.gz' -mtime "+${RETENTION_DAYS}" -print -delete | wc -l | tr -d ' ')"
+PRUNED="$(find "${BACKUP_DIR}" -maxdepth 1 -type f -name 'wizer-signage_*.sql.gz' -mtime "+${RETENTION_DAYS}" -print -delete | wc -l | tr -d ' ')"
 echo "[backup] Pruned ${PRUNED} old backup(s)."
 
 echo "[backup] Done."

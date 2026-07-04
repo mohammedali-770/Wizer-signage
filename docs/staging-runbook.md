@@ -1,6 +1,6 @@
 # Staging Deployment & Verification Runbook
 
-A practical, copy-pasteable runbook to deploy the **full MasterSignage stack** to
+A practical, copy-pasteable runbook to deploy the **full Wizer Signage stack** to
 a real VPS/staging server and verify it end-to-end **before go-live**. It assumes
 the Phase 0–11 build and reuses the existing files (`infra/docker/*`, `scripts/*`,
 `docs/*`). Run everything as a **sudo-capable non-root user**.
@@ -8,7 +8,7 @@ the Phase 0–11 build and reuses the existing files (`infra/docker/*`, `scripts
 > Conventions used below:
 >
 > ```bash
-> export STACK=/opt/master-signage
+> export STACK=/opt/wizer-signage
 > export DC="docker compose -f infra/docker/docker-compose.yml"   # run from $STACK
 > export APP_DOMAIN="staging.example.com"                          # your staging domain
 > ```
@@ -67,8 +67,8 @@ Verify before issuing TLS: `dig +short $APP_DOMAIN` (must return your server IP)
 **Folder structure:**
 
 ```bash
-sudo mkdir -p /opt/master-signage && sudo chown "$USER":"$USER" /opt/master-signage
-cd /opt/master-signage          # = $STACK; deploy here
+sudo mkdir -p /opt/wizer-signage && sudo chown "$USER":"$USER" /opt/wizer-signage
+cd /opt/wizer-signage          # = $STACK; deploy here
 ```
 
 ---
@@ -117,7 +117,7 @@ done
 2. **Connection strings** (Project → Settings → Database):
    - `DATABASE_URL` → the **pooled** (pgBouncer, port 6543) string + `?pgbouncer=true&sslmode=require` — used at runtime.
    - `DIRECT_URL` → the **direct** (port 5432) string + `?sslmode=require` — used by Prisma **migrations** (`migrate deploy`).
-3. **Storage bucket:** Storage → New bucket → name it to match `SUPABASE_STORAGE_BUCKET` (e.g. `mastersignage`) → **Private** (toggle "Public" OFF).
+3. **Storage bucket:** Storage → New bucket → name it to match `SUPABASE_STORAGE_BUCKET` (e.g. `wizer-signage`) → **Private** (toggle "Public" OFF).
 4. **Private bucket is required** — the app serves content only via **short-lived
    signed URLs** generated server-side; there are no public object URLs.
 5. **Service role key safety:** `SUPABASE_SERVICE_ROLE_KEY` is **server-only** (API
@@ -181,7 +181,7 @@ $DC logs --since=2m maintenance          # cron worker
 ```
 
 **Healthcheck verification:** `docker inspect --format '{{.State.Health.Status}}'
-master-signage-api` should report `healthy` (also dashboard + maintenance).
+wizer-signage-api` should report `healthy` (also dashboard + maintenance).
 
 **Restart services safely:**
 
@@ -209,7 +209,7 @@ $DC run --rm api npx prisma migrate deploy
 corepack enable && corepack prepare pnpm@9 --activate
 pnpm install
 set -a; source .env; set +a
-pnpm --filter @master-signage/api db:seed
+pnpm --filter @wizer/api db:seed
 ```
 
 **Secrets safety:** when you **set `SEED_SUPERADMIN_PASSWORD`** (as instructed),
@@ -229,7 +229,7 @@ from `.env` afterward.
 
 **Configure the domain:** just set `APP_DOMAIN` in the repo-root `.env` (e.g.
 `signage.example.com`). The nginx service renders its server blocks from
-`infra/nginx/templates/mastersignage.conf.template` via `envsubst` at startup —
+`infra/nginx/templates/wizer-signage.conf.template` via `envsubst` at startup —
 no config file to hand-edit, and no domain is hardcoded. See
 [nginx-ssl.md](./nginx-ssl.md).
 
@@ -246,17 +246,17 @@ sudo apt-get install -y certbot
 
 # 2) STAGING test issuance (avoids Let's Encrypt rate limits):
 sudo certbot certonly --webroot \
-  -w /var/lib/docker/volumes/master-signage-certbot-webroot/_data \
+  -w /var/lib/docker/volumes/wizer-signage-certbot-webroot/_data \
   -d "$APP_DOMAIN" --email "$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email --staging
 
 # 3) PRODUCTION issuance once staging works (replaces the placeholder):
 sudo certbot certonly --webroot \
-  -w /var/lib/docker/volumes/master-signage-certbot-webroot/_data \
+  -w /var/lib/docker/volumes/wizer-signage-certbot-webroot/_data \
   -d "$APP_DOMAIN" --email "$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email --force-renewal
 
 # 4) Sync the host-issued cert into the Docker volume nginx reads, then reload.
 #    (Host certbot writes to /etc/letsencrypt/live/$APP_DOMAIN/, but nginx reads
-#    the master-signage-letsencrypt volume — they are different locations.)
+#    the wizer-signage-letsencrypt volume — they are different locations.)
 sudo APP_DOMAIN="$APP_DOMAIN" scripts/sync-letsencrypt-to-docker.sh
 ```
 
@@ -265,7 +265,7 @@ deploy hook so renewals auto-copy into the volume and reload nginx:
 
 ```bash
 sudo install -m 0755 scripts/sync-letsencrypt-to-docker.sh \
-  /etc/letsencrypt/renewal-hooks/deploy/master-signage-sync-docker-nginx.sh
+  /etc/letsencrypt/renewal-hooks/deploy/wizer-signage-sync-docker-nginx.sh
 ```
 
 See [nginx-ssl.md](./nginx-ssl.md) for details.
@@ -305,7 +305,7 @@ Then issue/renew the real cert and reload nginx.
 curl -fsS "https://$APP_DOMAIN/api/health"        | jq      # liveness: status/version/uptime
 curl -fsS "https://$APP_DOMAIN/api/health/ready"  | jq      # readiness: database up/down + flags
 curl -fsSI "https://$APP_DOMAIN/" | head -1                 # dashboard responds (200)
-docker inspect --format '{{.State.Health.Status}}' master-signage-maintenance   # healthy (crond up)
+docker inspect --format '{{.State.Health.Status}}' wizer-signage-maintenance   # healthy (crond up)
 ```
 
 - `/api/health/ready` returns **503** if the DB is unreachable, and exposes only
@@ -459,7 +459,7 @@ see [backup-restore.md](./backup-restore.md)). Example against a **scratch**
 database:
 
 ```bash
-gunzip -c /var/lib/docker/volumes/master-signage-backups/_data/master-signage_*.sql.gz \
+gunzip -c /var/lib/docker/volumes/wizer-signage-backups/_data/wizer-signage_*.sql.gz \
   | psql "$DIRECT_URL_SCRATCH"     # a disposable DB, NEVER the live one
 ```
 

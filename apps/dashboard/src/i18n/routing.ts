@@ -1,7 +1,7 @@
 import { defineRouting } from 'next-intl/routing';
 
 /**
- * Canonical i18n routing definition for the MasterSignage dashboard.
+ * Canonical i18n routing definition for the Wizer Signage dashboard.
  *
  * - `en` is the default locale (LTR).
  * - `ar` is a fully supported RTL locale.

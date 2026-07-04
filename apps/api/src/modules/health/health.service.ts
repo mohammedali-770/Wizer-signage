@@ -28,7 +28,7 @@ export interface ReadinessStatus {
   readonly timestamp: string;
 }
 
-const SERVICE_NAME = 'master-signage-api';
+const SERVICE_NAME = 'wizer-signage-api';
 
 @Injectable()
 export class HealthService {

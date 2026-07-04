@@ -1,6 +1,6 @@
-# MasterSignage — Android TV Player
+# Wizer Signage — Android TV Player
 
-Native Android TV (leanback) player for the MasterSignage digital signage platform.
+Native Android TV (leanback) player for the Wizer Signage digital signage platform.
 Built with **Kotlin 1.9.24**, **Jetpack Compose** (Material3) and **Media3 / ExoPlayer**.
 
 This is the **Phase 6 player foundation**: device-initiated pairing, a device-token

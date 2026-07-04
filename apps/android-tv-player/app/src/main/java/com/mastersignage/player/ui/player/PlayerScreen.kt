@@ -194,7 +194,7 @@ fun NoContentScreen(manifest: PlaybackManifest) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    "MasterSignage",
+                    "Wizer Signage",
                     style = MaterialTheme.typography.displaySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -221,7 +221,7 @@ fun NoCachedContentScreen(online: Boolean) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "MasterSignage",
+                "Wizer Signage",
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.primary,
             )

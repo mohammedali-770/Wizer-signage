@@ -16,7 +16,7 @@ containers are never published directly.
 
 `infra/nginx/nginx.conf` sets gzip, `client_max_body_size 512m`,
 `server_tokens off`, and the `$connection_upgrade` map. The server blocks are
-rendered from `infra/nginx/templates/mastersignage.conf.template` and add the
+rendered from `infra/nginx/templates/wizer-signage.conf.template` and add the
 security headers: **HSTS**, `X-Content-Type-Options`, `X-Frame-Options`,
 `Referrer-Policy`, `Permissions-Policy` (the API also sends Helmet headers; nginx
 adds the transport-level HSTS + a safety net).
@@ -82,7 +82,7 @@ The HTTP-01 challenge needs nginx serving `:80` (now true). Issue the real cert:
 
 ```bash
 sudo apt-get install -y certbot
-sudo certbot certonly --webroot -w /var/lib/docker/volumes/master-signage-certbot-webroot/_data \
+sudo certbot certonly --webroot -w /var/lib/docker/volumes/wizer-signage-certbot-webroot/_data \
   -d "$APP_DOMAIN" --email "$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email
 docker compose -f infra/docker/docker-compose.yml exec nginx nginx -s reload
 ```
@@ -103,7 +103,7 @@ docker compose -f infra/docker/docker-compose.yml exec nginx nginx -s reload
 
 > **Two different locations.** Host certbot writes to
 > `/etc/letsencrypt/live/$APP_DOMAIN/`, but the nginx container reads certs from
-> the named Docker volume `master-signage-letsencrypt` (mounted read-only at
+> the named Docker volume `wizer-signage-letsencrypt` (mounted read-only at
 > `/etc/letsencrypt`). They are **not** the same path. After every issuance or
 > renewal, the cert must be copied into the volume and nginx reloaded — otherwise
 > nginx keeps serving the old (or placeholder) certificate.
@@ -118,7 +118,7 @@ A committed helper does exactly this:
 sudo APP_DOMAIN="$APP_DOMAIN" scripts/sync-letsencrypt-to-docker.sh
 ```
 
-> The **containerized certbot** path mounts the same `master-signage-letsencrypt`
+> The **containerized certbot** path mounts the same `wizer-signage-letsencrypt`
 > volume directly, so it does **not** need this sync — only host certbot does.
 
 ## Renewal
@@ -130,7 +130,7 @@ Certificates last 90 days.
   copies the new cert into the Docker volume and reloads nginx:
   ```bash
   sudo install -m 0755 scripts/sync-letsencrypt-to-docker.sh \
-    /etc/letsencrypt/renewal-hooks/deploy/master-signage-sync-docker-nginx.sh
+    /etc/letsencrypt/renewal-hooks/deploy/wizer-signage-sync-docker-nginx.sh
   ```
   (certbot sets `RENEWED_LINEAGE`/`RENEWED_DOMAINS`, which the script reads.)
 - **Containerized certbot:** `docker compose ... -f docker-compose.certbot.yml up -d certbot`

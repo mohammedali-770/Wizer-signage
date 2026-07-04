@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { DEFAULT_PAGE_SIZE } from '@master-signage/shared';
+import { DEFAULT_PAGE_SIZE } from '@wizer/shared';
 
 import { TenantContextService } from '../../common/context/tenant-context.service';
 import { PrismaService } from '../../prisma/prisma.service';

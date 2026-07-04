@@ -141,7 +141,7 @@ POST /api/content/trash/purge
 8. **Trash cleanup:** trash an item; `POST /api/content/trash/purge` removes items past 14
    days (older trash only). **Tenant isolation:** another company can't see or fetch your
    content (every `:id` is company-scoped → 404).
-9. **Automated tests:** `pnpm --filter @master-signage/api test` covers file-type/size
+9. **Automated tests:** `pnpm --filter @wizer/api test` covers file-type/size
    validation, storage-grace, URL/text creation, archive/trash/restore, cleanup eligibility,
    CONTENT/BOTH-only tagging, fallback selectability, and audit logging.
 

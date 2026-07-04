@@ -1,6 +1,6 @@
 # Android TV / Google TV Device Limitations
 
-The MasterSignage player runs on a wide range of Android TV and Google TV
+The Wizer Signage player runs on a wide range of Android TV and Google TV
 hardware. Some behaviors that are essential for unattended digital signage —
 kiosk lock, auto-start on boot, and power control — are **not uniformly
 available** on consumer devices. What works depends heavily on the OEM and on

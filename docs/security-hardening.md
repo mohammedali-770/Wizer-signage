@@ -86,9 +86,9 @@ Run before each release (fix highs/criticals; document accepted advisories):
 
 ```bash
 pnpm audit --prod            # production dependencies
-pnpm --filter @master-signage/api audit
-pnpm --filter @master-signage/dashboard audit
-docker scout cves master-signage/api:latest   # optional image CVE scan
+pnpm --filter @wizer/api audit
+pnpm --filter @wizer/dashboard audit
+docker scout cves wizer-signage/api:latest   # optional image CVE scan
 ```
 
 ### Current advisory triage (as of this phase)

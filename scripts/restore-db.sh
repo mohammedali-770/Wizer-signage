@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# MasterSignage — Database restore
+# Wizer Signage — Database restore
 # =============================================================================
 # Restores a compressed logical backup (.sql.gz produced by backup-db.sh) into
 # the database referenced by DATABASE_URL.
@@ -13,7 +13,7 @@
 #   scripts/restore-db.sh <path-to-dump.sql.gz>
 #
 # Example:
-#   scripts/restore-db.sh backups/master-signage_20260614_023000.sql.gz
+#   scripts/restore-db.sh backups/wizer-signage_20260614_023000.sql.gz
 #
 # Bypass the interactive prompt (e.g. in automation) with:
 #   FORCE=1 scripts/restore-db.sh <dump>

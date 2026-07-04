@@ -1,6 +1,6 @@
-# MasterSignage Documentation
+# Wizer Signage Documentation
 
-MasterSignage is a multi-tenant digital signage SaaS platform: a Next.js dashboard,
+Wizer Signage is a multi-tenant digital signage SaaS platform: a Next.js dashboard,
 a NestJS API, and a native Android TV player, backed by Supabase (Postgres + Storage).
 This directory is the canonical documentation set for the platform.
 
@@ -70,6 +70,6 @@ This directory is the canonical documentation set for the platform.
 
 - Package manager **pnpm 9**, Node **>= 20**, task runner **Turborepo**.
 - **TypeScript 5.4+, strict** across all TypeScript packages.
-- Author/brand: **MasterSignage** · Year: **2026** · License: **UNLICENSED** (proprietary).
+- Author/brand: **Wizer Signage** · Year: **2026** · License: **UNLICENSED** (proprietary).
 - All UI renders **English/Latin digits** even in Arabic (RTL) — see
   [architecture.md](./architecture.md) and the dashboard number formatter.

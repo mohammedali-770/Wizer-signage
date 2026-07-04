@@ -1,5 +1,5 @@
 {
-  // MasterSignage — shared TypeScript base configuration.
+  // Wizer Signage — shared TypeScript base configuration.
   //
   // IMPORTANT: This base intentionally does NOT set `module` or `moduleResolution`.
   // Each app overrides those settings for its own runtime/toolchain:
@@ -21,12 +21,12 @@
     "noImplicitOverride": true,
     "baseUrl": ".",
     "paths": {
-      "@master-signage/types": ["packages/types/src/index.ts"],
-      "@master-signage/types/*": ["packages/types/src/*"],
-      "@master-signage/shared": ["packages/shared/src/index.ts"],
-      "@master-signage/shared/*": ["packages/shared/src/*"],
-      "@master-signage/ui": ["packages/ui/src/index.ts"],
-      "@master-signage/ui/*": ["packages/ui/src/*"]
+      "@wizer/types": ["packages/types/src/index.ts"],
+      "@wizer/types/*": ["packages/types/src/*"],
+      "@wizer/shared": ["packages/shared/src/index.ts"],
+      "@wizer/shared/*": ["packages/shared/src/*"],
+      "@wizer/ui": ["packages/ui/src/index.ts"],
+      "@wizer/ui/*": ["packages/ui/src/*"]
     }
   },
   "exclude": ["node_modules", "dist", ".next", "out", "coverage", ".turbo"]

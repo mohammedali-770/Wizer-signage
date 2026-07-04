@@ -6,7 +6,7 @@
 
 ## 1. Roles & capability matrix
 
-MasterSignage defines five roles. **Super Admin** is a platform-level role (cross-tenant,
+Wizer Signage defines five roles. **Super Admin** is a platform-level role (cross-tenant,
 see [multi-tenancy.md](./multi-tenancy.md)); the other four are scoped to a single company
 and, where relevant, to specific locations.
 

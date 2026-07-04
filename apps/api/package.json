@@ -1,10 +1,10 @@
 {
-  "name": "@master-signage/api",
+  "name": "@wizer/api",
   "version": "0.0.0",
-  "description": "MasterSignage API — multi-tenant digital signage SaaS backend (NestJS).",
+  "description": "Wizer Signage API — multi-tenant digital signage SaaS backend (NestJS).",
   "private": true,
   "license": "UNLICENSED",
-  "author": "MasterSignage",
+  "author": "Wizer Signage",
   "type": "commonjs",
   "engines": {
     "node": ">=20"
@@ -34,8 +34,8 @@
     "seed": "node prisma/seed.cjs"
   },
   "dependencies": {
-    "@master-signage/shared": "workspace:*",
-    "@master-signage/types": "workspace:*",
+    "@wizer/shared": "workspace:*",
+    "@wizer/types": "workspace:*",
     "@nestjs/common": "^10.3.10",
     "@nestjs/config": "^3.2.3",
     "@nestjs/core": "^10.3.10",
@@ -102,8 +102,8 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^@master-signage/types(.*)$": "<rootDir>/../../../packages/types/src$1",
-      "^@master-signage/shared(.*)$": "<rootDir>/../../../packages/shared/src$1"
+      "^@wizer/types(.*)$": "<rootDir>/../../../packages/types/src$1",
+      "^@wizer/shared(.*)$": "<rootDir>/../../../packages/shared/src$1"
     }
   }
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    MasterSignage launcher icon foreground (adaptive-icon foreground layer).
+    Wizer Signage launcher icon foreground (adaptive-icon foreground layer).
     A signage "screen + play" mark kept inside the central safe zone (the outer
     ~18dp of the 108dp canvas may be clipped by the launcher mask).
 -->

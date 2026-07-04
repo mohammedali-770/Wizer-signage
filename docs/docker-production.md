@@ -1,6 +1,6 @@
 # Docker Production Stack (Phase 11)
 
-MasterSignage ships as a small set of containers behind Nginx. Database and
+Wizer Signage ships as a small set of containers behind Nginx. Database and
 object storage are **external (Supabase)** — there is no database container in
 production.
 
@@ -26,7 +26,7 @@ baked in** (config comes from env at runtime; the only build arg is the public,
 non-secret `NEXT_PUBLIC_API_URL`). Healthchecks hit `/api/health` (api), `/`
 (dashboard), and `pgrep crond` (maintenance).
 
-- **API:** `pnpm install --filter @master-signage/api...` → `prisma generate`
+- **API:** `pnpm install --filter @wizer/api...` → `prisma generate`
   runs via the build → `nest build` → `pnpm deploy --prod` prunes dev deps. The
   runtime carries `dist/` + a lean `node_modules` (incl. the Prisma client). The
   Prisma schema + migrations ship so you can run `prisma migrate deploy` inside
@@ -71,8 +71,8 @@ Each service sets `deploy.resources.limits` (api 1.5cpu/768M, dashboard
 
 ## Volumes
 
-- `master-signage-backups` — `pg_dump` output written by the maintenance worker.
-- `master-signage-letsencrypt` / `master-signage-certbot-webroot` — TLS certs +
+- `wizer-signage-backups` — `pg_dump` output written by the maintenance worker.
+- `wizer-signage-letsencrypt` / `wizer-signage-certbot-webroot` — TLS certs +
   ACME challenge (shared with nginx/certbot).
 
 ## Local development with a Postgres container

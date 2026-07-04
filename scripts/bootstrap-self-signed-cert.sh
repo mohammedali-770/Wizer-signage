@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# MasterSignage — first-boot TLS bootstrap
+# Wizer Signage — first-boot TLS bootstrap
 # =============================================================================
 # Seeds a SHORT-LIVED self-signed placeholder certificate into the Let's Encrypt
 # volume so Nginx can start on :443 BEFORE a real certificate has been issued.
@@ -82,7 +82,7 @@ if [[ -z "${VOLUME}" ]]; then
   VOLUME_SOURCE="compose ${COMPOSE_FILE}"
 fi
 if [[ -z "${VOLUME}" ]]; then
-  VOLUME="master-signage-letsencrypt"
+  VOLUME="wizer-signage-letsencrypt"
   VOLUME_SOURCE="default fallback"
   echo "WARN: could not read the letsencrypt volume name from compose; using default '${VOLUME}'." >&2
 fi
@@ -132,7 +132,7 @@ cat <<EOF
        docker compose -f ${COMPOSE_FILE} up -d
   2) Issue the REAL Let's Encrypt certificate (see docs/nginx-ssl.md), e.g.:
        sudo certbot certonly --webroot \\
-         -w /var/lib/docker/volumes/master-signage-certbot-webroot/_data \\
+         -w /var/lib/docker/volumes/wizer-signage-certbot-webroot/_data \\
          -d "${DOMAIN}" --email "\${LETSENCRYPT_EMAIL:-ops@example.com}" \\
          --agree-tos --no-eff-email --force-renewal
   3) Reload Nginx to pick up the real certificate:

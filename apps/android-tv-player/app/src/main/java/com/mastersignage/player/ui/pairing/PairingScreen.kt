@@ -53,7 +53,7 @@ fun PairingScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Text(
-                text = "MasterSignage",
+                text = "Wizer Signage",
                 style = MaterialTheme.typography.displayLarge,
                 color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center,
@@ -77,7 +77,7 @@ fun PairingScreen(
 
                 is PairingUiState.WaitingForPairing -> {
                     Text(
-                        "Enter this code in the MasterSignage dashboard to pair this screen.",
+                        "Enter this code in the Wizer Signage dashboard to pair this screen.",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -114,7 +114,7 @@ fun PairingScreen(
 
                 is PairingUiState.Error -> {
                     Text(
-                        "Can't reach MasterSignage",
+                        "Can't reach Wizer Signage",
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,

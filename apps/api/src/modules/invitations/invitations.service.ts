@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Invitation, InvitationStatus, Prisma, UserRole } from '@prisma/client';
-import { DEFAULT_PAGE_SIZE, INVITE_EXPIRY_DAYS } from '@master-signage/shared';
+import { DEFAULT_PAGE_SIZE, INVITE_EXPIRY_DAYS } from '@wizer/shared';
 
 import { CryptoService } from '../../common/crypto/crypto.service';
 import type { AuthenticatedUser } from '../../common/types/auth.types';

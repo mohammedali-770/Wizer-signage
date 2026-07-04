@@ -1,6 +1,6 @@
-# @master-signage/dashboard
+# @wizer/dashboard
 
-The web management console for **MasterSignage**, a multi-tenant digital
+The web management console for **Wizer Signage**, a multi-tenant digital
 signage SaaS platform. Built with **Next.js 14 (App Router)**, React 18 and
 TypeScript.
 
@@ -67,5 +67,5 @@ messages/
 ```
 
 This package consumes the internal workspace packages
-`@master-signage/types`, `@master-signage/shared` and `@master-signage/ui`
+`@wizer/types`, `@wizer/shared` and `@wizer/ui`
 directly as TypeScript source (no build step) via `transpilePackages`.

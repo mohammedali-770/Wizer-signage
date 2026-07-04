@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 
 // TV signage is effectively always dark; we expose a single dark scheme but keep the
 // `darkTheme` hook so a light variant can be added later without changing call sites.
-private val MasterSignageDarkColors = darkColorScheme(
+private val WizerSignageDarkColors = darkColorScheme(
     primary = BrandPrimary,
     onPrimary = OnSurfaceDark,
     secondary = BrandSecondary,
@@ -22,12 +22,12 @@ private val MasterSignageDarkColors = darkColorScheme(
 )
 
 @Composable
-fun MasterSignageTheme(
+fun WizerSignageTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
     // Phase 0: always dark. `darkTheme` is reserved for a future light scheme.
-    val colorScheme = MasterSignageDarkColors
+    val colorScheme = WizerSignageDarkColors
 
     MaterialTheme(
         colorScheme = colorScheme,

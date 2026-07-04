@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ContentStatus, Prisma } from '@prisma/client';
-import { TRASH_RETENTION_DAYS } from '@master-signage/shared';
+import { TRASH_RETENTION_DAYS } from '@wizer/shared';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityCategory, ActivityLogService } from '../activity-log/activity-log.service';

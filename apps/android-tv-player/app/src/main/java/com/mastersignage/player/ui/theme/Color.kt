@@ -2,7 +2,7 @@ package com.mastersignage.player.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// MasterSignage brand palette (dark-first, tuned for TV displays).
+// Wizer Signage brand palette (dark-first, tuned for TV displays).
 val BrandPrimary = Color(0xFF4F8CFF)
 val BrandPrimaryDark = Color(0xFF2A6BFF)
 val BrandSecondary = Color(0xFF22D3A6)

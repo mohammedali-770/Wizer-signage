@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Response } from 'express';
-import type { ApiError } from '@master-signage/types';
+import type { ApiError } from '@wizer/types';
 
 /**
  * Global exception filter that converts any thrown error into the platform's

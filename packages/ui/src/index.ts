@@ -1,7 +1,7 @@
 /**
- * @master-signage/ui
+ * @wizer/ui
  *
- * Shared React UI foundation for the MasterSignage dashboard.
+ * Shared React UI foundation for the Wizer Signage dashboard.
  *
  * Consumed directly as TypeScript source (no build step). `react` and
  * `react-dom` are peer dependencies provided by the host app. Components are

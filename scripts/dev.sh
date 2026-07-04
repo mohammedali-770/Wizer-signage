@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# MasterSignage — Local development bootstrap
+# Wizer Signage — Local development bootstrap
 # =============================================================================
 # Convenience script to get a developer up and running:
 #   1. Create .env from .env.example if it is missing.

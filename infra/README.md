@@ -1,6 +1,6 @@
 # Infrastructure (`infra/`)
 
-This directory contains the deployment infrastructure for **MasterSignage** —
+This directory contains the deployment infrastructure for **Wizer Signage** —
 the Docker Compose stacks, the Nginx reverse proxy configuration, and a
 convenience `Makefile`.
 
@@ -14,7 +14,7 @@ infra/
   nginx/
     nginx.conf               # Main nginx config
     templates/
-      mastersignage.conf.template  # Server blocks (${APP_DOMAIN}, rendered at startup)
+      wizer-signage.conf.template  # Server blocks (${APP_DOMAIN}, rendered at startup)
     README.md                # Cert workflow & nginx operations
   Makefile                   # up / down / logs / build / backup / restore ...
   README.md                  # (this file)

@@ -1,10 +1,10 @@
 {
-  "name": "@master-signage/shared",
+  "name": "@wizer/shared",
   "version": "0.0.0",
   "private": true,
-  "description": "Shared constants and pure utilities for the MasterSignage platform.",
+  "description": "Shared constants and pure utilities for the Wizer Signage platform.",
   "license": "UNLICENSED",
-  "author": "MasterSignage",
+  "author": "Wizer Signage",
   "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,7 +23,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@master-signage/types": "workspace:*"
+    "@wizer/types": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

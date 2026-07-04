@@ -10,7 +10,7 @@
  *   node dist/maintenance/maintenance.cli.js sweep|reports|emergencies|backup-check
  *   node dist/maintenance/maintenance.cli.js record-backup --type=DATABASE --status=SUCCESS --location=s3://... --size=12345
  *
- * In dev: `pnpm --filter @master-signage/api maintenance all`.
+ * In dev: `pnpm --filter @wizer/api maintenance all`.
  */
 import { NestFactory } from '@nestjs/core';
 import { BackupStatus, BackupType } from '@prisma/client';

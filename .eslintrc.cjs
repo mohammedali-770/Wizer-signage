@@ -1,4 +1,4 @@
-// MasterSignage — root ESLint configuration.
+// Wizer Signage — root ESLint configuration.
 // Apps (Next.js, NestJS) and packages may extend this with their own config.
 /** @type {import('eslint').Linter.Config} */
 module.exports = {

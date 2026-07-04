@@ -1,6 +1,6 @@
 # Nginx — Reverse Proxy & TLS
 
-This directory holds the Nginx configuration that fronts the MasterSignage
+This directory holds the Nginx configuration that fronts the Wizer Signage
 stack. Nginx terminates TLS and routes traffic to the application services:
 
 | Path                        | Upstream         | Notes                            |
@@ -13,7 +13,7 @@ stack. Nginx terminates TLS and routes traffic to the application services:
 
 - **`nginx.conf`** — main config: worker/event tuning, gzip, shared proxy and
   WebSocket-upgrade settings, and `include /etc/nginx/conf.d/*.conf`.
-- **`templates/mastersignage.conf.template`** — the server blocks (HTTP `:80`
+- **`templates/wizer-signage.conf.template`** — the server blocks (HTTP `:80`
   ACME + redirect, HTTPS `:443` routing), templated with `${APP_DOMAIN}`. The
   nginx image runs `envsubst` on this at startup and writes the rendered config
   to `/etc/nginx/conf.d/`. **There is no hardcoded domain in any active config.**
@@ -39,7 +39,7 @@ stack. Nginx terminates TLS and routes traffic to the application services:
 
 > **Host certbot users:** certs issued on the host at
 > `/etc/letsencrypt/live/$APP_DOMAIN/` must be synced into the
-> `master-signage-letsencrypt` volume that nginx reads. Use
+> `wizer-signage-letsencrypt` volume that nginx reads. Use
 > `scripts/sync-letsencrypt-to-docker.sh` (also installable as a certbot deploy
 > hook). See `docs/nginx-ssl.md`.
 
@@ -52,8 +52,8 @@ certificate by running certbot against that same volume:
 ```bash
 # Run a one-off certbot container sharing the webroot + letsencrypt volumes.
 docker run --rm \
-  -v master-signage-certbot-webroot:/var/www/certbot \
-  -v master-signage-letsencrypt:/etc/letsencrypt \
+  -v wizer-signage-certbot-webroot:/var/www/certbot \
+  -v wizer-signage-letsencrypt:/etc/letsencrypt \
   certbot/certbot certonly \
     --webroot -w /var/www/certbot \
     -d signage.example.com \
@@ -74,8 +74,8 @@ Let's Encrypt certificates are valid for 90 days. Renew with:
 
 ```bash
 docker run --rm \
-  -v master-signage-certbot-webroot:/var/www/certbot \
-  -v master-signage-letsencrypt:/etc/letsencrypt \
+  -v wizer-signage-certbot-webroot:/var/www/certbot \
+  -v wizer-signage-letsencrypt:/etc/letsencrypt \
   certbot/certbot renew
 ```
 

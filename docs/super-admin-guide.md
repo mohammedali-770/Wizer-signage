@@ -147,7 +147,7 @@ Full request/response schemas are in Swagger at **`/api/docs`**.
 ## 10. How to test Phase 2
 
 1. **Run the stack** (see [local-development.md](./local-development.md)): apply migrations,
-   `pnpm --filter @master-signage/api db:seed`, then start the API and dashboard.
+   `pnpm --filter @wizer/api db:seed`, then start the API and dashboard.
 2. **Sign in** at `/en/login` with the seeded Super Admin. On first login, **enrol 2FA**
    (scan the QR with an authenticator app, enter the code, save the backup codes).
 3. **Overview** should show company/subscription/plan/invoice/user counters.
@@ -162,7 +162,7 @@ Full request/response schemas are in Swagger at **`/api/docs`**.
    period adding more is blocked.
 9. **Super Admins:** invite a second Super Admin; try to deactivate the last active one and
    confirm it is rejected.
-10. **Automated tests:** `pnpm --filter @master-signage/api test` covers Super-Admin-only
+10. **Automated tests:** `pnpm --filter @wizer/api test` covers Super-Admin-only
     access, suspend/reactivate, last-Super-Admin protection, plan-limit checks, grace-period
     logic, subscription/invoice status changes, and audit logging.
 

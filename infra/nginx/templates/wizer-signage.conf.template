@@ -1,7 +1,7 @@
 # =============================================================================
-# MasterSignage — Nginx server template (env-substituted)
+# Wizer Signage — Nginx server template (env-substituted)
 # =============================================================================
-# This is the ${APP_DOMAIN}-templated equivalent of conf.d/master-signage.conf.
+# This is the ${APP_DOMAIN}-templated equivalent of conf.d/wizer-signage.conf.
 # The official nginx image runs `envsubst` on files in /etc/nginx/templates/*.template
 # at startup, writing the result to /etc/nginx/conf.d/. To use it instead of the
 # static conf, in the nginx service:

@@ -1,9 +1,9 @@
 {
-  "name": "@master-signage/dashboard",
+  "name": "@wizer/dashboard",
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "author": "MasterSignage",
+  "author": "Wizer Signage",
   "type": "module",
   "scripts": {
     "dev": "next dev -p 3000",
@@ -13,9 +13,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@master-signage/types": "workspace:*",
-    "@master-signage/shared": "workspace:*",
-    "@master-signage/ui": "workspace:*",
+    "@wizer/types": "workspace:*",
+    "@wizer/shared": "workspace:*",
+    "@wizer/ui": "workspace:*",
     "clsx": "^2.1.1",
     "lucide-react": "^0.395.0",
     "next": "^15.5.16",

@@ -1,6 +1,6 @@
 # Scripts (`scripts/`)
 
-Operational shell scripts for MasterSignage. All scripts are POSIX `bash`,
+Operational shell scripts for Wizer Signage. All scripts are POSIX `bash`,
 use `set -euo pipefail`, and resolve paths relative to the repo root so they
 can be run from anywhere.
 
@@ -52,7 +52,7 @@ bash scripts/backup-db.sh
 Schedule it via cron, e.g. nightly at 02:30:
 
 ```cron
-30 2 * * *  /opt/master-signage/scripts/backup-db.sh >> /var/log/ms-backup.log 2>&1
+30 2 * * *  /opt/wizer-signage/scripts/backup-db.sh >> /var/log/ms-backup.log 2>&1
 ```
 
 > Note: financial records have longer legal retention requirements than the
@@ -66,7 +66,7 @@ Restores a chosen `.sql.gz` dump into `DATABASE_URL`. Prompts for confirmation
 automation.
 
 ```bash
-bash scripts/restore-db.sh backups/master-signage_20260614_023000.sql.gz
+bash scripts/restore-db.sh backups/wizer-signage_20260614_023000.sql.gz
 ```
 
 ## Prerequisites

@@ -1,5 +1,5 @@
 // =============================================================================
-// MasterSignage — k6 smoke / light load test
+// Wizer Signage — k6 smoke / light load test
 // =============================================================================
 // Safe, low-volume checks against the hot read paths. Run against a LOCAL or
 // STAGING instance — never hammer production without a planned maintenance

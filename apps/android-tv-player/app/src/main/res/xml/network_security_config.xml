@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    MasterSignage TV Player — network security configuration (Phase 0).
+    Wizer Signage TV Player — network security configuration (Phase 0).
 
     Production traffic (API + Supabase) is always HTTPS. Cleartext is permitted only
     for local development pairing/testing against a dev machine on the LAN. Tighten or

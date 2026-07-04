@@ -1,6 +1,6 @@
 # Android TV Player
 
-The MasterSignage Android TV Player is the native playback client that runs on
+The Wizer Signage Android TV Player is the native playback client that runs on
 Android TV / Google TV devices at each physical screen. It pairs with a company
 screen profile, downloads its assigned content and schedule, and plays it back
 reliably, including while offline.
@@ -21,13 +21,13 @@ caveats and the capability matrix see
 | UI toolkit         | Jetpack Compose (with Compose for TV / Leanback)      |
 | Media playback     | Media3 ExoPlayer                                      |
 | Build system       | Gradle 8 + Android Gradle Plugin (AGP) 8              |
-| Application id     | `com.mastersignage.player`                            |
+| Application id     | `com.wizer-signage.player`                            |
 | Min SDK            | 21 (Android 5.0 Lollipop)                             |
 | Target SDK         | 34 (Android 14)                                       |
 | Form factor        | Android TV / Google TV (Leanback launcher category)   |
 | Dependency catalog | Gradle version catalog at `gradle/libs.versions.toml` |
 
-The project lives at `apps/android-tv-player` within the MasterSignage monorepo.
+The project lives at `apps/android-tv-player` within the Wizer Signage monorepo.
 It is a standalone Gradle project and is intentionally not wired into the
 Turborepo/pnpm JavaScript toolchain — it is built with Gradle, not pnpm.
 
@@ -204,7 +204,7 @@ phone, so installation is done over the network with adb.
 4. **Launch it** (it also appears in the Android TV launcher under "Apps"):
 
    ```bash
-   adb shell monkey -p com.mastersignage.player -c android.intent.category.LAUNCHER 1
+   adb shell monkey -p com.wizer-signage.player -c android.intent.category.LAUNCHER 1
    ```
 
 On first launch the app displays a pairing code — continue with
@@ -217,7 +217,7 @@ On first launch the app displays a pairing code — continue with
 ### App structure
 
 ```
-app/src/main/java/com/mastersignage/player/
+app/src/main/java/com/wizer-signage/player/
   MainActivity.kt            # immersive full-screen host; routes pairing ↔ player
   PlayerContainer.kt         # manual DI: ApiClient + DeviceStore + PairingRepository
   data/
@@ -425,8 +425,8 @@ reachable from the TV's network, with a valid TLS certificate.
    supply it via Gradle properties (`MS_KEYSTORE`, `MS_KEY_ALIAS`, passwords as
    env/`~/.gradle/gradle.properties`). Never commit the keystore or passwords.
    ```bash
-   keytool -genkeypair -v -keystore mastersignage-release.jks \
-     -alias mastersignage -keyalg RSA -keysize 2048 -validity 10000
+   keytool -genkeypair -v -keystore wizer-signage-release.jks \
+     -alias wizer-signage -keyalg RSA -keysize 2048 -validity 10000
    ```
 3. **Build:** `./gradlew :app:assembleRelease` → a **signed**
    `app-release.apk` (unsigned builds land as `app-release-unsigned.apk` — sign

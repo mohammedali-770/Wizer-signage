@@ -1,6 +1,6 @@
-# @master-signage/api
+# @wizer/api
 
-NestJS 10 backend for **MasterSignage** — the multi-tenant digital signage SaaS platform.
+NestJS 10 backend for **Wizer Signage** — the multi-tenant digital signage SaaS platform.
 
 This package is the REST API. It runs as a standalone Node service and is
 consumed by the Next.js dashboard and the Android TV player.
@@ -26,7 +26,7 @@ consumed by the Next.js dashboard and the Android TV player.
 - `nodemailer` — SMTP (or dev JSON transport) for transactional email
 
 Internal workspace packages consumed as TypeScript source:
-`@master-signage/types`, `@master-signage/shared`.
+`@wizer/types`, `@wizer/shared`.
 
 ## Modules
 
@@ -85,19 +85,19 @@ pnpm install
 cp .env.example .env
 
 # 3. Generate the Prisma client
-pnpm --filter @master-signage/api db:generate
+pnpm --filter @wizer/api db:generate
 
 # 4. Apply the init migration
-pnpm --filter @master-signage/api db:migrate:deploy   # production
+pnpm --filter @wizer/api db:migrate:deploy   # production
 # or, for development:
-pnpm --filter @master-signage/api db:migrate
+pnpm --filter @wizer/api db:migrate
 
 # 5. Seed a Starter plan, a demo company + trialing subscription,
 #    a Super Admin and a Company Admin (prints credentials)
-pnpm --filter @master-signage/api db:seed
+pnpm --filter @wizer/api db:seed
 
 # 6. Run the API
-pnpm --filter @master-signage/api start:dev
+pnpm --filter @wizer/api start:dev
 ```
 
 Swagger is then available at `/api/docs`.

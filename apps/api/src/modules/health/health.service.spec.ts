@@ -22,7 +22,7 @@ describe('HealthService', () => {
     it('reports status "ok" with the canonical service name + numeric uptime', () => {
       const result = build().check();
       expect(result.status).toBe('ok');
-      expect(result.service).toBe('master-signage-api');
+      expect(result.service).toBe('wizer-signage-api');
       expect(typeof result.uptime).toBe('number');
       expect(() => new Date(result.timestamp).toISOString()).not.toThrow();
     });

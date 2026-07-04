@@ -1,5 +1,5 @@
 /**
- * Typed API client for the MasterSignage backend.
+ * Typed API client for the Wizer Signage backend.
  *
  * - Attaches the access token, transparently refreshes once on a 401, and
  *   surfaces the platform error envelope `{ success:false, error }` as ApiError.

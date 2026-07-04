@@ -1,19 +1,19 @@
 # Local Development Guide
 
-This guide walks you through running the **MasterSignage** monorepo on your machine.
+This guide walks you through running the **Wizer Signage** monorepo on your machine.
 
 The repo is a pnpm + Turborepo monorepo:
 
 ```
-master-signage/
+wizer-signage/
   apps/
     dashboard/         # Next.js 14 (App Router) — port 3000
     api/               # NestJS 10 — port 3001, routes under /api
     android-tv-player/ # Kotlin / Jetpack Compose Android TV app
   packages/
-    types/             # @master-signage/types  — shared TS types/enums
-    shared/            # @master-signage/shared — shared constants/utilities
-    ui/                # @master-signage/ui     — shared React UI foundation
+    types/             # @wizer/types  — shared TS types/enums
+    shared/            # @wizer/shared — shared constants/utilities
+    ui/                # @wizer/ui     — shared React UI foundation
   infra/{docker,nginx}/
   scripts/
   docs/
@@ -52,8 +52,8 @@ git --version
 ## 2. Clone the repository
 
 ```bash
-git clone <repository-url> master-signage
-cd master-signage
+git clone <repository-url> wizer-signage
+cd wizer-signage
 ```
 
 ---
@@ -125,8 +125,8 @@ pnpm dev
 Use pnpm filters to run a single app:
 
 ```bash
-pnpm --filter @master-signage/dashboard dev   # Next.js dashboard
-pnpm --filter @master-signage/api dev         # NestJS API
+pnpm --filter @wizer/dashboard dev   # Next.js dashboard
+pnpm --filter @wizer/api dev         # NestJS API
 ```
 
 ### Ports & key URLs
@@ -178,7 +178,7 @@ pnpm build       # production build (apps) — usually not needed for daily dev
 Run for a single package with a filter, e.g.:
 
 ```bash
-pnpm --filter @master-signage/api typecheck
+pnpm --filter @wizer/api typecheck
 ```
 
 ---

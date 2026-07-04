@@ -1,7 +1,7 @@
 /**
- * @master-signage/types
+ * @wizer/types
  *
- * Foundational shared domain types and enums for the MasterSignage platform.
+ * Foundational shared domain types and enums for the Wizer Signage platform.
  *
  * This package is consumed directly as TypeScript source (no build step) by
  * both the NestJS API (`apps/api`) and the Next.js dashboard (`apps/dashboard`).
@@ -38,7 +38,7 @@ export type ISODateString = string;
 /**
  * Platform-wide user roles, ordered from most to least privileged.
  *
- * - SUPER_ADMIN      Platform operator (MasterSignage staff). Cross-tenant.
+ * - SUPER_ADMIN      Platform operator (Wizer Signage staff). Cross-tenant.
  * - COMPANY_ADMIN    Owns a tenant/company; manages users, billing, settings.
  * - LOCATION_MANAGER Manages screens and content for assigned locations.
  * - CONTENT_MANAGER  Creates and schedules content; no admin/billing access.

@@ -1,4 +1,4 @@
-// ESLint config for @master-signage/api.
+// ESLint config for @wizer/api.
 // Extends the root config and points the TypeScript parser at this package's tsconfig.
 /** @type {import('eslint').Linter.Config} */
 module.exports = {

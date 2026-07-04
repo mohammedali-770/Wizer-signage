@@ -1,6 +1,6 @@
 # Administrator Guide (Foundation)
 
-This guide orients dashboard administrators to MasterSignage: who can do what,
+This guide orients dashboard administrators to Wizer Signage: who can do what,
 and where each capability lives. The platform is delivered in phases, so each
 area below is tagged with the phase it arrives in — areas marked for a later
 phase are not yet available. Consult [roadmap.md](./roadmap.md) for the
@@ -13,7 +13,7 @@ each feature ships.
 
 ## Role hierarchy
 
-MasterSignage is multi-tenant: a **Super Admin** operates the whole platform,
+Wizer Signage is multi-tenant: a **Super Admin** operates the whole platform,
 while every other role works inside a single **company** (tenant). See
 [multi-tenancy.md](./multi-tenancy.md) and [security.md](./security.md) for how
 scoping and permissions are enforced.

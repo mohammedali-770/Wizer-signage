@@ -1,5 +1,5 @@
 # =============================================================================
-# MasterSignage — maintenance worker crontab (busybox crond)
+# Wizer Signage — maintenance worker crontab (busybox crond)
 # =============================================================================
 # Read by busybox crond inside the maintenance container (see Dockerfile.maintenance).
 # Jobs run as the unprivileged "node" user via su-exec; output is redirected to

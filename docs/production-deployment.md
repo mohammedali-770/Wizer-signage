@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-This guide describes deploying **MasterSignage** to a single **Ubuntu VPS** using
+This guide describes deploying **Wizer Signage** to a single **Ubuntu VPS** using
 **Docker Compose**, **Nginx** (reverse proxy) and **Let's Encrypt** (TLS). There is **no
 cPanel** and **no local database** — the database and object storage are provided by
 **Supabase (external)**.
@@ -49,10 +49,10 @@ docker compose version
 ## 3. Clone the repository
 
 ```bash
-sudo mkdir -p /opt/master-signage
-sudo chown "$USER":"$USER" /opt/master-signage
-git clone <repository-url> /opt/master-signage
-cd /opt/master-signage
+sudo mkdir -p /opt/wizer-signage
+sudo chown "$USER":"$USER" /opt/wizer-signage
+git clone <repository-url> /opt/wizer-signage
+cd /opt/wizer-signage
 ```
 
 ---
@@ -99,7 +99,7 @@ SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=no-reply@example.com
 SMTP_PASSWORD=...                        # secret
-SMTP_FROM=MasterSignage <no-reply@example.com>
+SMTP_FROM=Wizer Signage <no-reply@example.com>
 
 # Map
 MAP_PROVIDER=google
@@ -167,7 +167,7 @@ certbot issue the real cert. Full details in [nginx-ssl.md](./nginx-ssl.md).
 
    ```bash
    # crontab -e  (renew daily; reload nginx if anything changed)
-   0 3 * * * cd /opt/master-signage && docker compose -f infra/docker/docker-compose.yml run --rm certbot renew --webroot -w /var/www/certbot --quiet && docker compose -f infra/docker/docker-compose.yml exec nginx nginx -s reload
+   0 3 * * * cd /opt/wizer-signage && docker compose -f infra/docker/docker-compose.yml run --rm certbot renew --webroot -w /var/www/certbot --quiet && docker compose -f infra/docker/docker-compose.yml exec nginx nginx -s reload
    ```
 
 > Exact file names/volumes are defined in `infra/nginx/` and
@@ -227,7 +227,7 @@ docker compose -f infra/docker/docker-compose.yml run --rm api npx prisma migrat
 # it from the cloned repo with dev deps installed, pointed at the prod DB:
 #   pnpm install
 #   SEED_SUPERADMIN_EMAIL=... SEED_SUPERADMIN_PASSWORD=... \
-#   DATABASE_URL=... DIRECT_URL=... pnpm --filter @master-signage/api db:seed
+#   DATABASE_URL=... DIRECT_URL=... pnpm --filter @wizer/api db:seed
 # >>> Change the seeded Super Admin password immediately after first login. <<<
 ```
 
@@ -236,7 +236,7 @@ docker compose -f infra/docker/docker-compose.yml run --rm api npx prisma migrat
 The `maintenance` service runs the Phase 10 jobs on a schedule (busybox cron) —
 alerts sweep + due scheduled reports + emergency auto-END every 5 min, a full
 nightly run (incl. retention cleanup) at 03:30, and a `pg_dump` backup at 02:00
-(written to the `master-signage-backups` volume, recorded at **/admin/backups**).
+(written to the `wizer-signage-backups` volume, recorded at **/admin/backups**).
 
 ```bash
 # Verify the worker is up and cron is firing:
@@ -283,7 +283,7 @@ Use the deploy helper script (run from the repo root, in Git Bash/WSL on Windows
 A typical deploy does:
 
 ```bash
-cd /opt/master-signage
+cd /opt/wizer-signage
 git fetch --tags && git checkout <new-tag>        # pin a release tag
 docker compose -f infra/docker/docker-compose.yml build
 docker compose -f infra/docker/docker-compose.yml run --rm api npx prisma migrate deploy

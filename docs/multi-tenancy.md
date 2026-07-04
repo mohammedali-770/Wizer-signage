@@ -7,7 +7,7 @@
 
 ## 1. Tenancy model
 
-MasterSignage uses a **shared-database, shared-schema** multi-tenant model with a single
+Wizer Signage uses a **shared-database, shared-schema** multi-tenant model with a single
 Supabase Postgres instance. Tenants are **companies**. Every tenant-owned row carries a
 `companyId` foreign key, and every query is scoped by it. This is simpler to operate than
 schema-per-tenant or database-per-tenant while remaining strongly isolated when the rules

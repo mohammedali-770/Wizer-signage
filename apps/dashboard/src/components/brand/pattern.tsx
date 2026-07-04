@@ -1,5 +1,5 @@
 /**
- * MasterSignage "Connected Screen Grid" — the proprietary brand pattern:
+ * Wizer Signage "Connected Screen Grid" — the proprietary brand pattern:
  * tiled rounded screen frames with small status dots. Decorative only; uses
  * currentColor so the caller controls hue + opacity (keep it very subtle).
  */

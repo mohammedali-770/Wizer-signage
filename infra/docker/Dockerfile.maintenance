@@ -1,9 +1,9 @@
 # =============================================================================
-# MasterSignage maintenance worker — runs the Phase 10 maintenance CLI on a cron
+# Wizer Signage maintenance worker — runs the Phase 10 maintenance CLI on a cron
 # schedule (busybox crond) plus the nightly pg_dump backup.
 #
 # BUILD CONTEXT MUST BE THE REPOSITORY ROOT:
-#   docker build -f infra/docker/Dockerfile.maintenance -t master-signage/maintenance .
+#   docker build -f infra/docker/Dockerfile.maintenance -t wizer-signage/maintenance .
 #
 # It reuses the API's build (the CLI is apps/api/dist/maintenance/maintenance.cli.js)
 # and adds: busybox crond, su-exec (drop to non-root for jobs), bash + the backup
@@ -26,21 +26,21 @@ COPY apps/api/package.json ./apps/api/package.json
 COPY packages/types/package.json ./packages/types/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
-RUN pnpm install --filter @master-signage/api... --frozen-lockfile
+RUN pnpm install --filter @wizer/api... --frozen-lockfile
 
 # --- Build -------------------------------------------------------------------
 FROM base AS build
 COPY --from=deps /app /app
 COPY apps/api ./apps/api
 COPY packages ./packages
-RUN pnpm --filter @master-signage/api db:generate
+RUN pnpm --filter @wizer/api db:generate
 # Build the API plus the internal workspace packages it consumes (see
 # apps/api/Dockerfile) so the runtime image ships compiled JS, not TS source.
-RUN pnpm --filter "@master-signage/api..." build
+RUN pnpm --filter "@wizer/api..." build
 # Single-project deploy (see apps/api/Dockerfile): a trailing `...` would make
 # pnpm try to deploy the workspace deps as separate projects and fail with
 # ERR_PNPM_CANNOT_DEPLOY_MANY. deploy bundles the workspace deps on its own.
-RUN pnpm --filter @master-signage/api --prod deploy /app/deploy
+RUN pnpm --filter @wizer/api --prod deploy /app/deploy
 # Re-generate the Prisma client into the pruned deploy tree (see apps/api/Dockerfile).
 RUN cd /app/deploy && ./node_modules/.bin/prisma generate --schema /app/apps/api/prisma/schema.prisma
 

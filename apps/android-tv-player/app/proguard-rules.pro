@@ -1,4 +1,4 @@
-# MasterSignage TV Player — ProGuard / R8 rules (Phase 0 placeholder).
+# Wizer Signage TV Player — ProGuard / R8 rules (Phase 0 placeholder).
 #
 # Minification is currently disabled (see app/build.gradle.kts: isMinifyEnabled = false),
 # so no rules are strictly required yet. Add keep rules here when R8 is enabled in a

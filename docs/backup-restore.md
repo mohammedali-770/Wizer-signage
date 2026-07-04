@@ -1,6 +1,6 @@
 # Backup & Restore Runbook
 
-This runbook covers backing up and restoring **MasterSignage** data. The platform's
+This runbook covers backing up and restoring **Wizer Signage** data. The platform's
 database and object storage live in **Supabase (external)**, so this document combines
 **Supabase managed backups** with our own **application-managed dumps** for defense in
 depth.
@@ -37,8 +37,8 @@ string). See [environment-variables.md](./environment-variables.md).
 
 ### Where dumps live
 
-- Default local target: `/opt/master-signage/backups/db/` on the VPS (timestamped,
-  compressed files, e.g. `master-signage-YYYYMMDD-HHMMSS.sql.gz`).
+- Default local target: `/opt/wizer-signage/backups/db/` on the VPS (timestamped,
+  compressed files, e.g. `wizer-signage-YYYYMMDD-HHMMSS.sql.gz`).
 - **Strongly recommended:** sync these off-box (object storage / a separate host) so a lost
   VPS does not lose the backups. Keep the canonical location consistent with
   `scripts/backup-db.sh`.
@@ -50,7 +50,7 @@ Ubuntu VPS this is native):
 
 ```bash
 # crontab -e
-30 2 * * * cd /opt/master-signage && ./scripts/backup-db.sh >> /var/log/master-signage-backup.log 2>&1
+30 2 * * * cd /opt/wizer-signage && ./scripts/backup-db.sh >> /var/log/wizer-signage-backup.log 2>&1
 ```
 
 `scripts/backup-db.sh` reads `DIRECT_URL` from the environment / `.env`, runs `pg_dump`,
@@ -119,7 +119,7 @@ Restores are **destructive** — they overwrite the target database. The restore
 3. **Select the dump to restore.** List available backups and pick the timestamp:
 
    ```bash
-   ls -lh /opt/master-signage/backups/db/
+   ls -lh /opt/wizer-signage/backups/db/
    ```
 
 4. **Confirm the target.** Double-check `DIRECT_URL` points at the **intended** database
@@ -133,7 +133,7 @@ Restores are **destructive** — they overwrite the target database. The restore
 5. **Run the restore:**
 
    ```bash
-   ./scripts/restore-db.sh /opt/master-signage/backups/db/master-signage-YYYYMMDD-HHMMSS.sql.gz
+   ./scripts/restore-db.sh /opt/wizer-signage/backups/db/wizer-signage-YYYYMMDD-HHMMSS.sql.gz
    ```
 
    The script restores the dump into the `DIRECT_URL` database. Watch the output for errors.

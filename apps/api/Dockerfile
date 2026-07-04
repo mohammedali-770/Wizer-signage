@@ -1,5 +1,5 @@
 # =============================================================================
-# MasterSignage API — multi-stage Dockerfile (pnpm monorepo)
+# Wizer Signage API — multi-stage Dockerfile (pnpm monorepo)
 #
 # IMPORTANT: the build context is the REPOSITORY ROOT, not apps/api, so that
 # this Dockerfile can access pnpm-workspace.yaml, the lockfile and the internal
@@ -34,7 +34,7 @@ COPY packages/types/package.json ./packages/types/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
 # Install the API and its workspace dependency graph only.
-RUN pnpm install --filter @master-signage/api... --frozen-lockfile
+RUN pnpm install --filter @wizer/api... --frozen-lockfile
 
 # --- Build -------------------------------------------------------------------
 FROM base AS build
@@ -46,19 +46,19 @@ COPY apps/api ./apps/api
 COPY packages ./packages
 # Generate the Prisma client (required before the TS build can typecheck the
 # generated model types).
-RUN pnpm --filter @master-signage/api db:generate
+RUN pnpm --filter @wizer/api db:generate
 # Compile the NestJS app AND the internal workspace packages it consumes
-# (@master-signage/shared, /types). The trailing `...` includes the API's
+# (@wizer/shared, /types). The trailing `...` includes the API's
 # workspace dependencies and pnpm runs them in topological order (types/shared
 # before api). This emits each package's dist/ JS so the runtime image carries
 # compiled JavaScript, not raw TypeScript source.
-RUN pnpm --filter "@master-signage/api..." build
+RUN pnpm --filter "@wizer/api..." build
 # Prune dev dependencies for a lean runtime node_modules.
 # NOTE: `pnpm deploy` targets exactly ONE project — it already bundles the
-# target's workspace dependencies (@master-signage/shared, /types) into the
+# target's workspace dependencies (@wizer/shared, /types) into the
 # deployed node_modules. A trailing `...` would expand the filter to those
 # workspace projects too and pnpm refuses (ERR_PNPM_CANNOT_DEPLOY_MANY).
-RUN pnpm --filter @master-signage/api --prod deploy /app/deploy
+RUN pnpm --filter @wizer/api --prod deploy /app/deploy
 # Re-generate the Prisma client INTO the pruned deploy tree so the runtime image
 # carries it (avoids the pnpm-deploy + hoisted-.prisma gotcha). prisma is a
 # production dependency, so its CLI is present under deploy/node_modules/.bin.

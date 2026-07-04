@@ -5,7 +5,7 @@
  * Why force `numberingSystem: 'latn'`?
  * ----------------------------------------------------------------------------
  * Arabic locales (e.g. `ar`, `ar-EG`) default to Eastern Arabic numerals
- * (٠١٢٣٤٥٦٧٨٩). For MasterSignage the product requirement is that all numeric
+ * (٠١٢٣٤٥٦٧٨٩). For Wizer Signage the product requirement is that all numeric
  * output — counts, metrics, dates, IDs — uses Western/Latin digits (0-9)
  * even when the surrounding UI is Arabic and laid out right-to-left.
  * Pinning `numberingSystem: 'latn'` guarantees consistent, scannable numbers

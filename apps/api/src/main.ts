@@ -15,7 +15,7 @@ import type { AppConfig } from './config/configuration';
  * Application entrypoint.
  *
  * Bootstraps the Nest application with the conventions shared across the
- * MasterSignage monorepo:
+ * Wizer Signage monorepo:
  *  - global route prefix `api`
  *  - Helmet security headers
  *  - a strict global ValidationPipe (whitelist + transform)

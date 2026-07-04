@@ -22,10 +22,10 @@ import com.mastersignage.player.monitoring.ScreenCaptureController
 import com.mastersignage.player.ui.AppViewModelFactory
 import com.mastersignage.player.ui.pairing.PairingScreen
 import com.mastersignage.player.ui.player.PlayerScreen
-import com.mastersignage.player.ui.theme.MasterSignageTheme
+import com.mastersignage.player.ui.theme.WizerSignageTheme
 
 /**
- * Entry point for the MasterSignage TV player (Phase 6).
+ * Entry point for the Wizer Signage TV player (Phase 6).
  *
  * Renders full-screen and immersive, then routes between the pairing flow and
  * the signage player based on whether a device token is stored. Offline cache,
@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
         val factory = AppViewModelFactory(container)
 
         setContent {
-            MasterSignageTheme {
+            WizerSignageTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     PlayerApp(container = container, factory = factory)
                 }

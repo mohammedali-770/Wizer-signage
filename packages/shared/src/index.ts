@@ -1,5 +1,5 @@
 /**
- * @master-signage/shared
+ * @wizer/shared
  *
  * Shared constants and PURE utilities used by both the NestJS API
  * (`apps/api`) and the Next.js dashboard (`apps/dashboard`).
@@ -16,7 +16,7 @@
  * ========================================================================== */
 
 /** Human-facing product/brand name. */
-export const APP_NAME = 'MasterSignage' as const;
+export const APP_NAME = 'Wizer Signage' as const;
 
 /* ========================================================================== *
  * Pagination

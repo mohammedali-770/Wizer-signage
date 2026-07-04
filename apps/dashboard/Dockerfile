@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 
 # =============================================================================
-# MasterSignage Dashboard (Next.js 14, App Router)
+# Wizer Signage Dashboard (Next.js 14, App Router)
 # Multi-stage build. BUILD CONTEXT MUST BE THE REPOSITORY ROOT, e.g.:
-#   docker build -f apps/dashboard/Dockerfile -t mastersignage-dashboard .
+#   docker build -f apps/dashboard/Dockerfile -t wizer-signage-dashboard .
 # (docker-compose sets build.context to ./apps/dashboard's parent root.)
 # =============================================================================
 
@@ -25,7 +25,7 @@ COPY packages ./packages
 # Only the dashboard app manifest is needed to resolve its deps.
 COPY apps/dashboard/package.json ./apps/dashboard/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter @master-signage/dashboard...
+    pnpm install --frozen-lockfile --filter @wizer/dashboard...
 
 # ----- Builder: compile the standalone output --------------------------------
 FROM base AS builder
@@ -48,7 +48,7 @@ COPY --from=deps /app /app
 # the root .dockerignore, so the resolved modules copied above are preserved.
 COPY apps/dashboard ./apps/dashboard
 COPY packages ./packages
-RUN pnpm --filter @master-signage/dashboard build
+RUN pnpm --filter @wizer/dashboard build
 
 # ----- Runner: minimal runtime image -----------------------------------------
 FROM node:20-alpine AS runner

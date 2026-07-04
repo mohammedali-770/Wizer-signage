@@ -1,6 +1,6 @@
 # Monitoring & Operations (Phase 11)
 
-How to observe a running MasterSignage deployment. This is a **foundation** —
+How to observe a running Wizer Signage deployment. This is a **foundation** —
 structured app logs to stdout, container log rotation, and recommendations — not
 a bundled observability stack.
 

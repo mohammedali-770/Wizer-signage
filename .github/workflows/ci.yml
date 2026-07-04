@@ -70,7 +70,7 @@ jobs:
           context: .
           file: apps/api/Dockerfile
           push: false
-          tags: master-signage/api:ci
+          tags: wizer-signage/api:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -80,7 +80,7 @@ jobs:
           context: .
           file: apps/dashboard/Dockerfile
           push: false
-          tags: master-signage/dashboard:ci
+          tags: wizer-signage/dashboard:ci
           build-args: |
             NEXT_PUBLIC_API_URL=https://example.invalid/api
           cache-from: type=gha
@@ -92,6 +92,6 @@ jobs:
           context: .
           file: infra/docker/Dockerfile.maintenance
           push: false
-          tags: master-signage/maintenance:ci
+          tags: wizer-signage/maintenance:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max

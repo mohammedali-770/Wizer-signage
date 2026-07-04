@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { PAIRING_CODE_ALPHABET } from '@master-signage/shared';
+import { PAIRING_CODE_ALPHABET } from '@wizer/shared';
 
 import { CryptoService } from './crypto.service';
 

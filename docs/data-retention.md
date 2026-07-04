@@ -61,17 +61,17 @@ node apps/api/dist/maintenance/maintenance.cli.js emergencies
 node apps/api/dist/maintenance/maintenance.cli.js backup-check
 ```
 
-In dev: `pnpm --filter @master-signage/api maintenance all`.
+In dev: `pnpm --filter @wizer/api maintenance all`.
 
 ### Cron example
 
 ```cron
 # Alerts + due reports + emergency auto-END every 5 minutes
-*/5 * * * *  cd /opt/master-signage && node apps/api/dist/maintenance/maintenance.cli.js sweep   >> /var/log/ms-maint.log 2>&1
-*/5 * * * *  cd /opt/master-signage && node apps/api/dist/maintenance/maintenance.cli.js reports >> /var/log/ms-maint.log 2>&1
-*/5 * * * *  cd /opt/master-signage && node apps/api/dist/maintenance/maintenance.cli.js emergencies >> /var/log/ms-maint.log 2>&1
+*/5 * * * *  cd /opt/wizer-signage && node apps/api/dist/maintenance/maintenance.cli.js sweep   >> /var/log/ms-maint.log 2>&1
+*/5 * * * *  cd /opt/wizer-signage && node apps/api/dist/maintenance/maintenance.cli.js reports >> /var/log/ms-maint.log 2>&1
+*/5 * * * *  cd /opt/wizer-signage && node apps/api/dist/maintenance/maintenance.cli.js emergencies >> /var/log/ms-maint.log 2>&1
 # Full nightly cleanup at 03:30
-30 3 * * *   cd /opt/master-signage && node apps/api/dist/maintenance/maintenance.cli.js all     >> /var/log/ms-maint.log 2>&1
+30 3 * * *   cd /opt/wizer-signage && node apps/api/dist/maintenance/maintenance.cli.js all     >> /var/log/ms-maint.log 2>&1
 ```
 
 ### Docker Compose worker

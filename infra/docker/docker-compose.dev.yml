@@ -1,5 +1,5 @@
 # =============================================================================
-# MasterSignage — Development override (OPTIONAL)
+# Wizer Signage — Development override (OPTIONAL)
 # =============================================================================
 # This override is layered ON TOP of docker-compose.yml:
 #
@@ -28,11 +28,11 @@ services:
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:16-alpine
-    container_name: master-signage-postgres
+    container_name: wizer-signage-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-mastersignage}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mastersignage}
-      POSTGRES_DB: ${POSTGRES_DB:-mastersignage}
+      POSTGRES_USER: ${POSTGRES_USER:-wizer_signage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wizer_signage}
+      POSTGRES_DB: ${POSTGRES_DB:-wizer_signage}
     ports:
       # Exposed on the host for local tooling (psql, GUI clients, migrations).
       - '5432:5432'
@@ -43,13 +43,13 @@ services:
       test:
         [
           'CMD-SHELL',
-          'pg_isready -U ${POSTGRES_USER:-mastersignage} -d ${POSTGRES_DB:-mastersignage}',
+          'pg_isready -U ${POSTGRES_USER:-wizer_signage} -d ${POSTGRES_DB:-wizer_signage}',
         ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - master-signage
+      - wizer-signage
 
   # ---------------------------------------------------------------------------
   # API — point at the local postgres and (optionally) enable hot reload.
@@ -59,8 +59,8 @@ services:
       NODE_ENV: development
       # Local DATABASE_URL pointing at the bundled postgres service.
       # Override these in your .env to switch back to Supabase.
-      DATABASE_URL: postgresql://${POSTGRES_USER:-mastersignage}:${POSTGRES_PASSWORD:-mastersignage}@postgres:5432/${POSTGRES_DB:-mastersignage}?schema=public
-      DIRECT_URL: postgresql://${POSTGRES_USER:-mastersignage}:${POSTGRES_PASSWORD:-mastersignage}@postgres:5432/${POSTGRES_DB:-mastersignage}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wizer_signage}:${POSTGRES_PASSWORD:-wizer_signage}@postgres:5432/${POSTGRES_DB:-wizer_signage}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-wizer_signage}:${POSTGRES_PASSWORD:-wizer_signage}@postgres:5432/${POSTGRES_DB:-wizer_signage}?schema=public
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,7 +70,7 @@ services:
     # volumes:
     #   - ../../apps/api:/app/apps/api
     #   - ../../packages:/app/packages
-    # command: ["pnpm", "--filter", "@master-signage/api", "dev"]
+    # command: ["pnpm", "--filter", "@wizer/api", "dev"]
 
   # ---------------------------------------------------------------------------
   # Dashboard — development environment / optional hot reload.
@@ -82,11 +82,11 @@ services:
     # volumes:
     #   - ../../apps/dashboard:/app/apps/dashboard
     #   - ../../packages:/app/packages
-    # command: ["pnpm", "--filter", "@master-signage/dashboard", "dev"]
+    # command: ["pnpm", "--filter", "@wizer/dashboard", "dev"]
 
 # -----------------------------------------------------------------------------
 # Volumes
 # -----------------------------------------------------------------------------
 volumes:
   postgres-data:
-    name: master-signage-postgres-data
+    name: wizer-signage-postgres-data

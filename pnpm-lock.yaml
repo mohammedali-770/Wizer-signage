@@ -54,12 +54,6 @@ importers:
 
   apps/api:
     dependencies:
-      '@master-signage/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@master-signage/types':
-        specifier: workspace:*
-        version: link:../../packages/types
       '@nestjs/common':
         specifier: ^10.3.10
         version: 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -93,6 +87,12 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.45.4
         version: 2.108.2
+      '@wizer/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@wizer/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -193,13 +193,13 @@ importers:
 
   apps/dashboard:
     dependencies:
-      '@master-signage/shared':
+      '@wizer/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@master-signage/types':
+      '@wizer/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@master-signage/ui':
+      '@wizer/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       clsx:
@@ -257,7 +257,7 @@ importers:
 
   packages/shared:
     dependencies:
-      '@master-signage/types':
+      '@wizer/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:

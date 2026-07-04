@@ -66,9 +66,9 @@ export const COMMON_PASSWORDS: ReadonlySet<string> = new Set([
   '654321',
   '12345678',
   '1234567890',
-  'mastersignage',
-  'mastersignage1',
-  'mastersignage1!',
+  'wizersignage',
+  'wizersignage1',
+  'wizersignage1!',
   'signage',
   'signage123',
 ]);

@@ -15,7 +15,7 @@ Monorepo skeleton, tooling, and the architecture plan. No business features.
 
 - [x] Define architecture, multi-tenancy, security, and schema **plans** (this `docs/` set)
 - [x] pnpm 9 + Turborepo monorepo (`apps/*`, `packages/*`)
-- [x] Shared packages scaffolded: `@master-signage/types`, `@master-signage/shared`, `@master-signage/ui`
+- [x] Shared packages scaffolded: `@wizer/types`, `@wizer/shared`, `@wizer/ui`
 - [x] Dashboard skeleton (Next.js 14 App Router, Tailwind, next-intl, next-themes, EN/AR)
 - [x] API skeleton (NestJS 10, prefix `api`, `/api/health`, `/api/health/ready`)
 - [x] Android TV player skeleton (Kotlin, Compose, Media3, Gradle version catalog)

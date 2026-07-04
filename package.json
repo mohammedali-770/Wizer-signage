@@ -1,9 +1,9 @@
 {
-  "name": "master-signage",
+  "name": "wizer-signage",
   "version": "0.0.0",
   "private": true,
-  "description": "MasterSignage — multi-tenant digital signage SaaS platform for Android TV.",
-  "author": "MasterSignage",
+  "description": "Wizer Signage — multi-tenant digital signage SaaS platform for Android TV.",
+  "author": "Wizer Signage",
   "license": "UNLICENSED",
   "packageManager": "pnpm@9.12.0",
   "engines": {
@@ -16,7 +16,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "db:generate": "pnpm --filter @master-signage/api db:generate",
+    "db:generate": "pnpm --filter @wizer/api db:generate",
     "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css}\"",

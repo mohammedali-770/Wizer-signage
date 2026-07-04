@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, randomInt } 
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PAIRING_CODE_ALPHABET, PAIRING_CODE_LENGTH } from '@master-signage/shared';
+import { PAIRING_CODE_ALPHABET, PAIRING_CODE_LENGTH } from '@wizer/shared';
 
 import type { AppConfig } from '../../config/configuration';
 

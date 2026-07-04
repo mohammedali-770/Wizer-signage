@@ -7,11 +7,13 @@ networks of Android TV devices from a single, multi-tenant web dashboard — in 
 Wizer Signage is a product of **WIZER** — a Saudi SaaS company building smart business
 software. _Smart Systems. Clearer Decisions._
 
-> **Naming note:** internal technical identifiers retain the original `master-signage`
-> name for deployment/compatibility and are **not** user-facing — the npm workspace
-> packages (`@master-signage/*`), the Android package id (`com.mastersignage.player`),
-> Docker image/service names, the nginx config, and the seed company slug. User-facing
-> branding everywhere is **WIZER / Wizer Signage**.
+> **Naming note:** the WIZER / Wizer Signage rename is applied throughout — user-facing
+> text, the npm workspace scope (`@wizer/*`), Docker images/containers (`wizer-signage/*`),
+> the API service name, and the Android **app id** (`com.wizer.signage`). One internal
+> identifier is intentionally retained: the Android **source-package namespace**
+> `com.mastersignage.player` (renaming the Kotlin package requires an Android rebuild to
+> verify, so it's deferred to a dedicated pass). The old `/mastersignage` and
+> `/master-signage` URLs still redirect to `/signage` for backward compatibility.
 
 > **Status: Phase 0 — Scaffold.** This repository currently contains the
 > architecture, monorepo skeleton, tooling, and minimal runnable placeholders.
@@ -21,15 +23,15 @@ software. _Smart Systems. Clearer Decisions._
 ## Monorepo layout
 
 ```
-master-signage/
+wizer-signage/
 ├── apps/
 │   ├── dashboard/          # Next.js 14 (App Router) admin dashboard — port 3000
 │   ├── api/                # NestJS 10 REST + WebSocket API — port 3001
 │   └── android-tv-player/  # Kotlin / Jetpack Compose Android TV player
 ├── packages/
-│   ├── types/              # @master-signage/types  — shared TypeScript types/enums
-│   ├── shared/             # @master-signage/shared — shared constants/utilities
-│   └── ui/                 # @master-signage/ui     — shared React UI foundation
+│   ├── types/              # @wizer/types  — shared TypeScript types/enums
+│   ├── shared/             # @wizer/shared — shared constants/utilities
+│   └── ui/                 # @wizer/ui     — shared React UI foundation
 ├── infra/
 │   ├── docker/             # Docker Compose & related infrastructure
 │   └── nginx/              # Reverse proxy configuration
@@ -71,14 +73,14 @@ pnpm dev
 
 ## Workspaces & apps
 
-| App / Package            | Package name             | Dev URL / port            |
-| ------------------------ | ------------------------ | ------------------------- |
-| `apps/dashboard`         | (Next.js dashboard)      | http://localhost:3000     |
-| `apps/api`               | (NestJS API)             | http://localhost:3001/api |
-| `apps/android-tv-player` | (Android TV player)      | —                         |
-| `packages/types`         | `@master-signage/types`  | —                         |
-| `packages/shared`        | `@master-signage/shared` | —                         |
-| `packages/ui`            | `@master-signage/ui`     | —                         |
+| App / Package            | Package name        | Dev URL / port            |
+| ------------------------ | ------------------- | ------------------------- |
+| `apps/dashboard`         | (Next.js dashboard) | http://localhost:3000     |
+| `apps/api`               | (NestJS API)        | http://localhost:3001/api |
+| `apps/android-tv-player` | (Android TV player) | —                         |
+| `packages/types`         | `@wizer/types`      | —                         |
+| `packages/shared`        | `@wizer/shared`     | —                         |
+| `packages/ui`            | `@wizer/ui`         | —                         |
 
 ### Common scripts
 
@@ -130,7 +132,7 @@ Set in `.env` (see `.env.example`): `TRIAL_DAYS=14`, `DEFAULT_TRIAL_PLAN=starter
 `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_DASHBOARD_URL`, optional `SALES_NOTIFY_EMAIL`, and SMTP
 for real emails (otherwise emails are logged in dev). The seed is plain CommonJS
 (`prisma/seed.cjs`) so it runs with only `node` + production deps — locally via
-`pnpm --filter @master-signage/api db:seed`, and **in the production container** via:
+`pnpm --filter @wizer/api db:seed`, and **in the production container** via:
 
 ```bash
 docker compose -f infra/docker/docker-compose.yml exec api node prisma/seed.cjs
@@ -143,7 +145,7 @@ re-seeding restores the catalog defaults but never duplicates the demo company/u
 
 ```bash
 # API (unit) — includes PublicService (trial signup) tests
-pnpm --filter @master-signage/api test
+pnpm --filter @wizer/api test
 # Trial signup against a running API:
 curl -X POST http://localhost:3001/api/public/trial-signup \
   -H 'Content-Type: application/json' \
@@ -175,4 +177,4 @@ All project documentation lives in [`docs/`](docs/):
 
 ## License
 
-Proprietary — © 2026 MasterSignage. All rights reserved. See [LICENSE](LICENSE).
+Proprietary — © 2026 Wizer Signage. All rights reserved. See [LICENSE](LICENSE).

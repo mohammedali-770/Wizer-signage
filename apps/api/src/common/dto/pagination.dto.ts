@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
-import { DEFAULT_PAGE_SIZE } from '@master-signage/shared';
+import { DEFAULT_PAGE_SIZE } from '@wizer/shared';
 
 /** Reusable pagination query params for list endpoints. */
 export class PaginationQueryDto {

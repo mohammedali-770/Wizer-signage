@@ -1,12 +1,12 @@
 # System Architecture
 
 > **Phase 0 — Architecture plan.** This document describes the target architecture
-> for MasterSignage. Components are scaffolded in Phase 0; behavior is implemented in
+> for Wizer Signage. Components are scaffolded in Phase 0; behavior is implemented in
 > later phases (see [roadmap.md](./roadmap.md)).
 
 ## 1. Product summary
 
-MasterSignage is a **multi-tenant digital signage SaaS platform**. A company signs up,
+Wizer Signage is a **multi-tenant digital signage SaaS platform**. A company signs up,
 registers physical **locations**, pairs **screens** (Android TV devices) to those
 locations, uploads **content**, organizes it into **playlists**, and **schedules** what
 plays where and when. Operators manage the fleet from a web dashboard and can push
@@ -26,7 +26,7 @@ The platform is built for **strict tenant isolation** (every tenant's data is sc
 | **Database**          | Prisma ORM + Supabase Postgres                                                         | System of record. Accessed via `DATABASE_URL` (pooled) and `DIRECT_URL` (migrations).                         |
 | **Object storage**    | Supabase Storage                                                                       | Content media (images, video), screenshots, APK artifacts. Bucket via `SUPABASE_STORAGE_BUCKET`.              |
 | **WebSocket gateway** | NestJS WebSocket gateway (part of the API)                                             | Bi-directional device channel: heartbeats, commands, emergency broadcasts. Path from `WS_PATH`.               |
-| **Android TV player** | Kotlin 1.9, Jetpack Compose, Media3 ExoPlayer, AGP 8                                   | Native leanback app (`com.mastersignage.player`). Plays content, pre-downloads media, reports telemetry.      |
+| **Android TV player** | Kotlin 1.9, Jetpack Compose, Media3 ExoPlayer, AGP 8                                   | Native leanback app (`com.wizer.signage`). Plays content, pre-downloads media, reports telemetry.             |
 | **Offline cache**     | On-device storage on the player                                                        | Pre-downloaded media + scheduled playlist so the screen keeps playing without connectivity.                   |
 | **Reverse proxy**     | Nginx                                                                                  | Routes `/` → dashboard, `/api` → API, WebSocket upgrade on `WS_PATH` → API. Terminates SSL (Let's Encrypt).   |
 
@@ -64,7 +64,7 @@ Postgres for offline development only (see [local-development.md](./local-develo
                   ^
                   |
         +---------+-----------+
-        |  Android TV player  |  com.mastersignage.player (Compose + Media3)
+        |  Android TV player  |  com.wizer.signage (Compose + Media3)
         |  + offline cache    |  pre-download, playback, telemetry
         +---------------------+
 ```

@@ -16,7 +16,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.mastersignage.player"
+        applicationId = "com.wizer.signage"
         minSdk = 21
         targetSdk = 34
         versionCode = 1

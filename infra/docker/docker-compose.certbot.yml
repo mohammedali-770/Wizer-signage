@@ -1,5 +1,5 @@
 # =============================================================================
-# MasterSignage — OPTIONAL containerized Let's Encrypt (certbot webroot)
+# Wizer Signage — OPTIONAL containerized Let's Encrypt (certbot webroot)
 # =============================================================================
 # Use this override ALONGSIDE the base compose so it shares the nginx webroot +
 # certificate volumes:
@@ -19,7 +19,7 @@
 services:
   certbot:
     image: certbot/certbot:latest
-    container_name: master-signage-certbot
+    container_name: wizer-signage-certbot
     volumes:
       - certbot-webroot:/var/www/certbot
       - letsencrypt:/etc/letsencrypt
@@ -30,4 +30,4 @@ services:
       sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
     restart: unless-stopped
     networks:
-      - master-signage
+      - wizer-signage

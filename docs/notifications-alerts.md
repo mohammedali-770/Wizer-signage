@@ -1,6 +1,6 @@
 # Notifications & Alerts (Phase 10)
 
-MasterSignage surfaces operational events two ways: **dashboard notifications**
+Wizer Signage surfaces operational events two ways: **dashboard notifications**
 (a per-user bell + center) and **alerts** (deduplicated, acknowledgeable
 records). Email delivery is layered on top, governed by per-user preferences.
 
@@ -55,7 +55,7 @@ SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=apikey
 SMTP_PASSWORD=…          # or SMTP_PASS
-SMTP_FROM="MasterSignage <no-reply@example.com>"
+SMTP_FROM="Wizer Signage <no-reply@example.com>"
 SMTP_SECURE=false        # force TLS; otherwise derived from port 465
 ```
 

@@ -1,5 +1,5 @@
 # =============================================================================
-# MasterSignage — Infrastructure Makefile
+# Wizer Signage — Infrastructure Makefile
 # =============================================================================
 # Convenience wrapper around docker compose. Run targets from the repo root:
 #
@@ -29,7 +29,7 @@ HEALTH_URL   ?= http://localhost/api/health
 
 ## help: Show this help.
 help:
-	@echo "MasterSignage infra targets:"
+	@echo "Wizer Signage infra targets:"
 	@echo "  up        Start the production stack (detached)."
 	@echo "  down      Stop and remove the production stack."
 	@echo "  dev-up    Start the stack with the dev override (local postgres)."

@@ -5,7 +5,7 @@
 # WHY: when certbot runs on the HOST it writes certs to
 #   /etc/letsencrypt/live/<domain>/
 # but the nginx container reads them from the named Docker volume
-#   master-signage-letsencrypt  (mounted read-only at /etc/letsencrypt).
+#   wizer-signage-letsencrypt  (mounted read-only at /etc/letsencrypt).
 # Those are two different locations, so freshly issued/renewed certs must be
 # copied into the volume and nginx reloaded.
 #
@@ -15,7 +15,7 @@
 # USAGE (automatic on renewal) — install as a certbot deploy hook so every
 # renewal re-syncs and reloads nginx:
 #   sudo install -m 0755 scripts/sync-letsencrypt-to-docker.sh \
-#     /etc/letsencrypt/renewal-hooks/deploy/master-signage-sync-docker-nginx.sh
+#     /etc/letsencrypt/renewal-hooks/deploy/wizer-signage-sync-docker-nginx.sh
 #   # certbot sets RENEWED_LINEAGE / RENEWED_DOMAINS when it invokes the hook.
 #
 # Requires: root (writes to the docker volume dir, runs docker), docker CLI.
@@ -27,8 +27,8 @@ DOMAIN="${1:-${APP_DOMAIN:-${RENEWED_DOMAINS:-}}}"
 # RENEWED_DOMAINS may be a space-separated list; take the first name.
 DOMAIN="${DOMAIN%% *}"
 
-VOLUME="${LETSENCRYPT_VOLUME:-master-signage-letsencrypt}"
-NGINX_CONTAINER="${NGINX_CONTAINER:-master-signage-nginx}"
+VOLUME="${LETSENCRYPT_VOLUME:-wizer-signage-letsencrypt}"
+NGINX_CONTAINER="${NGINX_CONTAINER:-wizer-signage-nginx}"
 HOST_LETSENCRYPT_DIR="${HOST_LETSENCRYPT_DIR:-/etc/letsencrypt}"
 
 if [ -z "$DOMAIN" ]; then

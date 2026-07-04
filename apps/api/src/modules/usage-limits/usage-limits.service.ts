@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { GRACE_PERIOD_DAYS } from '@master-signage/shared';
+import { GRACE_PERIOD_DAYS } from '@wizer/shared';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityCategory, ActivityLogService } from '../activity-log/activity-log.service';

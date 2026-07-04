@@ -1,7 +1,7 @@
 # Screen Pairing Guide
 
 Pairing is how a physical Android TV / Google TV device becomes a managed
-**screen** inside a company's MasterSignage account. Instead of typing
+**screen** inside a company's Wizer Signage account. Instead of typing
 credentials on a TV remote, the device shows a short code that an administrator
 enters once against a **screen profile** in the dashboard. After that the device
 holds a token scoped to that one screen and begins fetching its playback manifest.

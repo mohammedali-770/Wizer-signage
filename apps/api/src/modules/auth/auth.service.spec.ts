@@ -66,7 +66,7 @@ function build() {
             sessionInactivityTimeoutMinutes: 30,
           }
         : key === 'app'
-          ? { dashboardUrl: 'http://localhost:3000', name: 'MasterSignage' }
+          ? { dashboardUrl: 'http://localhost:3000', name: 'Wizer Signage' }
           : undefined,
   };
 

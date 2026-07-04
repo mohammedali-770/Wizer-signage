@@ -6,11 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, User, UserRole, UserStatus } from '@prisma/client';
-import {
-  ACCOUNT_LOCK_MINUTES,
-  ACCOUNT_LOCK_THRESHOLD,
-  DEFAULT_PAGE_SIZE,
-} from '@master-signage/shared';
+import { ACCOUNT_LOCK_MINUTES, ACCOUNT_LOCK_THRESHOLD, DEFAULT_PAGE_SIZE } from '@wizer/shared';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { SessionsService } from '../sessions/sessions.service';

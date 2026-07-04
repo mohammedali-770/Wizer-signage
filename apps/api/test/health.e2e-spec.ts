@@ -30,7 +30,7 @@ describe('Health (e2e)', () => {
     const response = await request(app.getHttpServer()).get('/api/health');
     expect(response.status).toBe(200);
     expect(response.body.status).toBe('ok');
-    expect(response.body.service).toBe('master-signage-api');
+    expect(response.body.service).toBe('wizer-signage-api');
   });
 
   it('GET /api/health/ready -> 200 { status: "ok" }', async () => {

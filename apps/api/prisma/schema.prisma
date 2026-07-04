@@ -1,5 +1,5 @@
 // =============================================================================
-// MasterSignage — Prisma schema
+// Wizer Signage — Prisma schema
 // Multi-tenant digital signage SaaS. Backing store: Supabase Postgres.
 //
 // DESIGN NOTES
@@ -37,7 +37,7 @@ datasource db {
 // Enums
 // =============================================================================
 
-/// Platform-wide user roles (mirrors @master-signage/types UserRole).
+/// Platform-wide user roles (mirrors @wizer/types UserRole).
 enum UserRole {
   SUPER_ADMIN
   COMPANY_ADMIN

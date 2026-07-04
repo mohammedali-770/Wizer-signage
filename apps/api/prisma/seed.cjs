@@ -7,7 +7,7 @@
  *
  *   docker compose -f infra/docker/docker-compose.yml exec api node prisma/seed.cjs
  *
- * Locally: `pnpm --filter @master-signage/api db:seed` (runs this via `prisma db seed`).
+ * Locally: `pnpm --filter @wizer/api db:seed` (runs this via `prisma db seed`).
  *
  * Idempotent: upserts the Starter/Business/Enterprise plan catalog and a demo
  * Company + Super Admin + Company Admin. Re-running resets the plan catalog to
@@ -99,7 +99,7 @@ const PLAN_SEED = [
 
 async function main() {
   const superEmail = (
-    process.env.SEED_SUPERADMIN_EMAIL ?? 'superadmin@mastersignage.local'
+    process.env.SEED_SUPERADMIN_EMAIL ?? 'superadmin@wizer.local'
   ).toLowerCase();
   const superPassword = process.env.SEED_SUPERADMIN_PASSWORD ?? 'ChangeMe!2026Admin';
   const superName = process.env.SEED_SUPERADMIN_NAME ?? 'Platform Super Admin';
@@ -167,7 +167,7 @@ async function main() {
     },
   });
 
-  console.log('\nMasterSignage seed complete:');
+  console.log('\nWizer Signage seed complete:');
   console.log(`  Plans:          ${PLAN_SEED.map((p) => p.code).join(', ')}`);
   console.log(`  Company:        ${company.name} [${company.id}]`);
   console.log(`  Super Admin:    ${superAdmin.email}`);

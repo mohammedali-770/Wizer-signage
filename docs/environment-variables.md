@@ -1,7 +1,7 @@
 # Environment Variables Reference
 
 This document is the canonical reference for every environment variable used across the
-**MasterSignage** platform. The variable **names and spellings listed here are
+**Wizer Signage** platform. The variable **names and spellings listed here are
 contractual** — application code, Docker Compose files, Nginx, and the root
 `.env.example` all use these exact identifiers. Do not rename them.
 
@@ -101,7 +101,7 @@ are **enforced at boot from Phase 1** (secrets must be ≥16 chars). See
 | `JWT_ACCESS_TTL`                     | Yes          | api   | Access-token lifetime (seconds, or a duration string the auth layer accepts).              | `900` (15m)                          |
 | `JWT_REFRESH_TTL`                    | Yes          | api   | Refresh-token lifetime.                                                                    | `1209600` (14d)                      |
 | `SESSION_INACTIVITY_TIMEOUT_MINUTES` | Yes          | api   | Minutes of inactivity after which an authenticated session is invalidated.                 | `30`                                 |
-| `TWO_FACTOR_ISSUER`                  | No           | api   | Issuer label shown in authenticator apps for 2FA enrollment.                               | `MasterSignage` (default)            |
+| `TWO_FACTOR_ISSUER`                  | No           | api   | Issuer label shown in authenticator apps for 2FA enrollment.                               | `Wizer Signage` (default)            |
 
 ---
 
@@ -132,7 +132,7 @@ a **secret**.
 | `SMTP_USER`     | Yes      | api   | SMTP authentication username.                                  | `no-reply@example.com`                 |
 | `SMTP_PASSWORD` | Yes      | api   | **Secret.** SMTP authentication password / app password.       | `change-me`                            |
 | `SMTP_PASS`     | No       | api   | **Secret.** Alias for `SMTP_PASSWORD` (either is accepted).    | `change-me`                            |
-| `SMTP_FROM`     | Yes      | api   | Default From address for outgoing mail.                        | `MasterSignage <no-reply@example.com>` |
+| `SMTP_FROM`     | Yes      | api   | Default From address for outgoing mail.                        | `Wizer Signage <no-reply@example.com>` |
 | `SMTP_SECURE`   | No       | api   | Force implicit TLS on connect. Defaults to true for port 465.  | `false`                                |
 
 > When SMTP is **unset**, the API logs emails instead of sending them (dev mode);

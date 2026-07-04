@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    MasterSignage TV Player — base application theme.
+    Wizer Signage TV Player — base application theme.
 
     The actual UI is built with Jetpack Compose + Material3 (see ui/theme/Theme.kt), so
     this XML theme only provides a Compose-friendly, action-bar-free window background used
@@ -12,7 +12,7 @@
 -->
 <resources>
 
-    <style name="Theme.MasterSignage" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Wizer Signage" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/brand_surface_dark</item>
         <item name="android:statusBarColor">@color/brand_surface_dark</item>
         <item name="android:navigationBarColor">@color/brand_surface_dark</item>

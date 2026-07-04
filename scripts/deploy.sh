@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# MasterSignage — Production deploy
+# Wizer Signage — Production deploy
 # =============================================================================
 # Deploys the latest code to the current host:
 #   1. Pull latest from git.
@@ -35,7 +35,7 @@ DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 
 cd "${ROOT_DIR}"
 
-echo "==> [deploy] MasterSignage deploy starting ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+echo "==> [deploy] Wizer Signage deploy starting ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
 
 # --- 1. Pull latest ----------------------------------------------------------
 echo "==> [deploy] Pulling latest from origin/${DEPLOY_BRANCH}..."

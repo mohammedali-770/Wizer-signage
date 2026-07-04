@@ -151,7 +151,7 @@ kiosk PIN changed/reset; company settings changed; plus usage grace-period start
    elapses, creation is blocked (existing resources are untouched).
 8. **Tenant isolation:** a second company's Company Admin must never see the first company's
    locations/screens (every `:id` fetch is company-scoped → 404 across tenants).
-9. **Automated tests:** `pnpm --filter @master-signage/api test` covers company scoping,
+9. **Automated tests:** `pnpm --filter @wizer/api test` covers company scoping,
    location/screen usage-limit enforcement, archive/reactivate, tag/group assignment, volume
    validation, kiosk-PIN-not-raw, and audit logging.
 

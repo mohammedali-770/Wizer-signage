@@ -1,7 +1,7 @@
 # Future External API & Webhooks
 
 This document describes the **external developer API** and **webhook** capabilities that
-MasterSignage is **designed for in v1** and will **fully build out later**. The internal
+Wizer Signage is **designed for in v1** and will **fully build out later**. The internal
 API (consumed by the dashboard and the Android TV player) already exists under the global
 `/api` prefix; this page is about the _public-facing, per-company integration surface_.
 
@@ -13,7 +13,7 @@ API (consumed by the dashboard and the Android TV player) already exists under t
 
 ## 1. Goals
 
-- Let each **company (tenant)** integrate MasterSignage with their own systems via
+- Let each **company (tenant)** integrate Wizer Signage with their own systems via
   authenticated, rate-limited API keys.
 - Push real-time **webhook** notifications for significant signage events.
 - Provide stable **versioning** and self-serve **documentation**.
