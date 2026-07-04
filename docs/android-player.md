@@ -408,7 +408,7 @@ runtime). For production, build with your public API origin:
 
 ```kotlin
 // apps/android-tv-player/app/build.gradle.kts (release buildType)
-buildConfigField("String", "API_BASE_URL", "\"https://signage.example.com/api\"")
+buildConfigField("String", "API_BASE_URL", "\"https://wizer.sa/api\"")
 ```
 
 Or override per build via a Gradle property and read it in the build script.

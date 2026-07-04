@@ -14,7 +14,7 @@
 #
 # USAGE:
 #   scripts/bootstrap-self-signed-cert.sh <APP_DOMAIN> [--force]
-#   APP_DOMAIN=signage.example.com scripts/bootstrap-self-signed-cert.sh
+#   APP_DOMAIN=wizer.sa scripts/bootstrap-self-signed-cert.sh
 #
 # Then issue the real certificate (see docs/nginx-ssl.md) and reload Nginx.
 #
@@ -54,7 +54,7 @@ done
 DOMAIN="${ARG_DOMAIN:-${APP_DOMAIN:-}}"
 if [[ -z "${DOMAIN}" ]]; then
   echo "ERROR: APP_DOMAIN is required." >&2
-  echo "  $0 signage.example.com   (or set APP_DOMAIN in ${ENV_FILE})" >&2
+  echo "  $0 wizer.sa   (or set APP_DOMAIN in ${ENV_FILE})" >&2
   exit 1
 fi
 
@@ -133,7 +133,7 @@ cat <<EOF
   2) Issue the REAL Let's Encrypt certificate (see docs/nginx-ssl.md), e.g.:
        sudo certbot certonly --webroot \\
          -w /var/lib/docker/volumes/wizer-signage-certbot-webroot/_data \\
-         -d "${DOMAIN}" --email "\${LETSENCRYPT_EMAIL:-ops@example.com}" \\
+         -d "${DOMAIN}" --email "\${LETSENCRYPT_EMAIL:-ops@wizer.sa}" \\
          --agree-tos --no-eff-email --force-renewal
   3) Reload Nginx to pick up the real certificate:
        docker compose -f ${COMPOSE_FILE} exec nginx nginx -t \\

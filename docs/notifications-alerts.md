@@ -55,7 +55,7 @@ SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=apikey
 SMTP_PASSWORD=…          # or SMTP_PASS
-SMTP_FROM="Wizer Signage <no-reply@example.com>"
+SMTP_FROM="Wizer Signage <no-reply@wizer.sa>"
 SMTP_SECURE=false        # force TLS; otherwise derived from port 465
 ```
 

@@ -228,7 +228,7 @@ from `.env` afterward.
 ## 7. Nginx & SSL
 
 **Configure the domain:** just set `APP_DOMAIN` in the repo-root `.env` (e.g.
-`signage.example.com`). The nginx service renders its server blocks from
+`wizer.sa`). The nginx service renders its server blocks from
 `infra/nginx/templates/wizer-signage.conf.template` via `envsubst` at startup —
 no config file to hand-edit, and no domain is hardcoded. See
 [nginx-ssl.md](./nginx-ssl.md).

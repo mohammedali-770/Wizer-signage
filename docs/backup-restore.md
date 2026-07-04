@@ -145,8 +145,8 @@ Restores are **destructive** — they overwrite the target database. The restore
 
    ```bash
    docker compose -f infra/docker/docker-compose.yml start api dashboard
-   curl -fsS https://app.example.com/api/health
-   curl -fsS https://app.example.com/api/health/ready
+   curl -fsS https://wizer.sa/api/health
+   curl -fsS https://wizer.sa/api/health/ready
    ```
 
 8. **Exit maintenance** once health checks pass and spot checks look correct.

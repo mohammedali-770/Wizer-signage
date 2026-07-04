@@ -7,7 +7,7 @@
 # static conf, in the nginx service:
 #
 #   environment:
-#     APP_DOMAIN: "signage.example.com"
+#     APP_DOMAIN: "wizer.sa"
 #     NGINX_ENVSUBST_FILTER: "^APP_DOMAIN$"     # ONLY substitute APP_DOMAIN, so
 #                                               # nginx vars ($host, $scheme…) survive
 #   volumes:

@@ -10,7 +10,7 @@
 # copied into the volume and nginx reloaded.
 #
 # USAGE (manual, after the first issuance):
-#   sudo APP_DOMAIN=signage.example.com scripts/sync-letsencrypt-to-docker.sh
+#   sudo APP_DOMAIN=wizer.sa scripts/sync-letsencrypt-to-docker.sh
 #
 # USAGE (automatic on renewal) — install as a certbot deploy hook so every
 # renewal re-syncs and reloads nginx:
@@ -33,7 +33,7 @@ HOST_LETSENCRYPT_DIR="${HOST_LETSENCRYPT_DIR:-/etc/letsencrypt}"
 
 if [ -z "$DOMAIN" ]; then
   echo "ERROR: domain not provided. Set APP_DOMAIN or pass it as the first arg." >&2
-  echo "  sudo APP_DOMAIN=signage.example.com $0" >&2
+  echo "  sudo APP_DOMAIN=wizer.sa $0" >&2
   exit 1
 fi
 

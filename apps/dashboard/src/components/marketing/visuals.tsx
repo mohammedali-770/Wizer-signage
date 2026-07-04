@@ -83,7 +83,7 @@ export function DashboardMockup({ className }: { className?: string }) {
         <span className="h-2.5 w-2.5 rounded-full bg-[#EF4444]/80" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#F59E0B]/80" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#10B981]/80" />
-        <span className="ml-3 text-[11px] font-medium text-slate-400">app.wizer.sa / screens</span>
+        <span className="ml-3 text-[11px] font-medium text-slate-400">wizer.sa / screens</span>
       </div>
       <div className="grid grid-cols-[120px_1fr] gap-0">
         {/* sidebar */}

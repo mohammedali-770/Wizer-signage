@@ -34,7 +34,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_OUTPUT=standalone
 # Public API base URL is baked into the client bundle at BUILD time (Next.js
 # inlines NEXT_PUBLIC_*). Set it to your public API origin, e.g.
-# https://signage.example.com/api  — passed as a build arg from compose.
+# https://wizer.sa/api  — passed as a build arg from compose.
 # This is NOT a secret (it ships to the browser); never pass secrets this way.
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}

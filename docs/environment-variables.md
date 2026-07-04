@@ -48,17 +48,17 @@ Core process configuration shared by the API and Dashboard.
 
 Ports and base URLs that wire the services together and configure CORS / WebSockets.
 
-| Variable              | Required | Scope               | Description                                                                                                                                             | Example / Placeholder                           |
-| --------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `API_HOST`            | No       | api                 | Bind address for the API. Defaults to `0.0.0.0` so nginx can proxy to it across the Docker network; binding `127.0.0.1` inside a container causes 502s. | `0.0.0.0`                                       |
-| `API_PORT`            | Yes      | api                 | Port the NestJS API listens on. Routes are served under the global `/api` prefix.                                                                       | `3001`                                          |
-| `DASHBOARD_PORT`      | Yes      | dashboard           | Port the Next.js dashboard listens on.                                                                                                                  | `3000`                                          |
-| `API_URL`             | Yes      | dashboard/infra     | Server-to-server base URL of the API (used by the dashboard's server components and by Nginx).                                                          | `http://api:3001`                               |
-| `NEXT_PUBLIC_API_URL` | Yes      | dashboard           | **Public.** Browser-facing base URL of the API. Inlined into the client bundle.                                                                         | `https://app.example.com/api`                   |
-| `CORS_ORIGINS`        | Yes      | api                 | Comma-separated list of allowed browser origins for CORS.                                                                                               | `http://localhost:3000,https://app.example.com` |
-| `WS_PATH`             | Yes      | api/dashboard/infra | WebSocket path used for realtime device/dashboard sync. Nginx upgrades this path to the API.                                                            | `/ws`                                           |
-| `APP_URL`             | No       | api                 | Dashboard base URL used to build links in transactional emails (invitations, password reset).                                                           | `https://app.example.com`                       |
-| `DASHBOARD_URL`       | No       | api                 | Accepted **fallback** for `APP_URL` when it is not set.                                                                                                 | `https://app.example.com`                       |
+| Variable              | Required | Scope               | Description                                                                                                                                             | Example / Placeholder                    |
+| --------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `API_HOST`            | No       | api                 | Bind address for the API. Defaults to `0.0.0.0` so nginx can proxy to it across the Docker network; binding `127.0.0.1` inside a container causes 502s. | `0.0.0.0`                                |
+| `API_PORT`            | Yes      | api                 | Port the NestJS API listens on. Routes are served under the global `/api` prefix.                                                                       | `3001`                                   |
+| `DASHBOARD_PORT`      | Yes      | dashboard           | Port the Next.js dashboard listens on.                                                                                                                  | `3000`                                   |
+| `API_URL`             | Yes      | dashboard/infra     | Server-to-server base URL of the API (used by the dashboard's server components and by Nginx).                                                          | `http://api:3001`                        |
+| `NEXT_PUBLIC_API_URL` | Yes      | dashboard           | **Public.** Browser-facing base URL of the API. Inlined into the client bundle.                                                                         | `https://wizer.sa/api`                   |
+| `CORS_ORIGINS`        | Yes      | api                 | Comma-separated list of allowed browser origins for CORS.                                                                                               | `http://localhost:3000,https://wizer.sa` |
+| `WS_PATH`             | Yes      | api/dashboard/infra | WebSocket path used for realtime device/dashboard sync. Nginx upgrades this path to the API.                                                            | `/ws`                                    |
+| `APP_URL`             | No       | api                 | Dashboard base URL used to build links in transactional emails (invitations, password reset).                                                           | `https://wizer.sa`                       |
+| `DASHBOARD_URL`       | No       | api                 | Accepted **fallback** for `APP_URL` when it is not set.                                                                                                 | `https://wizer.sa`                       |
 
 > `NEXT_PUBLIC_API_URL` is **public**; `API_URL` is the internal address used inside the
 > Docker network and is not exposed to the browser.
@@ -112,7 +112,7 @@ the seed prints a warning. They are not read at runtime.
 
 | Variable                     | Required | Scope | Description                                        | Example / Placeholder    |
 | ---------------------------- | -------- | ----- | -------------------------------------------------- | ------------------------ |
-| `SEED_SUPERADMIN_EMAIL`      | No       | api   | Email for the seeded Super Admin account.          | `superadmin@example.com` |
+| `SEED_SUPERADMIN_EMAIL`      | No       | api   | Email for the seeded Super Admin account.          | `superadmin@wizer.local` |
 | `SEED_SUPERADMIN_PASSWORD`   | No       | api   | **Secret.** Password for the seeded Super Admin.   | `change-me`              |
 | `SEED_SUPERADMIN_NAME`       | No       | api   | Display name for the seeded Super Admin.           | `Super Admin`            |
 | `SEED_COMPANY_NAME`          | No       | api   | Name of the seeded demo company.                   | `Demo Company`           |
@@ -125,15 +125,15 @@ the seed prints a warning. They are not read at runtime.
 Outbound transactional email (invitations, alerts, password resets). The SMTP password is
 a **secret**.
 
-| Variable        | Required | Scope | Description                                                    | Example / Placeholder                  |
-| --------------- | -------- | ----- | -------------------------------------------------------------- | -------------------------------------- |
-| `SMTP_HOST`     | Yes      | api   | SMTP server hostname.                                          | `smtp.example.com`                     |
-| `SMTP_PORT`     | Yes      | api   | SMTP server port (`587` for STARTTLS, `465` for implicit TLS). | `587`                                  |
-| `SMTP_USER`     | Yes      | api   | SMTP authentication username.                                  | `no-reply@example.com`                 |
-| `SMTP_PASSWORD` | Yes      | api   | **Secret.** SMTP authentication password / app password.       | `change-me`                            |
-| `SMTP_PASS`     | No       | api   | **Secret.** Alias for `SMTP_PASSWORD` (either is accepted).    | `change-me`                            |
-| `SMTP_FROM`     | Yes      | api   | Default From address for outgoing mail.                        | `Wizer Signage <no-reply@example.com>` |
-| `SMTP_SECURE`   | No       | api   | Force implicit TLS on connect. Defaults to true for port 465.  | `false`                                |
+| Variable        | Required | Scope | Description                                                    | Example / Placeholder               |
+| --------------- | -------- | ----- | -------------------------------------------------------------- | ----------------------------------- |
+| `SMTP_HOST`     | Yes      | api   | SMTP server hostname.                                          | `smtp.example.com`                  |
+| `SMTP_PORT`     | Yes      | api   | SMTP server port (`587` for STARTTLS, `465` for implicit TLS). | `587`                               |
+| `SMTP_USER`     | Yes      | api   | SMTP authentication username.                                  | `no-reply@wizer.sa`                 |
+| `SMTP_PASSWORD` | Yes      | api   | **Secret.** SMTP authentication password / app password.       | `change-me`                         |
+| `SMTP_PASS`     | No       | api   | **Secret.** Alias for `SMTP_PASSWORD` (either is accepted).    | `change-me`                         |
+| `SMTP_FROM`     | Yes      | api   | Default From address for outgoing mail.                        | `Wizer Signage <no-reply@wizer.sa>` |
+| `SMTP_SECURE`   | No       | api   | Force implicit TLS on connect. Defaults to true for port 465.  | `false`                             |
 
 > When SMTP is **unset**, the API logs emails instead of sending them (dev mode);
 > every send is recorded in `EmailDeliveryLog` either way.
@@ -165,11 +165,11 @@ Drive the maintenance worker / cron jobs and data retention.
 
 ## Deployment / proxy (Phase 11)
 
-| Variable                | Required   | Scope   | Description                                                  | Example               |
-| ----------------------- | ---------- | ------- | ------------------------------------------------------------ | --------------------- |
-| `APP_DOMAIN`            | Yes (prod) | nginx   | Public domain for nginx `server_name` + TLS cert paths.      | `signage.example.com` |
-| `NGINX_ENVSUBST_FILTER` | No         | nginx   | Required only when using the nginx template: `^APP_DOMAIN$`. | `^APP_DOMAIN$`        |
-| `LETSENCRYPT_EMAIL`     | No         | certbot | Contact email for Let's Encrypt issuance/expiry notices.     | `ops@example.com`     |
+| Variable                | Required   | Scope   | Description                                                  | Example        |
+| ----------------------- | ---------- | ------- | ------------------------------------------------------------ | -------------- |
+| `APP_DOMAIN`            | Yes (prod) | nginx   | Public domain for nginx `server_name` + TLS cert paths.      | `wizer.sa`     |
+| `NGINX_ENVSUBST_FILTER` | No         | nginx   | Required only when using the nginx template: `^APP_DOMAIN$`. | `^APP_DOMAIN$` |
+| `LETSENCRYPT_EMAIL`     | No         | certbot | Contact email for Let's Encrypt issuance/expiry notices.     | `ops@wizer.sa` |
 
 > `NEXT_PUBLIC_API_URL` is **build-time** for the dashboard image (compose
 > `build.args`) — it is inlined into the browser bundle, so changing it requires

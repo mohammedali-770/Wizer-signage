@@ -186,7 +186,7 @@ services:
       # runs envsubst on /etc/nginx/templates/*.template at startup and writes
       # the result to /etc/nginx/conf.d/. REQUIRED — the stack will not start
       # without it (no hardcoded domain lives in the active config).
-      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN must be set in .env (e.g. signage.example.com)}
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN must be set in .env (e.g. wizer.sa)}
       # Substitute ONLY $APP_DOMAIN so nginx runtime vars ($host, $scheme, …)
       # are preserved. The doubled $$ escapes compose interpolation.
       NGINX_ENVSUBST_FILTER: '^APP_DOMAIN$$'

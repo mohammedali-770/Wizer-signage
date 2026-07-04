@@ -20,7 +20,7 @@ stack. Nginx terminates TLS and routes traffic to the application services:
 
 ## Before you start
 
-1. Set `APP_DOMAIN` in the repo-root `.env` (e.g. `signage.example.com`). The
+1. Set `APP_DOMAIN` in the repo-root `.env` (e.g. `wizer.sa`). The
    compose `nginx` service substitutes it into `server_name` and the
    `ssl_certificate*` paths at startup — nothing to hand-edit.
 2. Make sure DNS for your domain points at the host running this stack.
@@ -56,8 +56,8 @@ docker run --rm \
   -v wizer-signage-letsencrypt:/etc/letsencrypt \
   certbot/certbot certonly \
     --webroot -w /var/www/certbot \
-    -d signage.example.com \
-    --email admin@example.com \
+    -d wizer.sa \
+    --email ops@wizer.sa \
     --agree-tos --no-eff-email
 ```
 
@@ -66,7 +66,7 @@ Notes:
 - Nginx must already be running and reachable on port 80 so the challenge can
   be served. If TLS is not yet issued, temporarily comment out the HTTPS
   server block (or its `ssl_certificate*` lines) so nginx can start.
-- Replace `signage.example.com` and the email with your real values.
+- Replace `wizer.sa` and the email with your real values.
 
 ## Renewing certificates
 

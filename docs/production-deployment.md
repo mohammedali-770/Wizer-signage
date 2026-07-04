@@ -24,7 +24,7 @@ Compose services (see `infra/docker/docker-compose.yml`): **api** (build context
 ## 1. Server prerequisites
 
 - Ubuntu 22.04 LTS (or newer) VPS with a public IPv4 address.
-- A domain name you control (e.g. `app.example.com`).
+- A domain name you control (e.g. `wizer.sa`).
 - Root or a sudo-capable non-root user (recommended; see hardening below).
 - Open ports **80** and **443** in the cloud firewall / security group.
 
@@ -75,8 +75,8 @@ LOG_LEVEL=info
 API_PORT=3001
 DASHBOARD_PORT=3000
 API_URL=http://api:3001
-NEXT_PUBLIC_API_URL=https://app.example.com/api
-CORS_ORIGINS=https://app.example.com
+NEXT_PUBLIC_API_URL=https://wizer.sa/api
+CORS_ORIGINS=https://wizer.sa
 WS_PATH=/ws
 
 # Supabase (external) — database & storage
@@ -97,9 +97,9 @@ SESSION_INACTIVITY_TIMEOUT_MINUTES=30
 # Email
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
-SMTP_USER=no-reply@example.com
+SMTP_USER=no-reply@wizer.sa
 SMTP_PASSWORD=...                        # secret
-SMTP_FROM=Wizer Signage <no-reply@example.com>
+SMTP_FROM=Wizer Signage <no-reply@wizer.sa>
 
 # Map
 MAP_PROVIDER=google
@@ -108,7 +108,7 @@ MAP_API_KEY=...
 
 > **Note:** `API_URL` uses the **internal** Docker service name (`http://api:3001`) so the
 > dashboard and Nginx reach the API over the Compose network. `NEXT_PUBLIC_API_URL` is the
-> **public** browser URL and goes through Nginx (`https://app.example.com/api`).
+> **public** browser URL and goes through Nginx (`https://wizer.sa/api`).
 >
 > Generate strong secrets: `openssl rand -base64 48`. Never commit `.env`.
 
@@ -119,10 +119,10 @@ MAP_API_KEY=...
 Create an **A record** for your hostname pointing at the VPS public IP:
 
 ```
-app.example.com.   A   <VPS_PUBLIC_IP>
+wizer.sa.   A   <VPS_PUBLIC_IP>
 ```
 
-Wait for propagation (`dig +short app.example.com` should return your IP) before requesting
+Wait for propagation (`dig +short wizer.sa` should return your IP) before requesting
 certificates.
 
 ---
@@ -138,7 +138,7 @@ certbot issue the real cert. Full details in [nginx-ssl.md](./nginx-ssl.md).
    volume name from compose, is safe to re-run, and won't overwrite a real cert:
 
    ```bash
-   export APP_DOMAIN=app.example.com
+   export APP_DOMAIN=wizer.sa
    scripts/bootstrap-self-signed-cert.sh "$APP_DOMAIN"
    docker compose -f infra/docker/docker-compose.yml up -d --build
    ```
@@ -150,7 +150,7 @@ certbot issue the real cert. Full details in [nginx-ssl.md](./nginx-ssl.md).
    ```bash
    docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.certbot.yml \
      run --rm certbot certonly --webroot -w /var/www/certbot \
-     -d "$APP_DOMAIN" --email admin@example.com --agree-tos --no-eff-email --force-renewal
+     -d "$APP_DOMAIN" --email ops@wizer.sa --agree-tos --no-eff-email --force-renewal
    ```
 
 3. **Reload Nginx to pick up the real certificate.** The TLS server block
@@ -205,7 +205,7 @@ A healthy API returns:
 { "status": "ok", "service": "...", "version": "...", "uptime": 0, "timestamp": "..." }
 ```
 
-Open `https://app.example.com/` to confirm the dashboard loads.
+Open `https://wizer.sa/` to confirm the dashboard loads.
 
 ---
 

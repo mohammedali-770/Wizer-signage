@@ -30,21 +30,21 @@ rendered server blocks to `/etc/nginx/conf.d/`. You only set one variable:
 
 ```bash
 # repo-root .env (see infra/docker/.env.production.example)
-APP_DOMAIN=signage.example.com
+APP_DOMAIN=wizer.sa
 ```
 
 The compose file wires this automatically:
 
 ```yaml
 environment:
-  APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN must be set in .env (e.g. signage.example.com)}
+  APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN must be set in .env (e.g. wizer.sa)}
   NGINX_ENVSUBST_FILTER: '^APP_DOMAIN$$' # only substitute APP_DOMAIN
 ```
 
 `NGINX_ENVSUBST_FILTER` is mandatory — without it `envsubst` would also clobber
 nginx runtime variables like `$host`. The `:?` guard means the stack refuses to
 start (before recreating the container) if `APP_DOMAIN` is unset, rather than
-rendering a broken empty `server_name`/cert path. `signage.example.com` now lives
+rendering a broken empty `server_name`/cert path. `wizer.sa` now lives
 only in docs/examples/templates — never in an active config file.
 
 ## DNS & firewall
