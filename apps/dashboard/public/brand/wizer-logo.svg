@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-label="WIZER">
+  <defs>
+    <linearGradient id="wizerGrad" x1="0" y1="0" x2="100" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <path d="M22 33 L36 71 M36 71 L50 51 M50 51 L64 71 M64 71 L78 33 M22 33 L50 51 M78 33 L50 51"
+        stroke="url(#wizerGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M62 4 L64.1 10.9 L71 13 L64.1 15.1 L62 22 L59.9 15.1 L53 13 L59.9 10.9 Z" fill="url(#wizerGrad)"/>
+  <circle cx="22" cy="33" r="7.5" fill="#fff" stroke="url(#wizerGrad)" stroke-width="5.5"/>
+  <circle cx="78" cy="33" r="7.5" fill="#fff" stroke="url(#wizerGrad)" stroke-width="5.5"/>
+  <circle cx="50" cy="51" r="7.5" fill="#fff" stroke="url(#wizerGrad)" stroke-width="5.5"/>
+  <circle cx="36" cy="71" r="7.5" fill="#fff" stroke="url(#wizerGrad)" stroke-width="5.5"/>
+  <circle cx="64" cy="71" r="7.5" fill="#fff" stroke="url(#wizerGrad)" stroke-width="5.5"/>
+</svg>
