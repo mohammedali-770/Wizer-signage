@@ -107,7 +107,7 @@ Restores are **destructive** — they overwrite the target database. The restore
    the API (and dashboard) so nothing is writing:
 
    ```bash
-   docker compose -f infra/docker/docker-compose.yml stop api dashboard
+   docker compose --env-file .env -f infra/docker/docker-compose.yml stop api dashboard
    ```
 
 2. **Take a safety dump of the current state** (your rollback point):
@@ -144,7 +144,7 @@ Restores are **destructive** — they overwrite the target database. The restore
 7. **Restart services and health-check:**
 
    ```bash
-   docker compose -f infra/docker/docker-compose.yml start api dashboard
+   docker compose --env-file .env -f infra/docker/docker-compose.yml start api dashboard
    curl -fsS https://wizer.sa/api/health
    curl -fsS https://wizer.sa/api/health/ready
    ```

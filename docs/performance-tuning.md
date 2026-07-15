@@ -17,7 +17,7 @@ added instrumentation so timings can be measured on production.
 
 ```bash
 # On the VPS, tail timings for a few minutes of real usage:
-docker compose -f infra/docker/docker-compose.yml logs -f api | grep -E "SLOW|query "
+docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f api | grep -E "SLOW|query "
 ```
 
 **Browser-side:** DevTools → Network. Compare the number of requests and total

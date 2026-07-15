@@ -9,7 +9,7 @@ the Phase 0–11 build and reuses the existing files (`infra/docker/*`, `scripts
 >
 > ```bash
 > export STACK=/opt/wizer-signage
-> export DC="docker compose -f infra/docker/docker-compose.yml"   # run from $STACK
+> export DC="docker compose --env-file .env -f infra/docker/docker-compose.yml"   # run from $STACK
 > export APP_DOMAIN="staging.example.com"                          # your staging domain
 > ```
 >

@@ -66,6 +66,14 @@ cp .env.example .env
 chmod 600 .env
 ```
 
+> **Why every compose command below passes `--env-file .env`:** Docker Compose v2
+> resolves `${VAR}` interpolation (e.g. nginx's `APP_DOMAIN`, the dashboard's
+> `NEXT_PUBLIC_API_URL` build arg) from the **project directory** — the directory
+> of the compose file (`infra/docker/`) — **not** your current working directory.
+> Without the flag, a repo-root `.env` is silently ignored for interpolation:
+> nginx refuses to start and the dashboard bakes in `http://localhost:3001/api`.
+> (`scripts/deploy.sh` and `infra/Makefile` pass it automatically.)
+
 Required production values (full reference: [environment-variables.md](./environment-variables.md)):
 
 ```dotenv
@@ -140,7 +148,7 @@ certbot issue the real cert. Full details in [nginx-ssl.md](./nginx-ssl.md).
    ```bash
    export APP_DOMAIN=wizer.sa
    scripts/bootstrap-self-signed-cert.sh "$APP_DOMAIN"
-   docker compose -f infra/docker/docker-compose.yml up -d --build
+   docker compose --env-file .env -f infra/docker/docker-compose.yml up -d --build
    ```
 
 2. **Request certificates via the certbot webroot plugin** (shares the ACME webroot volume
@@ -148,7 +156,7 @@ certbot issue the real cert. Full details in [nginx-ssl.md](./nginx-ssl.md).
    [nginx-ssl.md](./nginx-ssl.md)):
 
    ```bash
-   docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.certbot.yml \
+   docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.certbot.yml \
      run --rm certbot certonly --webroot -w /var/www/certbot \
      -d "$APP_DOMAIN" --email ops@wizer.sa --agree-tos --no-eff-email --force-renewal
    ```
@@ -158,8 +166,8 @@ certbot issue the real cert. Full details in [nginx-ssl.md](./nginx-ssl.md).
    was using the placeholder; certbot just replaced the cert files:
 
    ```bash
-   docker compose -f infra/docker/docker-compose.yml exec nginx nginx -t \
-     && docker compose -f infra/docker/docker-compose.yml exec nginx nginx -s reload
+   docker compose --env-file .env -f infra/docker/docker-compose.yml exec nginx nginx -t \
+     && docker compose --env-file .env -f infra/docker/docker-compose.yml exec nginx nginx -s reload
    ```
 
 4. **Auto-renewal.** Certbot certs last 90 days. Run a periodic renewal (cron / systemd
@@ -167,7 +175,7 @@ certbot issue the real cert. Full details in [nginx-ssl.md](./nginx-ssl.md).
 
    ```bash
    # crontab -e  (renew daily; reload nginx if anything changed)
-   0 3 * * * cd /opt/wizer-signage && docker compose -f infra/docker/docker-compose.yml run --rm certbot renew --webroot -w /var/www/certbot --quiet && docker compose -f infra/docker/docker-compose.yml exec nginx nginx -s reload
+   0 3 * * * cd /opt/wizer-signage && docker compose --env-file .env -f infra/docker/docker-compose.yml run --rm certbot renew --webroot -w /var/www/certbot --quiet && docker compose --env-file .env -f infra/docker/docker-compose.yml exec nginx nginx -s reload
    ```
 
 > Exact file names/volumes are defined in `infra/nginx/` and
@@ -178,8 +186,8 @@ certbot issue the real cert. Full details in [nginx-ssl.md](./nginx-ssl.md).
 ## 7. Bring up the full stack
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml up -d --build
-docker compose -f infra/docker/docker-compose.yml ps
+docker compose --env-file .env -f infra/docker/docker-compose.yml up -d --build
+docker compose --env-file .env -f infra/docker/docker-compose.yml ps
 ```
 
 ---
@@ -191,7 +199,7 @@ After the containers report healthy:
 ```bash
 # direct internal check (the API port is NOT published in prod — check inside
 # the container; the server binds 0.0.0.0, so 127.0.0.1 works).
-docker compose -f infra/docker/docker-compose.yml exec api \
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec api \
   wget -qO- http://127.0.0.1:3001/api/health
 
 # through the public reverse proxy
@@ -216,11 +224,11 @@ destructive command runs unattended). Apply them explicitly as a one-shot:
 
 ```bash
 # Build images first (so the API image with the schema + migrations exists):
-docker compose -f infra/docker/docker-compose.yml build
+docker compose --env-file .env -f infra/docker/docker-compose.yml build
 
 # Apply Prisma migrations (uses DIRECT_URL). The prisma CLI + schema ship in the
 # API image (prisma is a production dependency), so this runs in the container:
-docker compose -f infra/docker/docker-compose.yml run --rm api npx prisma migrate deploy
+docker compose --env-file .env -f infra/docker/docker-compose.yml run --rm api npx prisma migrate deploy
 
 # FIRST deploy only — create the initial Super Admin + a Starter plan/demo.
 # The seed uses ts-node (a dev dependency, NOT in the production image), so run
@@ -240,14 +248,14 @@ nightly run (incl. retention cleanup) at 03:30, and a `pg_dump` backup at 02:00
 
 ```bash
 # Verify the worker is up and cron is firing:
-docker compose -f infra/docker/docker-compose.yml logs -f maintenance
+docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f maintenance
 
 # Run a job on demand:
-docker compose -f infra/docker/docker-compose.yml exec maintenance \
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec maintenance \
   node dist/maintenance/maintenance.cli.js all
 
 # Manual backup now:
-docker compose -f infra/docker/docker-compose.yml exec maintenance bash scripts/backup-db.sh
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec maintenance bash scripts/backup-db.sh
 ```
 
 See [data-retention.md](./data-retention.md) and [backup-restore.md](./backup-restore.md).
@@ -285,9 +293,9 @@ A typical deploy does:
 ```bash
 cd /opt/wizer-signage
 git fetch --tags && git checkout <new-tag>        # pin a release tag
-docker compose -f infra/docker/docker-compose.yml build
-docker compose -f infra/docker/docker-compose.yml run --rm api npx prisma migrate deploy
-docker compose -f infra/docker/docker-compose.yml up -d
+docker compose --env-file .env -f infra/docker/docker-compose.yml build
+docker compose --env-file .env -f infra/docker/docker-compose.yml run --rm api npx prisma migrate deploy
+docker compose --env-file .env -f infra/docker/docker-compose.yml up -d
 docker image prune -f
 ```
 
@@ -305,7 +313,7 @@ docker image prune -f
 3. **Verify** health + login again (§8d). Migration caution: never edit applied
    migrations; write a new corrective migration instead.
 
-To stop everything: `docker compose -f infra/docker/docker-compose.yml down`
+To stop everything: `docker compose --env-file .env -f infra/docker/docker-compose.yml down`
 (add `-v` only if you intend to delete volumes — this destroys backups/certs).
 
 ---
@@ -314,12 +322,12 @@ To stop everything: `docker compose -f infra/docker/docker-compose.yml down`
 
 ```bash
 # all services, follow
-docker compose -f infra/docker/docker-compose.yml logs -f
+docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f
 
 # a single service
-docker compose -f infra/docker/docker-compose.yml logs -f api
-docker compose -f infra/docker/docker-compose.yml logs -f dashboard
-docker compose -f infra/docker/docker-compose.yml logs -f nginx
+docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f api
+docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f dashboard
+docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f nginx
 ```
 
 Container logs are managed by the Docker logging driver; Nginx access/error logs are inside

@@ -129,13 +129,13 @@ cat <<EOF
 
 [bootstrap] Done. Next steps:
   1) Start the stack (Nginx can now boot on :443 with the placeholder):
-       docker compose -f ${COMPOSE_FILE} up -d
+       docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} up -d
   2) Issue the REAL Let's Encrypt certificate (see docs/nginx-ssl.md), e.g.:
        sudo certbot certonly --webroot \\
          -w /var/lib/docker/volumes/wizer-signage-certbot-webroot/_data \\
          -d "${DOMAIN}" --email "\${LETSENCRYPT_EMAIL:-ops@wizer.sa}" \\
          --agree-tos --no-eff-email --force-renewal
   3) Reload Nginx to pick up the real certificate:
-       docker compose -f ${COMPOSE_FILE} exec nginx nginx -t \\
-         && docker compose -f ${COMPOSE_FILE} exec nginx nginx -s reload
+       docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} exec nginx nginx -t \\
+         && docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} exec nginx nginx -s reload
 EOF

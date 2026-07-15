@@ -89,13 +89,13 @@ After changing any config file or renewing certificates, reload without
 downtime:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml exec nginx nginx -s reload
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec nginx nginx -s reload
 ```
 
 Validate the configuration before reloading:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml exec nginx nginx -t
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec nginx nginx -t
 ```
 
 See `docs/production-deployment.md` for the full deployment workflow.

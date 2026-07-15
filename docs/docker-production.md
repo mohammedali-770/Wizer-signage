@@ -45,19 +45,19 @@ non-secret `NEXT_PUBLIC_API_URL`). Healthchecks hit `/api/health` (api), `/`
 # infra/docker/.env.production.example).
 
 # Build all images (dashboard NEXT_PUBLIC_API_URL comes from .env):
-docker compose -f infra/docker/docker-compose.yml build
+docker compose --env-file .env -f infra/docker/docker-compose.yml build
 
 # Apply database migrations (run once per deploy, BEFORE starting — see runbook):
-docker compose -f infra/docker/docker-compose.yml run --rm \
+docker compose --env-file .env -f infra/docker/docker-compose.yml run --rm \
   -e NODE_ENV=production api npx prisma migrate deploy
 
 # Start the stack:
-docker compose -f infra/docker/docker-compose.yml up -d
+docker compose --env-file .env -f infra/docker/docker-compose.yml up -d
 
 # Verify:
-docker compose -f infra/docker/docker-compose.yml ps
+docker compose --env-file .env -f infra/docker/docker-compose.yml ps
 curl -fsS https://$APP_DOMAIN/api/health
-docker compose -f infra/docker/docker-compose.yml logs -f maintenance
+docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f maintenance
 ```
 
 > The dashboard's `NEXT_PUBLIC_API_URL` is **build-time**. If you change your
@@ -78,7 +78,7 @@ Each service sets `deploy.resources.limits` (api 1.5cpu/768M, dashboard
 ## Local development with a Postgres container
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.dev.yml up -d
+docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.dev.yml up -d
 ```
 
 This adds a `postgres:16` service for offline dev only — **never** in production.

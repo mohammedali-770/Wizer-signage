@@ -139,7 +139,7 @@ for real emails (otherwise emails are logged in dev). The seed is plain CommonJS
 `pnpm --filter @wizer/api db:seed`, and **in the production container** via:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml exec api node prisma/seed.cjs
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec api node prisma/seed.cjs
 ```
 
 It seeds the **Starter / Business / Enterprise** plans (SAR, editable in the DB; idempotent —

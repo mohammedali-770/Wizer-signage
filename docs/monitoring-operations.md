@@ -9,12 +9,12 @@ a bundled observability stack.
 Everything logs to **stdout/stderr** and is captured by Docker's `json-file`
 driver with rotation (`max-size=10m, max-file=5`, set per service in the compose).
 
-| Source                    | View                                                            |
-| ------------------------- | --------------------------------------------------------------- |
-| API                       | `docker compose -f infra/docker/docker-compose.yml logs -f api` |
-| Dashboard                 | `… logs -f dashboard`                                           |
-| Maintenance (cron + jobs) | `… logs -f maintenance`                                         |
-| Nginx access/error        | `… logs -f nginx` (or mount `/var/log/nginx`)                   |
+| Source                    | View                                                                            |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| API                       | `docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f api` |
+| Dashboard                 | `… logs -f dashboard`                                                           |
+| Maintenance (cron + jobs) | `… logs -f maintenance`                                                         |
+| Nginx access/error        | `… logs -f nginx` (or mount `/var/log/nginx`)                                   |
 
 - **API request logging** is handled at the edge by **nginx access logs**
   (method, path, status, bytes, referrer, UA, forwarded-for) — see the `main`
