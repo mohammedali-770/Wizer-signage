@@ -153,7 +153,7 @@ See [production-deployment.md](./production-deployment.md), [docker-production.m
 - [x] Backup production wiring (pg_dump → volume, recorded in BackupRecord, failure alerts, restore docs)
 - [x] Logging/observability foundation ([monitoring-operations.md](./monitoring-operations.md)); load-test foundation (k6, [performance-testing.md](./performance-testing.md))
 - [x] Security hardening review ([security-hardening.md](./security-hardening.md)); Android production handoff notes
-- [ ] Docker image build verification — NOT runnable in this sandbox (no Docker CLI); compose YAML validated, build documented
+- [x] Docker image build verification — all three production images (api, dashboard, maintenance) build successfully; verified end-to-end (migrate → seed → boot → health/ready → login/trial-signup; dashboard serves EN/AR; maintenance CLI runs all jobs)
 
 ---
 

@@ -11,9 +11,9 @@ software. _Smart Systems. Clearer Decisions._
 > text, the npm workspace scope (`@wizer/*`), Docker images/containers (`wizer-signage/*`),
 > the API service name, the Android **app id** _and_ **source package** (`com.wizer.signage`).
 > The Android Kotlin package move (`com.mastersignage.player` → `com.wizer.signage`) is
-> mechanically complete and internally consistent; run a Gradle/APK build to confirm on the
-> next Android CI pass. The old `/mastersignage` and `/master-signage` URLs still redirect to
-> `/signage` for backward compatibility.
+> complete and **build-verified**: `assembleDebug` / `assembleRelease` and unit tests pass,
+> and the built APK's package name is `com.wizer.signage`. The old `/mastersignage` and
+> `/master-signage` URLs still redirect to `/signage` for backward compatibility.
 
 > **Status: Feature-complete (Phases 0–11 done) — pre-launch verification.**
 > All product phases in [docs/roadmap.md](docs/roadmap.md) are implemented:
