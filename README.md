@@ -15,10 +15,14 @@ software. _Smart Systems. Clearer Decisions._
 > next Android CI pass. The old `/mastersignage` and `/master-signage` URLs still redirect to
 > `/signage` for backward compatibility.
 
-> **Status: Phase 0 — Scaffold.** This repository currently contains the
-> architecture, monorepo skeleton, tooling, and minimal runnable placeholders.
-> Database schema, authentication, and product features land in later phases.
-> See [docs/roadmap.md](docs/roadmap.md).
+> **Status: Feature-complete (Phases 0–11 done) — pre-launch verification.**
+> All product phases in [docs/roadmap.md](docs/roadmap.md) are implemented:
+> multi-tenant auth/RBAC, Super Admin SaaS core, company/content/playlist
+> management, scheduling, the Android TV player with offline cache, monitoring,
+> emergency broadcast, proof-of-play, notifications/imports/exports, retention/
+> backups, and production Docker/Nginx hardening. Remaining work before launch
+> is production provisioning and deployment verification (see
+> [docs/production-deployment.md](docs/production-deployment.md)).
 
 ## Monorepo layout
 
