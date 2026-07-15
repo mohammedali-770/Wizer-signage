@@ -82,6 +82,16 @@ class DeviceStore(context: Context) {
     val isPaired: Boolean
         get() = !deviceToken.isNullOrBlank() && !screenId.isNullOrBlank()
 
+    /**
+     * Whether the player relaunches itself after a device reboot (BootReceiver).
+     * Defaults to ON — this is a dedicated signage device. Internal preference
+     * (not sensitive, no UI); flip via this property if a future settings
+     * surface or remote config needs to control it.
+     */
+    var autoStartOnBoot: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_START_ON_BOOT, true)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_START_ON_BOOT, value).apply()
+
     /** Persist a completed pairing (token + bound screen) and clear in-flight pairing data. */
     fun savePairing(token: String, screenId: String, screenName: String?) {
         prefs.edit()
@@ -147,6 +157,7 @@ class DeviceStore(context: Context) {
         const val KEY_PAIRING_CODE = "pairing_code"
         const val KEY_SCREEN_ID = "screen_id"
         const val KEY_SCREEN_NAME = "screen_name"
+        const val KEY_AUTO_START_ON_BOOT = "auto_start_on_boot"
         val ALL_KEYS = listOf(
             KEY_DEVICE_ID, KEY_DEVICE_TOKEN, KEY_PAIRING_SECRET, KEY_PAIRING_CODE, KEY_SCREEN_ID, KEY_SCREEN_NAME,
         )

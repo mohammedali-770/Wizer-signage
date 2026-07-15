@@ -55,19 +55,27 @@
         </activity>
 
         <!--
-            Placeholder for the future boot receiver that auto-starts the player after a
-            device reboot (kiosk / auto-start, Phase 6/8). Kept commented until the
-            BootReceiver class exists so the manifest stays valid in Phase 0.
-
+            Auto-start after reboot. `exported="true"` is REQUIRED for the system to
+            deliver these broadcasts to a manifest-declared receiver; it does not open
+            an attack surface for BOOT_COMPLETED (a protected broadcast only the OS may
+            send), and the receiver validates the action and ignores everything else.
+            QUICKBOOT_POWERON covers TV boxes whose vendor "fast boot" skips a full
+            BOOT_COMPLETED. LOCKED_BOOT_COMPLETED is intentionally absent: the pairing
+            state lives in credential-encrypted storage (unavailable pre-unlock) and TV
+            devices without lock credentials deliver BOOT_COMPLETED promptly anyway.
+            NOTE: after first install or a user force-stop, Android places the app in
+            the stopped state and delivers NO boot broadcasts until the app is opened
+            manually once (platform behaviour, cannot be bypassed).
+        -->
         <receiver
             android:name=".system.BootReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
-        -->
 
     </application>
 

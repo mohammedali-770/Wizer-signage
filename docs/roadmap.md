@@ -108,7 +108,8 @@ See [monitoring.md](./monitoring.md).
 - [x] Screenshots (manual; automatic foundation) — best-effort PixelCopy capture of the app's own window (+ documented limits)
 - [x] Remote commands (polling delivery): force sync, refresh manifest, restart playback, clear cache, screenshot, reboot (unsupported→fail), reload config, unpair — full command lifecycle
 - [ ] Realtime WebSocket gateway / Redis fan-out — deferred (polling delivery shipped; WebSocket is a future enhancement)
-- [ ] Kiosk mode; auto-start on boot; APK update mechanism — deferred to a later phase
+- [x] Auto-start on boot — manifest BootReceiver (BOOT_COMPLETED + QUICKBOOT_POWERON) relaunches the player after reboot; enabled by default, best-effort on consumer OEMs (see android-player.md)
+- [ ] Kiosk mode; APK update mechanism — deferred to a later phase
 
 ## Phase 9 — Emergency Broadcast, Proof of Play, Reports `[x] done`
 

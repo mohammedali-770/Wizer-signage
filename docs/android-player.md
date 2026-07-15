@@ -318,7 +318,8 @@ reports sync/cache status to the dashboard.
 
 - No real heartbeat, screenshots, proof-of-play, remote actions, or
   emergency-broadcast runtime (Phase 8+).
-- No full kiosk mode or auto-start on boot.
+- No full kiosk mode (auto-start on boot has since been implemented — see
+  "Auto-start on boot" below).
 - No in-app APK auto-update.
 - **URL (WebView) content is not cached** — it is skipped when offline.
 - PDF shows the **first page only** (no multi-page rotation yet).
@@ -362,7 +363,7 @@ hardware/OEM — see [device-limitations.md](./device-limitations.md).
 | Proof of play               | Report actual playback events (start/complete/fail/skip/interrupt); bounded offline buffer + flush. | 9 ✓   |
 | Emergency pre-emption       | Detect EMERGENCY manifest, interrupt the running item, play emergency, revert on end.               | 9 ✓   |
 | Kiosk mode                  | Stay pinned full-screen and block exit to the launcher (device dependent).                          | later |
-| Auto-start on boot          | Relaunch automatically after a power cycle (device dependent).                                      | later |
+| Auto-start on boot          | Relaunch automatically after a power cycle (best-effort; see "Auto-start on boot").                 | ✓     |
 | In-app APK update           | Self-update to a newer APK pushed/required by the platform.                                         | later |
 | Minimum-version enforcement | Refuse to run / force update when below the required minimum version.                               | later |
 
@@ -394,6 +395,96 @@ self-update, governed centrally by the **Super Admin**:
 
 Detailed UX, rollout/targeting rules, and rollback handling are defined when
 this ships in Phase 9.
+
+---
+
+## Auto-start on boot (implemented)
+
+The player relaunches itself automatically after the TV or box reboots, so a
+dedicated signage screen returns to playback (or the pairing screen) without
+anyone opening the app manually.
+
+### How it works
+
+- A manifest-declared `BroadcastReceiver`
+  (`com.wizer.signage.system.BootReceiver`) listens for
+  `android.intent.action.BOOT_COMPLETED` and, for TV boxes with a vendor
+  "fast boot" mode, `android.intent.action.QUICKBOOT_POWERON`.
+- On a supported action it starts the existing `MainActivity` with
+  `FLAG_ACTIVITY_NEW_TASK`. `MainActivity` is `launchMode="singleTask"`, so an
+  already-running player is brought to the front instead of duplicated, and the
+  activity itself routes to the **pairing screen** (unpaired) or the **player**
+  (paired) exactly as on a manual launch — pairing state, cached media,
+  schedules, and offline playback are untouched.
+- The launch-decision logic lives in `system/BootLaunch.kt` (pure Kotlin,
+  covered by `BootLaunchTest`); the receiver validates the action, ignores
+  everything else, never throws out of `onReceive`, and logs nothing sensitive.
+- Auto-start is **enabled by default** (dedicated-device use case). It can be
+  turned off internally via `DeviceStore.autoStartOnBoot = false` (no settings
+  UI exists in the player, so no toggle was added).
+- Only `RECEIVE_BOOT_COMPLETED` is required (already declared). No foreground
+  service, no `SYSTEM_ALERT_WINDOW`, no accessibility services.
+- `LOCKED_BOOT_COMPLETED` (direct boot) is intentionally **not** handled: the
+  device token lives in credential-encrypted storage that is unavailable before
+  first unlock, and TV signage devices without lock-screen credentials deliver
+  `BOOT_COMPLETED` promptly anyway.
+
+### Platform limitations (honest expectations)
+
+- **Fresh install / force-stop:** Android puts an app in the _stopped state_
+  after installation and after the user force-stops it. A stopped app receives
+  **no broadcasts** — the app must be **opened manually once** before boot
+  launches resume. This is platform behaviour; no app can bypass it.
+- **Android 10+ background-activity-launch restrictions:** starting an activity
+  from the background is blocked in general, but receivers of system broadcasts
+  like `BOOT_COMPLETED` are exempt on stock Android/Google TV. Some OEM builds
+  (and phone-oriented "battery manager" firmwares on generic boxes) still
+  block, delay, or require a per-app "Auto-start" permission — check the OEM
+  settings (e.g. _Settings → Apps → Special access → Auto-start_, or vendor
+  battery/background restrictions) and exempt the player.
+- **Best-effort vs. guaranteed:** on consumer hardware this is _best-effort_.
+  **Guaranteed** relaunch on a dedicated device requires provisioning outside
+  this app's scope: device-owner (MDM/EMM) with lock-task/kiosk, or setting the
+  player as the default HOME/launcher. Those are deliberate non-goals here (see
+  [device-limitations.md](./device-limitations.md)).
+
+### Manual verification on a physical Android TV
+
+1. Install the debug APK (`adb install -r app-debug.apk`) or a signed release
+   APK on the TV.
+2. **Open the app once** (mandatory — clears the stopped state so boot
+   broadcasts are delivered).
+3. Pair the device with Wizer Signage (pairing code → claim in the dashboard).
+4. Confirm content playback (schedule or fallback content plays).
+5. Reboot the TV normally (power menu → Restart, or `adb reboot`).
+6. After the TV finishes booting, confirm the player comes back to the
+   foreground by itself (allow up to ~30–60 s on slower boxes; some launchers
+   show their home screen briefly first).
+7. Confirm the device is still paired and cached content still plays — pairing
+   and cache live in app storage and survive reboots.
+8. Disconnect networking (unplug Ethernet / disable Wi-Fi), reboot again, and
+   verify the player auto-starts **offline** and plays the cached manifest
+   (URL items are skipped offline; that is the existing Phase 7 behaviour).
+9. **ADB receiver test** (works on most devices; some OEM shells restrict
+   sending protected actions):
+
+   ```bash
+   # Watch the receiver's log while testing:
+   adb logcat -s BootReceiver
+   # Simulated quick-boot broadcast (not protected, deliverable via adb):
+   adb shell am broadcast -a android.intent.action.QUICKBOOT_POWERON \
+     -p com.wizer.signage
+   # The real thing (protected; only a real reboot delivers it system-wide):
+   adb reboot
+   ```
+
+10. Force-stop test: _Settings → Apps → Wizer Signage → Force stop_, then
+    reboot — the player will **not** auto-start (expected: stopped state).
+    Open the app once manually and reboot again — auto-start works again.
+11. On OEM/generic boxes, if step 6 fails: look for vendor **Auto-start** /
+    **background start** / battery-optimization settings and allow the player,
+    then retest. If the OS still blocks it, that model needs device-owner /
+    MDM / default-launcher provisioning for guaranteed relaunch.
 
 ---
 
@@ -443,8 +534,10 @@ reachable from the TV's network, with a valid TLS certificate.
 - **URL content is not reliably cached** → skipped when offline (Phase 7).
 - **Screenshots** capture the app's own window only (video on a secure surface
   may be black; API < 26 unsupported) — never fabricated (Phase 8).
-- **No kiosk mode, no auto-start on boot, no in-app APK auto-update** — these are
-  intentionally out of scope; pin the app via the launcher / an MDM if needed.
+- **No kiosk mode, no in-app APK auto-update** — intentionally out of scope;
+  pin the app via the launcher / an MDM if needed. **Auto-start on boot IS
+  implemented** (best-effort, see "Auto-start on boot"); guaranteed relaunch
+  still requires device-owner / MDM / default-launcher provisioning.
 - **No payment / WhatsApp / external API portal** in the platform.
 
 ---
