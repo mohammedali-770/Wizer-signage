@@ -364,3 +364,4 @@ rotation via the Docker daemon (`/etc/docker/daemon.json`, `json-file` with `max
 - [backup-restore.md](./backup-restore.md) — backup & restore runbook
 - [architecture.md](./architecture.md) — system architecture
 - [local-development.md](./local-development.md) — running locally
+- [android-distribution.md](./android-distribution.md) — publish the TV player APK to this VPS over SSH (no Android SDK needed on the host; only sshd + sha256sum/mkdir/mv/flock)

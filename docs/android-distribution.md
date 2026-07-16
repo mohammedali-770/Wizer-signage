@@ -57,9 +57,17 @@ it for public downloads). Nothing sensitive lives under `android/`.
 
 ## 2. Publishing a release
 
+> **Deploying to a remote production VPS? Use the two-stage flow in §5**
+> (`scripts/deploy-android-release.sh`) — it does everything below on your
+> trusted machine and then transfers + publishes over SSH, so the VPS needs no
+> Android SDK. The script below is the underlying primitive: it verifies and
+> publishes into a **local** downloads directory (same-host setups, or producing
+> the verified bundle that §5 ships).
+
 `scripts/publish-android-release.sh` takes a **verified signed APK** and
-publishes it atomically into the downloads directory. It **fails closed** — it
-publishes nothing unless every check passes.
+publishes it atomically into a **local** downloads directory (it requires the
+Android SDK `apksigner`/`aapt`, so it runs on the trusted build machine, not on
+a bare VPS). It **fails closed** — it publishes nothing unless every check passes.
 
 ```bash
 # The expected production signing-cert fingerprint (PUBLIC info — record it when
@@ -159,56 +167,75 @@ the host directory; both nginx and the API mount it read-only.
 
 ---
 
-## 5. Operator deployment workflow
+## 5. Operator deployment workflow (two trust stages)
 
-An authorized Wizer operator, per release:
+The production VPS **does not need the Android SDK, Gradle, or Java**. All
+cryptographic verification happens on the trusted build/operator machine (or CI);
+the VPS only receives an already-verified bundle over SSH, re-checks the APK
+SHA-256, and publishes atomically with normal host tools.
 
-1. **Build** the signed APK on a machine with the production key:
+### Minimum VPS dependencies
+
+A clean Ubuntu VPS (Docker + Compose per [production-deployment.md](./production-deployment.md))
+already has everything the remote side needs:
+
+| Purpose                 | Tools (all in the Ubuntu base)                    |
+| ----------------------- | ------------------------------------------------- |
+| Authenticated transport | `sshd` + `sftp-server` (openssh-server)           |
+| Re-verify + publish     | `sha256sum`, `mkdir`, `mv`, `flock`, `find`, `rm` |
+
+**No `apksigner`, `aapt`, Gradle, Java, Python, or Node is required on the VPS.**
+The publisher runs as an unprivileged SSH user that can write only the downloads
+directory. Signing keys/passwords never leave the trusted machine.
+
+### On the trusted build/operator machine (has the Android SDK)
+
+1. **Build** the signed APK (needs the production key):
    ```bash
    scripts/build-android-release.sh
    # → apps/android-tv-player/release-output/wizer-signage-v<name>-<code>.apk
    ```
-2. **Record/verify** the production certificate fingerprint (public):
+2. **Ensure the VPS host key is known** once (keeps host-key verification on):
    ```bash
-   apksigner verify --print-certs \
+   ssh-keyscan -H <vps> >> ~/.ssh/known_hosts   # first time only
+   ```
+3. **Verify + deploy in one step.** `deploy-android-release.sh` runs the FULL
+   verification locally (apksigner v1+v2+v3, package, expected-cert fingerprint,
+   version, checksum, manifests — via `publish-android-release.sh`), builds a
+   verified bundle in a temp dir, then transfers it over SSH and publishes it
+   atomically on the VPS:
+   ```bash
+   export WIZER_ANDROID_EXPECTED_CERT_SHA256="<recorded fingerprint>"   # public; see android-signing.md §4
+   scripts/deploy-android-release.sh \
      apps/android-tv-player/release-output/wizer-signage-v<name>-<code>.apk \
-     | grep -i 'SHA-256'
+     --host deploy@<vps> \
+     --remote-downloads /opt/wizer-signage/downloads \
+     --identity ~/.ssh/id_ed25519
    ```
-   It must equal the value recorded when the key was created (android-signing.md §4).
-3. **Transfer** the signed APK to the VPS over a secure channel (SSH/SCP), e.g.:
-   ```bash
-   scp apps/android-tv-player/release-output/wizer-signage-v<name>-<code>.apk \
-     deploy@<vps>:/opt/wizer-signage/inbound/
-   ```
-   (You may instead publish locally and `rsync` the whole `downloads/android/`
-   tree — see §6.)
-4. **Publish** on the VPS into the host downloads directory:
-   ```bash
-   export WIZER_ANDROID_EXPECTED_CERT_SHA256="<recorded fingerprint>"
-   scripts/publish-android-release.sh \
-     /opt/wizer-signage/inbound/wizer-signage-v<name>-<code>.apk \
-     --downloads-dir /opt/wizer-signage/downloads
-   ```
-5. **Verify `latest.json`** over HTTPS:
+   A **wrong signing key, wrong package, or unsigned APK is rejected before any
+   transfer.** The VPS re-verifies the APK checksum, refuses
+   overwrite/duplicate/downgrade (from the max on-disk versionCode), and moves
+   `latest.json` **last**; the remote staging dir is cleaned on success or
+   failure, so an interrupted transfer never changes the current release.
+   (Use `--dry-run` to verify + build the bundle without connecting, or
+   `--bundle <dir>` to deploy a pre-built bundle from CI.)
+
+### Verify the published release over HTTPS
+
+4. **`latest.json`**, **checksum**, and **signature**:
    ```bash
    curl -fsS https://<domain>/api/downloads/android/latest.json
-   ```
-6. **Download** the published APK over HTTPS and **verify its checksum**:
-   ```bash
    curl -fsSLO https://<domain>/api/downloads/android/wizer-signage-v<name>-<code>.apk
    curl -fsSLO https://<domain>/api/downloads/android/wizer-signage-v<name>-<code>.apk.sha256
    sha256sum -c wizer-signage-v<name>-<code>.apk.sha256
+   apksigner verify --print-certs wizer-signage-v<name>-<code>.apk   # cert must match (on a machine that has the SDK)
    ```
-7. **Verify the Android signature** of the downloaded file:
-   ```bash
-   apksigner verify --print-certs wizer-signage-v<name>-<code>.apk   # cert must match
-   ```
-8. **Install on a test TV** (see [android-player.md](./android-player.md) for the
+5. **Install on a test TV** (see [android-player.md](./android-player.md) for the
    Downloader/adb flow) and confirm playback + auto-start.
-9. **Confirm the update preserves pairing + cache** (same-key update; see the
+6. **Confirm the update preserves pairing + cache** (same-key update; see the
    physical-TV update test in [android-signing.md](./android-signing.md) §7).
-10. **Roll out** to additional TVs manually (Downloader app pointing at the
-    versioned URL, adb, or your MDM).
+7. **Roll out** to additional TVs manually (Downloader app pointing at the
+   versioned URL, adb, or your MDM).
 
 > **Installation still requires confirmation.** On a normal Android TV, sideload
 > installs prompt a technician/user to approve "install unknown apps". Silent /
