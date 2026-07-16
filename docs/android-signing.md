@@ -24,6 +24,12 @@ from tracked files, `gradle.properties`, hardcoded values, or the command line:
 | `WIZER_ANDROID_KEY_ALIAS`         | Key alias inside the keystore                        |
 | `WIZER_ANDROID_KEY_PASSWORD`      | Password for that key                                |
 
+For the documented **PKCS12** keystore (§4), a single password protects both the
+store and the key, so `WIZER_ANDROID_KEYSTORE_PASSWORD` and
+`WIZER_ANDROID_KEY_PASSWORD` must hold the **same** value. The four names are
+kept separate for compatibility with the Android Gradle Plugin's signing config
+and with other keystore formats.
+
 `apps/android-tv-player/app/build.gradle.kts` reads these with `System.getenv`
 and behaves as follows:
 
@@ -53,16 +59,27 @@ package, or checksum failure.
 
 ```bash
 # 1. Provide the four credentials via the environment (see §4 for creating them).
-#    Prefer a secrets manager / prompt over shell history. For example, read the
-#    passwords without echoing them:
+#    Prefer a secrets manager / prompt over shell history. The documented Wizer
+#    PKCS12 keystore uses ONE shared password for both the keystore and the key,
+#    so read it once (without echoing) and assign it to BOTH variables:
 export WIZER_ANDROID_KEYSTORE_PATH="/secure/wizer-signage-release.jks"
 export WIZER_ANDROID_KEY_ALIAS="wizer-signage"
-read -rs -p "Keystore password: " WIZER_ANDROID_KEYSTORE_PASSWORD; echo; export WIZER_ANDROID_KEYSTORE_PASSWORD
-read -rs -p "Key password: "      WIZER_ANDROID_KEY_PASSWORD;      echo; export WIZER_ANDROID_KEY_PASSWORD
+read -rs -p "Signing password: " WIZER_SIGNING_PASSWORD; echo
+export WIZER_ANDROID_KEYSTORE_PASSWORD="$WIZER_SIGNING_PASSWORD"
+export WIZER_ANDROID_KEY_PASSWORD="$WIZER_SIGNING_PASSWORD"
+unset WIZER_SIGNING_PASSWORD
 
 # 2. Build + verify.
 scripts/build-android-release.sh
 ```
+
+> **PKCS12 uses one password.** For the documented keystore (§4),
+> `WIZER_ANDROID_KEYSTORE_PASSWORD` and `WIZER_ANDROID_KEY_PASSWORD` must hold
+> the **same** value. A PKCS12 store and its key entries share a single password
+> across Java, the Android Gradle Plugin, `apksigner`, and `keytool`, so a
+> shared password is the maximally compatible choice. (Distinct store/key
+> passwords are only meaningful with other keystore formats/providers, e.g. the
+> legacy JKS/BKS types — not the supported Wizer PKCS12 procedure.)
 
 The script:
 
@@ -130,16 +147,25 @@ keytool -genkeypair -v \
   -alias wizer-signage \
   -keyalg RSA -keysize 4096 -sigalg SHA256withRSA \
   -validity 10000
-# keytool then prompts (hidden input) for the keystore password, key details
-# (CN/O/OU/L/ST/C), and confirmation. Use a distinct strong password per prompt.
+# keytool then prompts (hidden input) for the keystore password and the key
+# details (CN/O/OU/L/ST/C). A PKCS12 store shares ONE password for the store and
+# the key, so keytool does not ask for a separate key password — that single
+# strong password is the value you place in BOTH signing env vars (see below).
 ```
 
 - **PKCS12** keystore (modern default), **RSA 4096**, **SHA256withRSA**.
+- **One shared strong password.** PKCS12 uses a single password for the keystore
+  and the private-key entry — this is the maximally compatible choice across
+  Java, the Android Gradle Plugin, `apksigner`, and `keytool`. Put that same
+  value in **both** `WIZER_ANDROID_KEYSTORE_PASSWORD` and
+  `WIZER_ANDROID_KEY_PASSWORD`. (Distinct store/key passwords are only possible
+  with other formats/providers such as legacy JKS/BKS — not this procedure.)
 - **`-validity 10000`** ≈ 27 years — a signing certificate for a directly
   distributed app must outlive every future update (an expired cert blocks
   updates on older installs).
 - **`-alias wizer-signage`** — an organization-controlled alias (record it).
-- Passwords are entered **interactively**, never embedded or committed.
+- The password is entered **interactively**, never on the command line, embedded,
+  or committed.
 
 Immediately after creation, record the certificate **SHA-256 fingerprint**
 (store it separately from the keystore — see §5):
