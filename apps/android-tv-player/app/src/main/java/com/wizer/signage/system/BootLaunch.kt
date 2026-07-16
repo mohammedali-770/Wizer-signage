@@ -15,11 +15,13 @@ object BootLaunch {
 
     /**
      * Non-standard "fast boot" broadcast sent instead of BOOT_COMPLETED by some
-     * Android TV boxes and other AOSP-derived firmwares when resuming from
-     * their vendor "quick boot" power-off state. Unlike BOOT_COMPLETED this is
-     * NOT a protected broadcast, so any app could send it; accepting it is safe
-     * because the only effect is bringing our own launcher activity to the
-     * foreground — no state is changed and nothing sensitive is exposed.
+     * Android TV boxes and other AOSP-derived firmwares when resuming from their
+     * vendor "quick boot" power-off state, fired by the OEM system boot process.
+     * Unlike BOOT_COMPLETED it is NOT a *protected* action, but the receiver is
+     * declared `exported="false"`, so only the system (and same-uid) senders can
+     * reach it — a third-party app cannot spoof it. Its only effect is bringing
+     * our own launcher activity to the foreground; no state changes, nothing
+     * sensitive is exposed.
      */
     const val ACTION_QUICKBOOT_POWERON = "android.intent.action.QUICKBOOT_POWERON"
 

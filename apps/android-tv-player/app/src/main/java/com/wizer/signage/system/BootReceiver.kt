@@ -14,10 +14,12 @@ import com.wizer.signage.data.DeviceStore
  * default and controlled by the internal [DeviceStore.autoStartOnBoot] flag.
  *
  * Design notes / platform constraints:
- *  - BOOT_COMPLETED is a protected broadcast only the system can send. The
- *    receiver must still be `exported="true"` for the system to deliver it, so
- *    the action is validated and everything else is ignored — the receiver
- *    accepts no external commands and carries no extras-driven behaviour.
+ *  - Declared `exported="false"`: a manifest receiver still receives broadcasts
+ *    sent by the system even when not exported, so both boot actions arrive from
+ *    their legitimate system source while no third-party app can trigger this
+ *    receiver. BOOT_COMPLETED is a protected system broadcast; QUICKBOOT_POWERON
+ *    is fired by the OEM boot process (system uid). The action is still validated
+ *    and everything else ignored — no external commands, no extras-driven paths.
  *  - LOCKED_BOOT_COMPLETED is deliberately NOT handled: it would require a
  *    direct-boot-aware receiver using device-protected storage, but the paired
  *    device token lives in Keystore-backed credential-encrypted storage

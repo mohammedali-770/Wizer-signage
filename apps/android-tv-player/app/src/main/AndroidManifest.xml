@@ -55,14 +55,18 @@
         </activity>
 
         <!--
-            Auto-start after reboot. `exported="true"` is REQUIRED for the system to
-            deliver these broadcasts to a manifest-declared receiver; it does not open
-            an attack surface for BOOT_COMPLETED (a protected broadcast only the OS may
-            send), and the receiver validates the action and ignores everything else.
-            QUICKBOOT_POWERON covers TV boxes whose vendor "fast boot" skips a full
-            BOOT_COMPLETED. LOCKED_BOOT_COMPLETED is intentionally absent: the pairing
-            state lives in credential-encrypted storage (unavailable pre-unlock) and TV
-            devices without lock credentials deliver BOOT_COMPLETED promptly anyway.
+            Auto-start after reboot. `exported="false"` is the correct, safest setting:
+            a manifest receiver still receives broadcasts sent by the *system* even when
+            not exported, while no third-party app can reach it. Both actions here are
+            delivered by system components at boot: BOOT_COMPLETED is a protected system
+            broadcast, and QUICKBOOT_POWERON (vendor "fast boot" on some TV boxes) is
+            fired by the OEM system boot process — so it is still received from that
+            legitimate source, and the fact that it is not a *protected* action no
+            longer matters because exported=false blocks every non-system, non-same-app
+            sender. The receiver also validates the action and ignores everything else.
+            LOCKED_BOOT_COMPLETED is intentionally absent: the pairing state lives in
+            credential-encrypted storage (unavailable pre-unlock) and TV devices without
+            lock credentials deliver BOOT_COMPLETED promptly anyway.
             NOTE: after first install or a user force-stop, Android places the app in
             the stopped state and delivers NO boot broadcasts until the app is opened
             manually once (platform behaviour, cannot be bypassed).
@@ -70,7 +74,7 @@
         <receiver
             android:name=".system.BootReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />

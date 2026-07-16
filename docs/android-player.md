@@ -419,6 +419,13 @@ anyone opening the app manually.
 - The launch-decision logic lives in `system/BootLaunch.kt` (pure Kotlin,
   covered by `BootLaunchTest`); the receiver validates the action, ignores
   everything else, never throws out of `onReceive`, and logs nothing sensitive.
+- The receiver is declared **`android:exported="false"`**. A manifest receiver
+  still receives broadcasts sent by the **system** even when not exported, so
+  both boot actions arrive from their legitimate system source while **no
+  third-party app can trigger it**. `QUICKBOOT_POWERON` (fired by the OEM boot
+  process, system uid) is therefore retained safely — its non-protected status
+  no longer matters because `exported="false"` blocks every non-system,
+  non-same-app sender.
 - Auto-start is **enabled by default** (dedicated-device use case). It can be
   turned off internally via `DeviceStore.autoStartOnBoot = false` (no settings
   UI exists in the player, so no toggle was added).
@@ -465,18 +472,23 @@ anyone opening the app manually.
 8. Disconnect networking (unplug Ethernet / disable Wi-Fi), reboot again, and
    verify the player auto-starts **offline** and plays the cached manifest
    (URL items are skipped offline; that is the existing Phase 7 behaviour).
-9. **ADB receiver test** (works on most devices; some OEM shells restrict
-   sending protected actions):
+9. **ADB observation + authoritative reboot test.** Because the receiver is
+   now `exported="false"`, it can only be triggered by the **system**, not by a
+   manual `adb shell am broadcast` (adb runs as the unprivileged `shell` user,
+   not the system uid, so such a broadcast is not delivered). A **real reboot**
+   is the authoritative test — it is how the system actually fires these
+   actions:
 
    ```bash
-   # Watch the receiver's log while testing:
+   # Watch the receiver's log, then reboot from another shell:
    adb logcat -s BootReceiver
-   # Simulated quick-boot broadcast (not protected, deliverable via adb):
-   adb shell am broadcast -a android.intent.action.QUICKBOOT_POWERON \
-     -p com.wizer.signage
-   # The real thing (protected; only a real reboot delivers it system-wide):
+   # In a second terminal — the authoritative test (system delivers BOOT_COMPLETED):
    adb reboot
    ```
+
+   After the device boots you should see a `BootReceiver` "launched player" log
+   line and the player return to the foreground. (A power-menu → Restart is
+   equivalent if adb is unavailable.)
 
 10. Force-stop test: _Settings → Apps → Wizer Signage → Force stop_, then
     reboot — the player will **not** auto-start (expected: stopped state).

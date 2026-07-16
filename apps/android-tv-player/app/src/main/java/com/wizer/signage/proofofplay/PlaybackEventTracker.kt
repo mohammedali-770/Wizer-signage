@@ -162,8 +162,15 @@ class PlaybackEventTracker(
 
         const val EMERGENCY_SYNTHETIC_PREFIX = "emg:"
 
-        private val isoFormat = ThreadLocal.withInitial {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
+        // Anonymous ThreadLocal subclass (initialValue() is API 1) rather than
+        // ThreadLocal.withInitial(...), which is API 26 and would crash on the
+        // minSdk-21..25 range. SimpleDateFormat is not thread-safe, so each
+        // thread lazily gets its own UTC-locked formatter — same behaviour.
+        private val isoFormat = object : ThreadLocal<SimpleDateFormat>() {
+            override fun initialValue(): SimpleDateFormat =
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
         }
 
         private fun iso(ms: Long): String = isoFormat.get()!!.format(Date(ms))
