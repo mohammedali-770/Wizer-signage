@@ -31,6 +31,9 @@ class PlayerContainer(context: Context) {
     val repository = PairingRepository(api, store)
     val isPaired: Boolean get() = repository.isPaired
 
+    /** Soft-kiosk preference (default on). Read live by the kiosk controller. */
+    val softKioskEnabled: Boolean get() = store.softKioskEnabled
+
     // Phase 7 — offline cache + smart sync.
     private val cacheDir = File(appContext.filesDir, "ms_cache").apply { mkdirs() }
     private val cache = CacheManager(cacheDir)

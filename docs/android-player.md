@@ -367,7 +367,7 @@ hardware/OEM — see [device-limitations.md](./device-limitations.md).
 | Remote commands             | React to dashboard actions: sync, refresh, restart, clear cache, screenshot, reboot.                | 8 ✓   |
 | Proof of play               | Report actual playback events (start/complete/fail/skip/interrupt); bounded offline buffer + flush. | 9 ✓   |
 | Emergency pre-emption       | Detect EMERGENCY manifest, interrupt the running item, play emergency, revert on end.               | 9 ✓   |
-| Kiosk mode                  | Stay pinned full-screen and block exit to the launcher (device dependent).                          | later |
+| Kiosk mode                  | Soft kiosk on any TV + managed lock task when MDM-allowlisted (see "Kiosk mode").                   | ✓     |
 | Auto-start on boot          | Relaunch automatically after a power cycle (best-effort; see "Auto-start on boot").                 | ✓     |
 | In-app APK update           | Self-update to a newer APK pushed/required by the platform.                                         | later |
 | Minimum-version enforcement | Refuse to run / force update when below the required minimum version.                               | later |
@@ -502,6 +502,111 @@ anyone opening the app manually.
     **background start** / battery-optimization settings and allow the player,
     then retest. If the OS still blocks it, that model needs device-owner /
     MDM / default-launcher provisioning for guaranteed relaunch.
+
+---
+
+## Kiosk mode (implemented)
+
+The player keeps a dedicated signage screen on its content and resists
+accidental exit, at two levels — **soft kiosk** on any consumer/unmanaged TV,
+and **managed lock task** when an external MDM/DPC has allowlisted the app.
+
+The logic lives in `com.wizer.signage.system`: a pure, JUnit-tested
+`KioskPolicy` decides what should be active, a `KioskController` applies it
+through a `KioskEnvironment` abstraction (every Android call is wrapped so a
+failure degrades to ordinary playback and never crashes), and
+`AndroidKioskEnvironment` is the only piece that touches framework APIs. No
+custom DPC, device-owner provisioning, accessibility service, replacement
+launcher, silent installer, or `SYSTEM_ALERT_WINDOW` is used, and no new
+permissions are added.
+
+### When kiosk behaviour is active
+
+Only when the device is **paired** (the player experience is foreground — the
+paired route _is_ the player; pairing/setup is the unpaired route) **and** the
+internal `softKioskEnabled` preference is on (default **true**). It never
+activates on the pairing/setup screen, so an unpaired device is never trapped.
+
+### Soft kiosk (all Android TVs)
+
+- **Immersive full-screen** via `WindowInsetsControllerCompat` (modern,
+  minSdk-21-safe) hiding the status/navigation bars, reapplied after resume,
+  window-focus return, and any transient system-bar reveal — no tight loops.
+- **Keep-awake** (`FLAG_KEEP_SCREEN_ON`) while the paired player is foreground;
+  cleared when unpaired so it isn't held during setup. (Tracks playback, not the
+  toggle — a paired device stays awake even if soft-kiosk visuals are disabled.)
+- **Accidental Back is swallowed** during active playback via a Compose
+  `BackHandler` present only on the player route. It intercepts **Back only** —
+  never Home, Volume, Power, Input/Source, DPAD, accessibility, or emergency
+  controls — and only when soft kiosk is enabled.
+- **Technician exit (no PIN invented):** turning off the internal
+  `softKioskEnabled` preference restores normal Back so a technician can leave
+  the player; on an unmanaged TV the **Home** button also still exits (see
+  limits below).
+
+### Managed lock task (MDM/DPC-allowlisted devices)
+
+- The controller reads `DevicePolicyManager.isLockTaskPermitted(com.wizer.signage)`.
+  **Only if the external DPC has already allowlisted the app** and playback is
+  active does it call `Activity.startLockTask()`. It is **never** called when not
+  allowlisted, so this app can never trigger the user-driven screen-pinning
+  confirmation.
+- Actual pinned state is read from `ActivityManager` (API-23 `lockTaskModeState`,
+  API-21/22 fallback) so `startLockTask` is not called twice, and lifecycle
+  recreation is safe.
+- Lock task is **not** entered on the pairing/setup screen, and it is **not**
+  exited on ordinary pause/resume — only when the device leaves the signage
+  experience (unpaired or kiosk disabled), so a managed device stays pinned
+  during normal operation. The manifest deliberately does **not** set
+  `android:lockTaskMode="if_whitelisted"` (that would auto-pin at launch,
+  including the pairing screen); programmatic entry gated by playback state is
+  used instead.
+- Allowlisting/removal remains the external MDM/DPC's responsibility. This app
+  adds no `DeviceAdminReceiver`, requests no `BIND_DEVICE_ADMIN`, does not make
+  itself device owner, and alters no device policies (restrictions, factory
+  reset, accounts, Wi-Fi, volume, updates).
+
+### Physical-TV procedure — unmanaged TV
+
+1. Install and open the signed APK.
+2. Confirm the pairing screen is navigable (DPAD works, Back works).
+3. Pair the TV and start playback.
+4. Confirm the status/navigation bars disappear (immersive).
+5. Confirm the screen does not sleep during playback.
+6. Press **Back** → playback stays open (accidental Back is swallowed).
+7. Press **Home** → on an unmanaged TV the launcher appears (see limits). This
+   is expected and cannot be prevented without MDM/device-owner provisioning.
+8. Return to Wizer Signage → immersive mode is reapplied automatically.
+9. Reboot → the player auto-starts (see "Auto-start on boot") and kiosk behaviour
+   resumes once playback is active.
+10. Test **offline** cached playback → kiosk behaviour is unchanged.
+11. Trigger an **emergency broadcast** → it plays normally; kiosk does not
+    interfere (keep-awake, immersive, and Back-swallow remain in effect).
+
+### Physical-TV procedure — managed device
+
+> **Use a factory-reset test TV, not a production customer TV** — provisioning a
+> device owner typically requires a factory reset and is intrusive.
+
+1. Provision a test device with an external DPC/MDM (device owner).
+2. Allowlist `com.wizer.signage` for lock task via the DPC.
+3. Start playback.
+4. Confirm lock-task mode activates (the system-UI affordances are removed).
+5. Confirm Home/Overview cannot leave the player (per the DPC's lock-task policy).
+6. Remove the app from the lock-task allowlist through the DPC/MDM.
+7. Confirm the device exits managed kiosk safely (the system drops lock task;
+   the player keeps running in soft-kiosk mode).
+
+### Exact limitations on unmanaged consumer TVs
+
+- **Home / Overview still exit the app.** Soft kiosk cannot suppress the Home
+  button on an unmanaged device — Android intentionally reserves it, and this
+  app uses no unsupported trick to intercept it. Guaranteed "can't leave the
+  app" behaviour requires **managed lock task** (device-owner/MDM allowlisting)
+  or setting the player as the default HOME/launcher (out of scope here).
+- **OEM system controls** (Power, Volume, Input/Source) are never intercepted.
+- Some OEM launchers may reassert themselves after boot; immersive and
+  keep-awake are best-effort and reapplied, but Home-exit remains possible.
 
 ---
 

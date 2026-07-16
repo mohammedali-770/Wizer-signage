@@ -92,6 +92,18 @@ class DeviceStore(context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_START_ON_BOOT, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_START_ON_BOOT, value).apply()
 
+    /**
+     * Whether soft-kiosk behaviour (immersive reinforcement, keep-awake, and
+     * accidental-Back suppression during playback) is in effect. Defaults to ON
+     * — this is a dedicated signage device. Internal preference (not sensitive,
+     * no UI). Turning it OFF restores normal Back handling, which is the
+     * supported technician exit on an unmanaged TV. On a managed/allowlisted
+     * device this also gates whether lock task is entered.
+     */
+    var softKioskEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SOFT_KIOSK_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_SOFT_KIOSK_ENABLED, value).apply()
+
     /** Persist a completed pairing (token + bound screen) and clear in-flight pairing data. */
     fun savePairing(token: String, screenId: String, screenName: String?) {
         prefs.edit()
@@ -158,6 +170,7 @@ class DeviceStore(context: Context) {
         const val KEY_SCREEN_ID = "screen_id"
         const val KEY_SCREEN_NAME = "screen_name"
         const val KEY_AUTO_START_ON_BOOT = "auto_start_on_boot"
+        const val KEY_SOFT_KIOSK_ENABLED = "soft_kiosk_enabled"
         val ALL_KEYS = listOf(
             KEY_DEVICE_ID, KEY_DEVICE_TOKEN, KEY_PAIRING_SECRET, KEY_PAIRING_CODE, KEY_SCREEN_ID, KEY_SCREEN_NAME,
         )
