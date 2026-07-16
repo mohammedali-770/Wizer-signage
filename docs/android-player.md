@@ -21,7 +21,7 @@ caveats and the capability matrix see
 | UI toolkit         | Jetpack Compose (with Compose for TV / Leanback)      |
 | Media playback     | Media3 ExoPlayer                                      |
 | Build system       | Gradle 8 + Android Gradle Plugin (AGP) 8              |
-| Application id     | `com.wizer-signage.player`                            |
+| Application id     | `com.wizer.signage`                                   |
 | Min SDK            | 21 (Android 5.0 Lollipop)                             |
 | Target SDK         | 34 (Android 14)                                       |
 | Form factor        | Android TV / Google TV (Leanback launcher category)   |
@@ -209,7 +209,7 @@ phone, so installation is done over the network with adb.
 4. **Launch it** (it also appears in the Android TV launcher under "Apps"):
 
    ```bash
-   adb shell monkey -p com.wizer-signage.player -c android.intent.category.LAUNCHER 1
+   adb shell monkey -p com.wizer.signage -c android.intent.category.LAUNCHER 1
    ```
 
 On first launch the app displays a pairing code — continue with
@@ -222,7 +222,7 @@ On first launch the app displays a pairing code — continue with
 ### App structure
 
 ```
-app/src/main/java/com/wizer-signage/player/
+app/src/main/java/com/wizer/signage/
   MainActivity.kt            # immersive full-screen host; routes pairing ↔ player
   PlayerContainer.kt         # manual DI: ApiClient + DeviceStore + PairingRepository
   data/

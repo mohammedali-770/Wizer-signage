@@ -109,7 +109,9 @@ See [monitoring.md](./monitoring.md).
 - [x] Remote commands (polling delivery): force sync, refresh manifest, restart playback, clear cache, screenshot, reboot (unsupported→fail), reload config, unpair — full command lifecycle
 - [ ] Realtime WebSocket gateway / Redis fan-out — deferred (polling delivery shipped; WebSocket is a future enhancement)
 - [x] Auto-start on boot — manifest BootReceiver (BOOT_COMPLETED + QUICKBOOT_POWERON) relaunches the player after reboot; enabled by default, best-effort on consumer OEMs (see android-player.md)
-- [ ] Kiosk mode; APK update mechanism — deferred to a later phase
+- [x] Kiosk mode — soft kiosk (immersive/keep-awake/Back-suppression) on any TV + managed Android lock task when an external MDM/DPC has allowlisted the app (see android-player.md → Kiosk mode)
+- [x] APK distribution — secure env-var signing, atomic publication, hardened nginx route, and two-stage SSH deploy (no Android SDK on the VPS); see android-signing.md / android-distribution.md
+- [ ] In-app APK auto-update (self-update from within the player) — deferred to a later phase
 
 ## Phase 9 — Emergency Broadcast, Proof of Play, Reports `[x] done`
 
