@@ -175,6 +175,11 @@ On Windows PowerShell, use `.\gradlew.bat assembleRelease` instead of
 
 ## Sideloading / installing on a device
 
+> For the production **direct-download** workflow (immutable versioned URLs +
+> `latest.json`, published behind nginx), see
+> [android-distribution.md](./android-distribution.md). The steps below are the
+> low-level adb/Downloader mechanics it builds on.
+
 Android TV / Google TV devices do not have a file manager workflow like a
 phone, so installation is done over the network with adb.
 

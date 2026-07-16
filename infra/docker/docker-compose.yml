@@ -200,6 +200,12 @@ services:
       - certbot-webroot:/var/www/certbot:ro
       # Let's Encrypt issued certificates (managed on the host by certbot).
       - letsencrypt:/etc/letsencrypt:ro
+      # Android APK distribution: nginx serves ${DOWNLOADS}/android/* directly at
+      # /api/downloads/android/ (see the template). READ-ONLY — the public serving
+      # container never writes here; scripts/publish-android-release.sh writes the
+      # host directory. Same host dir the api mounts for the legacy /api/downloads
+      # route. See docs/android-distribution.md.
+      - ../../downloads:/usr/share/nginx/downloads:ro
     depends_on:
       api:
         condition: service_started
