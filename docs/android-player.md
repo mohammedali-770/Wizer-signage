@@ -524,16 +524,22 @@ reachable from the TV's network, with a valid TLS certificate.
    `gradle-wrapper.jar` (Android Studio sync or `gradle wrapper`). _This cannot
    be built in the CI sandbox used for this repo (JDK 8 / no SDK) — build on a
    real machine or Android Studio._
-2. **Release keystore:** generate once and keep it **out of source control**;
-   supply it via Gradle properties (`MS_KEYSTORE`, `MS_KEY_ALIAS`, passwords as
-   env/`~/.gradle/gradle.properties`). Never commit the keystore or passwords.
+2. **Release keystore:** generate once and keep it **out of source control**.
+   Signing credentials are supplied **only** via environment variables
+   (`WIZER_ANDROID_KEYSTORE_PATH`, `WIZER_ANDROID_KEYSTORE_PASSWORD`,
+   `WIZER_ANDROID_KEY_ALIAS`, `WIZER_ANDROID_KEY_PASSWORD`) — never Gradle
+   properties or committed files. Full instructions (keytool command, backups,
+   key-type distinctions) are in **[android-signing.md](./android-signing.md)**.
+3. **Build (signed, verified):** run the fail-closed release script — it
+   validates the credentials, runs tests + lint, builds, verifies the signature
+   with `apksigner`, checks the package, and writes a checksummed artifact into
+   the gitignored `release-output/`:
    ```bash
-   keytool -genkeypair -v -keystore wizer-signage-release.jks \
-     -alias wizer-signage -keyalg RSA -keysize 2048 -validity 10000
+   scripts/build-android-release.sh
    ```
-3. **Build:** `./gradlew :app:assembleRelease` → a **signed**
-   `app-release.apk` (unsigned builds land as `app-release-unsigned.apk` — sign
-   before distribution).
+   Without the four env vars, a plain `gradle :app:assembleRelease` produces an
+   **unsigned, non-distributable** `app-release-unsigned.apk`. Never distribute
+   an unsigned APK — always use the script for real releases.
 4. **Install on Android TV:** enable Developer options + USB/network debugging,
    then `adb connect <tv-ip>` and `adb install -r app-release.apk` (or sideload
    via a USB drive / an MDM). See _Sideloading_ above.

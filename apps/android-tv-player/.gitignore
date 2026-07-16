@@ -29,3 +29,7 @@ obj/
 *.jks
 *.keystore
 keystore.properties
+
+# Signed release artifacts produced by scripts/build-android-release.sh
+# (built APKs + their .sha256 checksums are never committed).
+release-output/

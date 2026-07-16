@@ -36,6 +36,7 @@ This directory is the canonical documentation set for the platform.
 
 - [api-future.md](./api-future.md) — Planned public/partner API surface (post-v1).
 - [android-player.md](./android-player.md) — Android TV player architecture, build, and behavior.
+- [android-signing.md](./android-signing.md) — Release APK signing: secure keystore workflow, key protection, update test.
 - [pairing-guide.md](./pairing-guide.md) — How to pair a screen to a company using a pairing code.
 - [admin-guide.md](./admin-guide.md) — Day-to-day administration for company and location admins.
 - [super-admin-guide.md](./super-admin-guide.md) — Phase 2 Super Admin SaaS core: companies, plans, subscriptions, invoices, usage limits, suspension.
