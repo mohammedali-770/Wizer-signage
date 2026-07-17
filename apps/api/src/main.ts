@@ -44,7 +44,11 @@ async function bootstrap(): Promise<void> {
   // a container makes nginx unable to proxy and returns 502. Override with
   // API_HOST (e.g. 127.0.0.1) for a hardened single-host local setup.
   const host = httpConfig?.host ?? process.env.API_HOST ?? '0.0.0.0';
-  const corsOrigins = httpConfig?.corsOrigins ?? ['*'];
+  // corsOrigins is resolved + validated in configuration.ts (see config/cors.ts):
+  // in production it is an explicit, HTTPS-only allowlist and a misconfiguration
+  // has already failed boot above. The `*` sentinel only appears in dev/test and
+  // maps to Nest's "reflect the request origin" behaviour.
+  const corsOrigins = httpConfig?.corsOrigins ?? [];
   const allowAllOrigins = corsOrigins.includes('*');
 
   // --- Global route prefix -------------------------------------------------
@@ -106,4 +110,11 @@ async function bootstrap(): Promise<void> {
   if (swaggerEnabled) logger.log(`Swagger: ${baseUrl}/api/docs`);
 }
 
-void bootstrap();
+bootstrap().catch((error: unknown) => {
+  // A misconfiguration (e.g. missing/invalid CORS_ORIGINS in production) must
+  // fail closed: log the reason and exit non-zero BEFORE serving traffic. The
+  // error message names the offending variable/reason only — never the full env.
+  const message = error instanceof Error ? error.message : String(error);
+  new Logger('Bootstrap').error(`Failed to start Wizer Signage API: ${message}`);
+  process.exit(1);
+});

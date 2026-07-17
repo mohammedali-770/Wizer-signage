@@ -11,14 +11,18 @@ software. _Smart Systems. Clearer Decisions._
 > text, the npm workspace scope (`@wizer/*`), Docker images/containers (`wizer-signage/*`),
 > the API service name, the Android **app id** _and_ **source package** (`com.wizer.signage`).
 > The Android Kotlin package move (`com.mastersignage.player` → `com.wizer.signage`) is
-> mechanically complete and internally consistent; run a Gradle/APK build to confirm on the
-> next Android CI pass. The old `/mastersignage` and `/master-signage` URLs still redirect to
-> `/signage` for backward compatibility.
+> complete and **build-verified**: `assembleDebug` / `assembleRelease` and unit tests pass,
+> and the built APK's package name is `com.wizer.signage`. The old `/mastersignage` and
+> `/master-signage` URLs still redirect to `/signage` for backward compatibility.
 
-> **Status: Phase 0 — Scaffold.** This repository currently contains the
-> architecture, monorepo skeleton, tooling, and minimal runnable placeholders.
-> Database schema, authentication, and product features land in later phases.
-> See [docs/roadmap.md](docs/roadmap.md).
+> **Status: Feature-complete (Phases 0–11 done) — pre-launch verification.**
+> All product phases in [docs/roadmap.md](docs/roadmap.md) are implemented:
+> multi-tenant auth/RBAC, Super Admin SaaS core, company/content/playlist
+> management, scheduling, the Android TV player with offline cache, monitoring,
+> emergency broadcast, proof-of-play, notifications/imports/exports, retention/
+> backups, and production Docker/Nginx hardening. Remaining work before launch
+> is production provisioning and deployment verification (see
+> [docs/production-deployment.md](docs/production-deployment.md)).
 
 ## Monorepo layout
 
@@ -135,7 +139,7 @@ for real emails (otherwise emails are logged in dev). The seed is plain CommonJS
 `pnpm --filter @wizer/api db:seed`, and **in the production container** via:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml exec api node prisma/seed.cjs
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec api node prisma/seed.cjs
 ```
 
 It seeds the **Starter / Business / Enterprise** plans (SAR, editable in the DB; idempotent —

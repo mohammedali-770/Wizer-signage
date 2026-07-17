@@ -23,6 +23,14 @@
 upstream dashboard_upstream { server dashboard:3000; keepalive 32; }
 upstream api_upstream       { server api:3001;       keepalive 32; }
 
+# Cache policy for the static Android download subtree: immutable versioned
+# files (APK / .sha256 / per-version .json) cache forever; the mutable
+# latest.json pointer must always revalidate.
+map $uri $wizer_android_cache {
+    default          "public, max-age=31536000, immutable";
+    ~*/latest\.json$ "no-cache";
+}
+
 server {
     listen      80;
     listen      [::]:80;
@@ -59,6 +67,52 @@ server {
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
         default_type "text/plain";
+    }
+
+    # -------------------------------------------------------------------------
+    # Android APK distribution — served DIRECTLY by nginx from a read-only mount
+    # (not proxied to the API). `^~` makes this the chosen prefix so this exact
+    # subtree is served statically while everything else under /api/ still hits
+    # the API upstream below. Files are published atomically by
+    # scripts/publish-android-release.sh. The APK is NOT a secret: authenticity
+    # comes from Android signing + the published SHA-256 + the expected cert
+    # fingerprint + HTTPS. See docs/android-distribution.md.
+    # -------------------------------------------------------------------------
+    location ^~ /api/downloads/android/ {
+        alias /usr/share/nginx/downloads/android/;
+
+        # Read-only distribution: only GET/HEAD; reject upload/mutation methods.
+        limit_except GET HEAD { deny all; }
+        # No directory listing.
+        autoindex off;
+
+        # Never expose dotfiles or stray staging/temp artifacts. (The publisher
+        # stages OUTSIDE this directory, so none should ever appear here — this
+        # is defense in depth. These return 403 without serving a file, so the
+        # parent `alias` is not involved.)
+        location ~ /\.                 { deny all; }
+        location ~ \.(tmp|part|swp)$    { deny all; }
+
+        # Correct, non-sniffable content types per file kind.
+        types {
+            application/vnd.android.package-archive apk;
+            text/plain                              sha256;
+            application/json                        json;
+        }
+        default_type application/octet-stream;
+
+        # TLS-only (HSTS) + no MIME sniffing + per-file caching (see the map).
+        # A location-level add_header replaces inherited ones, so re-assert the
+        # security headers we care about for binary downloads here.
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+        add_header X-Content-Type-Options    "nosniff" always;
+        # NOTE: NO `always` on Cache-Control — it must attach ONLY to cacheable
+        # success/redirect responses (200/206/304/…), never to a 404. Otherwise a
+        # request to a not-yet-transferred versioned URL would return a 404 stamped
+        # `immutable` and poison that URL in shared caches for a year.
+        add_header Cache-Control             $wizer_android_cache;
+        # HTTP range requests (resumable large-APK downloads) stay enabled by
+        # default for static files — do not disable.
     }
 
     location /api/ {

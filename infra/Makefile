@@ -17,8 +17,12 @@ ROOT_DIR     := $(INFRA_DIR)..
 COMPOSE_FILE := $(INFRA_DIR)docker/docker-compose.yml
 DEV_FILE     := $(INFRA_DIR)docker/docker-compose.dev.yml
 
-COMPOSE      := docker compose -f $(COMPOSE_FILE)
-COMPOSE_DEV  := docker compose -f $(COMPOSE_FILE) -f $(DEV_FILE)
+# --env-file is REQUIRED: Compose v2 resolves ${VAR} interpolation from the
+# PROJECT directory (infra/docker/), not the CWD, so a repo-root .env would
+# otherwise be ignored for interpolation (e.g. nginx APP_DOMAIN).
+ENV_FILE     := $(ROOT_DIR)/.env
+COMPOSE      := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
+COMPOSE_DEV  := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE) -f $(DEV_FILE)
 
 # Health check target used by the `health` helper.
 HEALTH_URL   ?= http://localhost/api/health

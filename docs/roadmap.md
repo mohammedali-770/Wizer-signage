@@ -108,7 +108,10 @@ See [monitoring.md](./monitoring.md).
 - [x] Screenshots (manual; automatic foundation) — best-effort PixelCopy capture of the app's own window (+ documented limits)
 - [x] Remote commands (polling delivery): force sync, refresh manifest, restart playback, clear cache, screenshot, reboot (unsupported→fail), reload config, unpair — full command lifecycle
 - [ ] Realtime WebSocket gateway / Redis fan-out — deferred (polling delivery shipped; WebSocket is a future enhancement)
-- [ ] Kiosk mode; auto-start on boot; APK update mechanism — deferred to a later phase
+- [x] Auto-start on boot — manifest BootReceiver (BOOT_COMPLETED + QUICKBOOT_POWERON) relaunches the player after reboot; enabled by default, best-effort on consumer OEMs (see android-player.md)
+- [x] Kiosk mode — soft kiosk (immersive/keep-awake/Back-suppression) on any TV + managed Android lock task when an external MDM/DPC has allowlisted the app (see android-player.md → Kiosk mode)
+- [x] APK distribution — secure env-var signing, atomic publication, hardened nginx route, and two-stage SSH deploy (no Android SDK on the VPS); see android-signing.md / android-distribution.md
+- [ ] In-app APK auto-update (self-update from within the player) — deferred to a later phase
 
 ## Phase 9 — Emergency Broadcast, Proof of Play, Reports `[x] done`
 
@@ -153,7 +156,7 @@ See [production-deployment.md](./production-deployment.md), [docker-production.m
 - [x] Backup production wiring (pg_dump → volume, recorded in BackupRecord, failure alerts, restore docs)
 - [x] Logging/observability foundation ([monitoring-operations.md](./monitoring-operations.md)); load-test foundation (k6, [performance-testing.md](./performance-testing.md))
 - [x] Security hardening review ([security-hardening.md](./security-hardening.md)); Android production handoff notes
-- [ ] Docker image build verification — NOT runnable in this sandbox (no Docker CLI); compose YAML validated, build documented
+- [x] Docker image build verification — all three production images (api, dashboard, maintenance) build successfully; verified end-to-end (migrate → seed → boot → health/ready → login/trial-signup; dashboard serves EN/AR; maintenance CLI runs all jobs)
 
 ---
 

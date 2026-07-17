@@ -148,7 +148,7 @@ curl -s https://wizer.sa/api/health
 curl -s https://wizer.sa/api/public/plans | head -c 200; echo
 
 # Containers all healthy and NEW-named
-docker compose -f infra/docker/docker-compose.yml ps
+docker compose --env-file .env -f infra/docker/docker-compose.yml ps
 ```
 
 In a browser: load `https://wizer.sa` (marketing home), `https://wizer.sa/signage`
@@ -168,7 +168,7 @@ same volume and reload nginx on success:
   -v wizer-signage-letsencrypt:/etc/letsencrypt \
   -v wizer-signage-certbot-webroot:/var/www/certbot \
   certbot/certbot renew --webroot -w /var/www/certbot --quiet \
-  && docker compose -f /path/to/wizer-signage/infra/docker/docker-compose.yml restart nginx
+  && docker compose --env-file /path/to/wizer-signage/.env -f /path/to/wizer-signage/infra/docker/docker-compose.yml restart nginx
 ```
 
 (The running nginx serves `/.well-known/acme-challenge/` from the shared

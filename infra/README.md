@@ -48,7 +48,7 @@ All commands are run from the **repo root**.
 
 ```bash
 # Start the production stack (detached)
-docker compose -f infra/docker/docker-compose.yml up -d
+docker compose --env-file .env -f infra/docker/docker-compose.yml up -d
 
 # Start with the dev override (adds local postgres)
 docker compose \
@@ -56,10 +56,10 @@ docker compose \
   -f infra/docker/docker-compose.dev.yml up -d
 
 # Tail logs
-docker compose -f infra/docker/docker-compose.yml logs -f
+docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f
 
 # Stop and remove containers
-docker compose -f infra/docker/docker-compose.yml down
+docker compose --env-file .env -f infra/docker/docker-compose.yml down
 ```
 
 The `Makefile` in this directory wraps these commands (`make up`, `make down`,

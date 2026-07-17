@@ -32,12 +32,16 @@ provisioned/enterprise device.
 
 ### Auto-start on boot
 
-Restarting automatically after a power cycle relies on the
-`RECEIVE_BOOT_COMPLETED` broadcast. Many consumer Android TV / Google TV models
-**restrict or block** auto-launch of third-party apps on boot (battery/UX
-policies, OEM launcher behavior, or background-start limits on newer Android).
-On provisioned/device-owner setups, boot launch is dependable; on consumer
-hardware it is best-effort and frequently does not fire.
+**Implemented** in the player (`BootReceiver` on `BOOT_COMPLETED` +
+`QUICKBOOT_POWERON`; enabled by default — see the "Auto-start on boot" section
+of [android-player.md](./android-player.md)). It remains **best-effort** on
+consumer hardware: many Android TV / Google TV models restrict or block
+auto-launch of third-party apps on boot (battery/UX policies, OEM launcher
+behavior, or background-start limits on newer Android), and after a fresh
+install or force-stop the app must be opened once manually before boot
+broadcasts are delivered at all. On provisioned/device-owner setups, boot
+launch is dependable; on consumer hardware expect to allow OEM "auto-start" /
+background permissions on some models.
 
 ### Power on/off control
 

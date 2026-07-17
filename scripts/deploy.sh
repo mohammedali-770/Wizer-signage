@@ -23,7 +23,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 COMPOSE_FILE="${ROOT_DIR}/infra/docker/docker-compose.yml"
-COMPOSE="docker compose -f ${COMPOSE_FILE}"
+ENV_FILE="${ROOT_DIR}/.env"
+# --env-file is REQUIRED: Compose v2 resolves ${VAR} interpolation (e.g. the
+# nginx APP_DOMAIN and the dashboard NEXT_PUBLIC_API_URL build arg) from the
+# PROJECT directory (infra/docker/), not the CWD — without this flag a repo-root
+# .env is silently ignored and the stack fails or builds with wrong defaults.
+if [[ ! -f "${ENV_FILE}" ]]; then
+  echo "ERROR: ${ENV_FILE} not found. Copy .env.example to .env and fill in production values." >&2
+  exit 1
+fi
+COMPOSE="docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE}"
 
 # Health check endpoint (through nginx by default). Override as needed.
 HEALTH_URL="${HEALTH_URL:-http://localhost/api/health}"

@@ -11,6 +11,41 @@ plugins {
 val apiBaseUrl: String = (project.findProperty("apiBaseUrl") as String?)
     ?: "https://wizer.sa/api"
 
+// -----------------------------------------------------------------------------
+// Release signing — credentials come ONLY from environment variables, never from
+// tracked files, hardcoded values, or the command line. See scripts/
+// build-android-release.sh and docs/android-signing.md.
+//
+//   Zero of the four vars set  -> no release signingConfig; `assembleRelease`
+//                                 emits an UNSIGNED, non-distributable APK.
+//                                 Keeps debug builds and CI/dev flows working
+//                                 without any production secret.
+//   Some but not all set       -> fail the configuration immediately, listing
+//                                 ONLY the missing variable names (no values).
+//   All four set               -> validate the keystore is present + readable,
+//                                 then sign the release build (v1+v2+v3).
+// -----------------------------------------------------------------------------
+val signingEnv: Map<String, String?> = linkedMapOf(
+    "WIZER_ANDROID_KEYSTORE_PATH" to System.getenv("WIZER_ANDROID_KEYSTORE_PATH"),
+    "WIZER_ANDROID_KEYSTORE_PASSWORD" to System.getenv("WIZER_ANDROID_KEYSTORE_PASSWORD"),
+    "WIZER_ANDROID_KEY_ALIAS" to System.getenv("WIZER_ANDROID_KEY_ALIAS"),
+    "WIZER_ANDROID_KEY_PASSWORD" to System.getenv("WIZER_ANDROID_KEY_PASSWORD"),
+)
+val suppliedSigningVars = signingEnv.filterValues { !it.isNullOrBlank() }
+val hasReleaseSigning: Boolean = when (suppliedSigningVars.size) {
+    0 -> false
+    4 -> true
+    else -> {
+        // Partial credentials → fail closed. Report only the missing NAMES so no
+        // secret value can leak into build logs or the exception message.
+        val missing = signingEnv.filterValues { it.isNullOrBlank() }.keys.joinToString(", ")
+        throw GradleException(
+            "Incomplete Android release signing configuration. " +
+                "Set all four WIZER_ANDROID_* variables or none. Missing: $missing",
+        )
+    }
+}
+
 android {
     namespace = "com.wizer.signage"
     compileSdk = 34
@@ -29,6 +64,30 @@ android {
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                // rootProject.file() resolves an absolute path as-is and a relative
+                // path against the android project root — no secret is embedded here.
+                val keystore = rootProject.file(signingEnv.getValue("WIZER_ANDROID_KEYSTORE_PATH")!!)
+                require(keystore.exists() && keystore.isFile && keystore.canRead()) {
+                    // Path only (an env var name/value the operator supplied) — never a password.
+                    "Keystore at WIZER_ANDROID_KEYSTORE_PATH is missing or unreadable: ${keystore.absolutePath}"
+                }
+                storeFile = keystore
+                storePassword = signingEnv.getValue("WIZER_ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = signingEnv.getValue("WIZER_ANDROID_KEY_ALIAS")
+                keyPassword = signingEnv.getValue("WIZER_ANDROID_KEY_PASSWORD")
+                // minSdk 21 needs the v1 (JAR) scheme; v2 (API 24+) and v3 (API 28+,
+                // adds key-rotation support) are backward-compatible. All enabled so
+                // the APK installs on Android 5.0+ and is future-proof.
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
             // Phase 0: keep minification off so the skeleton builds without a full
@@ -38,6 +97,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Signed only when all four WIZER_ANDROID_* vars are present (see above).
+            // Otherwise the release build is intentionally UNSIGNED and NOT
+            // distributable — use scripts/build-android-release.sh for real releases.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

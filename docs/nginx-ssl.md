@@ -73,7 +73,7 @@ scripts/bootstrap-self-signed-cert.sh "$APP_DOMAIN"
 #    (or: APP_DOMAIN=… scripts/bootstrap-self-signed-cert.sh)
 
 # 2) Start the stack — nginx now boots on :80 + :443 (with the placeholder).
-docker compose -f infra/docker/docker-compose.yml up -d
+docker compose --env-file .env -f infra/docker/docker-compose.yml up -d
 ```
 
 The HTTP-01 challenge needs nginx serving `:80` (now true). Issue the real cert:
@@ -84,16 +84,16 @@ The HTTP-01 challenge needs nginx serving `:80` (now true). Issue the real cert:
 sudo apt-get install -y certbot
 sudo certbot certonly --webroot -w /var/lib/docker/volumes/wizer-signage-certbot-webroot/_data \
   -d "$APP_DOMAIN" --email "$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email
-docker compose -f infra/docker/docker-compose.yml exec nginx nginx -s reload
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec nginx nginx -s reload
 ```
 
 **Containerized certbot (alternative):**
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.certbot.yml \
+docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.certbot.yml \
   run --rm certbot certonly --webroot -w /var/www/certbot \
     -d "$APP_DOMAIN" --email "$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email
-docker compose -f infra/docker/docker-compose.yml exec nginx nginx -s reload
+docker compose --env-file .env -f infra/docker/docker-compose.yml exec nginx nginx -s reload
 ```
 
 > Test with `--staging` first (Let's Encrypt has strict rate limits); re-issue
@@ -150,7 +150,7 @@ Add `preload` and submit to the preload list only when you are certain.
   Seed the placeholder, then start just nginx:
   ```bash
   scripts/bootstrap-self-signed-cert.sh "$APP_DOMAIN"
-  docker compose -f infra/docker/docker-compose.yml up -d nginx
+  docker compose --env-file .env -f infra/docker/docker-compose.yml up -d nginx
   ```
   Then issue/renew the real certificate (above) and `nginx -s reload`.
 - **certbot HTTP-01 fails** — confirm DNS points at the server (`dig +short $APP_DOMAIN`),

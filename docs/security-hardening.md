@@ -29,8 +29,13 @@ operator responsibilities to confirm at deploy time.
   `X-Content-Type-Options` / `X-Frame-Options` / `Referrer-Policy` /
   `Permissions-Policy`.
 - ✅ **TLS 1.2/1.3 only**, `server_tokens off`, session tickets off (nginx).
-- ⚠️ **CORS** — set `CORS_ORIGINS` to your dashboard origin(s). The default `*`
-  is dev-only; **lock it down** in production.
+- ✅ **CORS fail-closed in production** — `CORS_ORIGINS` is **required** in
+  production and validated at boot (`apps/api/src/config/cors.ts`): a missing/
+  empty value, `*`, a non-HTTPS or localhost/loopback origin, or an entry with a
+  path/query/fragment/credentials makes the API **exit non-zero before it
+  listens**. Entries must be HTTPS origins (`scheme://host[:port]`) and are
+  normalised + de-duplicated for exact-origin matching. In development an unset
+  value keeps the convenient "reflect any origin" behaviour.
 - ✅ **Swagger** — disabled in production (`SWAGGER_ENABLED=true` to force on a
   locked-down staging host only).
 
@@ -55,7 +60,10 @@ operator responsibilities to confirm at deploy time.
 ## Secrets
 
 - ✅ **No secrets in images** — Dockerfiles bake only the public
-  `NEXT_PUBLIC_API_URL`; all secrets come from runtime env.
+  `NEXT_PUBLIC_API_URL`; all secrets come from runtime env. That value is
+  **required and validated at build time** (`apps/dashboard/next.config.mjs`):
+  a production dashboard build **fails** if it is missing, non-HTTPS, localhost/
+  loopback, or malformed — it can never silently fall back to a localhost URL.
 - ✅ **No secrets in git** — `.env*` ignored (only `*.example` committed); docs
   use placeholders + `openssl rand` generation guidance.
 - ✅ **Strong secrets enforced at boot** — `JWT_*` / `ENCRYPTION_KEY` required +
@@ -93,15 +101,11 @@ docker scout cves wizer-signage/api:latest   # optional image CVE scan
 
 ### Current advisory triage (as of this phase)
 
-- ⚠️ **Next.js 14.2.x** carries upstream advisories patched in **15.5.16+**
-  (`pnpm audit` reports them via `apps/dashboard > next`). Upgrading Next 14 → 15
-  is a **framework major** with real breakage risk and is **out of scope for a
-  hardening pass** — plan it as a dedicated dependency-upgrade task, test the
-  dashboard (App Router, `next-intl`, standalone build) thoroughly, then bump.
-  Mitigations meanwhile: the dashboard is served only behind nginx (no direct
-  exposure), and several advisories concern SSR/image features this app does not
-  use. Re-run `pnpm audit` each release and prioritise **high/critical** fixes
-  that don't require a major upgrade.
+- ✅ **Next.js upgraded to 15.5.x** (`apps/dashboard` declares `^15.5.16`,
+  lockfile resolves 15.5.19), which includes the fixes for the advisories that
+  affected 14.2.x. Re-run `pnpm audit` each release and prioritise
+  **high/critical** fixes; keep the dashboard served only behind nginx (no
+  direct exposure).
 - Run `pnpm audit` before every release; record accepted advisories with a
   rationale + a review date.
 

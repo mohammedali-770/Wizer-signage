@@ -105,6 +105,24 @@ class PlaybackEventTrackerTest {
         assertEquals(ProofOfPlayEvent.SOURCE_LOCAL_CACHE, PlaybackEventTracker.sourceOf(item(), ctx(local = true)))
         assertEquals(ProofOfPlayEvent.SOURCE_STREAMING, PlaybackEventTracker.sourceOf(item(), ctx(local = false)))
     }
+
+    /**
+     * Pins the ISO-8601 UTC millisecond format emitted by the (thread-local)
+     * SimpleDateFormat. Guards the API-21-safe ThreadLocal refactor: exact
+     * strings, fixed clock, no dependence on the host timezone.
+     */
+    @Test
+    fun timestampsAreIso8601UtcMillis() {
+        var t = 0L
+        val tr = PlaybackEventTracker(clock = { t }, newSessionId = { "s" })
+        val started = tr.started(item(), 0, ctx())[0]
+        assertEquals("1970-01-01T00:00:00.000Z", started.startedAt)
+
+        t = 86_400_000L + 1L // one day + 1 ms → next date, .001 millis
+        val completed = tr.completed()!!
+        assertEquals("1970-01-01T00:00:00.000Z", completed.startedAt)
+        assertEquals("1970-01-02T00:00:00.001Z", completed.endedAt)
+    }
 }
 
 class ProofOfPlayQueueTest {

@@ -44,6 +44,11 @@ local.properties
 *.aab
 captures/
 .cxx/
+# Keystores + signed release artifacts (build-android-release.sh output).
+*.jks
+*.keystore
+keystore.properties
+release-output/
 
 # IDEs / editors
 .idea/

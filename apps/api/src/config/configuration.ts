@@ -9,6 +9,8 @@
  * env.validation.ts) since the API is no longer able to operate without them.
  */
 
+import { resolveCorsOrigins } from './cors';
+
 export type NodeEnv = 'development' | 'test' | 'production';
 
 export interface AppMetaConfig {
@@ -107,17 +109,6 @@ export interface AppConfig {
   readonly redisUrl?: string;
 }
 
-/** Parse a comma-separated origins list into a trimmed string array. */
-function parseCorsOrigins(raw: string | undefined): string[] {
-  if (!raw || raw.trim() === '') {
-    return ['*'];
-  }
-  return raw
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-}
-
 /** Parse an integer env var, falling back to a default when unset/invalid. */
 function parseIntEnv(raw: string | undefined, fallback: number): number {
   if (raw === undefined || raw.trim() === '') {
@@ -142,7 +133,11 @@ export default (): AppConfig => {
       host: env.API_HOST ?? '0.0.0.0',
       port: parseIntEnv(env.API_PORT, 3001),
       apiUrl: env.API_URL,
-      corsOrigins: parseCorsOrigins(env.CORS_ORIGINS),
+      // Strict in production (explicit HTTPS allowlist required; wildcard,
+      // localhost, and malformed entries fail boot). Convenient in dev/test.
+      // Throws here → NestFactory.create rejects → bootstrap exits non-zero
+      // before the HTTP server ever listens.
+      corsOrigins: resolveCorsOrigins(env.CORS_ORIGINS, env.NODE_ENV),
       wsPath: env.WS_PATH ?? '/ws',
     },
     database: {
