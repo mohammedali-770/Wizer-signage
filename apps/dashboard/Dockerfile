@@ -33,10 +33,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Emit the self-contained standalone server bundle for the runtime image.
 ENV NEXT_OUTPUT=standalone
 # Public API base URL is baked into the client bundle at BUILD time (Next.js
-# inlines NEXT_PUBLIC_*). Set it to your public API origin, e.g.
-# https://wizer.sa/api  — passed as a build arg from compose.
+# inlines NEXT_PUBLIC_*). It MUST be passed as a build arg (from compose or
+# `docker build --build-arg`) and point at your public HTTPS API base, e.g.
+# https://api.example.com/api. There is deliberately NO default: a production
+# build with this unset FAILS in next.config.mjs (env-validation.mjs) rather
+# than silently baking a localhost URL into every browser.
 # This is NOT a secret (it ships to the browser); never pass secrets this way.
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api
+ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 # Bring the FULLY-resolved workspace from deps — including the per-package
 # node_modules. pnpm links each app's binaries under its own

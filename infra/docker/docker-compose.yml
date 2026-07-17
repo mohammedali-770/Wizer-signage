@@ -92,8 +92,10 @@ services:
       dockerfile: apps/dashboard/Dockerfile
       args:
         # Baked into the client bundle at build time (Next.js inlines
-        # NEXT_PUBLIC_*). Point it at your public API origin. NOT a secret.
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
+        # NEXT_PUBLIC_*). Point it at your public HTTPS API base. NOT a secret.
+        # REQUIRED: the build fails here if unset (no silent localhost default),
+        # and next.config.mjs additionally rejects non-HTTPS/localhost values.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL must be set in .env (e.g. https://api.example.com/api)}
     image: wizer-signage/dashboard:latest
     container_name: wizer-signage-dashboard
     env_file:

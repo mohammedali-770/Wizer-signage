@@ -118,6 +118,17 @@ MAP_API_KEY=...
 > dashboard and Nginx reach the API over the Compose network. `NEXT_PUBLIC_API_URL` is the
 > **public** browser URL and goes through Nginx (`https://wizer.sa/api`).
 >
+> **Fail-closed configuration (production):**
+>
+> - `NEXT_PUBLIC_API_URL` is **required at build time** and must be an absolute
+>   HTTPS URL (no localhost, credentials, query, or fragment). Compose passes it
+>   as the dashboard build arg; if it is unset the build stops immediately, and
+>   `next.config.mjs` rejects invalid values. There is no localhost fallback in a
+>   production build.
+> - `CORS_ORIGINS` is **required** and must list HTTPS origins only. The API
+>   refuses to start (non-zero exit) if it is missing, `*`, or contains a
+>   non-HTTPS/localhost/malformed entry.
+>
 > Generate strong secrets: `openssl rand -base64 48`. Never commit `.env`.
 
 ---
