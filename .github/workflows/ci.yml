@@ -48,6 +48,12 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # Deterministic regression for the maintenance DB-backup URL handling
+      # (DIRECT_URL preference + pgbouncer stripping + fail-closed). Mocks
+      # pg_dump; no database, docker, or network required.
+      - name: Backup script regression tests
+        run: bash scripts/tests/backup-db.test.sh
+
       - name: Build
         # The dashboard production build requires an explicit, valid HTTPS
         # NEXT_PUBLIC_API_URL (see apps/dashboard/next.config.mjs). Use a

@@ -6,8 +6,12 @@
 # Postgres/Supabase database and prunes old backups.
 #
 # TARGET:
-#   The production database is Supabase (managed Postgres). This script uses
-#   DATABASE_URL, so it works against Supabase or any other Postgres instance.
+#   The production database is Supabase (managed Postgres). pg_dump is run
+#   against DIRECT_URL when it is set (the non-pooled endpoint), falling back to
+#   DATABASE_URL otherwise. The pooled Prisma DATABASE_URL carries
+#   `pgbouncer=true`, which pg_dump rejects ("invalid URI query parameter:
+#   pgbouncer"), so Prisma/PgBouncer-only query params are stripped before use
+#   (see scripts/lib/pg-url.sh). Works against Supabase or any Postgres instance.
 #
 # SCHEDULING:
 #   Intended to be run from cron, e.g. nightly at 02:30:
@@ -22,7 +26,8 @@
 #
 # REQUIREMENTS:
 #   - bash, pg_dump (postgresql-client), gzip
-#   - DATABASE_URL set in the environment or in the repo-root .env file.
+#   - DIRECT_URL (preferred) and/or DATABASE_URL set in the environment or in the
+#     repo-root .env file. At least one must be present.
 # =============================================================================
 
 set -euo pipefail
@@ -30,6 +35,10 @@ set -euo pipefail
 # --- Resolve repo root relative to this script -------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Postgres URL selection/sanitization helpers (resolve_pg_dump_url).
+# shellcheck source=scripts/lib/pg-url.sh
+source "${SCRIPT_DIR}/lib/pg-url.sh"
 
 # --- Load .env if present (without overriding already-exported vars) ---------
 ENV_FILE="${ROOT_DIR}/.env"
@@ -47,8 +56,13 @@ TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 OUTFILE="${BACKUP_DIR}/wizer-signage_${TIMESTAMP}.sql.gz"
 
 # --- Preconditions -----------------------------------------------------------
-if [[ -z "${DATABASE_URL:-}" ]]; then
-  echo "ERROR: DATABASE_URL is not set (env or ${ENV_FILE})." >&2
+# Choose the URL pg_dump will use: DIRECT_URL when set, else a sanitized
+# DATABASE_URL. Fails closed (secret-free) when neither is usable. Captured via
+# command substitution so the URL never reaches the log; diagnostics (variable
+# name only) from the helper go to stderr. The application DATABASE_URL is left
+# untouched for the BackupRecord CLI below.
+if ! DUMP_URL="$(resolve_pg_dump_url)"; then
+  echo "ERROR: no usable database URL for pg_dump (set DIRECT_URL or DATABASE_URL in env or ${ENV_FILE})." >&2
   exit 1
 fi
 
@@ -82,7 +96,7 @@ echo "[backup] $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 # --no-owner / --no-privileges keep the dump portable across roles (useful when
 # restoring into Supabase or a fresh local instance).
 if pg_dump \
-    --dbname="${DATABASE_URL}" \
+    --dbname="${DUMP_URL}" \
     --no-owner \
     --no-privileges \
     --format=plain \

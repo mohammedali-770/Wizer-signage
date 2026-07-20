@@ -18,8 +18,15 @@ depth.
 | Uploaded media / content files      | Supabase Storage (+ planned export) | Supabase Storage durability + planned scheduled export job      |
 | Configuration / `.env`              | Operator                            | Stored in a secret manager / secure vault — **never** in git    |
 
-The database connection used for dumps is `DIRECT_URL` (the non-pooled Supabase connection
-string). See [environment-variables.md](./environment-variables.md).
+The database connection used for dumps is **`DIRECT_URL`** — the non-pooled Supabase
+connection string. `pg_dump`/`psql` cannot talk to the pooled Prisma `DATABASE_URL`, which
+carries `pgbouncer=true` (and other Prisma-only params) and fails with
+`invalid URI query parameter: "pgbouncer"`. So the backup/restore scripts **prefer
+`DIRECT_URL`** and only fall back to `DATABASE_URL` when `DIRECT_URL` is unset — and in that
+fallback they strip the Prisma/PgBouncer-only query params so a pooled URL is never handed
+to `pg_dump` unchanged (see `scripts/lib/pg-url.sh`). The application `DATABASE_URL` is left
+untouched for Prisma and the BackupRecord CLI. Set **both** `DATABASE_URL` and `DIRECT_URL`
+in production. See [environment-variables.md](./environment-variables.md).
 
 ---
 
@@ -53,9 +60,18 @@ Ubuntu VPS this is native):
 30 2 * * * cd /opt/wizer-signage && ./scripts/backup-db.sh >> /var/log/wizer-signage-backup.log 2>&1
 ```
 
-`scripts/backup-db.sh` reads `DIRECT_URL` from the environment / `.env`, runs `pg_dump`,
-compresses the output to the backups directory, and prunes dumps older than the retention
-window (keeping financial/invoice data per the longer policy).
+`scripts/backup-db.sh` selects the dump URL (`DIRECT_URL` preferred, sanitized `DATABASE_URL`
+fallback — see above), runs `pg_dump`, compresses the output to the backups directory, and
+prunes dumps older than the retention window (keeping financial/invoice data per the longer
+policy). It never prints connection URLs or credentials. A failed dump removes the partial
+file and records a `FAILED` BackupRecord (raising a "backup overdue/failed" alert).
+
+> **Containerized runs (`maintenance` service):** the nightly cron runs the backup as the
+> unprivileged **node** user. A freshly-created `wizer-signage-backups` volume is owned
+> `root:root`, so the container entrypoint (`infra/docker/maintenance-entrypoint.sh`) runs
+> once as root at startup and `chown`s the `/backups` **mount point** (non-recursive) to
+> `node` before `crond` starts — the jobs themselves never run as root. This is idempotent
+> across restarts and never alters existing backup files.
 
 ---
 
