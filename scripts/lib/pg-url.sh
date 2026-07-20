@@ -42,6 +42,12 @@ pg_strip_prisma_params() {
 
   local base="${url%%\?*}"
   local query="${url#*\?}"
+  # Drop any URI fragment (RFC 3986: an unencoded "#" always delimits the
+  # fragment; real credentials/values use %23). Otherwise a trailing "#frag"
+  # would stay glued to the last kept parameter (e.g. sslmode=require#frag) and
+  # be handed to pg_dump. Only the query portion is touched, so the credential
+  # part (before "?") is never altered.
+  query="${query%%#*}"
   local rebuilt="" kv key drop p
   local old_ifs="$IFS"
 

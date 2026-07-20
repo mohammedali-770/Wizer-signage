@@ -144,6 +144,16 @@ case "$CAPTURED" in
   *) pass "F: Prisma schema= and pgbouncer stripped for pg_dump" ;;
 esac
 
+# --- G. A URI fragment must not stay glued to a kept parameter ----------------
+reset_env
+export DIRECT_URL="postgresql://u:${SECRET}@h:5432/app?sslmode=require#frag"
+run_backup
+case "$CAPTURED" in
+  *'#'*) fail "G: fragment leaked into pg_dump dbname" ;;
+  *) pass "G: URI fragment dropped from pg_dump dbname" ;;
+esac
+case "$CAPTURED" in *sslmode=require) pass "G: sslmode value intact after fragment strip" ;; *) fail "G: sslmode value corrupted" ;; esac
+
 reset_env
 echo
 echo "== results: ${PASS} passed, ${FAIL} failed =="
