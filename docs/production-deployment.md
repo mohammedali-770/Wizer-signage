@@ -257,6 +257,13 @@ alerts sweep + due scheduled reports + emergency auto-END every 5 min, a full
 nightly run (incl. retention cleanup) at 03:30, and a `pg_dump` backup at 02:00
 (written to the `wizer-signage-backups` volume, recorded at **/admin/backups**).
 
+> **Backup prerequisites (both required in `.env`):** the backup dumps via
+> **`DIRECT_URL`** (the non-pooled connection); the pooled `DATABASE_URL`
+> (`pgbouncer=true`) cannot be used by `pg_dump` and is only a sanitized fallback.
+> The container entrypoint makes the freshly-created `/backups` volume writable by
+> the unprivileged `node` user before cron starts, so no manual `chown` is needed —
+> the backup job still runs as `node`, never root. Both behaviors are idempotent.
+
 ```bash
 # Verify the worker is up and cron is firing:
 docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f maintenance
