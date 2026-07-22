@@ -1,0 +1,45 @@
+version: 1
+
+execution:
+  default_base_branch: main
+  branch_prefix: ai/issue-
+  draft_pull_requests_only: true
+  max_correction_cycles: 3
+  max_claude_turns_per_cycle: 12
+  concurrency_per_issue: 1
+
+commands:
+  install: pnpm install --frozen-lockfile
+  lint: pnpm lint
+  typecheck: pnpm typecheck
+  test: pnpm test
+  build: pnpm build
+
+prohibited:
+  direct_default_branch_push: true
+  automatic_merge: true
+  production_deployment: true
+  force_push: true
+  destructive_database_commands: true
+  secret_output: true
+
+human_approval_required:
+  - database_migration
+  - authentication
+  - authorization
+  - payment
+  - billing
+  - infrastructure
+  - deployment
+  - secret_handling
+  - destructive_change
+  - public_api_breaking_change
+
+review:
+  require_all_commands_pass: true
+  require_acceptance_criteria_evidence: true
+  require_scope_check: true
+  require_security_check: true
+  approval_label: ai-approved
+  changes_requested_label: ai-changes-required
+  human_decision_label: ai-human-decision-required
