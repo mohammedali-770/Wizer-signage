@@ -1,0 +1,91 @@
+name: AI Feature Implementation
+
+description: Submit a feature for the OpenAI review and Claude Code implementation loop.
+title: "[AI Feature]: "
+labels:
+  - ai-orchestrator
+  - needs-planning
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the required outcome, not the preferred code solution. The orchestrator will plan, implement, validate, and review the change on a separate branch. Production deployment and automatic merge are prohibited.
+
+  - type: textarea
+    id: business_outcome
+    attributes:
+      label: Business outcome
+      description: What must become possible after this feature is complete?
+      placeholder: Users can schedule a playlist for selected branches and date ranges.
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_behavior
+    attributes:
+      label: Current behavior or problem
+      description: Describe what happens now and why it is insufficient.
+    validations:
+      required: true
+
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Functional requirements
+      description: List observable behaviors the implementation must provide.
+      placeholder: |
+        - An administrator can select one or more branches.
+        - Start and end times use the company timezone.
+        - Conflicting schedules are rejected with a clear error.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Provide testable pass/fail conditions.
+      placeholder: |
+        - Existing schedules continue to work.
+        - New unit and integration tests pass.
+        - lint, typecheck, test, and build pass.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and protected areas
+      description: State what must not change, including UI, APIs, database, deployment, or unrelated modules.
+      placeholder: Do not redesign the UI. Do not deploy. Preserve backward compatibility.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk category
+      options:
+        - Standard feature
+        - Database or migration
+        - Authentication or permissions
+        - Payment or billing
+        - Infrastructure or deployment
+        - Security or secret handling
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Required validation commands
+      description: Leave blank only when the repository defaults are sufficient.
+      placeholder: pnpm lint; pnpm typecheck; pnpm test; pnpm build
+
+  - type: checkboxes
+    id: authorization
+    attributes:
+      label: Authorization
+      options:
+        - label: I understand the automation will create or update a branch and draft pull request, but will not merge or deploy.
+          required: true
