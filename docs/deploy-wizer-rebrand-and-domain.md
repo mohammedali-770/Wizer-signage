@@ -1,5 +1,13 @@
 # Deploy runbook — WIZER rename + `wizer.sa` domain switch
 
+> **Status: COMPLETED — historical record.** This one-time cutover has been
+> executed. Production now serves **`signage.wizer.sa`** (the live public host is a
+> subdomain; substitute it wherever this runbook uses the bare `wizer.sa` example)
+> with its own Let's Encrypt certificate, and the old `master-signage-*` stack has
+> been replaced by `wizer-signage-*`. Keep this document for reference; do **not**
+> re-run it against the live host. For retiring the previous domain's certificate,
+> see [Appendix → Retire the old domain's certificate](#retire-the-old-domains-certificate).
+
 One-time runbook that ships **two changes together** in a single maintenance window:
 
 1. **The internal rename** (`master-signage*` → `wizer-signage*`) — this renamed the
@@ -195,6 +203,45 @@ the old stack comes back with working TLS. DNS may need to point back to the old
 ---
 
 ## Appendix — optional cleanup & DB rename
+
+### Retire the old domain's certificate
+
+Once `signage.wizer.sa` is confirmed healthy and nothing external still hits the old
+hostname, the previous domain's Let's Encrypt certificate can be removed. If the host
+runs certbot directly (certs under `/etc/letsencrypt`, renewal deploy hooks under
+`/etc/letsencrypt/renewal-hooks/deploy/`), run **on the deployment host**:
+
+```bash
+# 1. Confirm the new domain is healthy first.
+curl -sI https://signage.wizer.sa/ | head -1
+curl -s  https://signage.wizer.sa/api/health
+
+# 2. See what's installed + confirm nothing still points at the old cert.
+sudo certbot certificates
+sudo grep -rl "signage.spicymeal.com.sa" /etc/nginx /etc/letsencrypt/renewal-hooks 2>/dev/null
+
+# 3. Back it up first (reversibility) BEFORE deleting.
+sudo tar czf /root/spicymeal-cert-backup-$(date +%Y%m%d).tgz \
+  /etc/letsencrypt/{live,archive,renewal}/signage.spicymeal.com.sa 2>/dev/null
+
+# 4. Delete the cert lineage, then reload nginx and re-verify.
+sudo certbot delete --cert-name signage.spicymeal.com.sa
+sudo nginx -t && sudo systemctl reload nginx   # or: docker exec <nginx> nginx -s reload
+curl -sI https://signage.wizer.sa/ | head -1
+```
+
+Also remove or update any leftover **renewal deploy hook** that referenced the old
+`master-signage`/spicymeal setup (e.g.
+`/etc/letsencrypt/renewal-hooks/deploy/master-signage-sync-docker-nginx.sh`) so future
+`certbot renew` runs do not error on the deleted lineage, and drop the old DNS record
+only after you are certain nothing external still resolves it. Keep the step-3 backup
+until a full renewal cycle on `signage.wizer.sa` has succeeded.
+
+> If instead the cert lived in a **Docker named volume** (the `wizer-signage-*` model),
+> the old lineage is removed by pruning the old volumes below rather than via
+> `certbot delete`.
+
+### Prune the old volumes
 
 **Prune the old volumes** once you're confident the switch is good (this deletes the
 old domain's cert and old backups — only do it after verifying):
