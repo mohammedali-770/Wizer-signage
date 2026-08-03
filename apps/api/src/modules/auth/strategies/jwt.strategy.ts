@@ -45,10 +45,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (!user || session.userId !== user.id) {
       throw new UnauthorizedException('Account not found.');
     }
+    // isBlocked, not isLocked: an indefinite administrative lock (status LOCKED
+    // with no lockedUntil) was previously accepted by every check in the system.
     if (user.status === UserStatus.DISABLED) {
       throw new UnauthorizedException('Account is disabled.');
     }
-    if (this.users.isLocked(user)) {
+    if (this.users.isBlocked(user)) {
       throw new UnauthorizedException('Account is locked.');
     }
     if (user.companyId) {

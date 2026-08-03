@@ -40,6 +40,13 @@ function build() {
     findByEmail: jest.fn(),
     findById: jest.fn(),
     isLocked: jest.fn().mockReturnValue(false),
+    // Mirrors the real implementation so the gates are exercised, not stubbed.
+    isBlocked: jest.fn(
+      (u: any) =>
+        u.status === UserStatus.DISABLED ||
+        (u.status === UserStatus.LOCKED && !u.lockedUntil) ||
+        (!!u.lockedUntil && u.lockedUntil.getTime() > Date.now()),
+    ),
     recordFailedLogin: jest.fn().mockResolvedValue({ locked: false }),
     recordSuccessfulLogin: jest.fn().mockResolvedValue(undefined),
     toView: jest.fn((u: any) => ({ id: u.id, email: u.email })),
@@ -103,10 +110,26 @@ describe('AuthService.login', () => {
     );
   });
 
-  it('returns 423 when the account is locked', async () => {
+  /**
+   * Driven by real user rows rather than by stubbing the predicate, so these
+   * also pin that the LOCKED status is enforced and not merely present.
+   */
+  it.each([
+    [
+      'a failed-login lockout still in its window',
+      { status: UserStatus.LOCKED, lockedUntil: new Date(Date.now() + 60_000) },
+    ],
+    [
+      'an indefinite administrative lock (LOCKED with no expiry)',
+      { status: UserStatus.LOCKED, lockedUntil: null },
+    ],
+    [
+      'a stale future lock on an otherwise active account',
+      { status: UserStatus.ACTIVE, lockedUntil: new Date(Date.now() + 60_000) },
+    ],
+  ])('returns 423 for %s, without checking the password', async (_label, overrides) => {
     const t = build();
-    t.users.findByEmail.mockResolvedValue(makeUser());
-    t.users.isLocked.mockReturnValue(true);
+    t.users.findByEmail.mockResolvedValue(makeUser(overrides));
 
     let error: any;
     try {
@@ -117,6 +140,31 @@ describe('AuthService.login', () => {
     expect(error).toBeInstanceOf(HttpException);
     expect(error.getStatus()).toBe(423);
     expect(t.password.verify).not.toHaveBeenCalled();
+  });
+
+  it('still returns 403 (not 423) for a disabled account', async () => {
+    const t = build();
+    t.users.findByEmail.mockResolvedValue(makeUser({ status: UserStatus.DISABLED }));
+
+    let error: any;
+    try {
+      await t.service.login({ email: 'user@acme.test', password: 'x' }, meta);
+    } catch (e) {
+      error = e;
+    }
+    expect(error.getStatus()).toBe(403);
+  });
+
+  it('lets an account back in once its lockout window has elapsed', async () => {
+    const t = build();
+    t.users.findByEmail.mockResolvedValue(
+      makeUser({ status: UserStatus.LOCKED, lockedUntil: new Date(Date.now() - 60_000) }),
+    );
+    t.password.verify.mockResolvedValue(true);
+
+    await expect(
+      t.service.login({ email: 'user@acme.test', password: 'x' }, meta),
+    ).resolves.toBeDefined();
   });
 
   it('counts a failed login and rejects on a bad password', async () => {

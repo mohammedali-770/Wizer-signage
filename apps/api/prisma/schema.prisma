@@ -801,7 +801,13 @@ model Screen {
   use              ScreenUse?   @default(GENERIC)
   orientation      Orientation  @default(UNKNOWN)
   status           ScreenStatus @default(UNPAIRED)
-  deviceIdentifier String?      @unique
+  /// Physical device currently bound to this screen. Uniqueness is enforced by a
+  /// PARTIAL unique index (`WHERE "deletedAt" IS NULL`) created in the
+  /// 20260803130000 migration, NOT by `@unique` here — a globally unique column
+  /// meant a soft-deleted screen kept its identifier reserved forever, so the TV
+  /// could never be paired to any other screen. Prisma cannot express a partial
+  /// unique index, hence the raw migration.
+  deviceIdentifier String?
 
   // Pairing & sync state.
   pairedAt        DateTime?

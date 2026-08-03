@@ -104,7 +104,10 @@ export class AuthService {
       await this.recordLogin(email, null, false, 'invalid_credentials', meta);
       throw this.invalidCredentials();
     }
-    if (this.users.isLocked(user)) {
+    // isBlocked covers BOTH the failed-login lockout and an indefinite
+    // administrative lock (status LOCKED with no lockedUntil), which used to
+    // pass straight through because only the timestamp was ever checked.
+    if (this.users.isBlocked(user) && user.status !== UserStatus.DISABLED) {
       await this.recordLogin(email, user.id, false, 'locked', meta, true);
       throw this.lockedError();
     }
@@ -202,12 +205,7 @@ export class AuthService {
     }
 
     const user = await this.users.findById(payload.sub);
-    if (
-      !user ||
-      user.status === UserStatus.DISABLED ||
-      this.users.isLocked(user) ||
-      !user.twoFactorEnabled
-    ) {
+    if (!user || this.users.isBlocked(user) || !user.twoFactorEnabled) {
       throw new UnauthorizedException('Invalid two-factor challenge.');
     }
 
@@ -280,7 +278,7 @@ export class AuthService {
     }
 
     const user = await this.users.findById(session.userId);
-    if (!user || user.status === UserStatus.DISABLED || this.users.isLocked(user)) {
+    if (!user || this.users.isBlocked(user)) {
       await this.sessions.revoke(session.id, 'user_inactive');
       throw new UnauthorizedException('Account is no longer active.');
     }

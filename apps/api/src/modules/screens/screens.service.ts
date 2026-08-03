@@ -1,5 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ContentStatus, Prisma, ScreenStatus, TagType } from '@prisma/client';
+import {
+  ContentStatus,
+  DeviceStatus,
+  PairingStatus,
+  Prisma,
+  ScreenStatus,
+  TagType,
+} from '@prisma/client';
 
 import { resolvePagination } from '../../common/dto/pagination.dto';
 import { PasswordService } from '../../common/crypto/password.service';
@@ -208,13 +215,55 @@ export class ScreensService {
     return this.toView(screen);
   }
 
+  /**
+   * Soft-delete a screen — and unpair the physical device with it.
+   *
+   * Deleting used to set `deletedAt` and nothing else, which left two problems
+   * the customer experiences directly:
+   *
+   *  1. The paired TV kept a VALID device token and went on polling a screen the
+   *     customer believes no longer exists. Deletion is the natural way an
+   *     operator revokes a device; it has to actually revoke it.
+   *  2. The screen kept its `deviceIdentifier`, so pairing that same TV to a new
+   *     screen failed — permanently, with no UI to fix it. "This TV moved to a
+   *     different store" is the most ordinary support flow there is.
+   *
+   * Done in ONE transaction: a screen that is marked deleted but whose device is
+   * still live is exactly the state this is fixing.
+   */
   async remove(companyId: string, actor: AuthenticatedUser, id: string) {
     await this.getScopedOrThrow(companyId, id);
-    await this.prisma.screen.update({
-      where: { id },
-      data: { deletedAt: new Date(), status: ScreenStatus.ARCHIVED },
+    const device = await this.prisma.device.findUnique({
+      where: { screenId: id },
+      select: { deviceId: true, status: true },
     });
-    await this.log(actor, companyId, 'screen.deleted', id);
+
+    await this.prisma.$transaction([
+      this.prisma.screen.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          status: ScreenStatus.ARCHIVED,
+          // Released so the physical device can be paired to another screen.
+          deviceIdentifier: null,
+        },
+      }),
+      // updateMany, not update: a never-paired screen has no device row, and a
+      // missing row must not turn "delete this screen" into a 500.
+      this.prisma.device.updateMany({
+        where: { screenId: id, status: { not: DeviceStatus.REVOKED } },
+        data: { status: DeviceStatus.REVOKED, deviceTokenHash: null, unpairedAt: new Date() },
+      }),
+      // An outstanding pairing code for a deleted screen must not stay claimable.
+      this.prisma.pairingCode.updateMany({
+        where: { screenId: id, status: { in: [PairingStatus.PENDING, PairingStatus.CLAIMED] } },
+        data: { status: PairingStatus.REVOKED },
+      }),
+    ]);
+
+    await this.log(actor, companyId, 'screen.deleted', id, {
+      unpairedDeviceId: device?.deviceId ?? null,
+    });
   }
 
   async assignTags(companyId: string, actor: AuthenticatedUser, id: string, tagIds: string[]) {
