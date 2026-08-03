@@ -226,7 +226,12 @@ jobs:
         if: always()
         run: pnpm audit --prod || true
 
+      # Run the scanner directly rather than via gitleaks-action: the action
+      # calls the PR-commits API, which needs `pull-requests: read` that the
+      # default token does not carry here, and it fails the job on a 403 that
+      # has nothing to do with whether a secret was committed. Scanning the
+      # checked-out history locally is both simpler and stricter.
       - name: Scan for committed secrets
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            detect --source=/repo --redact --verbose --no-banner
