@@ -550,6 +550,14 @@ model Session {
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   refreshTokenHash String // sha256(refresh token); rotated on refresh
+  /// sha256 of the refresh token this session held BEFORE the last rotation,
+  /// accepted for a short grace window after `refreshRotatedAt` (see
+  /// AuthService.refresh). Without it, a client that never receives the rotated
+  /// token — dropped response, app killed mid-request, two tabs refreshing at
+  /// once — retries with the old one and gets its whole session destroyed as
+  /// suspected theft.
+  previousRefreshTokenHash String?
+  refreshRotatedAt         DateTime?
   userAgent        String?
   ip               String?
   mfaSatisfied     Boolean @default(false)

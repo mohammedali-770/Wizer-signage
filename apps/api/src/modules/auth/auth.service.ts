@@ -272,9 +272,21 @@ export class AuthService {
     const session = await this.sessions.validateForAccess(payload.sid);
 
     // Refresh-token reuse / mismatch detection: kill the session.
-    if (!this.crypto.hashEquals(session.refreshTokenHash, this.crypto.sha256(refreshToken))) {
-      await this.sessions.revoke(session.id, 'refresh_reuse_detected');
-      throw new UnauthorizedException('Refresh token is no longer valid.');
+    //
+    // With one exception. Rotation replaces the stored hash the instant this
+    // endpoint succeeds, so a client that never RECEIVES the new token — a
+    // dropped response, the app killed mid-request, two browser tabs refreshing
+    // at the same moment — retries with the old one. Treating that as theft
+    // logged the user out silently and recorded "refresh_reuse_detected" as
+    // though they had been attacked. The immediately-previous token is therefore
+    // accepted for REFRESH_GRACE_MS after rotation; anything older, or any token
+    // more than one generation back, still destroys the session.
+    const presented = this.crypto.sha256(refreshToken);
+    if (!this.crypto.hashEquals(session.refreshTokenHash, presented)) {
+      if (!this.sessions.isWithinRotationGrace(session, presented)) {
+        await this.sessions.revoke(session.id, 'refresh_reuse_detected');
+        throw new UnauthorizedException('Refresh token is no longer valid.');
+      }
     }
 
     const user = await this.users.findById(session.userId);
@@ -296,6 +308,9 @@ export class AuthService {
       session.id,
       this.crypto.sha256(newRefresh),
       this.expiryOf(newRefresh),
+      // Remember exactly one generation, so the retry that produced THIS call
+      // can itself be retried, and nothing older ever can.
+      session.refreshTokenHash,
     );
 
     return { accessToken: newAccess, refreshToken: newRefresh, user: this.users.toView(user) };

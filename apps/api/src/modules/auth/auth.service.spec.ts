@@ -51,7 +51,20 @@ function build() {
     recordSuccessfulLogin: jest.fn().mockResolvedValue(undefined),
     toView: jest.fn((u: any) => ({ id: u.id, email: u.email })),
   };
-  const sessions = { create: jest.fn().mockResolvedValue({ id: 'session-1' }) };
+  const sessions = {
+    create: jest.fn().mockResolvedValue({ id: 'session-1' }),
+    validateForAccess: jest.fn(),
+    rotate: jest.fn().mockResolvedValue({}),
+    revoke: jest.fn().mockResolvedValue(undefined),
+    // Mirrors the real implementation so the refresh gate is exercised.
+    isWithinRotationGrace: jest.fn(
+      (sess: any, presented: string, now: number = Date.now()) =>
+        !!sess.previousRefreshTokenHash &&
+        !!sess.refreshRotatedAt &&
+        sess.previousRefreshTokenHash === presented &&
+        now - sess.refreshRotatedAt.getTime() <= 30_000,
+    ),
+  };
   const companies = {
     findById: jest.fn().mockResolvedValue({ id: 'company-1', status: 'ACTIVE' }),
     isSuspended: jest.fn().mockReturnValue(false),
@@ -92,7 +105,7 @@ function build() {
     config as any,
   );
 
-  return { service, prisma, jwt, users, sessions, companies, twoFactor, password };
+  return { service, prisma, jwt, users, sessions, companies, twoFactor, password, crypto };
 }
 
 const meta = { ip: '127.0.0.1', userAgent: 'jest' };
@@ -335,5 +348,99 @@ describe('AuthService.verifyTwoFactorLogin', () => {
     }
     expect(error).toBeInstanceOf(HttpException);
     expect(error.getStatus()).toBe(423);
+  });
+});
+
+/**
+ * Refresh-token rotation.
+ *
+ * Rotation replaces the stored hash the instant this endpoint succeeds, and a
+ * non-matching token destroys the entire session as suspected theft. Correct for
+ * real reuse — but it also fired when the client simply never RECEIVED the
+ * rotated token (dropped response, app killed mid-request, two tabs refreshing
+ * at once), logging the user out and recording it as an attack.
+ */
+describe('AuthService.refresh', () => {
+  const SESSION = {
+    id: 'session-1',
+    userId: 'user-1',
+    refreshTokenHash: 'sha:current',
+    previousRefreshTokenHash: null as string | null,
+    refreshRotatedAt: null as Date | null,
+    mfaSatisfied: true,
+  };
+
+  function setup(sessionOverrides: Partial<typeof SESSION> = {}, presented = 'current') {
+    const t = build();
+    t.jwt.verifyAsync.mockResolvedValue({ typ: 'refresh', sub: 'user-1', sid: 'session-1' });
+    t.sessions.validateForAccess.mockResolvedValue({ ...SESSION, ...sessionOverrides });
+    t.users.findById.mockResolvedValue(makeUser());
+    // sha256 is stubbed to a stable, inspectable transform.
+    t.crypto.sha256.mockImplementation((v: string) => `sha:${v}`);
+    t.crypto.hashEquals.mockImplementation((a: string, b: string) => a === b);
+    return { t, presented };
+  }
+
+  it('rotates and returns a new pair for the current token', async () => {
+    const { t } = setup();
+    await expect(t.service.refresh('current')).resolves.toMatchObject({
+      accessToken: expect.any(String),
+      refreshToken: expect.any(String),
+    });
+    expect(t.sessions.revoke).not.toHaveBeenCalled();
+  });
+
+  it('remembers exactly one generation when rotating', async () => {
+    const { t } = setup();
+    await t.service.refresh('current');
+    // 4th argument is the outgoing hash, kept as the grace generation.
+    expect(t.sessions.rotate).toHaveBeenCalledWith(
+      'session-1',
+      expect.any(String),
+      expect.any(Date),
+      'sha:current',
+    );
+  });
+
+  it('accepts a retry with the previous token inside the grace window', async () => {
+    const { t } = setup({
+      previousRefreshTokenHash: 'sha:stale',
+      refreshRotatedAt: new Date(),
+    });
+    await expect(t.service.refresh('stale')).resolves.toBeDefined();
+    expect(t.sessions.revoke).not.toHaveBeenCalled();
+  });
+
+  it('still destroys the session for a token replayed after the window', async () => {
+    const { t } = setup({
+      previousRefreshTokenHash: 'sha:stale',
+      refreshRotatedAt: new Date(Date.now() - 60_000),
+    });
+    await expect(t.service.refresh('stale')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(t.sessions.revoke).toHaveBeenCalledWith('session-1', 'refresh_reuse_detected');
+  });
+
+  it('still destroys the session for a token that was never this session s', async () => {
+    const { t } = setup({
+      previousRefreshTokenHash: 'sha:stale',
+      refreshRotatedAt: new Date(),
+    });
+    await expect(t.service.refresh('stolen-from-elsewhere')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(t.sessions.revoke).toHaveBeenCalledWith('session-1', 'refresh_reuse_detected');
+  });
+
+  it('revokes the session when the account has become blocked', async () => {
+    const { t } = setup();
+    t.users.findById.mockResolvedValue(makeUser({ status: UserStatus.LOCKED, lockedUntil: null }));
+    await expect(t.service.refresh('current')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(t.sessions.revoke).toHaveBeenCalledWith('session-1', 'user_inactive');
+  });
+
+  it('rejects an access token presented at the refresh endpoint', async () => {
+    const { t } = setup();
+    t.jwt.verifyAsync.mockResolvedValue({ typ: 'access', sub: 'user-1', sid: 'session-1' });
+    await expect(t.service.refresh('current')).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });
