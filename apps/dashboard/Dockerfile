@@ -8,7 +8,7 @@
 # =============================================================================
 
 # ----- Base: pnpm via corepack ----------------------------------------------
-FROM node:20-alpine AS base
+FROM node:26-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@9 --activate
@@ -54,7 +54,7 @@ COPY packages ./packages
 RUN pnpm --filter @wizer/dashboard build
 
 # ----- Runner: minimal runtime image -----------------------------------------
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
