@@ -9,6 +9,7 @@ import helmet from 'helmet';
 
 import { AppModule } from './app.module';
 import { PerfLoggingInterceptor } from './common/interceptors/perf-logging.interceptor';
+import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import type { AppConfig } from './config/configuration';
 
 /**
@@ -106,7 +107,9 @@ async function bootstrap(): Promise<void> {
   // --- Performance request logging ----------------------------------------
   // Safe per-request timing (method/path/status/duration + user/company ids).
   // Slow requests warn by default; full logging via PERF_LOG_REQUESTS=true.
-  app.useGlobalInterceptors(new PerfLoggingInterceptor());
+  // Order matters: the timeout must wrap the handler, and perf logging should
+  // still observe the (failed) request.
+  app.useGlobalInterceptors(new PerfLoggingInterceptor(), new TimeoutInterceptor());
 
   // --- Graceful shutdown ---------------------------------------------------
   app.enableShutdownHooks();

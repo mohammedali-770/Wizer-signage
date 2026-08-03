@@ -40,6 +40,18 @@ export class MailService implements OnModuleInit {
         port: smtp.port,
         secure: smtp.secure ?? smtp.port === 465,
         auth: smtp.user ? { user: smtp.user, pass: smtp.password } : undefined,
+        // Bound every phase of the SMTP conversation. nodemailer's defaults are
+        // ~10 minutes, so a degraded provider would hold a request (and its
+        // pooled DB connection) open for that long — a slow mail host would take
+        // the API down rather than just delaying mail.
+        connectionTimeout: 5_000,
+        greetingTimeout: 5_000,
+        socketTimeout: 15_000,
+        // Reuse connections instead of a fresh TCP+TLS handshake per message;
+        // scheduled reports fan out to many recipients in a tight loop.
+        pool: true,
+        maxConnections: 3,
+        maxMessages: 50,
       });
       this.liveTransport = true;
       this.logger.log(`SMTP transport configured (${smtp.host}:${smtp.port}).`);
