@@ -1237,8 +1237,12 @@ model Screenshot {
   takenAt       DateTime       @default(now())
   createdAt     DateTime       @default(now())
 
-  @@index([screenId])
-  @@index([companyId])
+  // The gallery is always "one screen, newest first" (screenshot.service.ts
+  // list()), and retention sweeps by takenAt. A composite (screenId, takenAt
+  // DESC) serves both the filter and the sort from one index and subsumes the
+  // former screenId-only index.
+  @@index([screenId, takenAt(sort: Desc)])
+  @@index([companyId, takenAt(sort: Desc)])
   @@index([takenAt])
   @@map("screenshots")
 }
@@ -1404,7 +1408,11 @@ model Notification {
   createdAt DateTime             @default(now())
 
   @@index([companyId])
-  @@index([userId])
+  // The bell polls unreadCount on every dashboard page, and the list is always
+  // "my notifications, newest first" — both were doing a userId index scan and
+  // then sorting. A partial index for the unread count is added alongside this
+  // one in the migration (Prisma has no syntax for `WHERE readAt IS NULL`).
+  @@index([userId, createdAt(sort: Desc)])
   @@index([createdAt])
   @@map("notifications")
 }
