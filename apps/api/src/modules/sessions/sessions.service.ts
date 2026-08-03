@@ -5,8 +5,16 @@ import type { Session } from '@prisma/client';
 import type { AppConfig } from '../../config/configuration';
 import { PrismaService } from '../../prisma/prisma.service';
 
-/** Public-safe session view (never exposes the refresh-token hash). */
-export type SessionView = Omit<Session, 'refreshTokenHash'> & { current?: boolean };
+/**
+ * Public-safe session view — never exposes ANY refresh-token hash.
+ *
+ * The omitted set must stay in step with the model: the dashboard renders this
+ * verbatim in "active sessions", so a newly added hash column would otherwise be
+ * published to the browser the moment it is created.
+ */
+export type SessionView = Omit<Session, 'refreshTokenHash' | 'previousRefreshTokenHash'> & {
+  current?: boolean;
+};
 
 export interface CreateSessionInput {
   /** Optional explicit id so tokens can embed the session id before persistence. */
@@ -22,6 +30,17 @@ export interface CreateSessionInput {
 
 /** Only refresh lastActiveAt at most once per this many ms (write throttling). */
 const TOUCH_THROTTLE_MS = 30_000;
+
+/**
+ * How long the immediately-previous refresh token stays acceptable after
+ * rotation.
+ *
+ * Long enough to cover a client that never received the rotated token — a
+ * dropped response, the app being killed mid-request, two tabs refreshing at the
+ * same moment — and far too short to be useful to someone replaying a token
+ * captured earlier. Only ONE generation back is ever remembered.
+ */
+export const REFRESH_GRACE_MS = 30_000;
 
 @Injectable()
 export class SessionsService {
@@ -51,12 +70,41 @@ export class SessionsService {
     });
   }
 
-  /** Rotate the refresh token hash (and extend expiry) on refresh. */
-  rotate(sessionId: string, refreshTokenHash: string, expiresAt: Date): Promise<Session> {
+  /**
+   * Rotate the refresh token hash (and extend expiry) on refresh.
+   *
+   * The outgoing hash is retained as `previousRefreshTokenHash` so a client that
+   * never saw the new token can retry within {@link REFRESH_GRACE_MS} instead of
+   * having its session destroyed. Exactly one generation is kept: the previous
+   * hash is overwritten on the next rotation, so a token two generations old is
+   * still treated as theft.
+   */
+  rotate(
+    sessionId: string,
+    refreshTokenHash: string,
+    expiresAt: Date,
+    previousRefreshTokenHash?: string,
+  ): Promise<Session> {
     return this.prisma.session.update({
       where: { id: sessionId },
-      data: { refreshTokenHash, expiresAt, lastActiveAt: new Date() },
+      data: {
+        refreshTokenHash,
+        expiresAt,
+        lastActiveAt: new Date(),
+        previousRefreshTokenHash: previousRefreshTokenHash ?? null,
+        refreshRotatedAt: new Date(),
+      },
     });
+  }
+
+  /**
+   * Whether a presented token is the session's immediately-previous one, still
+   * inside the grace window.
+   */
+  isWithinRotationGrace(session: Session, presentedHash: string, now = Date.now()): boolean {
+    if (!session.previousRefreshTokenHash || !session.refreshRotatedAt) return false;
+    if (session.previousRefreshTokenHash !== presentedHash) return false;
+    return now - session.refreshRotatedAt.getTime() <= REFRESH_GRACE_MS;
   }
 
   findById(sessionId: string): Promise<Session | null> {
@@ -176,7 +224,7 @@ export class SessionsService {
   }
 
   toView(session: Session, currentSessionId?: string): SessionView {
-    const { refreshTokenHash: _omit, ...view } = session;
+    const { refreshTokenHash: _hash, previousRefreshTokenHash: _previousHash, ...view } = session;
     return { ...view, current: session.id === currentSessionId };
   }
 }

@@ -25,6 +25,21 @@ export type ExportDataset =
 
 export type ExportFormat = 'CSV' | 'XLSX' | 'PDF';
 
+/** Every dataset `GET /exports/:type` accepts. Single source of truth: the
+ *  controller validates against it and the DTO builds its error message from it. */
+export const DATASETS: ExportDataset[] = [
+  'proof-of-play',
+  'screen-health',
+  'alerts',
+  'activity-logs',
+  'screens',
+  'locations',
+  'companies',
+  'invoices',
+];
+
+export const FORMATS: ExportFormat[] = ['CSV', 'XLSX', 'PDF'];
+
 export interface ExportScope {
   companyId: string | null;
   isSuperAdmin: boolean;
@@ -218,6 +233,9 @@ export class ExportService {
     const rows = await this.prisma.screen.findMany({
       where: { ...this.companyWhere(scope), deletedAt: null },
       orderBy: { name: 'asc' },
+      // Bounded like every other dataset: an export must not stream a whole
+      // tenant's fleet into memory and then render it.
+      take: ROW_CAP,
       include: {
         location: { select: { name: true } },
         device: {
@@ -331,6 +349,7 @@ export class ExportService {
     const rows = await this.prisma.screen.findMany({
       where: { ...this.companyWhere(scope), deletedAt: null },
       orderBy: { name: 'asc' },
+      take: ROW_CAP,
       include: { location: { select: { name: true } } },
     });
     return {
@@ -352,6 +371,7 @@ export class ExportService {
     const rows = await this.prisma.location.findMany({
       where: { ...this.companyWhere(scope), deletedAt: null },
       orderBy: { name: 'asc' },
+      take: ROW_CAP,
     });
     return {
       title: 'Locations',
@@ -374,6 +394,7 @@ export class ExportService {
     const rows = await this.prisma.company.findMany({
       where: { deletedAt: null },
       orderBy: { name: 'asc' },
+      take: ROW_CAP,
     });
     return {
       title: 'Companies',

@@ -36,8 +36,40 @@ export class UsersService {
     return this.prisma.user.findFirst({ where: { id, deletedAt: null } });
   }
 
+  /**
+   * Time-based lockout from failed logins.
+   *
+   * This is the AUTO-EXPIRING lock: `lockedUntil` in the future. It deliberately
+   * ignores `status`, because `status` stays LOCKED after the window elapses
+   * until the next successful login clears it — treating that stale value as a
+   * lock would make the auto-unlock never happen.
+   */
   isLocked(user: Pick<User, 'lockedUntil'>): boolean {
     return !!user.lockedUntil && user.lockedUntil.getTime() > Date.now();
+  }
+
+  /**
+   * Whether an account may authenticate at all.
+   *
+   * `isLocked()` alone left a hole: a user whose `status` is LOCKED with NO
+   * `lockedUntil` — an INDEFINITE, administrative lock, which is what setting
+   * the status by hand or by a future admin action means — passed every check,
+   * because the only test anywhere was the timestamp. LOCKED was effectively an
+   * unenforced enum value.
+   *
+   * The three blocking states, in the order an operator would describe them:
+   *  - DISABLED: deactivated, permanent until reactivated.
+   *  - LOCKED with no expiry: held by an administrator.
+   *  - Any status with `lockedUntil` in the future: failed-login lockout.
+   *
+   * INVITED is NOT blocked here: an invited user has no password hash, so they
+   * cannot reach an authenticated path in the first place, and blocking them
+   * would break invitation acceptance.
+   */
+  isBlocked(user: Pick<User, 'status' | 'lockedUntil'>): boolean {
+    if (user.status === UserStatus.DISABLED) return true;
+    if (user.status === UserStatus.LOCKED && !user.lockedUntil) return true;
+    return this.isLocked(user);
   }
 
   // --- Login security state ----------------------------------------------
