@@ -56,10 +56,16 @@ services:
       # Directory (host-mounted below) for public file downloads such as the
       # Android TV player APK, served at /api/downloads/<file>.
       APK_DOWNLOAD_DIR: /srv/downloads
+      # Where multipart uploads are spooled. Content uploads are capped at
+      # 300 MB and this container is capped at 768M of RAM, so they MUST go to
+      # disk, not the heap. A named volume (below) keeps them off the
+      # container's writable layer and makes the space usage inspectable.
+      UPLOAD_TMP_DIR: /var/tmp/wizer-uploads
     volumes:
       # Drop .apk files into <repo-root>/downloads on the host (no rebuild
       # needed); each is then served at https://<domain>/api/downloads/<file>.
       - ../../downloads:/srv/downloads:ro
+      - api-upload-spool:/var/tmp/wizer-uploads
     # Internal-only: reachable by nginx on the shared network. Not published.
     expose:
       - '3001'
@@ -266,3 +272,7 @@ volumes:
   # pg_dump backups written by the maintenance worker (see scripts/backup-db.sh).
   backups:
     name: wizer-signage-backups
+  # Multipart uploads in flight. Transient by design — the API deletes each file
+  # once it is streamed to object storage, and sweeps orphans at boot.
+  api-upload-spool:
+    name: wizer-signage-api-upload-spool

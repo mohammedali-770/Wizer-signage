@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { Readable, pipeline } from 'node:stream';
 
@@ -129,6 +129,39 @@ export class StorageService {
       const full = join(this.localDir, key);
       await mkdir(dirname(full), { recursive: true });
       await writeFile(full, buffer);
+    }
+  }
+
+  /**
+   * Upload a file that is already spooled on disk, without materialising it.
+   *
+   * The content routes accept files up to 300 MB; reading one into a Buffer just
+   * to hand it to `upload()` would reintroduce exactly the heap spike that
+   * disk-spooling multer was added to remove. storage-js detects a Node readable
+   * (`'pipe' in body`) and sets `duplex: 'half'` itself, so the stream is sent
+   * as a chunked request body.
+   *
+   * The stream is destroyed on failure — an un-consumed `createReadStream` holds
+   * a file descriptor open until GC otherwise.
+   */
+  async uploadFile(key: string, filePath: string, contentType: string): Promise<void> {
+    if (this.mode === 'supabase') {
+      const source = createReadStream(filePath);
+      try {
+        const { error } = await this.supabase!.storage.from(this.bucket).upload(key, source, {
+          contentType,
+          upsert: true,
+        });
+        if (error) {
+          throw new InternalServerErrorException(`Storage upload failed: ${error.message}`);
+        }
+      } finally {
+        if (!source.destroyed) source.destroy();
+      }
+    } else {
+      const full = join(this.localDir, key);
+      await mkdir(dirname(full), { recursive: true });
+      await copyFile(filePath, full);
     }
   }
 
