@@ -26,26 +26,32 @@ is no in-process scheduler (deliberately, to avoid overbuilding).
    - Expired single-use auth material: `PasswordResetToken`,
      `TwoFactorChallenge`, `PairingCode`
    - **Content trash** older than 14 days (via the existing content cleanup)
+3. **Emergency auto-END** — see below.
+4. **Scheduled reports** — runs every enabled report whose `nextRunAt` is due.
+5. **Backup recency check** — raises a system alert if the database has not had a
+   successful backup recently.
 
-> **Batching and failure reporting.** Every delete runs in bounded batches
-> (10,000 rows per statement, up to 10 batches per target per run). An unbounded
-> `deleteMany` over a telemetry table exceeds the pooled statement timeout at
-> scale — the delete then fails every night, and if that failure is swallowed the
-> job reports `0` (indistinguishable from "nothing to delete") while the database
-> grows until **all writes stop**. The result therefore carries:
->
-> - `failures[]` — steps that errored. The maintenance CLI **exits non-zero**, so
->   cron and `docker logs` surface it.
-> - `truncated[]` — steps that hit the per-run cap with rows still pending. A cap
->   is never silent; if a target appears here every night, the backlog is growing
->   faster than it is drained.
->
-> `login_events` and `pairing_codes` are written by **unauthenticated** endpoints,
-> so before this they let anyone consume tenant-billed storage indefinitely via
-> credential-stuffing or pairing spam. `POST /device/pairing/start` is now
-> additionally throttled to 5/min, and the attacker-controlled `email`/`userAgent`
-> on a login event are truncated. 3. **Emergency auto-END** — see below. 4. **Scheduled reports** — runs every enabled report whose `nextRunAt` is due. 5. **Backup recency check** — raises a system alert if the database has not had a
-> successful backup recently.
+### Batching and failure reporting
+
+Every delete runs in **bounded batches** (10,000 rows per statement, up to 10
+batches per target per run). An unbounded `deleteMany` over a telemetry table
+exceeds the pooled statement timeout at scale — the delete then fails every
+night, and if that failure is swallowed the job reports `0` (indistinguishable
+from "nothing to delete") while the database grows until **all writes stop**.
+
+The result therefore carries:
+
+- `failures[]` — steps that errored. The maintenance CLI **exits non-zero**, so
+  cron and `docker logs` surface it.
+- `truncated[]` — steps that hit the per-run cap with rows still pending. A cap
+  is never silent; if a target appears here every night, the backlog is growing
+  faster than it is drained.
+
+`login_events` and `pairing_codes` are written by **unauthenticated** endpoints,
+so before this they let anyone consume tenant-billed storage indefinitely via
+credential-stuffing or pairing spam. `POST /device/pairing/start` is now
+additionally throttled to 5/min, and the attacker-controlled `email`/`userAgent`
+on a login event are truncated.
 
 ### Never deleted
 
