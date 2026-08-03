@@ -3,6 +3,7 @@ package com.wizer.signage.monitoring
 import com.wizer.signage.data.ApiClient
 import com.wizer.signage.data.DeviceStore
 import com.wizer.signage.data.model.CommandResultPayload
+import com.wizer.signage.util.Jitter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -52,6 +53,9 @@ class MonitoringController(
     }
 
     private suspend fun heartbeatLoop() {
+        // Independent stagger per loop so a fleet coming back from a power cut
+        // spreads its heartbeats instead of arriving as one spike.
+        delay(Jitter.startupDelay())
         while (coroutineContext.isActive) {
             store.deviceToken?.let { token ->
                 try {
@@ -60,11 +64,12 @@ class MonitoringController(
                     // Heartbeat is best-effort; never break playback.
                 }
             }
-            delay(heartbeatMs)
+            delay(Jitter.periodic(heartbeatMs))
         }
     }
 
     private suspend fun pollLoop() {
+        delay(Jitter.startupDelay())
         while (coroutineContext.isActive) {
             val token = store.deviceToken
             if (token != null) {
@@ -85,22 +90,20 @@ class MonitoringController(
                             error = outcome.error,
                         )
                         var reported = false
-                        var backoff = 1_000L
                         var attempt = 0
                         while (!reported && attempt < 3) {
                             reported = api.reportCommandResult(token, command.id, payload)
                             attempt++
-                            if (!reported && attempt < 3) {
-                                delay(backoff)
-                                backoff *= 2
-                            }
+                            // Full jitter: every screen that got the same broadcast
+                            // command would otherwise retry in lockstep.
+                            if (!reported && attempt < 3) delay(Jitter.backoff(attempt - 1, 1_000L))
                         }
                     }
                 } catch (e: Exception) {
                     // Polling is best-effort.
                 }
             }
-            delay(pollMs)
+            delay(Jitter.periodic(pollMs))
         }
     }
 

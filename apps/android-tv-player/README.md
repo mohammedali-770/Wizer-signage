@@ -11,11 +11,20 @@ arrive in later phases. See [`docs/android-player.md`](../../docs/android-player
 and known limitations.
 
 The API base URL is `BuildConfig.API_BASE_URL` in `app/build.gradle.kts`. It **defaults to
-production** (`https://wizer.sa/api`) so no build ships the emulator URL by
-accident. For local emulator development, override it at build time:
+production** (`https://signage.wizer.sa/api` — the host nginx actually serves) so no build
+ships the emulator URL by accident. For local emulator development, override it at build
+time:
 
 ```bash
 ./gradlew assembleDebug -PapiBaseUrl=http://10.0.2.2:3001/api
+```
+
+There is **no OTA update channel**: an APK baked against the wrong host can never pair or
+sync and has to be re-flashed screen by screen. `scripts/build-android-release.sh`
+therefore refuses to build unless the host is stated explicitly:
+
+```bash
+scripts/build-android-release.sh --api-base-url=https://signage.wizer.sa/api
 ```
 
 | | |

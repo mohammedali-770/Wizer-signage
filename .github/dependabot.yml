@@ -1,0 +1,41 @@
+# Dependabot — keep dependencies patched without waiting for an audit to go red.
+#
+# The repo previously had no automated dependency updates at all, and shipped
+# with 11 high-severity advisories in production dependencies (including the
+# framework itself and the library used for upload magic-byte validation).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for routine patch/minor bumps keeps the noise manageable; a major
+      # still arrives on its own so it gets a real review.
+      minor-and-patch:
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: gradle
+    directory: '/apps/android-tv-player'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: docker
+    directory: '/apps/api'
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: '/apps/dashboard'
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: '/infra/docker'
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly

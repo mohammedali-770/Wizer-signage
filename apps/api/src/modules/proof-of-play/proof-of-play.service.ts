@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, ProofOfPlayStatus } from '@prisma/client';
 
 import { resolvePagination } from '../../common/dto/pagination.dto';
@@ -31,6 +31,8 @@ const TERMINAL_STATUSES: ProofOfPlayStatus[] = [
  */
 @Injectable()
 export class ProofOfPlayService {
+  private readonly logger = new Logger(ProofOfPlayService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // --- Device ingest -----------------------------------------------------
@@ -97,10 +99,30 @@ export class ProofOfPlayService {
     const status = EVENT_STATUS[event.eventType] as ProofOfPlayStatus;
     const endedAt = event.endedAt ? new Date(event.endedAt) : null;
 
+    // playbackSessionId is CLIENT-SUPPLIED and globally unique across all
+    // tenants, so a lookup by it alone can resolve to another company's row.
+    // Read the owning tenant back and refuse anything that is not ours: without
+    // this, any device-token holder could rewrite another company's playback
+    // record (the advertiser-billing and compliance trail) by replaying a
+    // session id — and session ids are printed in plaintext in every
+    // proof-of-play CSV export.
     const existing = await this.prisma.proofOfPlay.findUnique({
       where: { playbackSessionId: event.playbackSessionId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, companyId: true, screenId: true },
     });
+
+    if (
+      existing &&
+      (existing.companyId !== device.companyId || existing.screenId !== device.screenId)
+    ) {
+      // Either a genuine UUIDv4 collision (vanishingly unlikely) or an attempt to
+      // claim/overwrite another tenant's session. Drop the event and keep
+      // processing the rest of the batch. No identifiers are logged.
+      this.logger.warn(
+        'Rejected a proof-of-play event whose playbackSessionId belongs to another screen/company.',
+      );
+      return;
+    }
 
     if (!existing) {
       try {
@@ -143,8 +165,16 @@ export class ProofOfPlayService {
     const incomingTerminal = status !== ProofOfPlayStatus.STARTED;
     if (!incomingTerminal || existingTerminal) return; // STARTED-on-existing or already-terminal: idempotent no-op.
 
-    await this.prisma.proofOfPlay.update({
-      where: { playbackSessionId: event.playbackSessionId },
+    // updateMany, NOT update: the predicate carries the tenant so the statement
+    // itself cannot touch another company's row, even if the ownership check
+    // above raced with a concurrent create. A count of 0 means the row is not
+    // ours (or vanished) — treat it as a rejected event, never as success.
+    const { count } = await this.prisma.proofOfPlay.updateMany({
+      where: {
+        playbackSessionId: event.playbackSessionId,
+        companyId: device.companyId,
+        screenId: device.screenId,
+      },
       data: {
         status,
         endedAt,
@@ -155,6 +185,11 @@ export class ProofOfPlayService {
         scheduleId: event.scheduleId ?? undefined,
       },
     });
+    if (count === 0) {
+      this.logger.warn(
+        'Proof-of-play terminal update matched no row owned by this screen; event dropped.',
+      );
+    }
   }
 
   // --- Dashboard reports -------------------------------------------------

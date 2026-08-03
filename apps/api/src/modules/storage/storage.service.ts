@@ -1,7 +1,7 @@
 import { createReadStream } from 'node:fs';
 import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { Readable } from 'node:stream';
+import { Readable, pipeline } from 'node:stream';
 
 import {
   Injectable,
@@ -18,6 +18,13 @@ import { CryptoService } from '../../common/crypto/crypto.service';
 import type { AppConfig } from '../../config/configuration';
 
 const DEFAULT_SIGNED_TTL = 3600; // seconds
+
+/**
+ * Bound on any single outbound call to Supabase (Storage REST + the proxied
+ * object fetch). undici's default is 300s, which is long enough that a degraded
+ * provider saturates the event loop and the Prisma pool before anything fails.
+ */
+const UPSTREAM_FETCH_TIMEOUT_MS = Number(process.env.STORAGE_FETCH_TIMEOUT_MS ?? 15_000);
 
 /**
  * File storage abstraction with two adapters:
@@ -51,6 +58,16 @@ export class StorageService {
       this.mode = 'supabase';
       this.supabase = createClient(supabase.url, supabase.serviceRoleKey, {
         auth: { persistSession: false },
+        global: {
+          // supabase-js otherwise inherits undici's 300s default, so a slow
+          // Storage API would hold every upload/signed-URL/remove call open
+          // indefinitely. Every SDK call is now bounded.
+          fetch: (input, init) =>
+            fetch(input as Parameters<typeof globalThis.fetch>[0], {
+              ...init,
+              signal: init?.signal ?? AbortSignal.timeout(UPSTREAM_FETCH_TIMEOUT_MS),
+            }),
+        },
         // This server uses Storage only — never Realtime. supabase-js still
         // constructs a Realtime client, and @supabase/realtime-js throws on
         // Node < 22 when it can't find a native WebSocket. Supplying the `ws`
@@ -200,7 +217,13 @@ export class StorageService {
     // Supabase: proxy the (optionally ranged) fetch of a short-lived signed URL
     // server-side; the signed URL never leaves this process.
     const signedUrl = await this.getSignedUrl(key, mimeType, 300);
-    const upstream = await fetch(signedUrl, { headers: range ? { Range: range } : {} });
+    // Bound the upstream fetch. Without a signal, undici's 300s default applies
+    // and a degraded Supabase Storage parks a Node handle plus a pooled DB
+    // connection per in-flight download until the event loop saturates.
+    const upstream = await fetch(signedUrl, {
+      headers: range ? { Range: range } : {},
+      signal: AbortSignal.timeout(UPSTREAM_FETCH_TIMEOUT_MS),
+    });
     if (!upstream.ok && upstream.status !== 206) {
       throw new NotFoundException('File not available.');
     }
@@ -210,8 +233,20 @@ export class StorageService {
     const contentRange = upstream.headers.get('content-range');
     if (contentRange) res.setHeader('Content-Range', contentRange);
     if (upstream.body) {
+      // pipeline(), not .pipe(): a raw pipe leaves the source Readable without
+      // an 'error' handler, and an upstream error on a stream with no listener
+      // is an unhandled 'error' event that takes the whole process down. It also
+      // never tore down the upstream read when the client disconnected, leaking
+      // a socket per aborted download.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      Readable.fromWeb(upstream.body as any).pipe(res);
+      const source = Readable.fromWeb(upstream.body as any);
+      res.on('close', () => source.destroy());
+      pipeline(source, res, (error) => {
+        if (error && !res.writableEnded) {
+          this.logger.warn(`Download stream failed: ${error.message}`);
+          res.destroy();
+        }
+      });
     } else {
       res.end();
     }

@@ -3,6 +3,7 @@ package com.wizer.signage.data.cache
 import com.wizer.signage.data.ApiClient
 import com.wizer.signage.data.model.SyncPlanItem
 import com.wizer.signage.util.Checksums
+import com.wizer.signage.util.Jitter
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -17,7 +18,6 @@ class AssetDownloader(
 ) {
     suspend fun download(token: String, item: SyncPlanItem, maxAttempts: Int = 3): Boolean {
         val path = item.downloadPath ?: return false
-        var backoff = 1_000L
         for (attempt in 1..maxAttempts) {
             val temp = File(cache.tmpDir, "dl_${item.contentId}_${System.nanoTime()}.part")
             val downloaded = api.downloadToFile(token, path, temp)
@@ -40,11 +40,16 @@ class AssetDownloader(
                 return true
             }
             temp.delete()
-            if (attempt < maxAttempts) {
-                delay(backoff)
-                backoff *= 2
-            }
+            // Full jitter: a new playlist pushes the same asset to every screen at
+            // once, so a failing download must not be retried by the whole fleet
+            // on the same tick.
+            if (attempt < maxAttempts) delay(Jitter.backoff(attempt - 1, RETRY_BASE_MS))
         }
         return false
+    }
+
+    companion object {
+        /** First-retry cap; doubles per attempt inside [Jitter.backoff]. */
+        const val RETRY_BASE_MS = 1_000L
     }
 }

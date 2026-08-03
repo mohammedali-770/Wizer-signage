@@ -95,15 +95,52 @@ echo "[backup] $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # --no-owner / --no-privileges keep the dump portable across roles (useful when
 # restoring into Supabase or a fresh local instance).
+#
+# --clean --if-exists is REQUIRED for the dump to be restorable into a database
+# that already has the schema — which is exactly the disaster-recovery and
+# rollback case this file exists for. Without it, restore-db.sh pipes the dump
+# into `psql --set ON_ERROR_STOP=on` and the very first CREATE TABLE aborts with
+# "already exists", so the backup was effectively write-only.
+#
+# --schema=public keeps the dump to our own objects: Supabase owns auth/storage/
+# extensions schemas that we neither back up nor have permission to recreate.
 if pg_dump \
     --dbname="${DUMP_URL}" \
     --no-owner \
     --no-privileges \
+    --clean \
+    --if-exists \
+    --schema=public \
     --format=plain \
     | gzip -9 > "${OUTFILE}"; then
   SIZE="$(du -h "${OUTFILE}" | cut -f1)"
   SIZE_BYTES="$(wc -c < "${OUTFILE}" | tr -d ' ')"
   echo "[backup] OK — wrote ${OUTFILE} (${SIZE})"
+
+  # --- Offsite copy --------------------------------------------------------
+  # A backup that only exists on the machine it backs up is not a backup: losing
+  # the droplet (or one `docker compose down -v`) destroys the application AND
+  # every recovery point in the same event. Copy offsite BEFORE the prune below,
+  # and treat an upload failure as a FAILED run so the "backup overdue" alert
+  # fires rather than silently leaving the only copy on the box.
+  #
+  # BACKUP_OFFSITE_CMD receives the dump path as $1, e.g.
+  #   BACKUP_OFFSITE_CMD='rclone copyto "$1" "remote:wizer-backups/$(basename "$1")"'
+  #   BACKUP_OFFSITE_CMD='aws s3 cp "$1" "s3://wizer-backups/"'
+  if [[ -n "${BACKUP_OFFSITE_CMD:-}" ]]; then
+    echo "[backup] Copying offsite..."
+    if sh -c "${BACKUP_OFFSITE_CMD}" _ "${OUTFILE}"; then
+      echo "[backup] Offsite copy OK."
+    else
+      echo "[backup] FAILED — offsite copy failed; the only copy is on this host." >&2
+      record_backup "FAILED" "${OUTFILE}" "${SIZE_BYTES}" "offsite copy failed"
+      exit 1
+    fi
+  else
+    echo "[backup] WARNING: BACKUP_OFFSITE_CMD is not set — this backup exists ONLY on this host." >&2
+    echo "[backup]          Losing this machine loses the database and every snapshot with it." >&2
+  fi
+
   record_backup "SUCCESS" "${OUTFILE}" "${SIZE_BYTES}" ""
 else
   echo "[backup] FAILED — removing partial file ${OUTFILE}" >&2

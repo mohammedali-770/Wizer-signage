@@ -155,21 +155,31 @@ Drive the maintenance worker / cron jobs and data retention.
 
 ## Backups (Phase 11)
 
-| Variable                | Required | Scope | Description                                                                                                       | Example                                    |
-| ----------------------- | -------- | ----- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `BACKUP_DIR`            | No       | maint | `pg_dump` output directory (the worker mounts a volume at `/backups`).                                            | `/backups`                                 |
-| `BACKUP_RETENTION_DAYS` | No       | maint | Prune `*.sql.gz` snapshots after N days (defaults to `RETENTION_DAYS`). **Does not** delete DB financial records. | `14`                                       |
-| `MAINTENANCE_CLI`       | No       | maint | Path to the maintenance CLI the backup script calls to record runs (set inside the worker image).                 | `/app/dist/maintenance/maintenance.cli.js` |
+| Variable                | Required  | Scope | Description                                                                                                                                                                                                                                     | Example                                    |
+| ----------------------- | --------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `BACKUP_DIR`            | No        | maint | `pg_dump` output directory (the worker mounts a volume at `/backups`).                                                                                                                                                                          | `/backups`                                 |
+| `BACKUP_RETENTION_DAYS` | No        | maint | Prune `*.sql.gz` snapshots after N days (defaults to `RETENTION_DAYS`). **Does not** delete DB financial records.                                                                                                                               | `14`                                       |
+| `MAINTENANCE_CLI`       | No        | maint | Path to the maintenance CLI the backup script calls to record runs (set inside the worker image).                                                                                                                                               | `/app/dist/maintenance/maintenance.cli.js` |
+| `HEALTHCHECKS_URL`      | No (rec.) | maint | Dead-man's-switch pinged **only after a successful backup** (e.g. healthchecks.io). The in-app "backup overdue" alert is raised by the same container that runs the backup, so it cannot report its own death — this is the out-of-band signal. | `https://hc-ping.com/<uuid>`               |
 
 ---
 
 ## Deployment / proxy (Phase 11)
 
-| Variable                | Required   | Scope   | Description                                                  | Example        |
-| ----------------------- | ---------- | ------- | ------------------------------------------------------------ | -------------- |
-| `APP_DOMAIN`            | Yes (prod) | nginx   | Public domain for nginx `server_name` + TLS cert paths.      | `wizer.sa`     |
-| `NGINX_ENVSUBST_FILTER` | No         | nginx   | Required only when using the nginx template: `^APP_DOMAIN$`. | `^APP_DOMAIN$` |
-| `LETSENCRYPT_EMAIL`     | No         | certbot | Contact email for Let's Encrypt issuance/expiry notices.     | `ops@wizer.sa` |
+| Variable                | Required   | Scope        | Description                                                                                                                                     | Example            |
+| ----------------------- | ---------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `APP_DOMAIN`            | Yes (prod) | nginx, maint | Public domain for nginx `server_name` + TLS cert paths; also used by the nightly TLS expiry check.                                              | `signage.wizer.sa` |
+| `NGINX_ENVSUBST_FILTER` | No         | nginx        | Required only when using the nginx template: `^APP_DOMAIN$`.                                                                                    | `^APP_DOMAIN$`     |
+| `LETSENCRYPT_EMAIL`     | No         | certbot      | Contact email for Let's Encrypt issuance/expiry notices.                                                                                        | `ops@wizer.sa`     |
+| `CERT_WARN_DAYS`        | No         | maint        | Alert when the **served** certificate has fewer than N days left. Default 21.                                                                   | `21`               |
+| `NGINX_RELOAD_INTERVAL` | No         | nginx        | Seconds between periodic `nginx -s reload` so a renewed certificate is actually served (nginx loads certs at startup only). Default 21600 (6h). | `21600`            |
+
+> **TLS renewal is a two-part mechanism.** certbot renews the files; nginx only
+> serves a renewed certificate after a reload. The certbot override runs a
+> `--deploy-hook` (marker + log line) and the nginx container reloads on
+> `NGINX_RELOAD_INTERVAL`, bounding "renewed but not served" to one interval.
+> `scripts/check-cert-expiry.sh` (nightly, via the maintenance crontab) verifies
+> the certificate the endpoint **actually serves**, so it catches both halves.
 
 > `NEXT_PUBLIC_API_URL` is **build-time** for the dashboard image (compose
 > `build.args`) — it is inlined into the browser bundle, so changing it requires

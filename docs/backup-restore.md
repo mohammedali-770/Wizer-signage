@@ -7,6 +7,13 @@ depth.
 
 > **Golden rule:** a backup you have never restored is not a backup. Test the restore
 > procedure (Section 6) on a non-production target on a schedule.
+>
+> This is **automated**: `scripts/tests/backup-restore-drill.sh` (Docker required) seeds a
+> throwaway Postgres, dumps it with the real `backup-db.sh`, mutates and corrupts the data,
+> restores with the real `restore-db.sh` **into the now-non-empty database**, and asserts
+> the rows came back. It is a regression test for a real defect: `pg_dump` previously ran
+> without `--clean --if-exists`, so a restore into an existing schema aborted on its first
+> statement — the exact disaster-recovery case the tooling exists for.
 
 ---
 
@@ -35,20 +42,35 @@ in production. See [environment-variables.md](./environment-variables.md).
 - **Daily** logical Postgres dump via `scripts/backup-db.sh`, run from cron on the VPS.
 - **Supabase managed backups** run independently on the Supabase project (point-in-time /
   daily depending on plan) — these are our second, off-box copy.
-- **Retention (default): 90 days** of daily dumps. Older dumps are pruned automatically by
-  the backup script.
-- **Financial / invoice records are retained longer than the 90-day default** (multi-year,
-  per accounting/legal requirements). These are preserved either through dedicated longer
-  retention dumps or by never pruning the rows themselves; do **not** let the 90-day prune
-  policy delete data needed for financial recordkeeping.
+- **Snapshot retention (default): 14 days** of dumps — `BACKUP_RETENTION_DAYS`, falling
+  back to `RETENTION_DAYS`. Older `*.sql.gz` files are pruned automatically by the backup
+  script. (This is the _file_ retention window; it is independent of the database
+  retention window that prunes telemetry rows.)
+- **Financial / invoice records are retained far longer than any snapshot window**
+  (multi-year, per accounting/legal requirements). They are preserved by never pruning the
+  rows themselves — retention has no code path that touches invoices or subscriptions, and
+  the `companies -> invoices/subscriptions/proof_of_plays` foreign keys are `ON DELETE
+RESTRICT` so even a direct `DELETE FROM companies` cannot cascade them away. Do **not**
+  rely on the pruned snapshots for financial archival — keep dedicated long-term copies.
 
 ### Where dumps live
 
-- Default local target: `/opt/wizer-signage/backups/db/` on the VPS (timestamped,
-  compressed files, e.g. `wizer-signage-YYYYMMDD-HHMMSS.sql.gz`).
-- **Strongly recommended:** sync these off-box (object storage / a separate host) so a lost
-  VPS does not lose the backups. Keep the canonical location consistent with
-  `scripts/backup-db.sh`.
+- Written to `BACKUP_DIR` (default `<repo>/backups`; the maintenance container mounts the
+  `wizer-signage-backups` volume at **`/backups`**, which is where production dumps live).
+  Filenames are `wizer-signage_YYYYMMDD_HHMMSS.sql.gz` — note the **underscores**.
+- **Offsite copy — set `BACKUP_OFFSITE_CMD`.** A dump that only exists on the machine it
+  backs up is not a backup: losing the droplet, or one `docker compose down -v`, destroys
+  the application and every recovery point in the same event. The script runs the command
+  with the dump path as `$1` **before** pruning, and a failed upload fails the run and
+  records a FAILED `BackupRecord`:
+
+  ```bash
+  BACKUP_OFFSITE_CMD='rclone copyto "$1" "remote:wizer-backups/$(basename "$1")"'
+  # or
+  BACKUP_OFFSITE_CMD='aws s3 cp "$1" "s3://wizer-backups/"'
+  ```
+
+  When it is unset the script warns loudly on every run.
 
 ### Cron example
 
@@ -135,7 +157,8 @@ Restores are **destructive** — they overwrite the target database. The restore
 3. **Select the dump to restore.** List available backups and pick the timestamp:
 
    ```bash
-   ls -lh /opt/wizer-signage/backups/db/
+   docker compose --env-file .env -f infra/docker/docker-compose.yml \
+     exec maintenance ls -lh /backups
    ```
 
 4. **Confirm the target.** Double-check `DIRECT_URL` points at the **intended** database
@@ -149,7 +172,7 @@ Restores are **destructive** — they overwrite the target database. The restore
 5. **Run the restore:**
 
    ```bash
-   ./scripts/restore-db.sh /opt/wizer-signage/backups/db/wizer-signage-YYYYMMDD-HHMMSS.sql.gz
+   ./scripts/restore-db.sh /backups/wizer-signage_YYYYMMDD_HHMMSS.sql.gz
    ```
 
    The script restores the dump into the `DIRECT_URL` database. Watch the output for errors.

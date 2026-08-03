@@ -1,6 +1,8 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import { hasPermission, Permission } from '../../common/rbac/permissions';
+import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   FORMAT_CONTENT_TYPE,
@@ -27,6 +29,33 @@ export interface ExportScope {
   companyId: string | null;
   isSuperAdmin: boolean;
 }
+
+/**
+ * Extra authority required PER DATASET, on top of the controller's blanket
+ * `report:read`.
+ *
+ * The controller gates the whole `GET /exports/:type` surface on `report:read`,
+ * which is in READ_ONLY and therefore held by VIEWER. That collapsed four very
+ * different permission boundaries into one: the interactive routes require
+ * `activity:read` (COMPANY_ADMIN) for the audit trail and SUPER_ADMIN for
+ * billing, but the export of the SAME data required neither — so a VIEWER or a
+ * contractor with CONTENT_MANAGER could pull the tenant's full audit trail and
+ * invoice ledger as a spreadsheet.
+ *
+ * Datasets absent from this map need only `report:read`.
+ */
+const DATASET_PERMISSIONS: Partial<Record<ExportDataset, Permission>> = {
+  // Mirrors ActivityLogController — the audit trail names actors, targets and
+  // change payloads for every login, password change and user mutation.
+  'activity-logs': Permission.ActivityRead,
+};
+
+/** Datasets that are platform-level and require SUPER_ADMIN, never a tenant role. */
+const SUPER_ADMIN_DATASETS: ReadonlySet<ExportDataset> = new Set<ExportDataset>([
+  // Mirrors InvoicesController (@Roles(SUPER_ADMIN)) and the companies registry.
+  'invoices',
+  'companies',
+]);
 
 export interface ExportFilters {
   from?: string;
@@ -61,6 +90,27 @@ const ROW_CAP = 50_000;
 @Injectable()
 export class ExportService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Assert the caller may export THIS dataset, not merely "some report".
+   *
+   * Takes the full authenticated user (not the reduced {companyId,isSuperAdmin}
+   * scope) because the decision needs the caller's role. Call this before any
+   * dataset is built — including from the scheduled-report runner, so a report
+   * cannot be scheduled by a role that could not read the data interactively.
+   */
+  assertDatasetAccess(user: AuthenticatedUser, dataset: ExportDataset): void {
+    if (SUPER_ADMIN_DATASETS.has(dataset)) {
+      if (!user.isSuperAdmin) {
+        throw new ForbiddenException(`Exporting "${dataset}" requires super-admin access.`);
+      }
+      return;
+    }
+    const required = DATASET_PERMISSIONS[dataset];
+    if (required && !hasPermission(user.role, required)) {
+      throw new ForbiddenException(`Exporting "${dataset}" requires the "${required}" permission.`);
+    }
+  }
 
   async dataset(
     scope: ExportScope,

@@ -160,3 +160,85 @@ describe('AlertService management', () => {
     expect(t.prisma.alert.findMany.mock.calls[0][0].where).toMatchObject({ companyId: 'comp1' });
   });
 });
+
+/**
+ * Persistent-CRITICAL re-notification.
+ *
+ * Dedup deliberately keeps a repeated condition quiet so a 5-minute sweep does
+ * not spam. The failure mode that created was: a CRITICAL notified exactly once
+ * and then stayed silent forever, so a single missed email hid the condition
+ * (e.g. "backups have stopped") indefinitely. An unacknowledged CRITICAL must
+ * therefore page again on a cadence.
+ */
+describe('AlertService.raise (persistent CRITICAL re-notification)', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  const raiseCritical = (t: ReturnType<typeof build>) =>
+    t.service.raise({
+      companyId: 'comp1',
+      type: 'backup.overdue',
+      severity: 'CRITICAL' as any,
+      title: 'Backups have stopped',
+    });
+
+  it('does not re-notify a CRITICAL seen again immediately (anti-spam holds)', async () => {
+    const t = build();
+    const { alertId } = await raiseCritical(t);
+    expect(t.notifications.create).toHaveBeenCalledTimes(1);
+
+    await raiseCritical(t); // same condition, next sweep
+    expect(t.notifications.create).toHaveBeenCalledTimes(1);
+    expect(t.store.get(alertId).status).toBe('OPEN');
+  });
+
+  it('re-notifies an unacknowledged CRITICAL once the cadence has elapsed', async () => {
+    const t = build();
+    const { alertId } = await raiseCritical(t);
+    expect(t.notifications.create).toHaveBeenCalledTimes(1);
+
+    // Age the last notification past the 24h cadence.
+    t.store.get(alertId).lastNotifiedAt = new Date(Date.now() - DAY - 60_000);
+
+    await raiseCritical(t);
+    expect(t.notifications.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('stamps lastNotifiedAt so the cadence is driven by notification time', async () => {
+    const t = build();
+    const { alertId } = await raiseCritical(t);
+    expect(t.store.get(alertId).lastNotifiedAt).toBeInstanceOf(Date);
+  });
+
+  it('stays silent for an ACKNOWLEDGED CRITICAL even after the cadence', async () => {
+    const t = build();
+    const { alertId } = await raiseCritical(t);
+    const row = t.store.get(alertId);
+    row.status = 'ACKNOWLEDGED';
+    row.acknowledgedAt = new Date();
+    row.lastNotifiedAt = new Date(Date.now() - DAY - 60_000);
+
+    await raiseCritical(t);
+    // Someone owns it — re-paging would be noise.
+    expect(t.notifications.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('never re-notifies a non-CRITICAL, however long it persists', async () => {
+    const t = build();
+    const { alertId } = await t.service.raise({
+      companyId: 'comp1',
+      type: 'screen.offline',
+      severity: 'WARNING' as any,
+      title: 'Screen offline',
+    });
+    expect(t.notifications.create).toHaveBeenCalledTimes(1);
+
+    t.store.get(alertId).lastNotifiedAt = new Date(Date.now() - 30 * DAY);
+    await t.service.raise({
+      companyId: 'comp1',
+      type: 'screen.offline',
+      severity: 'WARNING' as any,
+      title: 'Screen offline',
+    });
+    expect(t.notifications.create).toHaveBeenCalledTimes(1);
+  });
+});

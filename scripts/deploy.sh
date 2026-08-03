@@ -35,7 +35,12 @@ fi
 COMPOSE="docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE}"
 
 # Health check endpoint (through nginx by default). Override as needed.
-HEALTH_URL="${HEALTH_URL:-http://localhost/api/health}"
+#
+# READINESS, not liveness: /api/health returns {status:'ok'} from process.uptime()
+# and never touches the database, so a deploy that breaks DB connectivity would
+# print "API is healthy" while every request 500s. /api/health/ready runs a real
+# SELECT 1 and returns 503 when the database is unreachable.
+HEALTH_URL="${HEALTH_URL:-http://localhost/api/health/ready}"
 HEALTH_RETRIES="${HEALTH_RETRIES:-30}"
 HEALTH_INTERVAL="${HEALTH_INTERVAL:-5}"
 
@@ -58,6 +63,24 @@ git pull --ff-only origin "${DEPLOY_BRANCH}"
 # --- 2. Build images ---------------------------------------------------------
 echo "==> [deploy] Building service images..."
 ${COMPOSE} build
+
+# --- 3. Pre-migration backup -------------------------------------------------
+# Migrations are forward-only and can be destructive. Without a recovery point
+# taken immediately before them, the closest restore is the nightly cron — i.e.
+# up to 24h of every tenant's data. This is a HARD gate: if the backup fails we
+# do not migrate.
+#
+# Set DEPLOY_SKIP_BACKUP=1 only for a deliberate, migration-free redeploy.
+if [[ "${DEPLOY_SKIP_BACKUP:-0}" == "1" ]]; then
+  echo "==> [deploy] WARNING: skipping the pre-migration backup (DEPLOY_SKIP_BACKUP=1)." >&2
+else
+  echo "==> [deploy] Taking a pre-migration database backup..."
+  if ! bash "${ROOT_DIR}/scripts/backup-db.sh"; then
+    echo "==> [deploy] FAILED — pre-migration backup did not succeed; refusing to migrate." >&2
+    echo "==> [deploy] Fix the backup, or re-run with DEPLOY_SKIP_BACKUP=1 to override." >&2
+    exit 1
+  fi
+fi
 
 # --- 4. Apply database migrations --------------------------------------------
 # The migration files are baked into the freshly-built api image above, so this

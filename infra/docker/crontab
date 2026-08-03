@@ -5,19 +5,33 @@
 # Jobs run as the unprivileged "node" user via su-exec; output is redirected to
 # the container's stdout (/proc/1/fd/1) so `docker logs` shows it.
 #
-# All jobs are IDEMPOTENT (deduped alerts, deleteMany retention, status-gated
-# auto-END), so an occasional overlap is harmless. Times are UTC unless TZ is set.
+# OVERLAP: every job is wrapped in `flock -n` against its own lock file. The jobs
+# are individually idempotent, but a slow run (a large tenant sweep, a big dump)
+# could otherwise stack every 5 minutes and pile concurrent Prisma pools onto the
+# same database. -n means "skip this tick if the previous run is still going"
+# rather than queueing, which is the right behaviour for periodic maintenance.
+#
+# Times are UTC unless TZ is set.
 #
 # fields: minute hour day-of-month month day-of-week  command
 # =============================================================================
 
 # Alerts sweep + due scheduled reports + emergency auto-END — every 5 minutes.
-*/5 * * * * cd /app && su-exec node node dist/maintenance/maintenance.cli.js sweep       >> /proc/1/fd/1 2>&1
-*/5 * * * * cd /app && su-exec node node dist/maintenance/maintenance.cli.js reports      >> /proc/1/fd/1 2>&1
-*/5 * * * * cd /app && su-exec node node dist/maintenance/maintenance.cli.js emergencies  >> /proc/1/fd/1 2>&1
+*/5 * * * * flock -n /tmp/wizer-sweep.lock      -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js sweep'       >> /proc/1/fd/1 2>&1
+*/5 * * * * flock -n /tmp/wizer-reports.lock    -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js reports'      >> /proc/1/fd/1 2>&1
+*/5 * * * * flock -n /tmp/wizer-emergency.lock  -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js emergencies'  >> /proc/1/fd/1 2>&1
 
 # Full nightly run (sweep + retention cleanup + reports + auto-END + backup check) at 03:30.
-30 3 * * * cd /app && su-exec node node dist/maintenance/maintenance.cli.js all           >> /proc/1/fd/1 2>&1
+30 3 * * * flock -n /tmp/wizer-nightly.lock     -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js all'          >> /proc/1/fd/1 2>&1
 
 # Database backup at 02:00 (pg_dump → BACKUP_DIR, records a BackupRecord).
-0 2 * * * cd /app && su-exec node bash scripts/backup-db.sh                                >> /proc/1/fd/1 2>&1
+# On success, ping the dead-man's-switch URL if one is configured
+# (HEALTHCHECKS_URL, e.g. https://hc-ping.com/<uuid>) so an EXTERNAL service
+# alerts when backups stop — the in-app "backup overdue" alert is raised by this
+# same container, so it cannot report its own death.
+0 2 * * * flock -n /tmp/wizer-backup.lock -c 'cd /app && su-exec node bash scripts/backup-db.sh && { [ -n "$HEALTHCHECKS_URL" ] && wget -q -T 10 -O /dev/null "$HEALTHCHECKS_URL" || true; }' >> /proc/1/fd/1 2>&1
+
+# TLS certificate expiry check at 07:15 — checks the certificate actually SERVED
+# by APP_DOMAIN, so it catches both "renewal did not run" and "renewed but nginx
+# is still serving the old cert". Non-zero exit + stderr surfaces in docker logs.
+15 7 * * * flock -n /tmp/wizer-certcheck.lock -c 'cd /app && su-exec node bash scripts/check-cert-expiry.sh' >> /proc/1/fd/1 2>&1

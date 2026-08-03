@@ -61,11 +61,12 @@ COPY --from=build --chown=node:node /app/deploy/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/apps/api/dist ./dist
 COPY --from=build --chown=node:node /app/apps/api/package.json ./package.json
 COPY --from=build --chown=node:node /app/apps/api/prisma ./prisma
-# Backup script (+ its Postgres URL helper) and crontab.
+# Backup script (+ its Postgres URL helper), the TLS expiry check, and crontab.
 COPY --chown=node:node scripts/backup-db.sh ./scripts/backup-db.sh
 COPY --chown=node:node scripts/lib/pg-url.sh ./scripts/lib/pg-url.sh
+COPY --chown=node:node scripts/check-cert-expiry.sh ./scripts/check-cert-expiry.sh
 COPY infra/docker/crontab /etc/crontabs/root
-RUN chmod +x ./scripts/backup-db.sh
+RUN chmod +x ./scripts/backup-db.sh ./scripts/check-cert-expiry.sh
 
 # Entrypoint (root) makes the freshly-mounted /backups volume writable by node
 # before crond starts, then execs crond. Jobs still su-exec down to node.

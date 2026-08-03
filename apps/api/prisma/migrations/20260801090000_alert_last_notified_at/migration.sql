@@ -1,0 +1,12 @@
+-- Alert re-notification cadence.
+--
+-- Dedup keeps an unresolved alert quiet so a repeated condition does not spam on
+-- every 5-minute sweep. The side effect was that a CRITICAL notified exactly
+-- once and then stayed silent forever, so one missed email hid the condition
+-- (e.g. "backups have stopped") indefinitely. `lastNotifiedAt` records when we
+-- actually fanned out, so an unacknowledged CRITICAL can page again on a cadence.
+--
+-- Nullable with no default: existing rows read as "never notified via this
+-- mechanism" and become eligible for one re-notification on their next
+-- occurrence, which is the desired behaviour for currently-open alerts.
+ALTER TABLE "alerts" ADD COLUMN "lastNotifiedAt" TIMESTAMP(3);

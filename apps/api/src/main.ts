@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe, type LogLevel } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -9,6 +9,7 @@ import helmet from 'helmet';
 
 import { AppModule } from './app.module';
 import { PerfLoggingInterceptor } from './common/interceptors/perf-logging.interceptor';
+import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import type { AppConfig } from './config/configuration';
 
 /**
@@ -23,11 +24,38 @@ import type { AppConfig } from './config/configuration';
  *  - Swagger UI at `/api/docs`
  *  - listens on API_PORT (default 3001)
  */
+/**
+ * Map LOG_LEVEL to the Nest log levels that should be emitted.
+ *
+ * Without this, Nest's defaults are always active — including `debug` — so
+ * LOG_LEVEL was parsed into config and then ignored, making it impossible to
+ * quiet a noisy production box (or to keep debug output out of it).
+ */
+function resolveLogLevels(raw: string | undefined): LogLevel[] {
+  const order: LogLevel[] = ['verbose', 'debug', 'log', 'warn', 'error'];
+  const requested = (raw ?? 'info').trim().toLowerCase();
+  // Accept the common syslog-ish spellings as aliases of Nest's own names.
+  const alias: Record<string, LogLevel> = {
+    trace: 'verbose',
+    verbose: 'verbose',
+    debug: 'debug',
+    info: 'log',
+    log: 'log',
+    warn: 'warn',
+    warning: 'warn',
+    error: 'error',
+    fatal: 'error',
+  };
+  const min = alias[requested] ?? 'log';
+  return order.slice(order.indexOf(min));
+}
+
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: false,
+    logger: resolveLogLevels(process.env.LOG_LEVEL),
   });
 
   // Behind Nginx/Let's Encrypt: trust the first proxy hop so `req.ip` and
@@ -79,7 +107,9 @@ async function bootstrap(): Promise<void> {
   // --- Performance request logging ----------------------------------------
   // Safe per-request timing (method/path/status/duration + user/company ids).
   // Slow requests warn by default; full logging via PERF_LOG_REQUESTS=true.
-  app.useGlobalInterceptors(new PerfLoggingInterceptor());
+  // Order matters: the timeout must wrap the handler, and perf logging should
+  // still observe the (failed) request.
+  app.useGlobalInterceptors(new PerfLoggingInterceptor(), new TimeoutInterceptor());
 
   // --- Graceful shutdown ---------------------------------------------------
   app.enableShutdownHooks();
@@ -109,6 +139,23 @@ async function bootstrap(): Promise<void> {
   logger.log(`Health:  ${baseUrl}/api/health`);
   if (swaggerEnabled) logger.log(`Swagger: ${baseUrl}/api/docs`);
 }
+
+// --- Process-level safety nets ---------------------------------------------
+// Without these an unhandled rejection (e.g. an un-awaited storage/mail call)
+// terminates the process on Node 20 with no attribution, or — worse — leaves it
+// running in an undefined state. Log loudly so the crash is diagnosable from
+// `docker logs` and the container's restart policy can do its job.
+process.on('unhandledRejection', (reason: unknown) => {
+  const message = reason instanceof Error ? (reason.stack ?? reason.message) : String(reason);
+  new Logger('Process').error(`Unhandled promise rejection: ${message}`);
+});
+
+process.on('uncaughtException', (error: Error) => {
+  new Logger('Process').error(`Uncaught exception: ${error.stack ?? error.message}`);
+  // An uncaught exception leaves the process in an unknown state — exit and let
+  // Docker's `restart: unless-stopped` bring back a clean one.
+  process.exit(1);
+});
 
 bootstrap().catch((error: unknown) => {
   // A misconfiguration (e.g. missing/invalid CORS_ORIGINS in production) must

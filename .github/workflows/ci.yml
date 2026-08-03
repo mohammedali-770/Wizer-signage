@@ -17,6 +17,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # A real database so migrations are actually exercised. Without one, a broken
+    # migration or schema/migration drift reaches production undetected — the
+    # unit tests all mock Prisma and would stay green.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci_postgres_password
+          POSTGRES_DB: wizer_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # Synthetic, throwaway CI database — never a real credential.
+      DATABASE_URL: postgresql://postgres:ci_postgres_password@127.0.0.1:5432/wizer_ci
+      DIRECT_URL: postgresql://postgres:ci_postgres_password@127.0.0.1:5432/wizer_ci
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +61,22 @@ jobs:
       - name: Generate Prisma client
         run: pnpm db:generate
 
+      # Applies every migration to a real Postgres. Catches a migration that
+      # cannot run at all — the unit suite mocks Prisma and would never notice.
+      - name: Apply migrations
+        run: pnpm --filter @wizer/api exec prisma migrate deploy --schema prisma/schema.prisma
+
+      # Schema/migration drift: the generated SQL must fully reproduce
+      # schema.prisma. Drift means production's shape silently diverges from the
+      # model the code is compiled against. --exit-code makes any diff fail CI.
+      - name: Check for schema drift
+        run: |
+          pnpm --filter @wizer/api exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "$DATABASE_URL" \
+            --exit-code
+
       - name: Lint
         run: pnpm lint
 
@@ -53,6 +91,13 @@ jobs:
       # pg_dump; no database, docker, or network required.
       - name: Backup script regression tests
         run: bash scripts/tests/backup-db.test.sh
+
+      # Proves a dump taken by backup-db.sh can actually be RESTORED into a
+      # database that already has the schema — the real disaster-recovery case.
+      # Regression test for pg_dump running without --clean/--if-exists, which
+      # made every restore abort on its first statement.
+      - name: Backup/restore drill (real Postgres)
+        run: bash scripts/tests/backup-restore-drill.sh
 
       - name: Build
         # The dashboard production build requires an explicit, valid HTTPS
@@ -107,3 +152,86 @@ jobs:
           tags: wizer-signage/maintenance:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  android:
+    name: Android player (tests · lint · debug build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # The player drives physical screens and a bad build strands the fleet (there
+    # is no OTA), yet its ~100 Kotlin tests previously ran ONLY inside the release
+    # script, which requires the production keystore — so they never ran in CI.
+    # Debug build + unit tests need no signing secrets.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests · lint · assemble
+        working-directory: apps/android-tv-player
+        # A synthetic HTTPS base URL: the build must never silently fall back to
+        # a default host, and CI must not bake a real one in.
+        run: |
+          ./gradlew --no-daemon \
+            -PapiBaseUrl=https://api.ci.invalid/api \
+            :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+
+      - name: Upload test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-results
+          path: apps/android-tv-player/app/build/reports/
+          retention-days: 7
+
+  security:
+    name: Dependency + secret scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # gitleaks needs history to scan commits, not just the tree.
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Fails the build on a HIGH/CRITICAL advisory in anything that ships to
+      # production. Moderates are reported but do not block, so the gate stays
+      # actionable rather than permanently red.
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level=high
+
+      - name: Report all advisories (non-blocking)
+        if: always()
+        run: pnpm audit --prod || true
+
+      # Run the scanner directly rather than via gitleaks-action: the action
+      # calls the PR-commits API, which needs `pull-requests: read` that the
+      # default token does not carry here, and it fails the job on a 403 that
+      # has nothing to do with whether a secret was committed. Scanning the
+      # checked-out history locally is both simpler and stricter.
+      - name: Scan for committed secrets
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            detect --source=/repo --redact --verbose --no-banner

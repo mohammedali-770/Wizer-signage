@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   HttpException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -49,8 +50,21 @@ interface TokenPair {
 /** Lifetime of a 2FA login step-up challenge (token expiry AND server record). */
 const TWO_FACTOR_CHALLENGE_TTL_MS = 2 * 60 * 1000;
 
+/**
+ * Bound a free-text, potentially attacker-controlled value before persisting it.
+ * Returns undefined for empty input so an absent header stays absent rather than
+ * becoming an empty string.
+ */
+function truncate(value: string, max: number): string;
+function truncate(value: string | undefined | null, max: number): string | undefined;
+function truncate(value: string | undefined | null, max: number): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  return value.length > max ? value.slice(0, max) : value;
+}
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly accessSecret: string;
   private readonly refreshSecret: string;
   private readonly accessTtl: string;
@@ -318,14 +332,27 @@ export class AuthService {
         },
       });
       const link = `${this.dashboardUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
-      await this.mail.send({
-        to: user.email,
-        subject: 'Reset your Wizer Signage password',
-        text:
-          `We received a request to reset your password.\n\n` +
-          `Reset it here (valid for 1 hour):\n${link}\n\n` +
-          `If you did not request this, you can safely ignore this email.`,
-      });
+      // Swallow transport failures: an SMTP outage must NOT turn this endpoint
+      // into an account-enumeration oracle (a 500 for real accounts vs. 200 for
+      // unknown ones tells an attacker which emails exist). The invitations flow
+      // catches for the same reason. The reset row is already persisted, so the
+      // user can retry once mail recovers.
+      try {
+        await this.mail.send({
+          to: user.email,
+          subject: 'Reset your Wizer Signage password',
+          text:
+            `We received a request to reset your password.\n\n` +
+            `Reset it here (valid for 1 hour):\n${link}\n\n` +
+            `If you did not request this, you can safely ignore this email.`,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Password-reset email delivery failed for user ${user.id}: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`,
+        );
+      }
       await this.activityLog.log({
         action: 'auth.password_reset_requested',
         category: ActivityCategory.SECURITY,
@@ -521,12 +548,16 @@ export class AuthService {
     try {
       await this.prisma.loginEvent.create({
         data: {
-          email,
+          // email and userAgent are ATTACKER-CONTROLLED on a failed login and
+          // were stored untruncated, so credential-stuffing traffic could write
+          // unbounded bytes per attempt into a table with no retention path.
+          // Retention now prunes this table; truncation bounds the per-row cost.
+          email: truncate(email, 320), // RFC 5321 max addressable length
           userId: userId ?? undefined,
           success,
           reason,
           ip: meta.ip,
-          userAgent: meta.userAgent,
+          userAgent: truncate(meta.userAgent, 512),
           suspicious,
         },
       });

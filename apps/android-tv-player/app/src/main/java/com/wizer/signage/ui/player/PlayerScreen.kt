@@ -67,6 +67,7 @@ fun PlayerScreen(
             onItem = vm::reportCurrentItem,
             onStart = vm::onItemStarted,
             onComplete = vm::onItemCompleted,
+            onFailed = vm::onItemFailed,
             onInterrupted = vm::onItemInterrupted,
             onSkipped = vm::onItemSkipped,
         )
@@ -91,6 +92,7 @@ fun ManifestPlayer(
     onItem: (ManifestItem?) -> Unit = {},
     onStart: (ManifestItem, Int) -> Unit = { _, _ -> },
     onComplete: () -> Unit = {},
+    onFailed: (String?) -> Unit = {},
     onInterrupted: () -> Unit = {},
     onSkipped: (ManifestItem, Int) -> Unit = { _, _ -> },
 ) {
@@ -118,8 +120,10 @@ fun ManifestPlayer(
     val signature = remember(items) { items.joinToString("|") { "${it.contentId}:${it.version}" } }
     // restartEpoch in the key makes a remote RESTART_PLAYBACK reset to the first item.
     var index by remember(signature, restartEpoch) { mutableStateOf(0) }
-    // Increments on every advance so a single looping item still records one
-    // proof-of-play session per loop (the item instance alone never changes).
+    // Increments on every advance. A single-item playlist loops back to the very
+    // same ManifestItem, so this counter is the ONLY thing that distinguishes one
+    // play from the next — it keys the proof-of-play session, the advance guard
+    // and the renderers' effects alike.
     var playCount by remember(signature, restartEpoch) { mutableStateOf(0) }
     val safeIndex = index.coerceIn(0, items.lastIndex)
     val item = items[safeIndex]
@@ -136,19 +140,38 @@ fun ManifestPlayer(
             item = item,
             localFile = resolveLocal(item),
             online = online,
+            playCount = playCount,
             onFinished = {
                 onComplete() // natural ITEM_COMPLETED for the item that just ended
                 index = Playback.nextIndex(safeIndex, items.size)
                 playCount++
             },
+            // Closes the session as ITEM_FAILED before onFinished's onComplete()
+            // runs, so a codec failure is not booked as a clean play.
+            onFailed = onFailed,
         )
     }
 }
 
-/** Renders one item (cache-first) and advances exactly once. */
+/**
+ * Renders one item (cache-first) and advances exactly once per play.
+ *
+ * The one-shot guard is keyed on [playCount] as well as the content id: with a
+ * one-item playlist `nextIndex(0, 1)` returns 0 and the item never changes, so a
+ * contentId-only key left the guard latched after the first play and froze the
+ * screen permanently.
+ */
 @Composable
-fun PlaybackItem(item: ManifestItem, localFile: File?, online: Boolean, onFinished: () -> Unit) {
-    var advanced by remember(item.contentId) { mutableStateOf(false) }
+fun PlaybackItem(
+    item: ManifestItem,
+    localFile: File?,
+    online: Boolean,
+    playCount: Int,
+    onFinished: () -> Unit,
+    onFailed: (String?) -> Unit = {},
+) {
+    val playKey = Playback.playKey(item.contentId, playCount)
+    var advanced by remember(playKey) { mutableStateOf(false) }
     val advance: () -> Unit = {
         if (!advanced) {
             advanced = true
@@ -157,7 +180,15 @@ fun PlaybackItem(item: ManifestItem, localFile: File?, online: Boolean, onFinish
     }
 
     when (item.type) {
-        ManifestItem.TYPE_VIDEO -> VideoItem(item, localFile, advance)
+        ManifestItem.TYPE_VIDEO -> VideoItem(
+            item = item,
+            localFile = localFile,
+            playCount = playCount,
+            onFinished = advance,
+            // Only report a failure that actually ends this play; a late error
+            // after the guard latched belongs to the previous item.
+            onFailed = { reason -> if (!advanced) onFailed(reason) },
+        )
         else -> {
             when (item.type) {
                 ManifestItem.TYPE_IMAGE -> ImageItem(item, localFile)
@@ -166,7 +197,7 @@ fun PlaybackItem(item: ManifestItem, localFile: File?, online: Boolean, onFinish
                 else -> TextItem(item)
             }
             val ms = Playback.displayMillis(item) ?: (Playback.DEFAULT_DURATION_SECONDS * 1000L)
-            LaunchedEffect(item.contentId) {
+            LaunchedEffect(playKey) {
                 delay(ms)
                 advance()
             }

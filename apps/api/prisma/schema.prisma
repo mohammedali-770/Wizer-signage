@@ -565,6 +565,8 @@ model Session {
   @@index([companyId])
   @@index([refreshTokenHash])
   @@index([expiresAt])
+  // Retention: purge of revoked sessions (previously stamped, never removed).
+  @@index([revokedAt])
   @@map("sessions")
 }
 
@@ -612,6 +614,8 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+  // Retention: purge of consumed/expired single-use reset tokens.
+  @@index([expiresAt])
   @@map("password_reset_tokens")
 }
 
@@ -886,6 +890,9 @@ model PairingCode {
 
   @@index([companyId])
   @@index([status])
+  // Retention: purge of expired codes. Written by an UNAUTHENTICATED endpoint,
+  // so without pruning this table grows from pairing spam alone.
+  @@index([expiresAt])
   @@map("pairing_codes")
 }
 
@@ -966,6 +973,8 @@ model DeviceCommand {
 
   @@index([companyId])
   @@index([screenId, status])
+  // Retention: purge of terminal-state commands past the cutoff.
+  @@index([status, createdAt])
   @@index([deviceId])
   @@map("device_commands")
 }
@@ -1242,9 +1251,14 @@ model Screenshot {
 model ProofOfPlay {
   id                   String             @id @default(uuid())
   companyId            String
-  company              Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // RESTRICT: proof-of-play is the billing/compliance playback record. A bare
+  // `DELETE FROM companies` (the natural operator reflex for a churned tenant)
+  // must not silently erase it — purge deliberately via an audited procedure.
+  company              Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
   screenId             String
-  screen               Screen             @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  // RESTRICT: deleting one screen must not erase that screen's billing-grade
+  // playback history (screens.service soft-deletes; hard deletes are operator SQL).
+  screen               Screen             @relation(fields: [screenId], references: [id], onDelete: Restrict)
   deviceId             String?
   locationId           String? // soft reference, derived from the screen
   // All content/playlist/schedule/emergency refs are SOFT (no FK): proof-of-play
@@ -1275,6 +1289,9 @@ model ProofOfPlay {
 
   @@index([companyId, startedAt])
   @@index([screenId, startedAt])
+  // Retention: the nightly purge filters on startedAt alone; the composite
+  // indexes above lead with companyId/screenId so they cannot serve it.
+  @@index([startedAt])
   @@index([contentId])
   @@index([emergencyBroadcastId])
   @@index([status])
@@ -1315,7 +1332,8 @@ model Plan {
 model Subscription {
   id        String             @id @default(uuid())
   companyId String             @unique
-  company   Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // RESTRICT: financial record — see the note on ProofOfPlay.company.
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
   planId    String
   plan      Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
   status    SubscriptionStatus @default(TRIALING)
@@ -1340,7 +1358,9 @@ model Subscription {
 model Invoice {
   id             String        @id @default(uuid())
   companyId      String
-  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // RESTRICT: financial record — retention never deletes invoices, and neither
+  // should a cascade from a company row.
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
   subscriptionId String?
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   number         String        @unique
@@ -1509,6 +1529,11 @@ model Alert {
   dedupeKey        String?
   metadata         Json                 @default("{}")
   triggeredAt      DateTime             @default(now())
+  /// Last time this alert actually fanned out a notification/email. Drives the
+  /// CRITICAL re-notification cadence: dedup keeps an unresolved alert quiet,
+  /// but a persistent CRITICAL must page again rather than notify exactly once
+  /// and then stay silent forever.
+  lastNotifiedAt   DateTime?
   acknowledgedAt   DateTime?
   acknowledgedById String? // soft reference -> User
   resolvedAt       DateTime?
@@ -1520,6 +1545,8 @@ model Alert {
   // Perf: dedup lookup on every condition event resolves to (dedupeKey, status).
   @@index([dedupeKey, status])
   @@index([severity])
+  // Retention: purge of RESOLVED/DISMISSED alerts past the cutoff.
+  @@index([status, resolvedAt])
   @@index([createdAt])
   @@map("alerts")
 }

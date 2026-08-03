@@ -2,6 +2,7 @@ package com.wizer.signage.proofofplay
 
 import com.wizer.signage.data.model.ProofOfPlayEvent
 import com.wizer.signage.data.model.ReportProofOfPlayRequest
+import com.wizer.signage.util.Jitter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -49,9 +50,12 @@ class ProofOfPlayReporter(
     fun start() {
         loop?.cancel()
         loop = scope.launch {
+            // Staggered + jittered: proof-of-play batches from a whole site would
+            // otherwise land on the API in one 30s-periodic spike forever.
+            delay(Jitter.startupDelay())
             while (coroutineContext.isActive) {
                 runCatching { flush() }
-                delay(FLUSH_INTERVAL_MS)
+                delay(Jitter.periodic(FLUSH_INTERVAL_MS))
             }
         }
     }
