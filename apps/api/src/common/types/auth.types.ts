@@ -18,6 +18,13 @@ export interface AuthenticatedUser {
   mfaSatisfied: boolean;
   /** Whether 2FA is mandatory for this user (Super Admin or company-enforced). */
   twoFactorRequired: boolean;
+  /**
+   * Set only while a Super Admin is acting inside a tenant. It is the SAME user
+   * id as `userId` — impersonation does not borrow another person's identity,
+   * it grants the admin a tenant context — and its presence is what marks a
+   * request as impersonated for auditing and for the dashboard banner.
+   */
+  impersonatorId?: string | null;
 }
 
 /** Token "kind" carried in the `typ` claim. */
@@ -31,6 +38,8 @@ export interface AccessTokenPayload {
   cid: string | null; // companyId
   mfa: boolean;
   typ: 'access';
+  /** Impersonator user id; present only on an impersonation access token. */
+  imp?: string;
 }
 
 /** Refresh token claims. */

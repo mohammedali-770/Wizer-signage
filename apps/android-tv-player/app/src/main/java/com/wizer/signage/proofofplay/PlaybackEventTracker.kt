@@ -21,6 +21,21 @@ import java.util.UUID
  */
 class PlaybackEventTracker(
     private val clock: () -> Long = { System.currentTimeMillis() },
+    /**
+     * MONOTONIC millisecond source, used only to measure how long an item played.
+     *
+     * Durations must never be derived from the wall clock. An Android TV box has
+     * no RTC battery: it boots with a bogus time and jumps — often by years —
+     * the moment NTP lands, which is routinely mid-playback on the first item
+     * after a power cut. Subtracting two wall-clock readings across that jump
+     * reported hours of playback for a 15-second image, or (jumping backwards)
+     * zero. Proof-of-play is the advertiser-billing and compliance record, so
+     * that is not a cosmetic error.
+     *
+     * `System.nanoTime` is monotonic on both Android and the JVM, which also
+     * keeps this class free of android.* imports and fully unit-testable.
+     */
+    private val elapsed: () -> Long = { System.nanoTime() / 1_000_000 },
     private val newSessionId: () -> String = { UUID.randomUUID().toString() },
 ) {
     /** Resolved context for the item about to play (derived from the manifest + cache). */
@@ -39,7 +54,10 @@ class PlaybackEventTracker(
         val item: ManifestItem,
         val ctx: Context,
         val index: Int,
+        /** Wall clock — reported as `startedAt`, never used for arithmetic. */
         val startedAtMs: Long,
+        /** Monotonic — the only thing duration is measured from. */
+        val startedElapsedMs: Long,
     )
 
     private var active: Active? = null
@@ -49,7 +67,7 @@ class PlaybackEventTracker(
     fun started(item: ManifestItem, index: Int, ctx: Context): List<ProofOfPlayEvent> {
         val out = ArrayList<ProofOfPlayEvent>(2)
         active?.let { out += terminal(it, ProofOfPlayEvent.INTERRUPTED, null) }
-        val a = Active(newSessionId(), item, ctx, index, clock())
+        val a = Active(newSessionId(), item, ctx, index, clock(), elapsed())
         active = a
         out += ProofOfPlayEvent(
             eventType = ProofOfPlayEvent.STARTED,
@@ -113,13 +131,18 @@ class PlaybackEventTracker(
     }
 
     private fun terminal(a: Active, type: String, reason: String?): ProofOfPlayEvent {
-        val now = clock()
+        // Duration from the monotonic clock; the end TIMESTAMP is then derived
+        // from it rather than read from the wall clock again. That keeps the
+        // report internally consistent — endedAt - startedAt always equals
+        // durationMs — which is what any billing or compliance sum depends on,
+        // and it stays true even if NTP corrected the clock mid-item.
+        val durationMs = (elapsed() - a.startedElapsedMs).coerceAtLeast(0)
         return ProofOfPlayEvent(
             eventType = type,
             playbackSessionId = a.sessionId,
             startedAt = iso(a.startedAtMs),
-            endedAt = iso(now),
-            durationMs = (now - a.startedAtMs).coerceAtLeast(0),
+            endedAt = iso(a.startedAtMs + durationMs),
+            durationMs = durationMs,
             contentId = contentIdOf(a.item),
             playlistId = a.ctx.playlistId,
             scheduleId = a.ctx.scheduleId,

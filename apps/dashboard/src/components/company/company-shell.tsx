@@ -33,6 +33,8 @@ import { LocaleSwitcher } from '@/components/locale-switcher';
 import { Button, Spinner } from '@/components/ui';
 import { NotificationBell } from '@/components/notification-bell';
 import { Logo } from '@/components/brand/logo';
+import { isImpersonating } from '@/lib/impersonation';
+import { ImpersonationBanner } from '@/components/company/impersonation-banner';
 
 type NavItem = { href: string; tkey: string; icon: typeof LayoutDashboard; exact?: boolean };
 
@@ -132,15 +134,21 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   // the page content keeps the locale's direction (RTL for Arabic).
   const contentDir = useLocale() === 'ar' ? 'rtl' : 'ltr';
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Read once on mount rather than during render: localStorage is unavailable
+  // during SSR, and reading it in the render body would desync hydration.
+  const [impersonating, setImpersonating] = useState(false);
+  useEffect(() => setImpersonating(isImpersonating()), []);
 
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && needsTwoFactorSetup)) {
       router.replace('/login');
-    } else if (status === 'authenticated' && user?.role === 'SUPER_ADMIN') {
-      // Platform admins belong in the Super Admin console.
+    } else if (status === 'authenticated' && user?.role === 'SUPER_ADMIN' && !impersonating) {
+      // Platform admins belong in the Super Admin console — UNLESS they are
+      // inside an audited impersonation, which exists precisely so they can use
+      // this console as the tenant sees it.
       router.replace('/admin');
     }
-  }, [status, needsTwoFactorSetup, user?.role, router]);
+  }, [status, needsTwoFactorSetup, user?.role, impersonating, router]);
 
   // Close the mobile drawer on navigation + on Escape.
   useEffect(() => {
@@ -157,7 +165,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     status === 'loading' ||
     status === 'unauthenticated' ||
     needsTwoFactorSetup ||
-    user?.role === 'SUPER_ADMIN'
+    (user?.role === 'SUPER_ADMIN' && !impersonating)
   ) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -167,77 +175,80 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="bg-background flex min-h-screen" dir="ltr">
-      <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground hidden w-64 shrink-0 flex-col border-e md:flex">
-        <div className="border-sidebar-border flex h-16 items-center border-b px-5">
-          <Logo product="Signage" />
-        </div>
-        <NavLinks />
-        <div className="border-sidebar-border text-sidebar-muted border-t p-4 text-xs">
-          {tShell('companyConsole')}
-        </div>
-      </aside>
-
-      {/* Mobile drawer + backdrop (md:hidden) */}
-      {mobileNavOpen ? (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <button
-            type="button"
-            aria-label={tShell('closeMenu')}
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <div className="bg-sidebar text-sidebar-foreground border-sidebar-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-lg">
-            <div className="border-sidebar-border flex h-16 items-center justify-between border-b px-5">
-              <Logo product="Signage" />
-              <button
-                type="button"
-                aria-label={tShell('closeMenu')}
-                className="text-sidebar-muted hover:text-sidebar-foreground rounded-md p-1"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-            <NavLinks onNavigate={() => setMobileNavOpen(false)} />
-            <div className="border-sidebar-border text-sidebar-muted border-t p-4 text-xs">
-              {tShell('companyConsole')}
-            </div>
+    <div className="bg-background flex min-h-screen flex-col" dir="ltr">
+      <ImpersonationBanner />
+      <div className="flex min-h-0 flex-1">
+        <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground hidden w-64 shrink-0 flex-col border-e md:flex">
+          <div className="border-sidebar-border flex h-16 items-center border-b px-5">
+            <Logo product="Signage" />
           </div>
-        </div>
-      ) : null}
+          <NavLinks />
+          <div className="border-sidebar-border text-sidebar-muted border-t p-4 text-xs">
+            {tShell('companyConsole')}
+          </div>
+        </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="border-border bg-card flex h-16 items-center justify-between gap-3 border-b px-4 md:px-6">
-          <div className="flex items-center gap-2">
+        {/* Mobile drawer + backdrop (md:hidden) */}
+        {mobileNavOpen ? (
+          <div className="fixed inset-0 z-50 md:hidden">
             <button
               type="button"
-              aria-label={tShell('openMenu')}
-              className="text-muted-foreground hover:bg-muted hover:text-foreground -ms-1 rounded-md p-2 md:hidden"
-              onClick={() => setMobileNavOpen(true)}
-            >
-              <Menu className="size-5" />
-            </button>
-            <span className="text-muted-foreground text-xs uppercase tracking-wide">
-              {tShell('companyManagement')}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <NotificationBell basePath="/company" />
-            <LocaleSwitcher />
-            <ThemeToggle />
-            <div className="hidden text-end sm:block">
-              <p className="text-sm font-medium leading-tight">{user?.name}</p>
-              <p className="text-muted-foreground text-xs leading-tight">{user?.email}</p>
+              aria-label={tShell('closeMenu')}
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setMobileNavOpen(false)}
+            />
+            <div className="bg-sidebar text-sidebar-foreground border-sidebar-border absolute inset-y-0 start-0 flex w-64 flex-col border-e shadow-lg">
+              <div className="border-sidebar-border flex h-16 items-center justify-between border-b px-5">
+                <Logo product="Signage" />
+                <button
+                  type="button"
+                  aria-label={tShell('closeMenu')}
+                  className="text-sidebar-muted hover:text-sidebar-foreground rounded-md p-1"
+                  onClick={() => setMobileNavOpen(false)}
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+              <NavLinks onNavigate={() => setMobileNavOpen(false)} />
+              <div className="border-sidebar-border text-sidebar-muted border-t p-4 text-xs">
+                {tShell('companyConsole')}
+              </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => logout()}>
-              {tShell('signOut')}
-            </Button>
           </div>
-        </header>
-        <main dir={contentDir} className="flex-1 overflow-y-auto p-4 md:p-8">
-          {children}
-        </main>
+        ) : null}
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="border-border bg-card flex h-16 items-center justify-between gap-3 border-b px-4 md:px-6">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label={tShell('openMenu')}
+                className="text-muted-foreground hover:bg-muted hover:text-foreground -ms-1 rounded-md p-2 md:hidden"
+                onClick={() => setMobileNavOpen(true)}
+              >
+                <Menu className="size-5" />
+              </button>
+              <span className="text-muted-foreground text-xs uppercase tracking-wide">
+                {tShell('companyManagement')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <NotificationBell basePath="/company" />
+              <LocaleSwitcher />
+              <ThemeToggle />
+              <div className="hidden text-end sm:block">
+                <p className="text-sm font-medium leading-tight">{user?.name}</p>
+                <p className="text-muted-foreground text-xs leading-tight">{user?.email}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => logout()}>
+                {tShell('signOut')}
+              </Button>
+            </div>
+          </header>
+          <main dir={contentDir} className="flex-1 overflow-y-auto p-4 md:p-8">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );

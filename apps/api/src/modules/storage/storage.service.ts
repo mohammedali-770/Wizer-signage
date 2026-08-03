@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { Readable, pipeline } from 'node:stream';
 
@@ -27,6 +27,24 @@ const DEFAULT_SIGNED_TTL = 3600; // seconds
 const UPSTREAM_FETCH_TIMEOUT_MS = Number(process.env.STORAGE_FETCH_TIMEOUT_MS ?? 15_000);
 
 /**
+ * Fraction of a signed URL's lifetime we are willing to serve from cache.
+ *
+ * Signing is a live HTTPS round-trip to Supabase, and the manifest resolver mints
+ * one URL PER PLAYLIST ITEM, PER SCREEN, PER POLL. A 40-item playlist on 1,000
+ * screens polling every 60s is ~40,000 signings/minute (~670/s) — the highest
+ * amplification path in the system, and (before the timeout work) each one could
+ * park a Node handle and a pooled DB connection indefinitely.
+ *
+ * Re-serving a cached URL is safe as long as it still has plenty of life left,
+ * so we hand one out only while at least half its TTL remains. That turns the
+ * per-poll cost into roughly one signing per object per half-TTL.
+ */
+const SIGNED_URL_CACHE_FRACTION = 0.5;
+
+/** Hard cap on cached entries so a large library cannot grow the map unbounded. */
+const SIGNED_URL_CACHE_MAX = 5_000;
+
+/**
  * File storage abstraction with two adapters:
  *  - **supabase**: production. Uploads to a private bucket; previews via signed URLs.
  *  - **local**: dev fallback when Supabase is not configured. Writes under a local
@@ -43,6 +61,8 @@ export class StorageService {
   private readonly localDir: string;
   private readonly apiUrl: string;
   private supabase?: SupabaseClient;
+  /** key+ttl -> { url, reuseUntil }. In-process only; see getSignedUrl. */
+  private readonly signedUrlCache = new Map<string, { url: string; reuseUntil: number }>();
 
   constructor(
     private readonly config: ConfigService,
@@ -112,9 +132,60 @@ export class StorageService {
     }
   }
 
-  /** A time-limited URL the browser can use to preview/download the file. */
+  /**
+   * Upload a file that is already spooled on disk, without materialising it.
+   *
+   * The content routes accept files up to 300 MB; reading one into a Buffer just
+   * to hand it to `upload()` would reintroduce exactly the heap spike that
+   * disk-spooling multer was added to remove. storage-js detects a Node readable
+   * (`'pipe' in body`) and sets `duplex: 'half'` itself, so the stream is sent
+   * as a chunked request body.
+   *
+   * The stream is destroyed on failure — an un-consumed `createReadStream` holds
+   * a file descriptor open until GC otherwise.
+   */
+  async uploadFile(key: string, filePath: string, contentType: string): Promise<void> {
+    if (this.mode === 'supabase') {
+      const source = createReadStream(filePath);
+      try {
+        const { error } = await this.supabase!.storage.from(this.bucket).upload(key, source, {
+          contentType,
+          upsert: true,
+        });
+        if (error) {
+          throw new InternalServerErrorException(`Storage upload failed: ${error.message}`);
+        }
+      } finally {
+        if (!source.destroyed) source.destroy();
+      }
+    } else {
+      const full = join(this.localDir, key);
+      await mkdir(dirname(full), { recursive: true });
+      await copyFile(filePath, full);
+    }
+  }
+
+  /**
+   * A time-limited URL the browser (or a device) can use to fetch the file.
+   *
+   * Cached in-process while at least half the TTL remains — see
+   * SIGNED_URL_CACHE_FRACTION. The manifest path signs one URL per playlist item
+   * per screen per poll, so without this the signing rate scales as
+   * screens x items x poll-frequency and saturates Supabase Storage long before
+   * anything else in the system becomes the bottleneck.
+   */
   async getSignedUrl(key: string, mimeType: string, ttl = DEFAULT_SIGNED_TTL): Promise<string> {
     if (this.mode === 'supabase') {
+      // '|' is a safe separator: buildKey sanitises filenames to [A-Za-z0-9._-]
+      // and the rest of the key is a fixed companies/<uuid>/content/<uuid>/ path,
+      // so it can never collide with key content. The TTL is part of the key so a
+      // short-lived request never reuses a long-lived URL.
+      const cacheKey = `${key}|${ttl}`;
+      const cached = this.signedUrlCache.get(cacheKey);
+      if (cached && cached.reuseUntil > Date.now()) {
+        return cached.url;
+      }
+
       const { data, error } = await this.supabase!.storage.from(this.bucket).createSignedUrl(
         key,
         ttl,
@@ -124,6 +195,8 @@ export class StorageService {
           `Could not sign URL: ${error?.message ?? 'unknown'}`,
         );
       }
+
+      this.rememberSignedUrl(cacheKey, data.signedUrl, ttl);
       return data.signedUrl;
     }
     const token = this.crypto.encrypt(
@@ -132,7 +205,35 @@ export class StorageService {
     return `${this.apiUrl}/api/content-files/${encodeURIComponent(token)}`;
   }
 
+  /**
+   * Store a freshly-signed URL, evicting expired entries (and, if still over the
+   * cap, the oldest) so the map cannot grow without bound. Map preserves
+   * insertion order, so the first keys are the least recently signed.
+   */
+  private rememberSignedUrl(cacheKey: string, url: string, ttl: number): void {
+    this.signedUrlCache.set(cacheKey, {
+      url,
+      reuseUntil: Date.now() + ttl * 1000 * SIGNED_URL_CACHE_FRACTION,
+    });
+
+    if (this.signedUrlCache.size <= SIGNED_URL_CACHE_MAX) return;
+
+    const now = Date.now();
+    for (const [k, v] of this.signedUrlCache) {
+      if (v.reuseUntil <= now) this.signedUrlCache.delete(k);
+    }
+    while (this.signedUrlCache.size > SIGNED_URL_CACHE_MAX) {
+      const oldest = this.signedUrlCache.keys().next().value;
+      if (oldest === undefined) break;
+      this.signedUrlCache.delete(oldest);
+    }
+  }
+
   async remove(key: string): Promise<void> {
+    // A removed object's cached URL must not outlive it.
+    for (const k of this.signedUrlCache.keys()) {
+      if (k.startsWith(`${key}|`)) this.signedUrlCache.delete(k);
+    }
     if (this.mode === 'supabase') {
       const { error } = await this.supabase!.storage.from(this.bucket).remove([key]);
       if (error) this.logger.warn(`Storage remove failed for ${key}: ${error.message}`);

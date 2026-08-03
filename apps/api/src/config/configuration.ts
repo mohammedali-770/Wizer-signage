@@ -26,7 +26,6 @@ export interface HttpConfig {
   readonly port: number;
   readonly apiUrl?: string;
   readonly corsOrigins: string[];
-  readonly wsPath: string;
 }
 
 export interface DatabaseConfig {
@@ -138,7 +137,6 @@ export default (): AppConfig => {
       // Throws here → NestFactory.create rejects → bootstrap exits non-zero
       // before the HTTP server ever listens.
       corsOrigins: resolveCorsOrigins(env.CORS_ORIGINS, env.NODE_ENV),
-      wsPath: env.WS_PATH ?? '/ws',
     },
     database: {
       url: env.DATABASE_URL,
