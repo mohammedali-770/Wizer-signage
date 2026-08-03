@@ -6,12 +6,15 @@ import { HeartbeatService } from './heartbeat.service';
 
 const device: any = { id: 'd1', deviceId: 'dev1', screenId: 's1', companyId: 'comp1' };
 
-function build(screenStatus = 'OFFLINE') {
+function build(screenStatus = 'OFFLINE', previousDevice: any = null) {
   const prisma: any = {
     screen: {
-      findFirst: jest
-        .fn()
-        .mockResolvedValue({ id: 's1', status: screenStatus, heartbeatIntervalSeconds: 60 }),
+      findFirst: jest.fn().mockResolvedValue({
+        id: 's1',
+        status: screenStatus,
+        heartbeatIntervalSeconds: 60,
+        device: previousDevice,
+      }),
       update: jest.fn().mockResolvedValue({}),
     },
     device: { update: jest.fn().mockResolvedValue({}) },
@@ -94,5 +97,79 @@ describe('HeartbeatService.record', () => {
     const t = build();
     t.prisma.screen.findFirst.mockResolvedValue(null);
     await expect(t.service.record(device, {})).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+/**
+ * Heartbeat history sampling.
+ *
+ * `heartbeats` is one row per screen per beat: 1,440/screen/day at a 60s
+ * interval, ~1.4M/day across a 1,000-screen fleet, almost all identical to the
+ * row before. Current state already lives on the Device row (written every beat
+ * regardless), so a dense timeline buys nothing — but every state TRANSITION
+ * must still be recorded exactly.
+ */
+describe('HeartbeatService history sampling', () => {
+  const steady = {
+    playbackState: 'PLAYING',
+    syncStatus: 'SYNCED',
+    lastSyncError: null,
+    lastHeartbeatAt: new Date(Date.now() - 60_000), // one beat ago
+  };
+  const beat = { playbackState: 'PLAYING', syncStatus: 'SYNCED' } as any;
+
+  it('skips the history row when nothing has changed since the last beat', async () => {
+    const t = build('ONLINE', steady);
+    await t.service.record(device, beat);
+    expect(t.prisma.heartbeat.create).not.toHaveBeenCalled();
+    // The live snapshot is still written every single beat.
+    expect(t.prisma.device.update).toHaveBeenCalled();
+    expect(t.prisma.screen.update).toHaveBeenCalled();
+  });
+
+  it('records a row when the screen status changes', async () => {
+    const t = build('OFFLINE', steady); // OFFLINE -> ONLINE
+    await t.service.record(device, beat);
+    expect(t.prisma.heartbeat.create).toHaveBeenCalled();
+  });
+
+  it('records a row when playback state changes', async () => {
+    const t = build('ONLINE', steady);
+    await t.service.record(device, { ...beat, playbackState: 'STOPPED' });
+    expect(t.prisma.heartbeat.create).toHaveBeenCalled();
+  });
+
+  it('records a row when sync state changes', async () => {
+    const t = build('ONLINE', steady);
+    await t.service.record(device, { ...beat, syncStatus: 'FAILED' });
+    expect(t.prisma.heartbeat.create).toHaveBeenCalled();
+  });
+
+  it('records a row when an error appears — and again when it clears', async () => {
+    const appearing = build('ONLINE', steady);
+    await appearing.service.record(device, { ...beat, lastError: 'decoder failure' });
+    expect(appearing.prisma.heartbeat.create).toHaveBeenCalled();
+
+    const clearing = build('WARNING', { ...steady, lastSyncError: 'decoder failure' });
+    await clearing.service.record(device, beat);
+    expect(clearing.prisma.heartbeat.create).toHaveBeenCalled();
+  });
+
+  it('takes a keepalive sample once the interval has elapsed', async () => {
+    const t = build('ONLINE', { ...steady, lastHeartbeatAt: new Date(Date.now() - 10 * 60_000) });
+    await t.service.record(device, beat);
+    expect(t.prisma.heartbeat.create).toHaveBeenCalled();
+  });
+
+  it('always records the very first beat from a device', async () => {
+    const t = build('ONLINE', { ...steady, lastHeartbeatAt: null });
+    await t.service.record(device, beat);
+    expect(t.prisma.heartbeat.create).toHaveBeenCalled();
+  });
+
+  it('records a row when there is no device snapshot at all', async () => {
+    const t = build('ONLINE', null);
+    await t.service.record(device, beat);
+    expect(t.prisma.heartbeat.create).toHaveBeenCalled();
   });
 });

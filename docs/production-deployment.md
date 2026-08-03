@@ -9,8 +9,10 @@ Target topology:
 
 ```
 Internet ──HTTPS──> Nginx (infra/nginx) ─┬─ /      ──> dashboard:3000 (Next.js)
-                                          ├─ /api   ──> api:3001 (NestJS)
-                                          └─ <WS_PATH> (upgrade) ──> api:3001 (WebSocket)
+                                          └─ /api   ──> api:3001 (NestJS)
+
+  Players are HTTPS clients too: they POLL /api for their manifest, pending
+  commands, and to post heartbeats + proof-of-play. There is no WebSocket.
 
                        api ──> Supabase (Postgres + Storage)  [external]
 ```
@@ -85,7 +87,6 @@ DASHBOARD_PORT=3000
 API_URL=http://api:3001
 NEXT_PUBLIC_API_URL=https://wizer.sa/api
 CORS_ORIGINS=https://wizer.sa
-WS_PATH=/ws
 
 # Supabase (external) — database & storage
 DATABASE_URL=postgresql://postgres:password@db.<ref>.supabase.co:6543/postgres?pgbouncer=true
@@ -199,6 +200,39 @@ certbot issue the real cert. Full details in [nginx-ssl.md](./nginx-ssl.md).
 ```bash
 docker compose --env-file .env -f infra/docker/docker-compose.yml up -d --build
 docker compose --env-file .env -f infra/docker/docker-compose.yml ps
+```
+
+### Releases and rollback
+
+`scripts/deploy.sh` tags every image it builds with the short commit SHA
+(`wizer-signage/api:<sha>`, and the same for `dashboard` and `maintenance`) and
+also moves `:latest` to that build. The tag is appended to `.deploy-history` —
+a machine-local, gitignored file — **only after the health check passes**, so
+the history contains releases that actually served traffic.
+
+That makes the previous release a named image already on the disk, which is
+what `scripts/rollback.sh` uses:
+
+```bash
+scripts/rollback.sh            # back to the previous known-good release
+scripts/rollback.sh <tag>      # back to a specific tag
+scripts/rollback.sh --list     # show the deploy history
+```
+
+It refuses **before** touching the running stack if those images are no longer
+present (usually `docker image prune`), and it will not roll back into a release
+it has already rolled away from.
+
+> **Rollback does not undo migrations.** They are forward-only. A deploy that
+> only ADDED columns rolls back cleanly; one that dropped or renamed something
+> the old code reads will fail on the old image. For that case restore the
+> pre-migration backup with `scripts/restore-db.sh` — `deploy.sh` takes one
+> immediately before every migration precisely so it exists.
+
+To pin a specific release manually, set `IMAGE_TAG` for any compose command:
+
+```bash
+IMAGE_TAG=<sha> docker compose --env-file .env -f infra/docker/docker-compose.yml up -d --no-build
 ```
 
 ---

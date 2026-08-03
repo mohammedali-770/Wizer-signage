@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { BackupStatus, BackupType, NotificationSeverity, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
@@ -26,10 +26,36 @@ const DEFAULT_STALE_DAYS = 2;
  */
 @Injectable()
 export class BackupService {
+  private readonly logger = new Logger(BackupService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly alerts: AlertService,
   ) {}
+
+  /**
+   * Run an alerting call without letting its failure propagate — but never
+   * silently.
+   *
+   * Alerting is best-effort by design: a backup must still be recorded as
+   * FAILED even if the notification cannot be delivered. Swallowing the error
+   * outright, however, produced the worst possible state: backups are overdue,
+   * the alert that would say so fails, and the only two signals a human could
+   * act on are both gone. The alert still does not throw; it now leaves a
+   * server-side trace.
+   */
+  private async tryAlert(what: string, fn: () => Promise<unknown>): Promise<void> {
+    try {
+      await fn();
+    } catch (error) {
+      this.logger.error(
+        `Backup alerting failed (${what}) — the backup state itself is still recorded: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
 
   /** Record a completed/failed run in one call (used by the backup script CLI). */
   async record(input: RecordBackupInput) {
@@ -105,8 +131,8 @@ export class BackupService {
   async checkRecency(now: Date = new Date(), staleDays = DEFAULT_STALE_DAYS): Promise<boolean> {
     const { stale, lastSuccessfulDatabaseBackupAt } = await this.status(now, staleDays);
     if (stale) {
-      await this.alerts
-        .raise({
+      await this.tryAlert('raise database-backup-overdue', () =>
+        this.alerts.raise({
           companyId: null,
           type: AlertEvent.BackupFailed,
           severity: NotificationSeverity.CRITICAL,
@@ -115,25 +141,27 @@ export class BackupService {
             ? `Last successful database backup was ${lastSuccessfulDatabaseBackupAt}.`
             : 'No successful database backup has been recorded.',
           dedupeKey: 'system:backup:database:overdue',
-        })
-        .catch(() => undefined);
+        }),
+      );
     } else {
-      await this.alerts.resolveByKey('system:backup:database:overdue').catch(() => undefined);
+      await this.tryAlert('resolve database-backup-overdue', () =>
+        this.alerts.resolveByKey('system:backup:database:overdue'),
+      );
     }
     return stale;
   }
 
   private async raiseFailedAlert(type: BackupType, error: string) {
-    await this.alerts
-      .raise({
+    await this.tryAlert(`raise ${type}-backup-failed`, () =>
+      this.alerts.raise({
         companyId: null,
         type: AlertEvent.BackupFailed,
         severity: NotificationSeverity.CRITICAL,
         title: `${type} backup failed`,
         message: error,
         dedupeKey: `system:backup:${type.toLowerCase()}:failed`,
-      })
-      .catch(() => undefined);
+      }),
+    );
   }
 
   private toView(r: Prisma.BackupRecordGetPayload<true>) {

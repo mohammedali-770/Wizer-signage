@@ -1,10 +1,14 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ReqMeta, type RequestMeta } from '../../common/decorators/request-meta.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
+import { ImpersonationService } from './impersonation.service';
+import { StartImpersonationDto } from './dto/impersonation.dto';
 import {
   InviteSuperAdminDto,
   ListDemoRequestsQueryDto,
@@ -18,7 +22,43 @@ import { SuperAdminService } from './super-admin.service';
 @Roles(UserRole.SUPER_ADMIN)
 @Controller('super-admin')
 export class SuperAdminController {
-  constructor(private readonly superAdmin: SuperAdminService) {}
+  constructor(
+    private readonly superAdmin: SuperAdminService,
+    private readonly impersonation: ImpersonationService,
+  ) {}
+
+  // --- Impersonation ------------------------------------------------------
+
+  @Post('impersonation')
+  @HttpCode(200)
+  // Each attempt burns a second factor and is logged whether it succeeds or
+  // not; a rate this low makes a code-guessing loop pointless and keeps the
+  // audit trail readable.
+  @Throttle({ default: { limit: 5, ttl: 600_000 } })
+  @ApiOperation({
+    summary:
+      'Start an audited impersonation of a company (requires a fresh 2FA code and a reason). ' +
+      'Returns a short-lived, non-refreshable access token.',
+  })
+  startImpersonation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: StartImpersonationDto,
+    @ReqMeta() meta: RequestMeta,
+  ) {
+    return this.impersonation.start(user, dto, meta);
+  }
+
+  @Delete('impersonation')
+  @ApiOperation({ summary: 'End the impersonation this token belongs to.' })
+  endImpersonation(@CurrentUser() user: AuthenticatedUser, @ReqMeta() meta: RequestMeta) {
+    return this.impersonation.end(user, meta);
+  }
+
+  @Get('impersonation/active')
+  @ApiOperation({ summary: 'Every impersonation session that is live right now.' })
+  listActiveImpersonations() {
+    return this.impersonation.listActive();
+  }
 
   @Get('overview')
   @ApiOperation({ summary: 'Platform overview counters.' })
