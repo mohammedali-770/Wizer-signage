@@ -30,6 +30,25 @@ function parseFlags(args: string[]): Flags {
   return flags;
 }
 
+/**
+ * Pull `retention.failures` out of whatever shape the job returned — `run('all')`
+ * nests it under `retention`, `run('retention')` returns it directly. Defensive
+ * on purpose: a shape change must degrade to "no failures detected", never throw
+ * inside the error-reporting path.
+ */
+function collectRetentionFailures(result: unknown): string[] {
+  if (typeof result !== 'object' || result === null) return [];
+  const record = result as Record<string, unknown>;
+  const candidates = [record, record.retention];
+  const failures: string[] = [];
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'object' || candidate === null) continue;
+    const value = (candidate as Record<string, unknown>).failures;
+    if (Array.isArray(value)) failures.push(...value.map((v) => String(v)));
+  }
+  return failures;
+}
+
 async function main(): Promise<void> {
   const [command = 'all', ...rest] = process.argv.slice(2);
   const app = await NestFactory.createApplicationContext(AppModule, {
@@ -60,6 +79,17 @@ async function main(): Promise<void> {
       const result = await app.get(MaintenanceService).run(job);
       // eslint-disable-next-line no-console
       console.log(JSON.stringify({ job, result }));
+
+      // A retention step that ERRORED must not exit 0. Retention failures are
+      // silent by nature — the row counts simply read as zero — so a broken
+      // cleanup can run for months while the database grows until writes stop.
+      // Exiting non-zero makes cron/`docker logs` and any wrapper surface it.
+      const failures = collectRetentionFailures(result);
+      if (failures.length > 0) {
+        // eslint-disable-next-line no-console
+        console.error(`[maintenance-cli] retention steps failed: ${failures.join(' | ')}`);
+        process.exitCode = 1;
+      }
     }
   } finally {
     await app.close();

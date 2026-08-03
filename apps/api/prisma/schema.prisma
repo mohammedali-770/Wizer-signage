@@ -565,6 +565,8 @@ model Session {
   @@index([companyId])
   @@index([refreshTokenHash])
   @@index([expiresAt])
+  // Retention: purge of revoked sessions (previously stamped, never removed).
+  @@index([revokedAt])
   @@map("sessions")
 }
 
@@ -612,6 +614,8 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+  // Retention: purge of consumed/expired single-use reset tokens.
+  @@index([expiresAt])
   @@map("password_reset_tokens")
 }
 
@@ -886,6 +890,9 @@ model PairingCode {
 
   @@index([companyId])
   @@index([status])
+  // Retention: purge of expired codes. Written by an UNAUTHENTICATED endpoint,
+  // so without pruning this table grows from pairing spam alone.
+  @@index([expiresAt])
   @@map("pairing_codes")
 }
 
@@ -966,6 +973,8 @@ model DeviceCommand {
 
   @@index([companyId])
   @@index([screenId, status])
+  // Retention: purge of terminal-state commands past the cutoff.
+  @@index([status, createdAt])
   @@index([deviceId])
   @@map("device_commands")
 }
@@ -1275,6 +1284,9 @@ model ProofOfPlay {
 
   @@index([companyId, startedAt])
   @@index([screenId, startedAt])
+  // Retention: the nightly purge filters on startedAt alone; the composite
+  // indexes above lead with companyId/screenId so they cannot serve it.
+  @@index([startedAt])
   @@index([contentId])
   @@index([emergencyBroadcastId])
   @@index([status])
@@ -1525,6 +1537,8 @@ model Alert {
   // Perf: dedup lookup on every condition event resolves to (dedupeKey, status).
   @@index([dedupeKey, status])
   @@index([severity])
+  // Retention: purge of RESOLVED/DISMISSED alerts past the cutoff.
+  @@index([status, resolvedAt])
   @@index([createdAt])
   @@map("alerts")
 }

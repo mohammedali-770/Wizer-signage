@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 
 import { CurrentDevice } from '../../common/decorators/current-device.decorator';
@@ -37,6 +38,11 @@ export class DeviceController {
     private readonly content: DeviceContentService,
   ) {}
 
+  // UNAUTHENTICATED WRITE: every call persists a PairingCode row. The global
+  // 100/min budget is far too generous for that — pairing spam would consume
+  // tenant-billed storage indefinitely. A real TV pairs once, so a handful of
+  // attempts per minute is ample.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('pairing/start')
   startPairing(@Body() dto: StartPairingDto) {
     return this.device.startPairing(dto);

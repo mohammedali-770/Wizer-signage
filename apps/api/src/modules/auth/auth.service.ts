@@ -50,6 +50,18 @@ interface TokenPair {
 /** Lifetime of a 2FA login step-up challenge (token expiry AND server record). */
 const TWO_FACTOR_CHALLENGE_TTL_MS = 2 * 60 * 1000;
 
+/**
+ * Bound a free-text, potentially attacker-controlled value before persisting it.
+ * Returns undefined for empty input so an absent header stays absent rather than
+ * becoming an empty string.
+ */
+function truncate(value: string, max: number): string;
+function truncate(value: string | undefined | null, max: number): string | undefined;
+function truncate(value: string | undefined | null, max: number): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  return value.length > max ? value.slice(0, max) : value;
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -536,12 +548,16 @@ export class AuthService {
     try {
       await this.prisma.loginEvent.create({
         data: {
-          email,
+          // email and userAgent are ATTACKER-CONTROLLED on a failed login and
+          // were stored untruncated, so credential-stuffing traffic could write
+          // unbounded bytes per attempt into a table with no retention path.
+          // Retention now prunes this table; truncation bounds the per-row cost.
+          email: truncate(email, 320), // RFC 5321 max addressable length
           userId: userId ?? undefined,
           success,
           reason,
           ip: meta.ip,
-          userAgent: meta.userAgent,
+          userAgent: truncate(meta.userAgent, 512),
           suspicious,
         },
       });
