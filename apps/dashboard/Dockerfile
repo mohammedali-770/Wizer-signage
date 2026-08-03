@@ -7,11 +7,16 @@
 # (docker-compose sets build.context to ./apps/dashboard's parent root.)
 # =============================================================================
 
-# ----- Base: pnpm via corepack ----------------------------------------------
-FROM node:20-alpine AS base
+# ----- Base: pnpm (installed directly; corepack is gone in Node 26) ---------
+FROM node:26-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9 --activate
+# Corepack is NOT shipped in node:26-alpine — Node removed it from the
+# distribution after 24, so `corepack enable` exits 127. pnpm is installed
+# directly instead, pinned to the exact version in the root package.json
+# `packageManager` field so the image resolves the lockfile identically to
+# local development. Keep this in step with that field.
+RUN npm install -g pnpm@9.12.0
 WORKDIR /app
 
 # ----- Dependencies: install with the full workspace graph -------------------
@@ -54,7 +59,7 @@ COPY packages ./packages
 RUN pnpm --filter @wizer/dashboard build
 
 # ----- Runner: minimal runtime image -----------------------------------------
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
