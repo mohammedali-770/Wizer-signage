@@ -10,6 +10,8 @@ import { Prisma } from '@prisma/client';
 import type { Response } from 'express';
 import type { ApiError } from '@wizer/types';
 
+import type { AuthenticatedUser } from '../types/auth.types';
+
 /**
  * Global exception filter that converts any thrown error into the platform's
  * standard error envelope: `{ success: false, error: ApiError }`.
@@ -26,15 +28,36 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<{
+      method?: string;
+      originalUrl?: string;
+      url?: string;
+      requestId?: string;
+      user?: AuthenticatedUser;
+    }>();
 
     const { status, error } = this.resolve(exception);
+    const requestId = request?.requestId;
 
     if (status >= 500) {
+      // Enough context to find the failing request without a second round-trip
+      // to the user: WHICH request (id + method + path), WHOSE (company/user),
+      // and — critically — the underlying error, which the client never sees.
+      // The query string is stripped: it can carry filter values and tokens.
+      const path = (request?.originalUrl ?? request?.url ?? '').split('?')[0];
+      const who = request?.user
+        ? ` company=${request.user.companyId ?? '-'} user=${request.user.userId ?? '-'}`
+        : '';
+      const cause = exception instanceof Error ? `${exception.name}: ${exception.message}` : '-';
       this.logger.error(
-        `${status} ${error.code}: ${error.message}`,
+        `${status} ${error.code} [${requestId ?? '-'}] ${request?.method ?? '-'} ${path}${who} — ${cause}`,
         exception instanceof Error ? exception.stack : undefined,
       );
     }
+
+    // Echo the correlation ID so a user-reported failure maps to one log line.
+    // Safe to expose: it is a random UUID with no bearing on authorization.
+    if (requestId) error.details = { ...error.details, requestId };
 
     response.status(status).json({ success: false, error });
   }

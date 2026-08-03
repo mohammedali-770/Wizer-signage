@@ -99,6 +99,14 @@ jobs:
       - name: Backup/restore drill (real Postgres)
         run: bash scripts/tests/backup-restore-drill.sh
 
+      # Rollback is only useful if it is correct the first time it is needed,
+      # in an outage. These cover every decision it makes BEFORE touching the
+      # running stack: tag selection (including not bouncing back into a
+      # release already rolled away from) and refusing pruned images. Docker is
+      # stubbed; no stack is started.
+      - name: Rollback decision-logic tests
+        run: bash scripts/tests/rollback.test.sh
+
       - name: Build
         # The dashboard production build requires an explicit, valid HTTPS
         # NEXT_PUBLIC_API_URL (see apps/dashboard/next.config.mjs). Use a

@@ -83,10 +83,6 @@ export class EnvironmentVariables {
   @IsString()
   CORS_ORIGINS?: string;
 
-  @IsOptional()
-  @IsString()
-  WS_PATH?: string;
-
   // --- Database (REQUIRED) ------------------------------------------------
   @IsString({ message: 'DATABASE_URL is required (Supabase Postgres connection string).' })
   DATABASE_URL!: string;

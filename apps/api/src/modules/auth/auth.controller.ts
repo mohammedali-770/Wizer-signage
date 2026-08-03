@@ -43,6 +43,10 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(200)
+  // Unauthenticated and token-guessing-shaped, exactly like /login — it was the
+  // only @Public() auth route left on the 100/min global default. A legitimate
+  // client refreshes at most a few times an hour.
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Exchange a refresh token for a new token pair.' })
   refresh(@Body() dto: RefreshTokenDto) {
     return this.auth.refresh(dto.refreshToken);
