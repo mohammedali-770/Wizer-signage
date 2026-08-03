@@ -1,4 +1,4 @@
-import { ManifestRefreshService } from './manifest-refresh.service';
+import { REFRESH_DEBOUNCE_MS, ManifestRefreshService } from './manifest-refresh.service';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -87,5 +87,83 @@ describe('ManifestRefreshService', () => {
     prisma.device.findMany.mockRejectedValue(new Error('db down'));
 
     await expect(service.refreshCompany('c1')).resolves.toBe(0);
+  });
+});
+
+/**
+ * Debouncing.
+ *
+ * Editing is bursty — reordering a playlist, bulk-tagging content, saving a
+ * schedule and immediately fixing it. Each write dispatched its own refresh, and
+ * each dispatch reads every device and every pending command in the company. The
+ * PENDING dedup stopped duplicate COMMANDS; it did nothing about the reads.
+ */
+describe('ManifestRefreshService.scheduleRefresh', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('collapses a burst of edits into ONE dispatch', async () => {
+    const t = build();
+    for (let i = 0; i < 25; i++) t.service.scheduleRefresh('c1');
+
+    expect(t.prisma.device.findMany).not.toHaveBeenCalled(); // nothing yet
+    jest.advanceTimersByTime(REFRESH_DEBOUNCE_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(t.prisma.device.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps companies independent — one tenant burst never suppresses another', async () => {
+    const t = build();
+    t.service.scheduleRefresh('c1');
+    t.service.scheduleRefresh('c2');
+
+    jest.advanceTimersByTime(REFRESH_DEBOUNCE_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(t.prisma.device.findMany).toHaveBeenCalledTimes(2);
+  });
+
+  it('fires on the leading edge of the window, not a rolling one', async () => {
+    // Trailing-edge debouncing would let a long stream of edits postpone the
+    // refresh indefinitely — the opposite of what an operator watching a screen
+    // wants.
+    const t = build();
+    t.service.scheduleRefresh('c1');
+    jest.advanceTimersByTime(REFRESH_DEBOUNCE_MS - 1);
+    t.service.scheduleRefresh('c1'); // late edit must NOT push the timer out
+    jest.advanceTimersByTime(1);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(t.prisma.device.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts a new burst once the previous one has fired', async () => {
+    const t = build();
+    t.service.scheduleRefresh('c1');
+    jest.advanceTimersByTime(REFRESH_DEBOUNCE_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    t.service.scheduleRefresh('c1');
+    jest.advanceTimersByTime(REFRESH_DEBOUNCE_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(t.prisma.device.findMany).toHaveBeenCalledTimes(2);
+  });
+
+  it('cancels scheduled dispatches on shutdown rather than leaking timers', async () => {
+    const t = build();
+    t.service.scheduleRefresh('c1');
+    t.service.onModuleDestroy();
+
+    jest.advanceTimersByTime(REFRESH_DEBOUNCE_MS * 5);
+    await Promise.resolve();
+
+    expect(t.prisma.device.findMany).not.toHaveBeenCalled();
   });
 });

@@ -41,7 +41,7 @@ services:
       # pnpm workspace (apps/* and packages/*).
       context: ../..
       dockerfile: apps/api/Dockerfile
-    image: wizer-signage/api:latest
+    image: wizer-signage/api:${IMAGE_TAG:-latest}
     container_name: wizer-signage-api
     # Load all canonical env vars from the repo-root .env file.
     env_file:
@@ -56,10 +56,16 @@ services:
       # Directory (host-mounted below) for public file downloads such as the
       # Android TV player APK, served at /api/downloads/<file>.
       APK_DOWNLOAD_DIR: /srv/downloads
+      # Where multipart uploads are spooled. Content uploads are capped at
+      # 300 MB and this container is capped at 768M of RAM, so they MUST go to
+      # disk, not the heap. A named volume (below) keeps them off the
+      # container's writable layer and makes the space usage inspectable.
+      UPLOAD_TMP_DIR: /var/tmp/wizer-uploads
     volumes:
       # Drop .apk files into <repo-root>/downloads on the host (no rebuild
       # needed); each is then served at https://<domain>/api/downloads/<file>.
       - ../../downloads:/srv/downloads:ro
+      - api-upload-spool:/var/tmp/wizer-uploads
     # Internal-only: reachable by nginx on the shared network. Not published.
     expose:
       - '3001'
@@ -107,7 +113,7 @@ services:
         # REQUIRED: the build fails here if unset (no silent localhost default),
         # and next.config.mjs additionally rejects non-HTTPS/localhost values.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL must be set in .env (e.g. https://api.example.com/api)}
-    image: wizer-signage/dashboard:latest
+    image: wizer-signage/dashboard:${IMAGE_TAG:-latest}
     container_name: wizer-signage-dashboard
     env_file:
       - ../../.env
@@ -149,7 +155,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.maintenance
-    image: wizer-signage/maintenance:latest
+    image: wizer-signage/maintenance:${IMAGE_TAG:-latest}
     container_name: wizer-signage-maintenance
     env_file:
       - ../../.env
@@ -193,7 +199,6 @@ services:
   # Routes:
   #   /        -> dashboard:3000
   #   /api/    -> api:3001 (prefix preserved)
-  #   WS_PATH  -> api:3001 (websocket upgrade)
   # TLS certificates are issued via Let's Encrypt (certbot webroot).
   # See infra/nginx/README.md for the certificate workflow.
   # ---------------------------------------------------------------------------
@@ -266,3 +271,7 @@ volumes:
   # pg_dump backups written by the maintenance worker (see scripts/backup-db.sh).
   backups:
     name: wizer-signage-backups
+  # Multipart uploads in flight. Transient by design — the API deletes each file
+  # once it is streamed to object storage, and sweeps orphans at boot.
+  api-upload-spool:
+    name: wizer-signage-api-upload-spool

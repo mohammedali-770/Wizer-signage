@@ -1,3 +1,9 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { ContentService } from './content.service';
@@ -44,16 +50,15 @@ function build() {
   const storage = {
     buildKey: jest.fn((c: string, id: string, fn: string) => `companies/${c}/content/${id}/${fn}`),
     upload: jest.fn().mockResolvedValue(undefined),
+    uploadFile: jest.fn().mockResolvedValue(undefined),
     getSignedUrl: jest.fn().mockResolvedValue('https://signed'),
     remove: jest.fn().mockResolvedValue(undefined),
   };
-  const crypto = { sha256Buffer: jest.fn(() => 'checksum') };
   const service = new ContentService(
     prisma,
     activityLog as any,
     usageLimits as any,
     storage as any,
-    crypto as any,
   );
   return { service, prisma, activityLog, usageLimits, storage };
 }
@@ -162,6 +167,95 @@ describe('ContentService.upload', () => {
       t.service.upload('comp1', actor, imageFile as any, { title: 'x' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(t.storage.upload).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Disk-spooled uploads. multer now writes the multipart body to disk instead of
+ * holding it in the heap, so the service must (a) stream it to storage rather
+ * than buffering it, and (b) delete the temp file on EVERY exit path — a client
+ * that repeatedly sends rejected uploads must not be able to fill the disk.
+ */
+describe('ContentService.upload — disk-spooled files', () => {
+  let dir: string;
+
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'wizer-content-test-'));
+  });
+
+  async function spool(bytes: Buffer, originalname = 'a.png') {
+    const path = join(dir, `${randomUUID()}.part`);
+    await writeFile(path, bytes);
+    return { path, mimetype: 'image/png', originalname, size: bytes.length };
+  }
+
+  it('streams the file to storage without ever buffering it', async () => {
+    const t = build();
+    const file = await spool(PNG_BYTES);
+    await t.service.upload('comp1', actor, file as any, { title: 'Banner' });
+
+    expect(t.storage.uploadFile).toHaveBeenCalledWith(expect.any(String), file.path, 'image/png');
+    expect(t.storage.upload).not.toHaveBeenCalled();
+  });
+
+  it('records the real streaming SHA-256 of the file', async () => {
+    const t = build();
+    const bytes = Buffer.concat([PNG_BYTES, Buffer.alloc(4096, 0x7a)]);
+    const file = await spool(bytes);
+    await t.service.upload('comp1', actor, file as any, { title: 'Banner' });
+
+    expect(t.prisma.content.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          checksum: createHash('sha256').update(bytes).digest('hex'),
+        }),
+      }),
+    );
+  });
+
+  it('deletes the temp file after a successful upload', async () => {
+    const t = build();
+    const file = await spool(PNG_BYTES);
+    await t.service.upload('comp1', actor, file as any, { title: 'Banner' });
+    expect(existsSync(file.path)).toBe(false);
+  });
+
+  it('deletes the temp file when the type is rejected', async () => {
+    const t = build();
+    const file = await spool(Buffer.from([0x50, 0x4b, 0x03, 0x04])); // zip
+    await expect(
+      t.service.upload('comp1', actor, file as any, { title: 'x' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(existsSync(file.path)).toBe(false);
+  });
+
+  it('deletes the temp file when a plan limit rejects', async () => {
+    const t = build();
+    t.usageLimits.assertFileSize.mockRejectedValue(new ForbiddenException('too big'));
+    const file = await spool(PNG_BYTES);
+    await expect(
+      t.service.upload('comp1', actor, file as any, { title: 'x' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(existsSync(file.path)).toBe(false);
+  });
+
+  it('deletes the temp file when the DB row fails', async () => {
+    const t = build();
+    t.prisma.content.create.mockRejectedValueOnce(new Error('db down'));
+    const file = await spool(PNG_BYTES);
+    await expect(t.service.upload('comp1', actor, file as any, { title: 'x' })).rejects.toThrow(
+      'db down',
+    );
+    expect(existsSync(file.path)).toBe(false);
+    expect(t.storage.remove).toHaveBeenCalled();
+  });
+
+  it('streams and cleans up on replaceFile too', async () => {
+    const t = build();
+    const file = await spool(PNG_BYTES);
+    await t.service.replaceFile('comp1', actor, 'c1', file as any);
+    expect(t.storage.uploadFile).toHaveBeenCalledWith(expect.any(String), file.path, 'image/png');
+    expect(existsSync(file.path)).toBe(false);
   });
 });
 

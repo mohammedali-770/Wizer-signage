@@ -95,7 +95,6 @@ DASHBOARD_PORT=3000
 API_URL=http://localhost:3001
 NEXT_PUBLIC_API_URL=http://localhost:3001/api
 CORS_ORIGINS=http://localhost:3000
-WS_PATH=/ws
 ```
 
 JWT secrets can be any long random strings locally:

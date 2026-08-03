@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import { DeviceCommandStatus, DeviceCommandType, DeviceStatus, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
@@ -22,13 +22,58 @@ import { COMMAND_TTL_SECONDS } from '../monitoring/monitoring.constants';
  *    the manifest and compare its hash; if nothing changed it is a no-op.
  *  - Deduped server-side: skips screens that already have a queued (PENDING)
  *    refresh, so rapid edits don't pile up commands.
+ *  - Debounced in-process: a burst of edits collapses into ONE dispatch (see
+ *    REFRESH_DEBOUNCE_MS).
  *  - Tenant-scoped: only ever targets screens in the given company.
  */
+/**
+ * How long a dispatch waits so that a burst of edits becomes one refresh.
+ *
+ * Editing is bursty by nature — reordering a playlist, bulk-tagging content,
+ * saving a schedule then immediately fixing it. Each write triggered its own
+ * dispatch, and each dispatch reads every device and every pending command in
+ * the company. The PENDING dedup already stopped duplicate COMMANDS from being
+ * created, but the two SELECTs ran every time regardless.
+ *
+ * Two seconds is far below the ~12s command-poll cycle, so the device sees no
+ * added latency; it only removes work the device would never have observed.
+ */
+export const REFRESH_DEBOUNCE_MS = Number(process.env.MANIFEST_REFRESH_DEBOUNCE_MS ?? 2_000);
+
 @Injectable()
-export class ManifestRefreshService {
+export class ManifestRefreshService implements OnModuleDestroy {
   private readonly logger = new Logger(ManifestRefreshService.name);
+  /** Companies with a dispatch already scheduled. */
+  private readonly pending = new Map<string, NodeJS.Timeout>();
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Schedule a debounced refresh for a company. Returns immediately; the
+   * dispatch runs on a timer and never throws (see refreshCompany).
+   *
+   * The FIRST call in a burst wins the timer and later ones are dropped rather
+   * than pushing it out. Trailing-edge debouncing would let a long stream of
+   * edits postpone the refresh indefinitely, which is the opposite of what an
+   * operator watching a screen wants.
+   */
+  scheduleRefresh(companyId: string): void {
+    if (this.pending.has(companyId)) return;
+
+    const timer = setTimeout(() => {
+      this.pending.delete(companyId);
+      void this.refreshCompany(companyId);
+    }, REFRESH_DEBOUNCE_MS);
+    // Never hold the process open for a pending refresh.
+    timer.unref?.();
+    this.pending.set(companyId, timer);
+  }
+
+  /** Cancel every scheduled dispatch so a shutdown does not leak timers. */
+  onModuleDestroy(): void {
+    for (const timer of this.pending.values()) clearTimeout(timer);
+    this.pending.clear();
+  }
 
   /**
    * Dispatch REFRESH_MANIFEST to every paired+active screen in `companyId`.

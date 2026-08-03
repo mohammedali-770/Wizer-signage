@@ -50,6 +50,11 @@ captures/
 keystore.properties
 release-output/
 
+# Per-host deploy history written by scripts/deploy.sh and read by
+# scripts/rollback.sh. Machine-local state — the tags in it only mean anything
+# on the host whose docker daemon holds those images.
+.deploy-history
+
 # IDEs / editors
 .idea/
 .vscode/*

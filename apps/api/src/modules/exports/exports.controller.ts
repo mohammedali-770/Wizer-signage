@@ -1,5 +1,6 @@
-import { BadRequestException, Controller, Get, Param, Query, Res } from '@nestjs/common';
+import { Controller, Get, Param, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -7,19 +8,8 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { Permission } from '../../common/rbac/permissions';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { ActivityLogService } from '../activity-log/activity-log.service';
-import { ExportService, type ExportDataset, type ExportFormat } from './export.service';
-
-const DATASETS: ExportDataset[] = [
-  'proof-of-play',
-  'screen-health',
-  'alerts',
-  'activity-logs',
-  'screens',
-  'locations',
-  'companies',
-  'invoices',
-];
-const FORMATS: ExportFormat[] = ['CSV', 'XLSX', 'PDF'];
+import { ExportQueryDto, ExportTypeParamDto } from './dto/export.dto';
+import { ExportService, type ExportFormat } from './export.service';
 
 /**
  * Tenant-scoped data exports (Phase 10). `GET /exports/:type?format=csv|xlsx|pdf`.
@@ -37,24 +27,23 @@ export class ExportsController {
 
   @Get(':type')
   @RequirePermissions(Permission.ReportRead)
+  // An export is the single most expensive read in the API: it runs an
+  // unpaginated (row-capped) query and renders the whole result set in memory.
+  // Five per five minutes per identity is generous for a human clicking
+  // "Export" and ruinous for a script looping over every dataset.
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
   @ApiOperation({
     summary: 'Export a dataset as CSV/XLSX/PDF (?format, ?from, ?to, ?screenId, ?status).',
   })
   async export(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('type') type: string,
-    @Query('format') format = 'CSV',
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-    @Query('screenId') screenId?: string,
-    @Query('status') status?: string,
+    @Param() params: ExportTypeParamDto,
+    @Query() query: ExportQueryDto,
     @Res({ passthrough: true }) res?: Response,
   ) {
-    const dataset = type as ExportDataset;
-    const fmt = String(format).toUpperCase() as ExportFormat;
-    if (!DATASETS.includes(dataset))
-      throw new BadRequestException(`Unknown export type "${type}".`);
-    if (!FORMATS.includes(fmt)) throw new BadRequestException(`Unknown format "${format}".`);
+    const dataset = params.type;
+    const fmt = (query.format ?? 'CSV') as ExportFormat;
+    const { from, to, screenId, status } = query;
 
     // `report:read` (the guard above) is held by VIEWER, so it cannot be the
     // only gate: the audit trail and the billing ledger need the same authority
