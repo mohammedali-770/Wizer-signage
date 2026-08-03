@@ -14,11 +14,16 @@
 # =============================================================================
 
 # --- Base --------------------------------------------------------------------
-# Pin a concrete Node 20 alpine image and enable corepack-managed pnpm@9.
+# Pin a concrete Node 26 alpine image and install pnpm@9 (see below).
 FROM node:26-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9 --activate
+# Corepack is NOT shipped in node:26-alpine — Node removed it from the
+# distribution after 24, so `corepack enable` exits 127. pnpm is installed
+# directly instead, pinned to the exact version in the root package.json
+# `packageManager` field so the image resolves the lockfile identically to
+# local development. Keep this in step with that field.
+RUN npm install -g pnpm@9.12.0
 WORKDIR /app
 
 # --- Dependencies ------------------------------------------------------------
