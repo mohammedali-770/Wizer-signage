@@ -54,6 +54,13 @@ jobs:
       - name: Backup script regression tests
         run: bash scripts/tests/backup-db.test.sh
 
+      # Proves a dump taken by backup-db.sh can actually be RESTORED into a
+      # database that already has the schema — the real disaster-recovery case.
+      # Regression test for pg_dump running without --clean/--if-exists, which
+      # made every restore abort on its first statement.
+      - name: Backup/restore drill (real Postgres)
+        run: bash scripts/tests/backup-restore-drill.sh
+
       - name: Build
         # The dashboard production build requires an explicit, valid HTTPS
         # NEXT_PUBLIC_API_URL (see apps/dashboard/next.config.mjs). Use a

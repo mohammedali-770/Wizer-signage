@@ -68,8 +68,19 @@ services:
       # Hit the NestJS health endpoint (global prefix "api"). Use 127.0.0.1
       # explicitly: inside the container "localhost" may resolve to IPv6 [::1],
       # which the server is not bound to, making the check fail.
+      # READINESS, not liveness: /api/health answers from process.uptime() and
+      # never touches the database, so a container with a dead DB connection
+      # reported "healthy" forever and `restart: unless-stopped` never fired.
+      # /api/health/ready runs SELECT 1 and returns 503 when the DB is unreachable.
       test:
-        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://127.0.0.1:3001/api/health']
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://127.0.0.1:3001/api/health/ready',
+        ]
       interval: 30s
       timeout: 5s
       retries: 5

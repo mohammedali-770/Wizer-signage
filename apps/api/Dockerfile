@@ -87,8 +87,11 @@ COPY --from=build --chown=node:node /app/apps/api/prisma ./prisma
 USER node
 EXPOSE 3001
 
-# Liveness check against the API health endpoint.
+# READINESS check. /api/health answers from process.uptime() and never touches
+# the database, so a container that has lost its DB connection reported healthy
+# forever and the restart policy never fired. /api/health/ready runs SELECT 1
+# and returns 503 when the database is unreachable.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.API_PORT||3001)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.API_PORT||3001)+'/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "dist/main.js"]

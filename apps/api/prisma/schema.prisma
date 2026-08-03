@@ -1251,9 +1251,14 @@ model Screenshot {
 model ProofOfPlay {
   id                   String             @id @default(uuid())
   companyId            String
-  company              Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // RESTRICT: proof-of-play is the billing/compliance playback record. A bare
+  // `DELETE FROM companies` (the natural operator reflex for a churned tenant)
+  // must not silently erase it — purge deliberately via an audited procedure.
+  company              Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
   screenId             String
-  screen               Screen             @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  // RESTRICT: deleting one screen must not erase that screen's billing-grade
+  // playback history (screens.service soft-deletes; hard deletes are operator SQL).
+  screen               Screen             @relation(fields: [screenId], references: [id], onDelete: Restrict)
   deviceId             String?
   locationId           String? // soft reference, derived from the screen
   // All content/playlist/schedule/emergency refs are SOFT (no FK): proof-of-play
@@ -1327,7 +1332,8 @@ model Plan {
 model Subscription {
   id        String             @id @default(uuid())
   companyId String             @unique
-  company   Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // RESTRICT: financial record — see the note on ProofOfPlay.company.
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
   planId    String
   plan      Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
   status    SubscriptionStatus @default(TRIALING)
@@ -1352,7 +1358,9 @@ model Subscription {
 model Invoice {
   id             String        @id @default(uuid())
   companyId      String
-  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // RESTRICT: financial record — retention never deletes invoices, and neither
+  // should a cascade from a company row.
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
   subscriptionId String?
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   number         String        @unique
