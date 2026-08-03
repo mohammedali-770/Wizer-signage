@@ -1248,6 +1248,7 @@
       "viewOnMap": "View on map",
       "noCoordinates": "No coordinates",
       "showingLocations": "Showing {count, plural, one {# location} other {# locations}}.",
+      "showingTruncated": "Showing {shown} of {total} locations. The map view caps at {shown} — use the Locations page to browse the rest.",
       "derivedStatus": {
         "unknownActive": "Unknown (active)",
         "inactive": "Inactive",

@@ -1248,6 +1248,7 @@
       "viewOnMap": "عرض على الخريطة",
       "noCoordinates": "لا توجد إحداثيات",
       "showingLocations": "عرض {count, plural, zero {# موقع} one {# موقع} two {موقعان} few {# مواقع} many {# موقعًا} other {# موقع}}.",
+      "showingTruncated": "عرض {shown} من {total} موقع. يقتصر عرض الخريطة على {shown} — استخدم صفحة المواقع لتصفح الباقي.",
       "derivedStatus": {
         "unknownActive": "غير معروف (نشط)",
         "inactive": "غير نشط",

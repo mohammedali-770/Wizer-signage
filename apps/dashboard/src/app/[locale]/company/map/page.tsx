@@ -23,6 +23,9 @@ import { Badge, Card, EmptyState, PageHeader, Spinner } from '@/components/ui';
 
 const MAP_PROVIDER = process.env.NEXT_PUBLIC_MAP_PROVIDER;
 
+/** Must not exceed the API's hard pagination cap — a larger value is silently clamped. */
+const MAP_PAGE_SIZE = 100;
+
 type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 
 /** Translation key suffix for a derived display status label. */
@@ -69,10 +72,18 @@ function hasCoordinates(loc: LocationListItem): boolean {
 export default function MapViewPage() {
   const t = useTranslations('pages.map');
   const te = useTranslations('enums');
-  const { data, loading, error } =
-    useApiResource<Paginated<LocationListItem>>('/locations?pageSize=200');
+  // The API caps pageSize at 100 (common/dto/pagination.dto.ts). Asking for 200
+  // did NOT return 200 — it returned 100, and this page then rendered them as if
+  // they were every location the company has. A tenant with 150 sites saw 100
+  // pins and no indication that 50 were missing. Ask for exactly what the API
+  // will give, and say so when there is more.
+  const { data, loading, error } = useApiResource<Paginated<LocationListItem>>(
+    `/locations?pageSize=${MAP_PAGE_SIZE}`,
+  );
 
   const items = useMemo(() => data?.items ?? [], [data]);
+  const total = data?.meta?.total ?? items.length;
+  const truncated = total > items.length;
 
   return (
     <div>
@@ -190,7 +201,9 @@ export default function MapViewPage() {
           </div>
 
           <p className="text-muted-foreground text-xs">
-            {t('showingLocations', { count: items.length })}
+            {truncated
+              ? t('showingTruncated', { shown: items.length, total })
+              : t('showingLocations', { count: items.length })}
           </p>
         </div>
       )}
