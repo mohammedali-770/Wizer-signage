@@ -617,14 +617,20 @@ The Android player is **not modified** in Phase 11 — these are deployment note
 ### Point the player at your production API
 
 `BuildConfig.API_BASE_URL` is set at **build time** (it is not configurable at
-runtime). For production, build with your public API origin:
+runtime). The default in `app/build.gradle.kts` is the live production host
+(`https://signage.wizer.sa/api`); pass `-PapiBaseUrl=` to override:
 
-```kotlin
-// apps/android-tv-player/app/build.gradle.kts (release buildType)
-buildConfigField("String", "API_BASE_URL", "\"https://wizer.sa/api\"")
+```bash
+# Debug against a local API (10.0.2.2 is the host as seen from the emulator):
+./gradlew assembleDebug -PapiBaseUrl=http://10.0.2.2:3001/api
 ```
 
-Or override per build via a Gradle property and read it in the build script.
+**Release builds must state the host explicitly.**
+`scripts/build-android-release.sh` **fails closed** without
+`--api-base-url=https://…` and rejects any non-HTTPS value. A release APK bakes
+the host in permanently and there is **no OTA update path**, so a wrong value
+means every screen built from it can never pair or sync and each one has to be
+re-flashed by hand.
 The URL **must** be `https://$APP_DOMAIN/api` (matching `NEXT_PUBLIC_API_URL`),
 reachable from the TV's network, with a valid TLS certificate.
 

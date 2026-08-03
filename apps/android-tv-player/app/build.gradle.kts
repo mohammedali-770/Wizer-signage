@@ -8,8 +8,13 @@ plugins {
 // build (debug or release) ever ships the Android-emulator loopback URL by
 // accident. Override at build time for local emulator development:
 //   ./gradlew assembleDebug -PapiBaseUrl=http://10.0.2.2:3001/api
+//
+// MUST be the host nginx actually serves (server_name signage.wizer.sa; see
+// infra/docker/.env.production.example). There is no OTA update channel, so an
+// APK baked against the wrong host can never pair or sync and is unrecoverable
+// once it is on a wall.
 val apiBaseUrl: String = (project.findProperty("apiBaseUrl") as String?)
-    ?: "https://wizer.sa/api"
+    ?: "https://signage.wizer.sa/api"
 
 // -----------------------------------------------------------------------------
 // Release signing — credentials come ONLY from environment variables, never from

@@ -19,12 +19,17 @@
 # keystore password is passed to apksigner via an env-var reference
 # (pass:env:...), not as a literal argument.
 #
+# The API base URL must ALSO be stated explicitly on every release build. The
+# player has no OTA channel: an APK baked against the wrong host can never pair
+# or sync and is only recoverable by physically revisiting each screen. So this
+# script refuses to guess and fails closed when it is not given.
+#
 # Usage (from anywhere):
 #   export WIZER_ANDROID_KEYSTORE_PATH=/secure/wizer-signage-release.jks
 #   export WIZER_ANDROID_KEYSTORE_PASSWORD=...      # e.g. read into env securely
 #   export WIZER_ANDROID_KEY_ALIAS=wizer-signage
 #   export WIZER_ANDROID_KEY_PASSWORD=...
-#   scripts/build-android-release.sh
+#   scripts/build-android-release.sh --api-base-url=https://signage.wizer.sa/api
 #
 # Requirements: JDK 17, the Android SDK (ANDROID_HOME / ANDROID_SDK_ROOT) with
 # build-tools (apksigner, aapt) installed, and either the Gradle wrapper jar or a
@@ -42,6 +47,31 @@ OUT_DIR="${ANDROID_DIR}/release-output"
 
 log()  { printf '==> [android-release] %s\n' "$*"; }
 fail() { printf 'ERROR [android-release]: %s\n' "$*" >&2; exit 1; }
+
+# --- 0. Require an EXPLICIT API base URL (fail closed) -----------------------
+# Accepts either form so it reads naturally from a shell or a CI job:
+#   --api-base-url=https://signage.wizer.sa/api
+#   -PapiBaseUrl=https://signage.wizer.sa/api
+API_BASE_URL=""
+for arg in "$@"; do
+  case "${arg}" in
+    --api-base-url=*) API_BASE_URL="${arg#--api-base-url=}" ;;
+    -PapiBaseUrl=*)   API_BASE_URL="${arg#-PapiBaseUrl=}" ;;
+    *) fail "Unknown argument: ${arg}" ;;
+  esac
+done
+if [[ -z "${API_BASE_URL}" ]]; then
+  fail "Missing --api-base-url (or -PapiBaseUrl).
+A release APK bakes this host in permanently and there is no OTA update path: a
+wrong value means every screen built from it can never pair or sync, and each one
+has to be re-flashed by hand. State it explicitly, e.g.
+  scripts/build-android-release.sh --api-base-url=https://signage.wizer.sa/api"
+fi
+case "${API_BASE_URL}" in
+  https://*) ;;
+  *) fail "--api-base-url must be an https:// URL (got: ${API_BASE_URL})." ;;
+esac
+log "API base URL: ${API_BASE_URL}"
 
 # --- 1. Validate ALL four signing env vars (fail closed, names only) ---------
 REQUIRED_VARS=(
@@ -98,7 +128,9 @@ elif command -v gradle >/dev/null 2>&1; then
 else
   fail "No Gradle available: set WIZER_GRADLE_CMD, provide the wrapper jar, or put 'gradle' on PATH."
 fi
-GRADLE+=(--no-daemon --console=plain)
+# Pass the API host to every task so tests, lint and the build all configure the
+# project identically (a differing -P value forces a re-configuration).
+GRADLE+=(--no-daemon --console=plain -PapiBaseUrl="${API_BASE_URL}")
 
 # --- 3-5. Tests, lint, signed release build ----------------------------------
 # The four WIZER_ANDROID_* vars are already exported in this shell, so Gradle
@@ -180,6 +212,7 @@ cat <<EOF
   SIGNED RELEASE OK
 ----------------------------------------------------------------------------
   Package            : ${PKG}
+  API base URL       : ${API_BASE_URL}
   versionName        : ${VERSION_NAME}
   versionCode        : ${VERSION_CODE}
   Signature schemes  : ${scheme_v1:-v1 present}

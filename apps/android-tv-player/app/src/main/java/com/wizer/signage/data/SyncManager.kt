@@ -5,6 +5,7 @@ import com.wizer.signage.data.cache.CacheManager
 import com.wizer.signage.data.model.ManifestItem
 import com.wizer.signage.data.model.PlaybackManifest
 import com.wizer.signage.data.model.SyncStatusReport
+import com.wizer.signage.util.Jitter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -67,10 +68,16 @@ class SyncManager(
 
     private var loop: Job? = null
     private var refreshMs = 60_000L
+    private var everStarted = false
 
     fun start() {
         loop?.cancel()
-        loop = scope.launch { run() }
+        // Stagger only the very first cycle after boot: a site-wide power cut
+        // otherwise has every screen asking for its manifest in the same second.
+        // A manual refreshNow() must stay immediate.
+        val stagger = !everStarted
+        everStarted = true
+        loop = scope.launch { run(stagger) }
     }
 
     fun stop() {
@@ -120,7 +127,8 @@ class SyncManager(
         return file
     }
 
-    private suspend fun run() {
+    private suspend fun run(stagger: Boolean) {
+        if (stagger) delay(Jitter.startupDelay())
         while (coroutineContext.isActive) {
             val token = store.deviceToken
             if (token == null) {
@@ -148,7 +156,7 @@ class SyncManager(
                     ),
                 )
             }
-            delay(refreshMs)
+            delay(Jitter.periodic(refreshMs))
         }
     }
 
