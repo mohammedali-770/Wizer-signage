@@ -242,5 +242,25 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
     throw new Error(`Invalid environment configuration: ${details}`);
   }
 
+  // --- Production-only requirements ----------------------------------------
+  // SMTP is optional in dev (MailService falls back to a log-only transport),
+  // but in production that fallback is dangerous: password-reset and invitation
+  // emails would silently never be delivered while the API still returns
+  // success, leaving users unable to reset or accept invites — and the flows
+  // would appear healthy. Fail fast instead.
+  if (validatedConfig.NODE_ENV === Environment.Production) {
+    const missingSmtp = (['SMTP_HOST', 'SMTP_PORT', 'SMTP_FROM'] as const).filter((key) => {
+      const value = validatedConfig[key];
+      return value === undefined || value === null || String(value).trim() === '';
+    });
+    if (missingSmtp.length > 0) {
+      throw new Error(
+        `Invalid environment configuration: ${missingSmtp.join(', ')} ${
+          missingSmtp.length === 1 ? 'is' : 'are'
+        } required when NODE_ENV=production (email delivery must not silently fall back to log-only).`,
+      );
+    }
+  }
+
   return validatedConfig;
 }

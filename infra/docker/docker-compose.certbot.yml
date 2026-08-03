@@ -25,9 +25,18 @@ services:
       - letsencrypt:/etc/letsencrypt
     # Default command: attempt renewal every 12h (no-op until ~30 days to expiry).
     # `run --rm certbot certonly ...` (above) overrides this for initial issuance.
+    #
+    # --deploy-hook runs ONLY when a certificate was actually renewed. certbot
+    # cannot signal nginx across containers (no Docker socket by design), so the
+    # hook drops a marker into the shared webroot volume for observability; the
+    # nginx container picks the new certificate up via its periodic reload
+    # (infra/nginx/docker-entrypoint.d/99-cert-reloader.sh). Without that pair,
+    # a renewed certificate sits on disk unserved until the next deploy.
     entrypoint: ''
     command: >
-      sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+      sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet
+      --deploy-hook 'date -u +%Y-%m-%dT%H:%M:%SZ > /var/www/certbot/.last-renewal && echo \"[certbot] certificate renewed; nginx will serve it after its next periodic reload\"';
+      sleep 12h & wait $${!}; done"
     restart: unless-stopped
     networks:
       - wizer-signage

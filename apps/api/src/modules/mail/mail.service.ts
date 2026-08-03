@@ -65,8 +65,13 @@ export class MailService implements OnModuleInit {
     });
 
     if (!this.liveTransport) {
+      // SECURITY: never log the body. Password-reset and invitation emails carry
+      // single-use bearer tokens in their links; logging the body writes them in
+      // cleartext to `docker logs` and the host's json-file log on disk, where
+      // anyone with host or log-shipper access can replay them to take over an
+      // account (including a pending SUPER_ADMIN invite). Subject + recipient
+      // are enough to confirm a dev flow fired.
       this.logger.debug(`[DEV EMAIL] to=${message.to} subject="${message.subject}"`);
-      this.logger.debug(`[DEV EMAIL] body:\n${message.text}`);
     } else {
       this.logger.log(`Email sent to ${message.to} (id: ${result.messageId}).`);
     }

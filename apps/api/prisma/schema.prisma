@@ -1509,6 +1509,11 @@ model Alert {
   dedupeKey        String?
   metadata         Json                 @default("{}")
   triggeredAt      DateTime             @default(now())
+  /// Last time this alert actually fanned out a notification/email. Drives the
+  /// CRITICAL re-notification cadence: dedup keeps an unresolved alert quiet,
+  /// but a persistent CRITICAL must page again rather than notify exactly once
+  /// and then stay silent forever.
+  lastNotifiedAt   DateTime?
   acknowledgedAt   DateTime?
   acknowledgedById String? // soft reference -> User
   resolvedAt       DateTime?

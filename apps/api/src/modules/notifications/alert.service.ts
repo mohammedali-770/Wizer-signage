@@ -40,6 +40,14 @@ export interface RaiseAlertInput {
 const OPEN_STATES: AlertStatus[] = [AlertStatus.OPEN, AlertStatus.ACKNOWLEDGED];
 
 /**
+ * How long an unacknowledged CRITICAL alert stays quiet before it notifies
+ * again. Dedup exists to stop per-sweep spam, but a CRITICAL that notifies
+ * exactly once means one missed email hides the condition forever (e.g.
+ * "backups have stopped"). Acknowledging an alert silences the re-notification.
+ */
+const CRITICAL_RENOTIFY_MS = 24 * 60 * 60 * 1000;
+
+/**
  * Operational alerts (Phase 10). De-duplicated while unresolved so repeated
  * conditions (e.g. an offline screen seen on every sweep) update one row rather
  * than spamming. A NEW alert fans out to dashboard notifications + (curated)
@@ -67,11 +75,20 @@ export class AlertService {
     const existing = await this.prisma.alert.findFirst({
       where: { dedupeKey, status: { in: OPEN_STATES } },
       orderBy: { createdAt: 'desc' },
-      select: { id: true },
+      select: { id: true, lastNotifiedAt: true, acknowledgedAt: true },
     });
     if (existing) {
-      // Refresh the existing unresolved alert; do NOT re-notify (anti-spam).
-      await this.prisma.alert.update({
+      // Refresh the existing unresolved alert. Dedup keeps this quiet by design
+      // (anti-spam) — EXCEPT for a CRITICAL that nobody has acknowledged: those
+      // must page again on a cadence, otherwise a single missed email means the
+      // condition (e.g. "backups have stopped") is never surfaced again.
+      const staleSince = Date.now() - CRITICAL_RENOTIFY_MS;
+      const shouldRenotify =
+        severity === NotificationSeverity.CRITICAL &&
+        !existing.acknowledgedAt &&
+        (existing.lastNotifiedAt === null || existing.lastNotifiedAt.getTime() <= staleSince);
+
+      const refreshed = await this.prisma.alert.update({
         where: { id: existing.id },
         data: {
           triggeredAt: new Date(),
@@ -80,6 +97,9 @@ export class AlertService {
           metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
         },
       });
+      if (shouldRenotify) {
+        await this.dispatch(refreshed);
+      }
       return { alertId: existing.id, created: false };
     }
 
@@ -206,9 +226,26 @@ export class AlertService {
     return `${input.companyId ?? 'system'}:${input.screenId ?? ''}:${input.type}`;
   }
 
-  /** Notify the relevant users (dashboard + curated email) about a NEW alert. */
+  /**
+   * Notify the relevant users (dashboard + curated email) about a NEW alert, or
+   * re-notify a persistent unacknowledged CRITICAL. Stamps `lastNotifiedAt` so
+   * the re-notification cadence is driven by when we actually notified, not by
+   * when the condition was last observed.
+   */
   private async dispatch(alert: Prisma.AlertGetPayload<true>): Promise<void> {
     try {
+      // Stamp first: if fan-out partially fails we must not re-notify on the
+      // very next sweep (that would spam every 5 minutes).
+      await this.prisma.alert
+        .update({ where: { id: alert.id }, data: { lastNotifiedAt: new Date() } })
+        .catch((error: unknown) => {
+          this.logger.warn(
+            `Could not stamp lastNotifiedAt on alert ${alert.id}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        });
+
       const recipients = await this.recipientUsers(alert.companyId);
       for (const user of recipients) {
         // Per-recipient isolation: one user's notification/email failure must

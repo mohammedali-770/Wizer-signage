@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   HttpException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -51,6 +52,7 @@ const TWO_FACTOR_CHALLENGE_TTL_MS = 2 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly accessSecret: string;
   private readonly refreshSecret: string;
   private readonly accessTtl: string;
@@ -318,14 +320,27 @@ export class AuthService {
         },
       });
       const link = `${this.dashboardUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
-      await this.mail.send({
-        to: user.email,
-        subject: 'Reset your Wizer Signage password',
-        text:
-          `We received a request to reset your password.\n\n` +
-          `Reset it here (valid for 1 hour):\n${link}\n\n` +
-          `If you did not request this, you can safely ignore this email.`,
-      });
+      // Swallow transport failures: an SMTP outage must NOT turn this endpoint
+      // into an account-enumeration oracle (a 500 for real accounts vs. 200 for
+      // unknown ones tells an attacker which emails exist). The invitations flow
+      // catches for the same reason. The reset row is already persisted, so the
+      // user can retry once mail recovers.
+      try {
+        await this.mail.send({
+          to: user.email,
+          subject: 'Reset your Wizer Signage password',
+          text:
+            `We received a request to reset your password.\n\n` +
+            `Reset it here (valid for 1 hour):\n${link}\n\n` +
+            `If you did not request this, you can safely ignore this email.`,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Password-reset email delivery failed for user ${user.id}: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`,
+        );
+      }
       await this.activityLog.log({
         action: 'auth.password_reset_requested',
         category: ActivityCategory.SECURITY,
