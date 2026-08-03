@@ -115,7 +115,13 @@ server {
         # default for static files — do not disable.
     }
 
-    location /api/ {
+    # Credential endpoints, matched BEFORE the general /api/ block (a longer
+    # literal prefix wins in nginx). Brute-forcing a password or replaying a
+    # stolen refresh token should never get as far as Node.
+    location /api/auth/ {
+        limit_req  zone=wizer_auth burst=10 nodelay;
+        limit_conn wizer_conn 20;
+
         proxy_pass http://api_upstream;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
@@ -123,6 +129,32 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host  $host;
         proxy_set_header X-Forwarded-Port  $server_port;
+        proxy_set_header X-Request-Id      $request_id;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_no_cache      1;
+        proxy_cache_bypass  1;
+    }
+
+    location /api/ {
+        # burst=60 nodelay: a dashboard page fans out several requests at once,
+        # and a site's screens all poll on the same cadence. Sustained abuse
+        # still converges on the 30r/s zone rate.
+        limit_req  zone=wizer_api burst=60 nodelay;
+        # Bounds slowloris-style connection hoarding. Well above what any real
+        # client opens, including a device resuming a large ranged download.
+        limit_conn wizer_conn 100;
+
+        proxy_pass http://api_upstream;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_set_header X-Forwarded-Port  $server_port;
+        # Correlation ID: the API honours this header and echoes it back in the
+        # error envelope, so nginx's access log and the app log share one key.
+        proxy_set_header X-Request-Id      $request_id;
         client_max_body_size 512m;
         proxy_request_buffering off;
         proxy_read_timeout      300s;
@@ -140,21 +172,11 @@ server {
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
-    location /ws {
-        proxy_pass http://api_upstream;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade    $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout  3600s;
-        proxy_send_timeout  3600s;
-        proxy_buffering     off;
-        # Never compress the WebSocket upgrade/stream.
-        gzip                off;
-    }
+    # NOTE: there is deliberately no /ws location. The API has no WebSocket
+    # gateway — devices poll (manifest, commands, heartbeat), which is what the
+    # Android player implements. The block that used to be here proxied to an
+    # endpoint that never existed and held a 3600s timeout open for it, while
+    # the docs it matched described a device channel the platform does not have.
 
     location / {
         proxy_pass http://dashboard_upstream;

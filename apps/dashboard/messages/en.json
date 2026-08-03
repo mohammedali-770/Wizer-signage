@@ -1248,6 +1248,7 @@
       "viewOnMap": "View on map",
       "noCoordinates": "No coordinates",
       "showingLocations": "Showing {count, plural, one {# location} other {# locations}}.",
+      "showingTruncated": "Showing {shown} of {total} locations. The map view caps at {shown} — use the Locations page to browse the rest.",
       "derivedStatus": {
         "unknownActive": "Unknown (active)",
         "inactive": "Inactive",
@@ -2825,5 +2826,19 @@
       "demoCta": "Book a Demo",
       "trialCta": "Start Free Trial"
     }
+  },
+  "impersonation": {
+    "viewingAs": "Viewing as {company} — actions are recorded against your admin account.",
+    "expiresIn": "Ends in {remaining}",
+    "exit": "Exit",
+    "button": "View as company",
+    "dialogTitle": "View as this company",
+    "dialogDescription": "Opens the company console scoped to this tenant for 30 minutes. It is recorded in both audit trails, and the reason you give is shown to the customer.",
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "e.g. Ticket 4821 — playlist not syncing",
+    "codeLabel": "Two-factor code",
+    "codePlaceholder": "6-digit code or backup code",
+    "submit": "Start session",
+    "failed": "Could not start the session."
   }
 }

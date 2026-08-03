@@ -29,6 +29,7 @@ export class PerfLoggingInterceptor implements NestInterceptor {
       method?: string;
       originalUrl?: string;
       url?: string;
+      requestId?: string;
       user?: AuthenticatedUser;
     }>();
     const method = req.method ?? 'GET';
@@ -46,7 +47,10 @@ export class PerfLoggingInterceptor implements NestInterceptor {
       const who = req.user
         ? ` company=${req.user.companyId ?? '-'} user=${req.user.userId ?? '-'}`
         : '';
-      const line = `${method} ${path} ${status} ${ms}ms${who}`;
+      // Same correlation ID the error envelope carries, so a slow-request WARN
+      // and the user's report of it can be joined.
+      const id = req.requestId ? ` id=${req.requestId}` : '';
+      const line = `${method} ${path} ${status} ${ms}ms${who}${id}`;
       if (ms >= this.slowMs) this.logger.warn(`SLOW ${line}`);
       else if (this.logAll) this.logger.log(line);
     };

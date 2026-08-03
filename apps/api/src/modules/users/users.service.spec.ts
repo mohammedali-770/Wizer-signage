@@ -89,3 +89,53 @@ describe('UsersService.recordFailedLogin', () => {
     expect(call.data.status).toBeUndefined(); // not set to LOCKED
   });
 });
+
+/**
+ * LOCKED was an unenforced enum value.
+ *
+ * Every gate in the system tested `isLocked()`, which only looks at
+ * `lockedUntil`. A user whose `status` is LOCKED with NO expiry — an indefinite,
+ * administrative hold — therefore passed login, token validation, refresh, and
+ * the 2FA challenge exactly like an active account.
+ */
+describe('UsersService.isBlocked', () => {
+  const FUTURE = new Date(Date.now() + 60 * 60_000);
+
+  const cases: Array<[string, { status: UserStatus; lockedUntil: Date | null }, boolean]> = [
+    ['an active account', { status: UserStatus.ACTIVE, lockedUntil: null }, false],
+    ['a disabled account', { status: UserStatus.DISABLED, lockedUntil: null }, true],
+    [
+      'an indefinite administrative lock (the hole this closes)',
+      { status: UserStatus.LOCKED, lockedUntil: null },
+      true,
+    ],
+    [
+      'a failed-login lockout still in its window',
+      { status: UserStatus.LOCKED, lockedUntil: FUTURE },
+      true,
+    ],
+    [
+      'a failed-login lockout whose window has elapsed (auto-unlock)',
+      { status: UserStatus.LOCKED, lockedUntil: PAST },
+      false,
+    ],
+    [
+      'an active account with a stale future lock is still blocked',
+      { status: UserStatus.ACTIVE, lockedUntil: FUTURE },
+      true,
+    ],
+    ['an invited account is not blocked', { status: UserStatus.INVITED, lockedUntil: null }, false],
+  ];
+
+  it.each(cases)('%s', (_label, user, expected) => {
+    expect(build().service.isBlocked(user as any)).toBe(expected);
+  });
+
+  it('leaves isLocked purely time-based so auto-unlock still works', () => {
+    const t = build();
+    // Status is LOCKED but the window elapsed — isLocked must say false, or the
+    // account would never come back on its own.
+    expect(t.service.isLocked({ lockedUntil: PAST } as any)).toBe(false);
+    expect(t.service.isLocked({ lockedUntil: FUTURE } as any)).toBe(true);
+  });
+});

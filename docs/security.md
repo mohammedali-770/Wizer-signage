@@ -115,10 +115,11 @@ _(Phase: Auth + Audit)_
 
 ## 8. Transport, SSL & secrets
 
-- **All traffic is HTTPS/WSS.** Nginx terminates TLS using **Let's Encrypt** certificates
-  and proxies to the dashboard, API, and WebSocket path (see
-  [production-deployment.md](./production-deployment.md)).
-- **HSTS** and secure cookie attributes are set; the WebSocket upgrade is served over WSS.
+- **All traffic is HTTPS.** Nginx terminates TLS using **Let's Encrypt** certificates
+  and proxies to the dashboard and the API (see
+  [production-deployment.md](./production-deployment.md)). Players are HTTPS clients
+  too — they poll the same API; there is no separate socket transport.
+- **HSTS** and secure cookie attributes are set.
 - **Secrets** (`JWT_*`, `SUPABASE_SERVICE_ROLE_KEY`, `SMTP_PASSWORD`, `MAP_API_KEY`,
   database URLs) are supplied via environment variables / a secrets manager — **never**
   committed to the repository. `.env.example` documents names only, not values.

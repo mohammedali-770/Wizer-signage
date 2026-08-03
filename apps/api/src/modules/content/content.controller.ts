@@ -18,6 +18,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
+import { diskUploadOptions } from '../../common/upload/disk-upload';
 import { ManifestRefreshInterceptor } from '../sync/manifest-refresh.interceptor';
 import { ContentCleanupService } from './content-cleanup.service';
 import { ContentService } from './content.service';
@@ -32,7 +33,9 @@ import {
 } from './dto/content.dto';
 
 // 300 MB hard cap on multipart uploads (plan max-file-size enforced after).
-const UPLOAD_LIMIT = { limits: { fileSize: 300 * 1024 * 1024 } };
+// Spooled to disk, not the heap — a 300 MB memoryStorage upload is held in RAM
+// for the client's entire upload duration; see common/upload/disk-upload.ts.
+const UPLOAD_LIMIT = diskUploadOptions(300 * 1024 * 1024);
 
 @ApiTags('content')
 @ApiBearerAuth()
