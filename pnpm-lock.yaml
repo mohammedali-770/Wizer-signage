@@ -45,14 +45,14 @@ importers:
         specifier: ^15.2.10
         version: 15.5.2
       prettier:
-        specifier: ^3.3.3
-        version: 3.8.4
+        specifier: ^3.9.6
+        version: 3.9.6
       prettier-plugin-tailwindcss:
-        specifier: ^0.6.8
-        version: 0.6.14(prettier@3.8.4)
+        specifier: ^0.8.1
+        version: 0.8.1(prettier@3.9.6)
       turbo:
-        specifier: ^2.1.3
-        version: 2.9.18
+        specifier: ^2.10.7
+        version: 2.10.7
       typescript:
         specifier: ^5.4.5
         version: 5.9.3
@@ -61,28 +61,28 @@ importers:
     dependencies:
       '@nestjs/common':
         specifier: ^10.3.10
-        version: 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/config':
         specifier: ^3.2.3
-        version: 3.3.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
+        version: 3.3.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
       '@nestjs/core':
         specifier: ^10.3.10
-        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/jwt':
         specifier: ^10.2.0
-        version: 10.2.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))
+        version: 10.2.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))
       '@nestjs/passport':
         specifier: ^10.0.3
-        version: 10.0.3(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(passport@0.7.0)
+        version: 10.0.3(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(passport@0.7.0)
       '@nestjs/platform-express':
         specifier: ^10.3.10
-        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
+        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
       '@nestjs/swagger':
         specifier: ^7.4.0
-        version: 7.4.2(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)
+        version: 7.4.2(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)
       '@nestjs/throttler':
         specifier: ^6.1.1
-        version: 6.5.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(reflect-metadata@0.2.2)
+        version: 6.5.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(reflect-metadata@0.2.2)
       '@node-rs/argon2':
         specifier: ^2.0.2
         version: 2.0.2
@@ -90,8 +90,8 @@ importers:
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
       '@supabase/supabase-js':
-        specifier: ^2.45.4
-        version: 2.108.2
+        specifier: ^2.111.0
+        version: 2.111.0
       '@wizer/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -102,8 +102,8 @@ importers:
         specifier: ^0.5.1
         version: 0.5.1
       class-validator:
-        specifier: ^0.14.1
-        version: 0.14.4
+        specifier: ^0.15.1
+        version: 0.15.1
       exceljs:
         specifier: ^4.4.0
         version: 4.4.0
@@ -111,8 +111,8 @@ importers:
         specifier: ^7.1.0
         version: 7.2.0
       nodemailer:
-        specifier: ^9.0.1
-        version: 9.0.1
+        specifier: ^9.0.3
+        version: 9.0.3
       otplib:
         specifier: ^12.0.1
         version: 12.0.1
@@ -135,8 +135,8 @@ importers:
         specifier: ^7.8.1
         version: 7.8.2
       ws:
-        specifier: ^8.18.0
-        version: 8.21.0
+        specifier: ^8.21.1
+        version: 8.21.1
     devDependencies:
       '@nestjs/cli':
         specifier: ^10.4.2
@@ -146,7 +146,7 @@ importers:
         version: 10.2.3(chokidar@3.6.0)(typescript@5.9.3)
       '@nestjs/testing':
         specifier: ^10.3.10
-        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(@nestjs/platform-express@10.4.22)
+        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(@nestjs/platform-express@10.4.22)
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.25
@@ -184,8 +184,8 @@ importers:
         specifier: ^7.0.0
         version: 7.2.2
       ts-jest:
-        specifier: ^29.2.2
-        version: 29.4.11(@babel/core@7.29.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.43)(ts-node@10.9.2(@types/node@20.19.43)(typescript@5.9.3)))(typescript@5.9.3)
+        specifier: ^29.4.12
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.43)(ts-node@10.9.2(@types/node@20.19.43)(typescript@5.9.3)))(typescript@5.9.3)
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@20.19.43)(typescript@5.9.3)
@@ -220,8 +220,8 @@ importers:
         specifier: ^3.26.5
         version: 3.26.5(next@15.5.22(@types/node@20.19.43)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
       next-themes:
-        specifier: ^0.3.0
-        version: 0.3.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^0.4.6
+        version: 0.4.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -242,8 +242,8 @@ importers:
         specifier: ^18.3.0
         version: 18.3.7(@types/react@18.3.31)
       autoprefixer:
-        specifier: ^10.4.19
-        version: 10.5.0(postcss@8.5.25)
+        specifier: ^10.5.4
+        version: 10.5.4(postcss@8.5.25)
       eslint:
         specifier: ^8.57.0
         version: 8.57.1
@@ -1254,32 +1254,32 @@ packages:
   '@sinonjs/fake-timers@10.3.0':
     resolution: {integrity: sha512-V4BG07kuYSUkTCSBHG8G8TNhM+F19jXFWnQtzj+we8DrkpSBCee9Z3Ms8yiGer/dlmhe35/Xdgyo3/0rQKg7YA==}
 
-  '@supabase/auth-js@2.108.2':
-    resolution: {integrity: sha512-tNaQmBgodDZwgB40mRwVbxFy8IDYwjdpcZ0BYrWiwlULCSQoJj4QoG4zgJT7QRPXcqipefNOzvO/qAu4dF98ag==}
-    engines: {node: '>=20.0.0'}
+  '@supabase/auth-js@2.111.0':
+    resolution: {integrity: sha512-hbRLgyQZEX0SDyF4LYXpv94qOIQyFATfpT5SIs2V0SisHnisVRkYgiPQWzv80l4S2mO3qof78rmoH9j5zoFsYQ==}
+    engines: {node: '>=22.0.0'}
 
-  '@supabase/functions-js@2.108.2':
-    resolution: {integrity: sha512-RNUX8EiBy3iLwAX19jtRzLyePnl11/fHcgwDHLnpKcDSXt/5qBnh3LUwAtIjT21Q66QsmNUR2esrHziLCpNubw==}
-    engines: {node: '>=20.0.0'}
+  '@supabase/functions-js@2.111.0':
+    resolution: {integrity: sha512-RW/OCsd6MO592zU8ifzP8/f8XzxxIdpb+Up5XaOtE26Fw+3zTp475WX7+GuuktiD1WF8pFUDe6khUPbMp77RCw==}
+    engines: {node: '>=22.0.0'}
 
-  '@supabase/phoenix@0.4.2':
-    resolution: {integrity: sha512-YSAGnmDAfuleFCVt3CeurQZAhxRfXWeZIIkwp7NhYzQ1UwW6ePSnzsFAiUm/mbCkfoCf70QQHKW/K6RKh52a4A==}
+  '@supabase/phoenix@0.4.5':
+    resolution: {integrity: sha512-aAn9H9ovVyeApKy11OWOrrOGq8DV68yWeH4ud2lN9fzn4aO8Zb5GLL9m1pUg9nLqIcT+ZDfAcsZe0E/nqdv2lw==}
 
-  '@supabase/postgrest-js@2.108.2':
-    resolution: {integrity: sha512-GQ28/Y8hk3CFmkb3kXH1h/AQx6JIYSQfO0CJMRVBcEKZoNy6C45cXAZ4fcJvRC5Id0cs6xnkUV0+c0rIocigsw==}
-    engines: {node: '>=20.0.0'}
+  '@supabase/postgrest-js@2.111.0':
+    resolution: {integrity: sha512-pcqeDsnWP0lx9GawduYxNZJHeuTm53O7L0SC8RF8tniV3GWIPY6me6OTdnwzdwNUmNy1dzUVtSyIfE6+OflzPQ==}
+    engines: {node: '>=22.0.0'}
 
-  '@supabase/realtime-js@2.108.2':
-    resolution: {integrity: sha512-aAGxCSUemZvQIibnCdvNvgaKib28I4rfrNjKbQ9cG1uBLwUsI7hVpGXgEbypCCDhLjQlDTAiJlu7rgljYUT73g==}
-    engines: {node: '>=20.0.0'}
+  '@supabase/realtime-js@2.111.0':
+    resolution: {integrity: sha512-6oRf/vZyRwg8f8GbFSJkrD2w4HAu/yTvyMViHXHS+H5hNJzdXCrUR7cP5oW7daT3YlRnzRPY9LcGSJKZAmfMSg==}
+    engines: {node: '>=22.0.0'}
 
-  '@supabase/storage-js@2.108.2':
-    resolution: {integrity: sha512-TVZPQxXGxY2+A6yTtm77zUHsh70lBhYUEaJL8RQC+BghcX/ygiMG/rmXrNVBce30/WAeNPa8FiG8HbqlGeV05g==}
-    engines: {node: '>=20.0.0'}
+  '@supabase/storage-js@2.111.0':
+    resolution: {integrity: sha512-UEViNmTzVOxE8dqUA81wls+n9xgmlvSFfhfwo6QxrO4kQOytCYyw3ciYFoi4XoD4Jl95NJ3jnndHN5iIudWzqw==}
+    engines: {node: '>=22.0.0'}
 
-  '@supabase/supabase-js@2.108.2':
-    resolution: {integrity: sha512-hFhnPveb5JQg4a0QYicM0swT253YHMdfeRAl2BKHOlI5VAzuHxUGSr8RbwNLYNPauWOgQMS1H8sz8bvYlgwUfQ==}
-    engines: {node: '>=20.0.0'}
+  '@supabase/supabase-js@2.111.0':
+    resolution: {integrity: sha512-9q0/AULthQnWeiDh1vGyjoJZbSY04bu6qHcWit70pqEYn5Kv/dkCPY62Ja1123jEnJbB9Vd2pjY7Kvk/lK3peA==}
+    engines: {node: '>=22.0.0'}
 
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
@@ -1303,33 +1303,33 @@ packages:
   '@tsconfig/node16@1.0.4':
     resolution: {integrity: sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==}
 
-  '@turbo/darwin-64@2.9.18':
-    resolution: {integrity: sha512-9f27peFu16ur8c0v9nUFUEyBnbKuuFsUTjHFWfmwGfzySBXbHwzU44QhZon6Mznz0cHsIr3984NQj/bVrnGSRw==}
+  '@turbo/darwin-64@2.10.7':
+    resolution: {integrity: sha512-/c9cSBRermWDv85oufLhoH6XRLOVbvzJLRd+WLyfJCP+i0HFLQj4PVNDrHcY17/ve5l8X0Oua4bJBqJUgJPnZA==}
     cpu: [x64]
     os: [darwin]
 
-  '@turbo/darwin-arm64@2.9.18':
-    resolution: {integrity: sha512-9A6TMRq/Ib+QnbhLlgkhOm+624wO4pzSQ/yQviQfWHOlFvaYxdnIAYmu2H6TS6y7kSVL0DvzNe04NbESTOzFVQ==}
+  '@turbo/darwin-arm64@2.10.7':
+    resolution: {integrity: sha512-8lpCCGWZBl9PIF8w8f2iEWrLMbHBWIfJeV6l2UEGqysD6HRIM4ySj/8R7HGEzbECJ4r/gnJcHmxEoG8yjFe64A==}
     cpu: [arm64]
     os: [darwin]
 
-  '@turbo/linux-64@2.9.18':
-    resolution: {integrity: sha512-zCdIDtz69AnbYh913elJRRoF3QY5aa2HNnf+4rAkc7bQ+tWujiDkCNV7stazOUPggaDvhKIf2Z87qHftTeXSkw==}
+  '@turbo/linux-64@2.10.7':
+    resolution: {integrity: sha512-Midw9Ed00yw9rqkWN82fY3LmLNFQ6yiL1GXB56DJKUEjWaEd27zh7ohCxzzrjfjQVrEeVWd3UPytTAV16XDQlA==}
     cpu: [x64]
     os: [linux]
 
-  '@turbo/linux-arm64@2.9.18':
-    resolution: {integrity: sha512-Va1kXI04naMgYwqv/5Dfa36dTDx8015U7oaQAjrXa45ua9OoFjSV4OmvkML4EmXvUclQHCiBRbY8bvd0jV7eAg==}
+  '@turbo/linux-arm64@2.10.7':
+    resolution: {integrity: sha512-UVEy+MW/xn4BcsiV3v3uv0/oObyaQgVtRT+Jj4WE53rNH05VEYEc1Z13q3zV6276wCZR4Yxc4hiTTcjw7PjSpg==}
     cpu: [arm64]
     os: [linux]
 
-  '@turbo/windows-64@2.9.18':
-    resolution: {integrity: sha512-m0kDhZANxSNz9ck1ybogFscHabriAsp4eDFNrN/1H5WrgTF7b3VlcPZnhuO3v2+E2KnCbeAc+UUT10BZZHdDKw==}
+  '@turbo/windows-64@2.10.7':
+    resolution: {integrity: sha512-l2nH9KGLV46SWjcXvyc2+xo5gdf5J0NVADknQk9OCJhzJBpiNl/byd26yIfwZBjLupdqT6UOdPhPxcpUPxRykQ==}
     cpu: [x64]
     os: [win32]
 
-  '@turbo/windows-arm64@2.9.18':
-    resolution: {integrity: sha512-nUdR8WqoomUys9iIQmG45TMiizJ+5BV8egSeLLZba/AWblyp3fVBcIH1kSE58OtK4g2YzbMJEth6Ttv9w5rqMA==}
+  '@turbo/windows-arm64@2.10.7':
+    resolution: {integrity: sha512-qjE1apG6RThuX49vUJd5ks2dV2ndXC2qktDChQonFMvUzrMrEnZMQzO+IgxBiYq1j+NbXQcRwj84nGnk1TBw1g==}
     cpu: [arm64]
     os: [win32]
 
@@ -1887,8 +1887,8 @@ packages:
   asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
 
-  autoprefixer@10.5.0:
-    resolution: {integrity: sha512-FMhOoZV4+qR6aTUALKX2rEqGG+oyATvwBt9IIzVR5rMa2HRWPkxf+P+PAJLD1I/H5/II+HuZcBJYEFBpq39ong==}
+  autoprefixer@10.5.4:
+    resolution: {integrity: sha512-MaU0U/za7N3r6brxD4YB/l4NSrFzLPlANv6wEuQVaIPlD3L4W9rFcQPbL/EilY9BHhHvhfcz3gInDLrEtWT4EA==}
     engines: {node: ^10 || ^12 || >=14}
     hasBin: true
     peerDependencies:
@@ -1942,6 +1942,11 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
+  baseline-browser-mapping@2.11.11:
+    resolution: {integrity: sha512-/yImnXwyTvgMkhgekLHok/Rx5vO6E0BmStWlSqKWMVm2a2ITuZ1Tn+9bgLS+gZRdZmWtd8nxuhHpdmCUOWsTQQ==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
+
   big-integer@1.6.52:
     resolution: {integrity: sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==}
     engines: {node: '>=0.6'}
@@ -1975,6 +1980,11 @@ packages:
 
   browserslist@4.28.2:
     resolution: {integrity: sha512-48xSriZYYg+8qXna9kwqjIVzuQxi+KYWp2+5nCYnYKPTr0LvD89Jqk2Or5ogxz0NUMfIjhh2lIUX/LyX9B4oIg==}
+    engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
+    hasBin: true
+
+  browserslist@4.28.7:
+    resolution: {integrity: sha512-JxV13hNrFxqjOc8alRbq9dK1MM79NEXYpma2B2J4wAtpWS5zIEIKqWPGCl7N4o7Uc7B7itylh7SuDujATRyyTw==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
 
@@ -2044,6 +2054,9 @@ packages:
   caniuse-lite@1.0.30001799:
     resolution: {integrity: sha512-hG1bReV+OUU+MOqK4t/ZWI0tZOyz3rqS9XuhOUz1cIcbwBKjOyJEJuw9ER5JuNyqxNk8u/JUVbGibBOL1yrjFw==}
 
+  caniuse-lite@1.0.30001806:
+    resolution: {integrity: sha512-72Cuvd95zbSYPKq6Fhg8eDJRlzgWDf7/mtoZv6Qe/DYNCEBdNxoA3+rZAU2ZhGCpZlns3EssFavaZomckT5Uuw==}
+
   chainsaw@0.1.0:
     resolution: {integrity: sha512-75kWfWt6MEKNC8xYXIdRpDehRYY/tNSgwKaJq+dbbDcxORuVrrQ+SEHoWsniVn9XPYfP4gmdWIeDk/4YNp1rNQ==}
 
@@ -2080,8 +2093,8 @@ packages:
   class-transformer@0.5.1:
     resolution: {integrity: sha512-SQa1Ws6hUbfC98vKGxZH3KFY0Y1lm5Zm0SY8XX9zbK7FJCyVEac3ATW0RIpwzW+oOfmHE5PMPufDG9hCfoEOMw==}
 
-  class-validator@0.14.4:
-    resolution: {integrity: sha512-AwNusCCam51q703dW82x95tOqQp6oC9HNUl724KxJJOfnKscI8dOloXFgyez7LbTTKWuRBA37FScqVbJEoq8Yw==}
+  class-validator@0.15.1:
+    resolution: {integrity: sha512-LqoS80HBBSCVhz/3KloUly0ovokxpdOLR++Al3J3+dHXWt9sTKlKd4eYtoxhxyUjoe5+UcIM+5k9MIxyBWnRTw==}
 
   cli-cursor@3.1.0:
     resolution: {integrity: sha512-I/zHAwsKf9FqGoXM4WWRACob9+SNukZTd94DWF57E4toouRulbCxcUh6RKUEOQlYTHJnzkPMySvPNaaSLNfLZw==}
@@ -2447,6 +2460,9 @@ packages:
 
   electron-to-chromium@1.5.372:
     resolution: {integrity: sha512-M3yhbAlilnwqC8D21t28UCDGHyitShTmmLRU/H+b74P6Ski16Nb9HONYEaVpMj/pwC7BEo5B95FpjODLCWbtfA==}
+
+  electron-to-chromium@1.5.399:
+    resolution: {integrity: sha512-lEcqhErbHjXRvd41rnWLpzbyU/IXfIYo7QwaFWmxGeLiLyY2TBCdHnWY88vB+p3ubnihRypDm66panXl7TylLA==}
 
   emittery@0.13.1:
     resolution: {integrity: sha512-DeWwawk6r5yR9jFgnDKYt4sLS0LmHJJi3ZOnb5/JdbYwj3nW+FxQnHIjhBKz8YLC7oRNPVM9NQ47I3CVx34eqQ==}
@@ -2900,7 +2916,7 @@ packages:
   git-raw-commits@4.0.0:
     resolution: {integrity: sha512-ICsMM1Wk8xSGMowkOmPrzo2Fgmfo4bMHLNX6ytHjajRJUqvHOw/TFapQ+QG75c3X/tTDDhOSRPGC52dDbNM8FQ==}
     engines: {node: '>=16'}
-    deprecated: This package is no longer maintained. For the JavaScript API, please use @conventional-changelog/git-client instead.
+    deprecated: Deprecated and no longer maintained. Use @conventional-changelog/git-client instead.
     hasBin: true
 
   glob-parent@5.1.2:
@@ -3522,8 +3538,8 @@ packages:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
 
-  libphonenumber-js@1.13.6:
-    resolution: {integrity: sha512-NdB6O6QvlGMCoG003m0YIKG2+Xw7DjmCZhmc1RH+K6HncADUbRf8TZeLegxBBN1VFyPHcNpPTKpIhYLXzJVy1Q==}
+  libphonenumber-js@1.13.10:
+    resolution: {integrity: sha512-xJxrdqvbl2rtn2MaUJrUejz8J7/uZNC0V77oks2LxYrO/+ZtVpRmz+fEQMuu6VusnEB1fmpByiLS1WXecOnAnw==}
 
   lie@3.3.0:
     resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
@@ -3818,11 +3834,11 @@ packages:
       next: ^10.0.0 || ^11.0.0 || ^12.0.0 || ^13.0.0 || ^14.0.0 || ^15.0.0
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || >=19.0.0-rc <19.0.0 || ^19.0.0
 
-  next-themes@0.3.0:
-    resolution: {integrity: sha512-/QHIrsYpd6Kfk7xakK4svpDI5mmXP0gfvCoJdGpZQ2TOrQZmsW0QxjaiLn8wbIKjtm4BTSqLoix4lxYYOnLJ/w==}
+  next-themes@0.4.6:
+    resolution: {integrity: sha512-pZvgD5L0IEvX5/9GWyHMf3m8BKiVQwsCMHfoFosXtXBMnaS0ZnIJ9ST4b4NqLVKDEm8QBxoNNGNaBv2JNF6XNA==}
     peerDependencies:
-      react: ^16.8 || ^17 || ^18
-      react-dom: ^16.8 || ^17 || ^18
+      react: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
 
   next@15.5.22:
     resolution: {integrity: sha512-mrtal1sRxO4YrlDS98sDuIvGZivKbFix8w7oAL9ZynfOgc3cADQOQgvwtMooc18Qr8bKzvQAcHwHZ0mbJ7zcfQ==}
@@ -3871,8 +3887,12 @@ packages:
     resolution: {integrity: sha512-Uzmd6LXpouKo8EUK68IjH4+E01w/hXyV3R3g/geCJo+rXLNfh1xucB+LOzYEOQPSiUK3h/xZf0cQGcSsmyL2Og==}
     engines: {node: '>=18'}
 
-  nodemailer@9.0.1:
-    resolution: {integrity: sha512-Gwv8SQewT616ZM/URn0H54b8PWo/Wum7md3EW2aWy1lO27+WZCX+Xyak3J+NlmHUjDh5ME+uesJUDRbR3Ye8Bw==}
+  node-releases@2.0.51:
+    resolution: {integrity: sha512-wRNIrw4DmVLKQlbgOMdkMx27Wrpzes2hh5Jtbi2bjPd+4wJstWIqP5A+lscnqbm0xxmT5Bpg8Lec5ItEBwx6BQ==}
+    engines: {node: '>=18'}
+
+  nodemailer@9.0.3:
+    resolution: {integrity: sha512-n+YP+NKwR5zRWa60k3GiQ6Q3B4KXCoAw40dAKeCtYn020iNN74aWK2liXIC3ZEATeGql7we3tE3t8QwhY0eskw==}
     engines: {node: '>=6.0.0'}
 
   normalize-path@3.0.0:
@@ -4153,9 +4173,9 @@ packages:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
 
-  prettier-plugin-tailwindcss@0.6.14:
-    resolution: {integrity: sha512-pi2e/+ZygeIqntN+vC573BcW5Cve8zUB0SSAGxqpB4f96boZF4M3phPVoOFCeypwkpRYdi7+jQ5YJJUwrkGUAg==}
-    engines: {node: '>=14.21.3'}
+  prettier-plugin-tailwindcss@0.8.1:
+    resolution: {integrity: sha512-iaFMYqDsE4ffdDkn5qup0j5f2aCEBFZrdrZnvu9QKTlWx/iGPeQ4HHu7b7fCPMxeo9nwQBiOAh2nSypdFYWJkw==}
+    engines: {node: '>=20.19'}
     peerDependencies:
       '@ianvs/prettier-plugin-sort-imports': '*'
       '@prettier/plugin-hermes': '*'
@@ -4167,14 +4187,12 @@ packages:
       prettier: ^3.0
       prettier-plugin-astro: '*'
       prettier-plugin-css-order: '*'
-      prettier-plugin-import-sort: '*'
       prettier-plugin-jsdoc: '*'
       prettier-plugin-marko: '*'
       prettier-plugin-multiline-arrays: '*'
       prettier-plugin-organize-attributes: '*'
       prettier-plugin-organize-imports: '*'
       prettier-plugin-sort-imports: '*'
-      prettier-plugin-style-order: '*'
       prettier-plugin-svelte: '*'
     peerDependenciesMeta:
       '@ianvs/prettier-plugin-sort-imports':
@@ -4195,8 +4213,6 @@ packages:
         optional: true
       prettier-plugin-css-order:
         optional: true
-      prettier-plugin-import-sort:
-        optional: true
       prettier-plugin-jsdoc:
         optional: true
       prettier-plugin-marko:
@@ -4209,13 +4225,11 @@ packages:
         optional: true
       prettier-plugin-sort-imports:
         optional: true
-      prettier-plugin-style-order:
-        optional: true
       prettier-plugin-svelte:
         optional: true
 
-  prettier@3.8.4:
-    resolution: {integrity: sha512-N2MylSdi48+5N/6S5j+maeHbUSIzzZ5uOcX5Hm4QpV8Dkb1HFjfAKTKX6yNPJQD9AhcT3ifHNB66tWTTJDi11Q==}
+  prettier@3.9.6:
+    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -4440,11 +4454,6 @@ packages:
 
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
-    hasBin: true
-
-  semver@7.8.4:
-    resolution: {integrity: sha512-rUCObTnP32Q08R2uuIrt7r9PlEonuTmtuXYcW6s5kjdlj3xbnwe+21yXptAUYcMAABLkYYTtnmzb3w3EDZfueA==}
-    engines: {node: '>=10'}
     hasBin: true
 
   semver@7.8.5:
@@ -4845,8 +4854,8 @@ packages:
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
 
-  ts-jest@29.4.11:
-    resolution: {integrity: sha512-IrFl7l9AuB/qrNw5quqvAv/hmKMb8dhWOH4jQOGo0Oq8tCeo1O86/iTFG1FaRimgUkF13l4PcepO8ATFT6Ns4g==}
+  ts-jest@29.4.12:
+    resolution: {integrity: sha512-Ov6ClY53Fflh6BGAnY2DlTq1hYDrTycz2PVTXBWFW2CU+9zrEqAp9fWdGXl42EXO5RLSFAcAZ2JFKbP+zBTFfw==}
     engines: {node: ^14.15.0 || ^16.10.0 || ^18.0.0 || >=20.0.0}
     hasBin: true
     peerDependencies:
@@ -4900,8 +4909,8 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
-  turbo@2.9.18:
-    resolution: {integrity: sha512-bwabv6PupzeavybzEoArBAkwq5fnzwf8OFnRtpHwnviFWuwJPFxtyH+aVp36TmIqK3aYYgtTJ3J0m2ysxxSzQg==}
+  turbo@2.10.7:
+    resolution: {integrity: sha512-GHx6WExIFSKNJ5qMlzDpXBXlu9ApxaMjqxAVrCNcW94xf/+uqgIz41SAuRUMbXva2ExNAaY/h8V0q90SWSzmRw==}
     hasBin: true
 
   type-check@0.4.0:
@@ -5124,8 +5133,8 @@ packages:
     resolution: {integrity: sha512-7KxauUdBmSdWnmpaGFg+ppNjKF8uNLry8LyzjauQDOVONfFLNKrKvQOxZ/VuTIcS/gge/YNahf5RIIQWTSarlg==}
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
 
-  ws@8.21.0:
-    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
+  ws@8.21.1:
+    resolution: {integrity: sha512-+0NTnW77fFN/DjQi6k/Sq/Yvk4Sgajw7urW8V+asjXnRgDs9gyGkdb7EzgfhA4goXsRIZKE28fzIXBHEzhuiWw==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -5262,7 +5271,7 @@ snapshots:
     dependencies:
       '@babel/compat-data': 7.29.7
       '@babel/helper-validator-option': 7.29.7
-      browserslist: 4.28.2
+      browserslist: 4.28.7
       lru-cache: 5.1.1
       semver: 6.3.1
 
@@ -5458,7 +5467,7 @@ snapshots:
   '@commitlint/is-ignored@19.8.1':
     dependencies:
       '@commitlint/types': 19.8.1
-      semver: 7.8.4
+      semver: 7.8.5
 
   '@commitlint/lint@19.8.1':
     dependencies:
@@ -6009,7 +6018,7 @@ snapshots:
       - uglify-js
       - webpack-cli
 
-  '@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
+  '@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
       file-type: 20.4.1
       iterare: 1.2.1
@@ -6019,21 +6028,21 @@ snapshots:
       uid: 2.0.2
     optionalDependencies:
       class-transformer: 0.5.1
-      class-validator: 0.14.4
+      class-validator: 0.15.1
     transitivePeerDependencies:
       - supports-color
 
-  '@nestjs/config@3.3.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)':
+  '@nestjs/config@3.3.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)':
     dependencies:
-      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       dotenv: 16.4.5
       dotenv-expand: 10.0.0
       lodash: 4.18.1
       rxjs: 7.8.2
 
-  '@nestjs/core@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
+  '@nestjs/core@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
-      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nuxtjs/opencollective': 0.3.2
       fast-safe-stringify: 2.1.1
       iterare: 1.2.1
@@ -6043,33 +6052,33 @@ snapshots:
       tslib: 2.8.1
       uid: 2.0.2
     optionalDependencies:
-      '@nestjs/platform-express': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
+      '@nestjs/platform-express': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
     transitivePeerDependencies:
       - encoding
 
-  '@nestjs/jwt@10.2.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))':
+  '@nestjs/jwt@10.2.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))':
     dependencies:
-      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@types/jsonwebtoken': 9.0.5
       jsonwebtoken: 9.0.2
 
-  '@nestjs/mapped-types@2.0.5(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)':
+  '@nestjs/mapped-types@2.0.5(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)':
     dependencies:
-      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       reflect-metadata: 0.2.2
     optionalDependencies:
       class-transformer: 0.5.1
-      class-validator: 0.14.4
+      class-validator: 0.15.1
 
-  '@nestjs/passport@10.0.3(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(passport@0.7.0)':
+  '@nestjs/passport@10.0.3(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(passport@0.7.0)':
     dependencies:
-      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       passport: 0.7.0
 
-  '@nestjs/platform-express@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)':
+  '@nestjs/platform-express@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)':
     dependencies:
-      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       body-parser: 1.20.4
       cors: 2.8.5
       express: 4.22.1
@@ -6100,12 +6109,12 @@ snapshots:
     transitivePeerDependencies:
       - chokidar
 
-  '@nestjs/swagger@7.4.2(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)':
+  '@nestjs/swagger@7.4.2(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)':
     dependencies:
       '@microsoft/tsdoc': 0.15.1
-      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/mapped-types': 2.0.5(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)
+      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/mapped-types': 2.0.5(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)
       js-yaml: 4.3.1
       lodash: 4.18.1
       path-to-regexp: 3.3.0
@@ -6113,20 +6122,20 @@ snapshots:
       swagger-ui-dist: 5.17.14
     optionalDependencies:
       class-transformer: 0.5.1
-      class-validator: 0.14.4
+      class-validator: 0.15.1
 
-  '@nestjs/testing@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(@nestjs/platform-express@10.4.22)':
+  '@nestjs/testing@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(@nestjs/platform-express@10.4.22)':
     dependencies:
-      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       tslib: 2.8.1
     optionalDependencies:
-      '@nestjs/platform-express': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
+      '@nestjs/platform-express': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
 
-  '@nestjs/throttler@6.5.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(reflect-metadata@0.2.2)':
+  '@nestjs/throttler@6.5.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(reflect-metadata@0.2.2)':
     dependencies:
-      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       reflect-metadata: 0.2.2
 
   '@next/env@15.5.22': {}
@@ -6313,37 +6322,37 @@ snapshots:
     dependencies:
       '@sinonjs/commons': 3.0.1
 
-  '@supabase/auth-js@2.108.2':
+  '@supabase/auth-js@2.111.0':
     dependencies:
       tslib: 2.8.1
 
-  '@supabase/functions-js@2.108.2':
+  '@supabase/functions-js@2.111.0':
     dependencies:
       tslib: 2.8.1
 
-  '@supabase/phoenix@0.4.2': {}
+  '@supabase/phoenix@0.4.5': {}
 
-  '@supabase/postgrest-js@2.108.2':
+  '@supabase/postgrest-js@2.111.0':
     dependencies:
       tslib: 2.8.1
 
-  '@supabase/realtime-js@2.108.2':
+  '@supabase/realtime-js@2.111.0':
     dependencies:
-      '@supabase/phoenix': 0.4.2
+      '@supabase/phoenix': 0.4.5
       tslib: 2.8.1
 
-  '@supabase/storage-js@2.108.2':
+  '@supabase/storage-js@2.111.0':
     dependencies:
       iceberg-js: 0.8.1
       tslib: 2.8.1
 
-  '@supabase/supabase-js@2.108.2':
+  '@supabase/supabase-js@2.111.0':
     dependencies:
-      '@supabase/auth-js': 2.108.2
-      '@supabase/functions-js': 2.108.2
-      '@supabase/postgrest-js': 2.108.2
-      '@supabase/realtime-js': 2.108.2
-      '@supabase/storage-js': 2.108.2
+      '@supabase/auth-js': 2.111.0
+      '@supabase/functions-js': 2.111.0
+      '@supabase/postgrest-js': 2.111.0
+      '@supabase/realtime-js': 2.111.0
+      '@supabase/storage-js': 2.111.0
 
   '@swc/helpers@0.5.15':
     dependencies:
@@ -6367,22 +6376,22 @@ snapshots:
 
   '@tsconfig/node16@1.0.4': {}
 
-  '@turbo/darwin-64@2.9.18':
+  '@turbo/darwin-64@2.10.7':
     optional: true
 
-  '@turbo/darwin-arm64@2.9.18':
+  '@turbo/darwin-arm64@2.10.7':
     optional: true
 
-  '@turbo/linux-64@2.9.18':
+  '@turbo/linux-64@2.10.7':
     optional: true
 
-  '@turbo/linux-arm64@2.9.18':
+  '@turbo/linux-arm64@2.10.7':
     optional: true
 
-  '@turbo/windows-64@2.9.18':
+  '@turbo/windows-64@2.10.7':
     optional: true
 
-  '@turbo/windows-arm64@2.9.18':
+  '@turbo/windows-arm64@2.10.7':
     optional: true
 
   '@tybys/wasm-util@0.10.2':
@@ -6638,7 +6647,7 @@ snapshots:
       globby: 11.1.0
       is-glob: 4.0.3
       minimatch: 9.0.9
-      semver: 7.8.4
+      semver: 7.8.5
       ts-api-utils: 1.4.3(typescript@5.9.3)
     optionalDependencies:
       typescript: 5.9.3
@@ -7035,10 +7044,10 @@ snapshots:
 
   asynckit@0.4.0: {}
 
-  autoprefixer@10.5.0(postcss@8.5.25):
+  autoprefixer@10.5.4(postcss@8.5.25):
     dependencies:
-      browserslist: 4.28.2
-      caniuse-lite: 1.0.30001799
+      browserslist: 4.28.7
+      caniuse-lite: 1.0.30001806
       fraction.js: 5.3.4
       picocolors: 1.1.1
       postcss: 8.5.25
@@ -7113,6 +7122,8 @@ snapshots:
 
   baseline-browser-mapping@2.10.37: {}
 
+  baseline-browser-mapping@2.11.11: {}
+
   big-integer@1.6.52: {}
 
   binary-extensions@2.3.0: {}
@@ -7163,10 +7174,18 @@ snapshots:
   browserslist@4.28.2:
     dependencies:
       baseline-browser-mapping: 2.10.37
-      caniuse-lite: 1.0.30001799
+      caniuse-lite: 1.0.30001806
       electron-to-chromium: 1.5.372
       node-releases: 2.0.47
       update-browserslist-db: 1.2.3(browserslist@4.28.2)
+
+  browserslist@4.28.7:
+    dependencies:
+      baseline-browser-mapping: 2.11.11
+      caniuse-lite: 1.0.30001806
+      electron-to-chromium: 1.5.399
+      node-releases: 2.0.51
+      update-browserslist-db: 1.2.3(browserslist@4.28.7)
 
   bs-logger@0.2.6:
     dependencies:
@@ -7224,6 +7243,8 @@ snapshots:
 
   caniuse-lite@1.0.30001799: {}
 
+  caniuse-lite@1.0.30001806: {}
+
   chainsaw@0.1.0:
     dependencies:
       traverse: 0.3.9
@@ -7259,10 +7280,10 @@ snapshots:
 
   class-transformer@0.5.1: {}
 
-  class-validator@0.14.4:
+  class-validator@0.15.1:
     dependencies:
       '@types/validator': 13.15.10
-      libphonenumber-js: 1.13.6
+      libphonenumber-js: 1.13.10
       validator: 13.15.35
 
   cli-cursor@3.1.0:
@@ -7588,6 +7609,8 @@ snapshots:
 
   electron-to-chromium@1.5.372: {}
 
+  electron-to-chromium@1.5.399: {}
+
   emittery@0.13.1: {}
 
   emoji-regex@10.6.0: {}
@@ -7736,8 +7759,8 @@ snapshots:
       '@typescript-eslint/parser': 7.18.0(eslint@8.57.1)(typescript@5.9.3)
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.10
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1)
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1)
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@8.57.1)
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1)
       eslint-plugin-jsx-a11y: 6.10.2(eslint@8.57.1)
       eslint-plugin-react: 7.37.5(eslint@8.57.1)
       eslint-plugin-react-hooks: 5.2.0(eslint@8.57.1)
@@ -7760,7 +7783,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1):
+  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0)(eslint@8.57.1):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
       debug: 4.4.3
@@ -7771,22 +7794,22 @@ snapshots:
       tinyglobby: 0.2.17
       unrs-resolver: 1.12.2
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1)
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1)
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.13.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1):
+  eslint-module-utils@2.13.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
       '@typescript-eslint/parser': 7.18.0(eslint@8.57.1)(typescript@5.9.3)
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.10
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1)
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@8.57.1)
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -7797,7 +7820,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.10
-      eslint-module-utils: 2.13.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1)
+      eslint-module-utils: 2.13.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1)
       hasown: 2.0.4
       is-core-module: 2.16.2
       is-glob: 4.0.3
@@ -8154,7 +8177,7 @@ snapshots:
       minimatch: 3.1.5
       node-abort-controller: 3.1.1
       schema-utils: 3.3.0
-      semver: 7.8.4
+      semver: 7.8.5
       tapable: 2.3.3
       typescript: 5.7.2
       webpack: 5.97.1
@@ -8489,7 +8512,7 @@ snapshots:
 
   is-bun-module@2.0.0:
     dependencies:
-      semver: 7.8.4
+      semver: 7.8.5
 
   is-callable@1.2.7: {}
 
@@ -8630,7 +8653,7 @@ snapshots:
       '@babel/parser': 7.29.7
       '@istanbuljs/schema': 0.1.6
       istanbul-lib-coverage: 3.2.2
-      semver: 7.8.4
+      semver: 7.8.5
     transitivePeerDependencies:
       - supports-color
 
@@ -8927,7 +8950,7 @@ snapshots:
       jest-util: 29.7.0
       natural-compare: 1.4.0
       pretty-format: 29.7.0
-      semver: 7.8.4
+      semver: 7.8.5
     transitivePeerDependencies:
       - supports-color
 
@@ -9041,7 +9064,7 @@ snapshots:
       lodash.isstring: 4.0.1
       lodash.once: 4.1.1
       ms: 2.1.3
-      semver: 7.8.4
+      semver: 7.8.5
 
   jsonwebtoken@9.0.3:
     dependencies:
@@ -9054,7 +9077,7 @@ snapshots:
       lodash.isstring: 4.0.1
       lodash.once: 4.1.1
       ms: 2.1.3
-      semver: 7.8.4
+      semver: 7.8.5
 
   jsx-ast-utils@3.3.5:
     dependencies:
@@ -9115,7 +9138,7 @@ snapshots:
       prelude-ls: 1.2.1
       type-check: 0.4.0
 
-  libphonenumber-js@1.13.6: {}
+  libphonenumber-js@1.13.10: {}
 
   lie@3.3.0:
     dependencies:
@@ -9252,7 +9275,7 @@ snapshots:
 
   make-dir@4.0.0:
     dependencies:
-      semver: 7.8.4
+      semver: 7.8.5
 
   make-error@1.3.6: {}
 
@@ -9360,7 +9383,7 @@ snapshots:
       react: 18.3.1
       use-intl: 3.26.5(react@18.3.1)
 
-  next-themes@0.3.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  next-themes@0.4.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -9410,7 +9433,9 @@ snapshots:
 
   node-releases@2.0.47: {}
 
-  nodemailer@9.0.1: {}
+  node-releases@2.0.51: {}
+
+  nodemailer@9.0.3: {}
 
   normalize-path@3.0.0: {}
 
@@ -9666,11 +9691,11 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier-plugin-tailwindcss@0.6.14(prettier@3.8.4):
+  prettier-plugin-tailwindcss@0.8.1(prettier@3.9.6):
     dependencies:
-      prettier: 3.8.4
+      prettier: 3.9.6
 
-  prettier@3.8.4: {}
+  prettier@3.9.6: {}
 
   pretty-format@29.7.0:
     dependencies:
@@ -9917,10 +9942,7 @@ snapshots:
 
   semver@6.3.1: {}
 
-  semver@7.8.4: {}
-
-  semver@7.8.5:
-    optional: true
+  semver@7.8.5: {}
 
   send@0.19.2:
     dependencies:
@@ -10371,7 +10393,7 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  ts-jest@29.4.11(@babel/core@7.29.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.43)(ts-node@10.9.2(@types/node@20.19.43)(typescript@5.9.3)))(typescript@5.9.3):
+  ts-jest@29.4.12(@babel/core@7.29.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.43)(ts-node@10.9.2(@types/node@20.19.43)(typescript@5.9.3)))(typescript@5.9.3):
     dependencies:
       bs-logger: 0.2.6
       fast-json-stable-stringify: 2.1.0
@@ -10380,7 +10402,7 @@ snapshots:
       json5: 2.2.3
       lodash.memoize: 4.1.2
       make-error: 1.3.6
-      semver: 7.8.4
+      semver: 7.8.5
       type-fest: 4.41.0
       typescript: 5.9.3
       yargs-parser: 21.1.1
@@ -10431,14 +10453,14 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  turbo@2.9.18:
+  turbo@2.10.7:
     optionalDependencies:
-      '@turbo/darwin-64': 2.9.18
-      '@turbo/darwin-arm64': 2.9.18
-      '@turbo/linux-64': 2.9.18
-      '@turbo/linux-arm64': 2.9.18
-      '@turbo/windows-64': 2.9.18
-      '@turbo/windows-arm64': 2.9.18
+      '@turbo/darwin-64': 2.10.7
+      '@turbo/darwin-arm64': 2.10.7
+      '@turbo/linux-64': 2.10.7
+      '@turbo/linux-arm64': 2.10.7
+      '@turbo/windows-64': 2.10.7
+      '@turbo/windows-arm64': 2.10.7
 
   type-check@0.4.0:
     dependencies:
@@ -10563,6 +10585,12 @@ snapshots:
   update-browserslist-db@1.2.3(browserslist@4.28.2):
     dependencies:
       browserslist: 4.28.2
+      escalade: 3.2.0
+      picocolors: 1.1.1
+
+  update-browserslist-db@1.2.3(browserslist@4.28.7):
+    dependencies:
+      browserslist: 4.28.7
       escalade: 3.2.0
       picocolors: 1.1.1
 
@@ -10738,7 +10766,7 @@ snapshots:
       imurmurhash: 0.1.4
       signal-exit: 3.0.7
 
-  ws@8.21.0: {}
+  ws@8.21.1: {}
 
   xmlchars@2.2.0: {}
 
