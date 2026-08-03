@@ -152,7 +152,17 @@ function handleUnauthorized(): void {
   }
   // Drop cached data tied to the now-invalid session (defense-in-depth).
   invalidateApiCache();
+  // Tell the app the session is gone. Clearing the tokens alone leaves the SPA
+  // rendering a fully-populated console it can no longer refresh: an admin who
+  // revokes a session, a suspended company, or a password changed in another
+  // tab all left the user looking at stale data until they happened to reload.
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(SESSION_INVALIDATED_EVENT));
+  }
 }
+
+/** Fired on `window` when a request proves the stored session is no longer valid. */
+export const SESSION_INVALIDATED_EVENT = 'wizer:session-invalidated';
 
 export const api = {
   get: <T>(path: string) => apiFetch<T>(path),
