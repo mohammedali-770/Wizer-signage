@@ -56,6 +56,11 @@ export class ExportsController {
       throw new BadRequestException(`Unknown export type "${type}".`);
     if (!FORMATS.includes(fmt)) throw new BadRequestException(`Unknown format "${format}".`);
 
+    // `report:read` (the guard above) is held by VIEWER, so it cannot be the
+    // only gate: the audit trail and the billing ledger need the same authority
+    // here that their interactive routes demand. Asserted BEFORE any query runs.
+    this.exports.assertDatasetAccess(user, dataset);
+
     const scope = { companyId: user.companyId, isSuperAdmin: user.isSuperAdmin };
     const data = await this.exports.dataset(scope, dataset, { from, to, screenId, status });
     const out = await this.exports.render(data, fmt, dataset);

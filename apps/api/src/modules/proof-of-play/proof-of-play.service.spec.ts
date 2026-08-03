@@ -26,6 +26,21 @@ function build() {
         );
         return Promise.resolve(row);
       }),
+      // Mirrors Postgres: the tenant predicate is part of the statement, so a
+      // row owned by another company simply does not match (count 0).
+      updateMany: jest.fn(({ where, data }: any) => {
+        const row = store.get(where.playbackSessionId);
+        if (!row) return Promise.resolve({ count: 0 });
+        if (where.companyId !== undefined && row.companyId !== where.companyId)
+          return Promise.resolve({ count: 0 });
+        if (where.screenId !== undefined && row.screenId !== where.screenId)
+          return Promise.resolve({ count: 0 });
+        Object.assign(
+          row,
+          Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)),
+        );
+        return Promise.resolve({ count: 1 });
+      }),
     },
     $transaction: (ops: Promise<any>[]) => Promise.all(ops),
   };
@@ -225,5 +240,98 @@ describe('ProofOfPlayService reports', () => {
       name: 'Lobby',
       failures: 1,
     });
+  });
+});
+
+/**
+ * Cross-tenant write protection.
+ *
+ * `playbackSessionId` is CLIENT-SUPPLIED and globally unique across all tenants,
+ * and the terminal update previously ran `update({ where: { playbackSessionId }})`
+ * with no tenant predicate. Any device-token holder (a trial signup with one
+ * paired screen) could therefore rewrite another company's playback record — the
+ * advertiser-billing and compliance trail — by replaying a session id. Session
+ * ids are printed in plaintext in every proof-of-play CSV export, so one
+ * forwarded report handed an attacker thousands of live write handles.
+ */
+describe('ProofOfPlayService cross-tenant write protection', () => {
+  const OTHER_TENANT_ROW = {
+    playbackSessionId: 'sess-victim',
+    companyId: 'other-co',
+    screenId: 'other-screen',
+    status: 'STARTED',
+    durationMs: 30_000,
+  };
+
+  const terminal = (over: any = {}) =>
+    event({
+      eventType: 'ITEM_COMPLETED',
+      playbackSessionId: 'sess-victim',
+      endedAt: new Date().toISOString(),
+      durationMs: 1,
+      ...over,
+    });
+
+  it('refuses to modify a row owned by another company', async () => {
+    const t = build();
+    t.store.set('sess-victim', { ...OTHER_TENANT_ROW });
+
+    await t.service.ingest(DEVICE as any, { events: [terminal()] } as any);
+
+    const row = t.store.get('sess-victim');
+    expect(row.status).toBe('STARTED'); // untouched
+    expect(row.durationMs).toBe(30_000); // not zeroed
+    expect(row.companyId).toBe('other-co');
+  });
+
+  it('refuses to modify another screen within the same company', async () => {
+    const t = build();
+    t.store.set('sess-victim', {
+      ...OTHER_TENANT_ROW,
+      companyId: 'comp1', // same tenant...
+      screenId: 'a-different-screen', // ...different screen
+    });
+
+    await t.service.ingest(DEVICE as any, { events: [terminal()] } as any);
+    expect(t.store.get('sess-victim').status).toBe('STARTED');
+  });
+
+  it('never issues an update without both companyId and screenId in the predicate', async () => {
+    const t = build();
+    t.store.set('sess-own', {
+      playbackSessionId: 'sess-own',
+      companyId: 'comp1',
+      screenId: 's1',
+      status: 'STARTED',
+    });
+
+    await t.service.ingest(
+      DEVICE as any,
+      { events: [terminal({ playbackSessionId: 'sess-own' })] } as any,
+    );
+
+    // The unscoped `update` must not be used at all on this path.
+    expect(t.prisma.proofOfPlay.update).not.toHaveBeenCalled();
+    for (const call of t.prisma.proofOfPlay.updateMany.mock.calls) {
+      expect(call[0].where).toMatchObject({ companyId: 'comp1', screenId: 's1' });
+    }
+  });
+
+  it('still closes the device its OWN session normally', async () => {
+    const t = build();
+    t.store.set('sess-own', {
+      playbackSessionId: 'sess-own',
+      companyId: 'comp1',
+      screenId: 's1',
+      status: 'STARTED',
+    });
+
+    const res = await t.service.ingest(
+      DEVICE as any,
+      { events: [terminal({ playbackSessionId: 'sess-own' })] } as any,
+    );
+
+    expect(res.accepted).toBe(1);
+    expect(t.store.get('sess-own').status).toBe('COMPLETED');
   });
 });

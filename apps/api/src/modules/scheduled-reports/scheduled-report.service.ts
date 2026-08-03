@@ -1,7 +1,15 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Prisma, ReportDeliveryStatus, ReportFormat, ReportFrequency } from '@prisma/client';
+import {
+  Prisma,
+  ReportDeliveryStatus,
+  ReportFormat,
+  ReportFrequency,
+  UserRole,
+  UserStatus,
+} from '@prisma/client';
 
 import { resolvePagination } from '../../common/dto/pagination.dto';
+import { hasPermission, Permission } from '../../common/rbac/permissions';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
@@ -21,7 +29,17 @@ import type {
   UpdateScheduledReportDto,
 } from './dto/scheduled-report.dto';
 
-const REPORT_SIGNED_TTL_SECONDS = 7 * 24 * 60 * 60;
+/**
+ * Lifetime of the signed report link emailed to recipients.
+ *
+ * This is an UNAUTHENTICATED bearer URL to a full dataset (audit trail, billing
+ * ledger) sitting in an inbox — anyone who obtains the mail, or the link, can
+ * fetch it. It was 7 days, which meant a forwarded or leaked email exposed the
+ * data for a week with no way to revoke it. Hours is enough for a recipient to
+ * open a report they were just emailed; a stale link can be regenerated from the
+ * dashboard, which re-checks authority.
+ */
+const REPORT_SIGNED_TTL_SECONDS = 4 * 60 * 60;
 
 /**
  * Scheduled reports (Phase 10). Definitions are CRUD-managed here; execution is
@@ -45,6 +63,12 @@ export class ScheduledReportService {
   // --- CRUD --------------------------------------------------------------
 
   async create(companyId: string, actor: AuthenticatedUser, dto: CreateScheduledReportDto) {
+    // Scheduling must not be a way around the interactive permission check: a
+    // role that cannot export ACTIVITY_LOGS or BILLING on demand must not be
+    // able to have them mailed to itself on a timer either.
+    const target = REPORT_TYPE_DATASET[dto.reportType];
+    if (target) this.exports.assertDatasetAccess(actor, target);
+
     const report = await this.prisma.scheduledReport.create({
       data: {
         companyId,
@@ -162,11 +186,71 @@ export class ScheduledReportService {
     let ran = 0;
     let failed = 0;
     for (const report of due) {
+      // Re-validate the CREATOR on every run. A schedule outlives the person who
+      // made it: disabling their account revokes sessions but did nothing here,
+      // so the platform kept mailing a departed employee the tenant's audit trail
+      // and invoice ledger, week after week, with no way to see or stop it.
+      if (!(await this.creatorStillEntitled(report))) {
+        await this.prisma.scheduledReport.update({
+          where: { id: report.id },
+          data: { enabled: false },
+        });
+        this.logger.warn(
+          `Disabled scheduled report ${report.id}: its creator is no longer an active member of the company.`,
+        );
+        continue;
+      }
       const delivery = await this.run(report, now);
       ran++;
       if (delivery.status === ReportDeliveryStatus.FAILED) failed++;
     }
     return { ran, failed };
+  }
+
+  /**
+   * Is the report's creator still an ACTIVE member of the owning company who
+   * retains the authority to schedule it — and to read the dataset it produces?
+   *
+   * A report with no creator (legacy rows) is allowed to keep running; the
+   * checks here only ever DISABLE a schedule whose creator has demonstrably lost
+   * access, never one we cannot evaluate.
+   */
+  private async creatorStillEntitled(
+    report: Prisma.ScheduledReportGetPayload<true>,
+  ): Promise<boolean> {
+    if (!report.createdById) return true;
+
+    const creator = await this.prisma.user.findUnique({
+      where: { id: report.createdById },
+      select: { id: true, role: true, status: true, companyId: true, deletedAt: true },
+    });
+    if (!creator) return false;
+    if (creator.deletedAt) return false;
+    if (creator.status !== UserStatus.ACTIVE) return false;
+
+    const isSuperAdmin = creator.role === UserRole.SUPER_ADMIN;
+    // Moved to another tenant, or removed from this one. Super admins are not
+    // company-scoped (companyId is null by construction), so they are exempt.
+    if (!isSuperAdmin && creator.companyId !== report.companyId) return false;
+    if (!hasPermission(creator.role, Permission.ReportSchedule)) return false;
+
+    const dataset = REPORT_TYPE_DATASET[report.reportType];
+    if (dataset) {
+      try {
+        this.exports.assertDatasetAccess(
+          {
+            userId: creator.id,
+            role: creator.role,
+            companyId: creator.companyId,
+            isSuperAdmin,
+          } as AuthenticatedUser,
+          dataset,
+        );
+      } catch {
+        return false;
+      }
+    }
+    return true;
   }
 
   /** Render → store → email → record. Never throws (records FAILED + alerts). */
