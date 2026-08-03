@@ -15,7 +15,7 @@
 
 # --- Base --------------------------------------------------------------------
 # Pin a concrete Node 20 alpine image and enable corepack-managed pnpm@9.
-FROM node:20-alpine AS base
+FROM node:26-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@9 --activate
@@ -65,7 +65,7 @@ RUN pnpm --filter @wizer/api --prod deploy /app/deploy
 RUN cd /app/deploy && ./node_modules/.bin/prisma generate --schema /app/apps/api/prisma/schema.prisma
 
 # --- Runtime -----------------------------------------------------------------
-FROM node:20-alpine AS runtime
+FROM node:26-alpine AS runtime
 ENV NODE_ENV=production
 ENV API_PORT=3001
 WORKDIR /app
