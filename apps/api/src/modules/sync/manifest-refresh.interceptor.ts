@@ -11,7 +11,7 @@ import { ManifestRefreshService } from './manifest-refresh.service';
  * schedules controllers, so every current and future write path is covered
  * without instrumenting each service method.
  *
- * Fire-and-forget: the dispatch (ManifestRefreshService.refreshCompany) never
+ * Fire-and-forget: the dispatch (ManifestRefreshService.scheduleRefresh) never
  * throws and is deduped/idempotent, so it does not delay or endanger the
  * response. Only runs on the success path (rxjs tap) — never after an error.
  */
@@ -32,7 +32,9 @@ export class ManifestRefreshInterceptor implements NestInterceptor {
         // have rejected such a request before the handler ran.
         const companyId = req.user?.companyId;
         if (companyId) {
-          void this.refresh.refreshCompany(companyId);
+          // Debounced: a burst of edits (reordering a playlist, bulk tagging)
+          // collapses into one dispatch instead of one per request.
+          this.refresh.scheduleRefresh(companyId);
         }
       }),
     );

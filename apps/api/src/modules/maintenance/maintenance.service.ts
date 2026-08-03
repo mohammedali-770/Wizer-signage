@@ -21,7 +21,24 @@ import { RetentionService } from './retention.service';
 const SUBSCRIPTION_EXPIRY_WARN_DAYS = 14;
 const GRACE_ENDING_WARN_DAYS = 2;
 const CONTENT_EXPIRY_WARN_DAYS = 7;
-const COMPANY_SWEEP_CAP = 2_000;
+
+/**
+ * Cursor-paginated sweep sizing.
+ *
+ * The sweeps previously loaded one flat `take: N` page and stopped. That is a
+ * SILENT correctness failure, not just a performance one: past the cap, screens
+ * simply never get an offline alert and companies never get a subscription,
+ * grace, storage, or content-expiry alert — and nothing says so. It is also the
+ * cap that hurts most at the scale it triggers, because that is exactly when a
+ * missed alert matters.
+ *
+ * Paging by `id` instead keeps each round trip small (so no single query can
+ * exceed the statement timeout) while covering the whole table. MAX_PAGES is a
+ * runaway backstop, not a business limit — hitting it is logged as a warning
+ * and reported in the result, never swallowed.
+ */
+const SWEEP_PAGE = 1_000;
+const MAX_PAGES = 500; // 500k rows per sweep target
 
 /**
  * Operational maintenance (Phase 10). Two responsibilities:
@@ -103,29 +120,34 @@ export class MaintenanceService {
   // --- Offline screens ----------------------------------------------------
 
   private async sweepOfflineScreens(now: Date): Promise<number> {
-    const screens = await this.prisma.screen.findMany({
-      where: {
-        deletedAt: null,
-        status: {
-          notIn: [
-            ScreenStatus.DISABLED,
-            ScreenStatus.ARCHIVED,
-            ScreenStatus.UNPAIRED,
-            ScreenStatus.PAIRING,
-          ],
-        },
-        device: { is: { status: DeviceStatus.ACTIVE } },
-      },
-      select: {
-        id: true,
-        companyId: true,
-        name: true,
-        lastHeartbeatAt: true,
-        heartbeatIntervalSeconds: true,
-      },
-      take: 20_000,
-    });
     let raised = 0;
+    const screens = await this.paginate('offlineScreens', (cursor) =>
+      this.prisma.screen.findMany({
+        where: {
+          deletedAt: null,
+          status: {
+            notIn: [
+              ScreenStatus.DISABLED,
+              ScreenStatus.ARCHIVED,
+              ScreenStatus.UNPAIRED,
+              ScreenStatus.PAIRING,
+            ],
+          },
+          device: { is: { status: DeviceStatus.ACTIVE } },
+        },
+        select: {
+          id: true,
+          companyId: true,
+          name: true,
+          lastHeartbeatAt: true,
+          heartbeatIntervalSeconds: true,
+        },
+        orderBy: { id: 'asc' },
+        take: SWEEP_PAGE,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      }),
+    );
+
     for (const s of screens) {
       const intervalMs = (s.heartbeatIntervalSeconds || 60) * 3 * 1000;
       const offline =
@@ -147,25 +169,58 @@ export class MaintenanceService {
     return raised;
   }
 
+  /**
+   * Read a whole table in id-ordered pages.
+   *
+   * Keyset pagination (`cursor` + `skip: 1`), not OFFSET: OFFSET makes page N
+   * cost O(N x page) and would degrade the sweep as the fleet grows, which is
+   * the opposite of what a maintenance job needs.
+   */
+  private async paginate<T extends { id: string }>(
+    label: string,
+    page: (cursor: string | undefined) => Promise<T[]>,
+  ): Promise<T[]> {
+    const all: T[] = [];
+    let cursor: string | undefined;
+
+    for (let i = 0; i < MAX_PAGES; i++) {
+      const rows = await page(cursor);
+      all.push(...rows);
+      const last = rows[rows.length - 1];
+      if (rows.length < SWEEP_PAGE || !last) return all;
+      cursor = last.id;
+    }
+
+    this.logger.warn(
+      `Maintenance sweep "${label}" stopped at the ${MAX_PAGES * SWEEP_PAGE}-row backstop; ` +
+        'the remainder was NOT swept. Raise MAX_PAGES or shard the job.',
+    );
+    return all;
+  }
+
   // --- Subscriptions / grace / storage / content (per company) ------------
 
   private async sweepCompanies(now: Date) {
-    const companies = await this.prisma.company.findMany({
-      where: { deletedAt: null },
-      select: {
-        id: true,
-        name: true,
-        subscription: {
-          select: {
-            status: true,
-            currentPeriodEnd: true,
-            trialEndsAt: true,
-            gracePeriodEndsAt: true,
+    const companies = await this.paginate('companies', (cursor) =>
+      this.prisma.company.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          subscription: {
+            select: {
+              status: true,
+              currentPeriodEnd: true,
+              trialEndsAt: true,
+              gracePeriodEndsAt: true,
+            },
           },
         },
-      },
-      take: COMPANY_SWEEP_CAP,
-    });
+        orderBy: { id: 'asc' },
+        take: SWEEP_PAGE,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      }),
+    );
 
     let subscriptionAlerts = 0;
     let storageAlerts = 0;

@@ -3,11 +3,10 @@
 This directory holds the Nginx configuration that fronts the Wizer Signage
 stack. Nginx terminates TLS and routes traffic to the application services:
 
-| Path                        | Upstream         | Notes                            |
-| --------------------------- | ---------------- | -------------------------------- |
-| `/`                         | `dashboard:3000` | Next.js dashboard                |
-| `/api/`                     | `api:3001`       | NestJS API (prefix preserved)    |
-| `<WS_PATH>` (default `/ws`) | `api:3001`       | WebSocket upgrade, long timeouts |
+| Path    | Upstream         | Notes                         |
+| ------- | ---------------- | ----------------------------- |
+| `/`     | `dashboard:3000` | Next.js dashboard             |
+| `/api/` | `api:3001`       | NestJS API (prefix preserved) |
 
 ## Files
 
@@ -24,7 +23,7 @@ stack. Nginx terminates TLS and routes traffic to the application services:
    compose `nginx` service substitutes it into `server_name` and the
    `ssl_certificate*` paths at startup — nothing to hand-edit.
 2. Make sure DNS for your domain points at the host running this stack.
-3. Confirm `WS_PATH` in your `.env` matches the WebSocket `location` block
+3. Confirm the upstream service names match your compose services
    (default `/ws`; if you use Socket.IO's default `/socket.io`, update the
    location prefix in the template accordingly).
 

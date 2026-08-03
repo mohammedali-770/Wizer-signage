@@ -57,14 +57,14 @@ export class ProofOfPlayService {
     if (!screen) throw new NotFoundException('Screen not found.');
 
     const now = Date.now();
-    let accepted = 0;
     let rejected = 0;
 
+    // Drop events with an unusable timestamp: too far in the future (clock skew)
+    // or older than the offline back-fill window.
+    const usable: Array<{ event: ProofOfPlayEventDto; startedAt: Date }> = [];
     for (const event of dto.events) {
       const startedAt = new Date(event.startedAt);
       const startMs = startedAt.getTime();
-      // Drop events with an unusable timestamp: too far in the future (clock
-      // skew) or older than the offline back-fill window.
       if (
         Number.isNaN(startMs) ||
         startMs > now + FUTURE_SKEW_MS ||
@@ -73,9 +73,33 @@ export class ProofOfPlayService {
         rejected++;
         continue;
       }
+      usable.push({ event, startedAt });
+    }
+    if (usable.length === 0) return { accepted: 0, rejected };
+
+    // ONE lookup for the whole batch instead of one per event. A device flushing
+    // 100 buffered events used to cost 100 sequential SELECTs before any write;
+    // across a 1,000-screen fleet that is the single heaviest query pattern in
+    // the system, and it is serialised on the device's request.
+    const sessionIds = usable.map((u) => u.event.playbackSessionId);
+    const existingRows = await this.prisma.proofOfPlay.findMany({
+      where: { playbackSessionId: { in: sessionIds } },
+      select: { playbackSessionId: true, status: true, companyId: true, screenId: true },
+    });
+    const existingBySession = new Map(existingRows.map((r) => [r.playbackSessionId, r]));
+
+    let accepted = 0;
+    for (const { event, startedAt } of usable) {
       try {
-        await this.upsertEvent(device, screen.locationId, event, startedAt);
-        accepted++;
+        const applied = await this.upsertEvent(
+          device,
+          screen.locationId,
+          event,
+          startedAt,
+          existingBySession.get(event.playbackSessionId) ?? null,
+        );
+        if (applied) accepted++;
+        else rejected++;
       } catch {
         // A single malformed event never fails the batch.
         rejected++;
@@ -95,22 +119,25 @@ export class ProofOfPlayService {
     locationId: string | null,
     event: ProofOfPlayEventDto,
     startedAt: Date,
-  ): Promise<void> {
+    // Looked up once for the whole batch by the caller. `null` means "not seen
+    // in the pre-read" — which may still lose a create race, handled below.
+    existing: {
+      playbackSessionId: string;
+      status: ProofOfPlayStatus;
+      companyId: string;
+      screenId: string;
+    } | null,
+  ): Promise<boolean> {
     const status = EVENT_STATUS[event.eventType] as ProofOfPlayStatus;
     const endedAt = event.endedAt ? new Date(event.endedAt) : null;
 
     // playbackSessionId is CLIENT-SUPPLIED and globally unique across all
     // tenants, so a lookup by it alone can resolve to another company's row.
-    // Read the owning tenant back and refuse anything that is not ours: without
-    // this, any device-token holder could rewrite another company's playback
-    // record (the advertiser-billing and compliance trail) by replaying a
-    // session id — and session ids are printed in plaintext in every
-    // proof-of-play CSV export.
-    const existing = await this.prisma.proofOfPlay.findUnique({
-      where: { playbackSessionId: event.playbackSessionId },
-      select: { id: true, status: true, companyId: true, screenId: true },
-    });
-
+    // The tenant of any pre-existing row is therefore checked before anything
+    // is written: without this, any device-token holder could rewrite another
+    // company's playback record (the advertiser-billing and compliance trail)
+    // by replaying a session id — and session ids are printed in plaintext in
+    // every proof-of-play CSV export.
     if (
       existing &&
       (existing.companyId !== device.companyId || existing.screenId !== device.screenId)
@@ -121,7 +148,7 @@ export class ProofOfPlayService {
       this.logger.warn(
         'Rejected a proof-of-play event whose playbackSessionId belongs to another screen/company.',
       );
-      return;
+      return false;
     }
 
     if (!existing) {
@@ -153,7 +180,7 @@ export class ProofOfPlayService {
             metadata: (event.metadata ?? {}) as Prisma.InputJsonValue,
           },
         });
-        return;
+        return true;
       } catch (e) {
         // Lost a create race against a concurrent batch — fall through to update.
         if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== 'P2002') throw e;
@@ -163,7 +190,9 @@ export class ProofOfPlayService {
     // Row exists (or we just lost the create race): apply terminal transition only.
     const existingTerminal = existing ? TERMINAL_STATUSES.includes(existing.status) : false;
     const incomingTerminal = status !== ProofOfPlayStatus.STARTED;
-    if (!incomingTerminal || existingTerminal) return; // STARTED-on-existing or already-terminal: idempotent no-op.
+    // STARTED-on-existing or already-terminal: an idempotent no-op, and a
+    // genuinely accepted event — the device's report HAS been applied.
+    if (!incomingTerminal || existingTerminal) return true;
 
     // updateMany, NOT update: the predicate carries the tenant so the statement
     // itself cannot touch another company's row, even if the ownership check
@@ -189,7 +218,9 @@ export class ProofOfPlayService {
       this.logger.warn(
         'Proof-of-play terminal update matched no row owned by this screen; event dropped.',
       );
+      return false;
     }
+    return true;
   }
 
   // --- Dashboard reports -------------------------------------------------

@@ -47,6 +47,11 @@ HEALTH_INTERVAL="${HEALTH_INTERVAL:-5}"
 # Git branch to deploy.
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 
+# Where the deploy history is recorded, newest LAST. scripts/rollback.sh reads
+# it to find the previously-good image tag.
+DEPLOY_STATE="${DEPLOY_STATE:-${ROOT_DIR}/.deploy-history}"
+DEPLOY_HISTORY_KEEP="${DEPLOY_HISTORY_KEEP:-20}"
+
 cd "${ROOT_DIR}"
 
 echo "==> [deploy] Wizer Signage deploy starting ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
@@ -61,8 +66,24 @@ git pull --ff-only origin "${DEPLOY_BRANCH}"
 # Docker images during `compose build`. The host only needs git + docker + curl.
 
 # --- 2. Build images ---------------------------------------------------------
-echo "==> [deploy] Building service images..."
+# Tag by commit SHA, not just :latest.
+#
+# With only :latest, every build DISCARDS the tag of the image it replaces —
+# the previous build becomes a dangling layer set with no name, so there is
+# nothing to roll back TO. Recovering meant rebuilding the old commit, which
+# needs a working network, a working registry, and several minutes, during an
+# outage. A SHA tag makes the previous release a named artifact that is already
+# on the disk.
+IMAGE_TAG="$(git rev-parse --short=12 HEAD)"
+export IMAGE_TAG
+echo "==> [deploy] Building service images (tag: ${IMAGE_TAG})..."
 ${COMPOSE} build
+
+# Also move :latest so an operator running plain `docker compose up` without
+# IMAGE_TAG still gets this release.
+for svc in api dashboard maintenance; do
+  docker tag "wizer-signage/${svc}:${IMAGE_TAG}" "wizer-signage/${svc}:latest"
+done
 
 # --- 3. Pre-migration backup -------------------------------------------------
 # Migrations are forward-only and can be destructive. Without a recovery point
@@ -117,7 +138,21 @@ until curl -fsS "${HEALTH_URL}" >/dev/null 2>&1; do
 done
 
 echo "==> [deploy] API is healthy."
+
+# --- 8. Record the release -----------------------------------------------------
+# Written only AFTER the health check passes, so the history contains releases
+# that actually served traffic — rolling back to a tag that never came up would
+# be worse than not rolling back at all.
+printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${IMAGE_TAG}" "$(git rev-parse HEAD)" \
+  >> "${DEPLOY_STATE}"
+# Keep the file bounded; images older than this are pruned by docker anyway.
+if [[ "$(wc -l < "${DEPLOY_STATE}")" -gt "${DEPLOY_HISTORY_KEEP}" ]]; then
+  tail -n "${DEPLOY_HISTORY_KEEP}" "${DEPLOY_STATE}" > "${DEPLOY_STATE}.tmp"
+  mv "${DEPLOY_STATE}.tmp" "${DEPLOY_STATE}"
+fi
+
 echo "==> [deploy] Current services:"
 ${COMPOSE} ps
 
+echo "==> [deploy] Deployed ${IMAGE_TAG}. Roll back with: scripts/rollback.sh"
 echo "==> [deploy] Deploy complete ($(date -u +%Y-%m-%dT%H:%M:%SZ))."

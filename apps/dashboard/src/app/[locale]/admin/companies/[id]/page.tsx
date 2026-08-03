@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowLeft, Ban, Copy, Pencil, ShieldCheck, UserPlus } fr
 
 import { Link } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
+import { ImpersonateButton } from '@/components/admin/impersonate-button';
 import { useApiResource } from '@/lib/use-api';
 import { formatBytes, formatDate, formatNumber } from '@/lib/format';
 import type {
@@ -271,6 +272,7 @@ export default function CompanyDetailPage() {
             actions={
               <>
                 <StatusBadge status={company.status} />
+                <ImpersonateButton companyId={company.id} companyName={company.name} />
                 <Button variant="outline" onClick={openInvite}>
                   <UserPlus className="size-4" />
                   {t('invite.addAdmin')}
