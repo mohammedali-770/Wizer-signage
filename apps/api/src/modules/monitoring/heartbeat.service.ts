@@ -18,6 +18,15 @@ import type { HeartbeatDto } from './dto/monitoring.dto';
  * problem one raises a deduplicated warning alert. The offline alert itself is
  * raised by the maintenance sweep (no-heartbeat detection), not here.
  */
+/**
+ * How often a heartbeat is sampled into the `heartbeats` timeline when nothing
+ * has changed. State TRANSITIONS are always recorded regardless — this only
+ * governs the keepalive samples in between.
+ */
+export const HEARTBEAT_HISTORY_INTERVAL_MS = Number(
+  process.env.HEARTBEAT_HISTORY_INTERVAL_MS ?? 5 * 60_000,
+);
+
 @Injectable()
 export class HeartbeatService {
   private readonly logger = new Logger(HeartbeatService.name);
@@ -30,7 +39,21 @@ export class HeartbeatService {
   async record(device: AuthenticatedDevice, dto: HeartbeatDto) {
     const screen = await this.prisma.screen.findFirst({
       where: { id: device.screenId, companyId: device.companyId, deletedAt: null },
-      select: { id: true, status: true, heartbeatIntervalSeconds: true },
+      select: {
+        id: true,
+        status: true,
+        heartbeatIntervalSeconds: true,
+        // Previous reported state, for the history-sampling decision below. Read
+        // through the existing relation so this costs no extra round trip.
+        device: {
+          select: {
+            playbackState: true,
+            syncStatus: true,
+            lastSyncError: true,
+            lastHeartbeatAt: true,
+          },
+        },
+      },
     });
     if (!screen) throw new NotFoundException('Screen not found.');
 
@@ -76,6 +99,31 @@ export class HeartbeatService {
     // failed/partial sync independently.
     deviceData.lastSyncError = dto.lastError ?? null;
 
+    // --- History sampling ---------------------------------------------------
+    //
+    // The `heartbeats` table is an append-only timeline, one row per screen per
+    // beat. At a 60s interval that is 1,440 rows per screen per day — 1.4M/day
+    // across a 1,000-screen fleet — and almost every row is identical to the one
+    // before it. The CURRENT state already lives on the Device row (updated
+    // every beat regardless), and the only thing read back out of the history is
+    // the latest payload, so a dense timeline buys nothing.
+    //
+    // A row is written when the reported state CHANGES — which is what anyone
+    // reading the timeline is actually looking for — or when the last beat is
+    // old enough that a keepalive sample is due. Steady-state insert volume
+    // drops by the ratio of the sampling interval to the beat interval while
+    // every transition is still recorded exactly.
+    const previous = screen.device;
+    const stateChanged =
+      screen.status !== screenStatus ||
+      (previous?.playbackState ?? null) !== (dto.playbackState ?? null) ||
+      (previous?.syncStatus ?? null) !== (dto.syncStatus ?? null) ||
+      (previous?.lastSyncError ?? null) !== (dto.lastError ?? null);
+    const sinceLastBeat = previous?.lastHeartbeatAt
+      ? now.getTime() - previous.lastHeartbeatAt.getTime()
+      : Number.POSITIVE_INFINITY;
+    const writeHistory = stateChanged || sinceLastBeat >= HEARTBEAT_HISTORY_INTERVAL_MS;
+
     await this.prisma.$transaction([
       this.prisma.device.update({ where: { id: device.id }, data: deviceData }),
       this.prisma.screen.update({
@@ -88,34 +136,38 @@ export class HeartbeatService {
           ...(dto.appVersion !== undefined ? { appVersion: dto.appVersion } : {}),
         },
       }),
-      this.prisma.heartbeat.create({
-        data: {
-          screenId: device.screenId,
-          companyId: device.companyId,
-          deviceId: device.deviceId,
-          online: true,
-          playbackState: dto.playbackState,
-          networkStatus: dto.networkStatus,
-          appVersion: dto.appVersion,
-          deviceModel: dto.deviceModel,
-          osVersion: dto.osVersion,
-          uptimeSeconds: dto.uptimeSeconds,
-          currentContentId: dto.currentContentId,
-          currentPlaylistId: dto.currentPlaylistId,
-          currentScheduleId: dto.currentScheduleId,
-          manifestVersion: dto.manifestVersion,
-          syncStatus: dto.syncStatus,
-          cacheSizeBytes: toBigInt(dto.cacheSizeBytes),
-          availableStorageBytes: toBigInt(dto.availableStorageBytes),
-          lastError: dto.lastError,
-          payload: {
-            capabilities: (dto.capabilities ?? {}) as Prisma.InputJsonValue,
-            requiredAssets: dto.requiredAssets ?? null,
-            cachedAssets: dto.cachedAssets ?? null,
-            failedDownloads: dto.failedDownloads ?? null,
-          } as Prisma.InputJsonValue,
-        },
-      }),
+      ...(writeHistory
+        ? [
+            this.prisma.heartbeat.create({
+              data: {
+                screenId: device.screenId,
+                companyId: device.companyId,
+                deviceId: device.deviceId,
+                online: true,
+                playbackState: dto.playbackState,
+                networkStatus: dto.networkStatus,
+                appVersion: dto.appVersion,
+                deviceModel: dto.deviceModel,
+                osVersion: dto.osVersion,
+                uptimeSeconds: dto.uptimeSeconds,
+                currentContentId: dto.currentContentId,
+                currentPlaylistId: dto.currentPlaylistId,
+                currentScheduleId: dto.currentScheduleId,
+                manifestVersion: dto.manifestVersion,
+                syncStatus: dto.syncStatus,
+                cacheSizeBytes: toBigInt(dto.cacheSizeBytes),
+                availableStorageBytes: toBigInt(dto.availableStorageBytes),
+                lastError: dto.lastError,
+                payload: {
+                  capabilities: (dto.capabilities ?? {}) as Prisma.InputJsonValue,
+                  requiredAssets: dto.requiredAssets ?? null,
+                  cachedAssets: dto.cachedAssets ?? null,
+                  failedDownloads: dto.failedDownloads ?? null,
+                } as Prisma.InputJsonValue,
+              },
+            }),
+          ]
+        : []),
     ]);
 
     // Reconcile alerts (best-effort — never break the heartbeat).

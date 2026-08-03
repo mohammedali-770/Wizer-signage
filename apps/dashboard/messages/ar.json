@@ -1248,6 +1248,7 @@
       "viewOnMap": "عرض على الخريطة",
       "noCoordinates": "لا توجد إحداثيات",
       "showingLocations": "عرض {count, plural, zero {# موقع} one {# موقع} two {موقعان} few {# مواقع} many {# موقعًا} other {# موقع}}.",
+      "showingTruncated": "عرض {shown} من {total} موقع. يقتصر عرض الخريطة على {shown} — استخدم صفحة المواقع لتصفح الباقي.",
       "derivedStatus": {
         "unknownActive": "غير معروف (نشط)",
         "inactive": "غير نشط",
@@ -2821,5 +2822,19 @@
       "demoCta": "احجز عرضًا",
       "trialCta": "ابدأ النسخة المجانية"
     }
+  },
+  "impersonation": {
+    "viewingAs": "يتم العرض بصفة {company} — يتم تسجيل الإجراءات على حساب المشرف الخاص بك.",
+    "expiresIn": "ينتهي خلال {remaining}",
+    "exit": "إنهاء",
+    "button": "العرض بصفة الشركة",
+    "dialogTitle": "العرض بصفة هذه الشركة",
+    "dialogDescription": "يفتح لوحة الشركة ضمن نطاق هذا المستأجر لمدة 30 دقيقة. يتم تسجيل ذلك في سجلي التدقيق، ويظهر السبب الذي تكتبه للعميل.",
+    "reasonLabel": "السبب",
+    "reasonPlaceholder": "مثال: التذكرة 4821 — قائمة التشغيل لا تتزامن",
+    "codeLabel": "رمز التحقق بخطوتين",
+    "codePlaceholder": "رمز من 6 أرقام أو رمز احتياطي",
+    "submit": "بدء الجلسة",
+    "failed": "تعذر بدء الجلسة."
   }
 }

@@ -2,7 +2,14 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { api, ApiError, clearTokens, hasSession, setTokens } from './api';
+import {
+  api,
+  ApiError,
+  clearTokens,
+  hasSession,
+  setTokens,
+  SESSION_INVALIDATED_EVENT,
+} from './api';
 import { invalidateApiCache } from './use-api';
 import type { AuthUser, MeResponse } from './types';
 
@@ -63,6 +70,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus('unauthenticated');
     }
   }, [reload]);
+
+  // A session can die while the app is open — an admin revokes it, the company
+  // is suspended, the password is changed in another tab. `apiFetch` already
+  // clears the tokens on a 401, but nothing told the UI, so the console kept
+  // rendering data it could no longer refresh. Flipping to `unauthenticated`
+  // makes both shells redirect to /login on their existing effect.
+  useEffect(() => {
+    const onInvalidated = () => {
+      setMe(null);
+      setStatus('unauthenticated');
+    };
+    window.addEventListener(SESSION_INVALIDATED_EVENT, onInvalidated);
+    return () => window.removeEventListener(SESSION_INVALIDATED_EVENT, onInvalidated);
+  }, []);
 
   const login = useCallback(
     async (email: string, password: string): Promise<LoginResult> => {

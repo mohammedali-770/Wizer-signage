@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -8,6 +8,7 @@ import { validate } from './config/env.validation';
 import { CommonModule } from './common/common.module';
 import { TenantContextInterceptor } from './common/context/tenant-context.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { DeviceAwareThrottlerGuard } from './common/guards/device-aware-throttler.guard';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -117,4 +118,13 @@ import { PublicModule } from './modules/public/public.module';
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Correlation IDs must be assigned before ANY guard, interceptor, or filter
+   * runs — a request rejected by the throttler or the auth guard is exactly the
+   * kind of failure a user reports — so this is middleware, not an interceptor.
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}
