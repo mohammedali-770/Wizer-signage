@@ -549,6 +549,15 @@ model Session {
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  /// Super-admin impersonation (see SuperAdminService.startImpersonation).
+  /// Set ONLY on the short-lived, non-refreshable session created when a Super
+  /// Admin acts inside a tenant. `impersonatorId` is the real human; `userId`
+  /// is the same person, and `companyId` is the tenant being acted in — so
+  /// every tenant-scoped query works unchanged while the audit trail can still
+  /// name who was really at the keyboard.
+  impersonatorId    String?
+  impersonationNote String?
+
   refreshTokenHash String // sha256(refresh token); rotated on refresh
   /// sha256 of the refresh token this session held BEFORE the last rotation,
   /// accepted for a short grace window after `refreshRotatedAt` (see
