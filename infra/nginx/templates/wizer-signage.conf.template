@@ -172,21 +172,11 @@ server {
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
-    location /ws {
-        proxy_pass http://api_upstream;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade    $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout  3600s;
-        proxy_send_timeout  3600s;
-        proxy_buffering     off;
-        # Never compress the WebSocket upgrade/stream.
-        gzip                off;
-    }
+    # NOTE: there is deliberately no /ws location. The API has no WebSocket
+    # gateway — devices poll (manifest, commands, heartbeat), which is what the
+    # Android player implements. The block that used to be here proxied to an
+    # endpoint that never existed and held a 3600s timeout open for it, while
+    # the docs it matched described a device channel the platform does not have.
 
     location / {
         proxy_pass http://dashboard_upstream;
