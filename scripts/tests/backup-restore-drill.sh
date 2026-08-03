@@ -22,6 +22,11 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 command -v docker >/dev/null 2>&1 || { echo "docker not available — skipping" >&2; exit 2; }
 
 PG=bkdrill_pg
+# Dedicated port: the drill runs its Postgres on the HOST network, so it must not
+# assume it owns 5432. CI also runs a `services: postgres` container bound to
+# 5432 — without this the drill silently connected to THAT database and failed
+# with an authentication error that had nothing to do with backup/restore.
+PGPORT_DRILL="${BKDRILL_PORT:-55432}"
 WORK="$(mktemp -d)"
 PASS=0
 FAIL=0
@@ -34,16 +39,17 @@ cleanup() {
 trap cleanup EXIT
 cleanup
 
-docker run -d --name "$PG" --network=host -e POSTGRES_PASSWORD=pw_drill postgres:16-alpine >/dev/null
+docker run -d --name "$PG" --network=host -e POSTGRES_PASSWORD=pw_drill \
+  postgres:16-alpine -c "port=${PGPORT_DRILL}" >/dev/null
 for _ in $(seq 1 40); do
-  docker exec "$PG" psql -U postgres -d postgres -c 'select 1' >/dev/null 2>&1 && break
+  docker exec "$PG" psql -U postgres -p "$PGPORT_DRILL" -d postgres -c 'select 1' >/dev/null 2>&1 && break
   sleep 1
 done
 
-psql_q() { docker exec -i "$PG" psql -U postgres -d postgres -tAc "$1" 2>/dev/null; }
+psql_q() { docker exec -i "$PG" psql -U postgres -p "$PGPORT_DRILL" -d postgres -tAc "$1" 2>/dev/null; }
 
 echo "== Seed a database that looks like production =="
-docker exec -i "$PG" psql -U postgres -d postgres >/dev/null 2>&1 <<'SQL'
+docker exec -i "$PG" psql -U postgres -p "$PGPORT_DRILL" -d postgres >/dev/null 2>&1 <<'SQL'
 CREATE TABLE companies (id text PRIMARY KEY, name text NOT NULL);
 CREATE TABLE invoices  (id text PRIMARY KEY, "companyId" text NOT NULL REFERENCES companies(id), total numeric NOT NULL);
 INSERT INTO companies VALUES ('c1','Acme'), ('c2','Globex');
@@ -56,7 +62,7 @@ mkdir -p "$WORK/backups"
 OUT="$(docker run --rm --network=host -u "$(id -u)" \
   -v "$REPO/scripts:/app/scripts:ro" -v "$WORK/backups:/backups" \
   -e BACKUP_DIR=/backups \
-  -e DIRECT_URL="postgresql://postgres:pw_drill@127.0.0.1:5432/postgres?sslmode=disable" \
+  -e DIRECT_URL="postgresql://postgres:pw_drill@127.0.0.1:${PGPORT_DRILL}/postgres?sslmode=disable" \
   postgres:16-alpine bash /app/scripts/backup-db.sh 2>&1)"
 RC=$?
 [ "$RC" -eq 0 ] && ok "backup-db.sh succeeded" || { no "backup-db.sh rc=$RC"; echo "$OUT" | sed 's/^/      /'; }
@@ -67,14 +73,14 @@ case "$OUT" in *pw_drill*) no "credential leaked into backup log" ;; *) ok "no c
 case "$OUT" in *"BACKUP_OFFSITE_CMD is not set"*) ok "warns when no offsite copy is configured" ;; *) no "missing offsite warning" ;; esac
 
 echo "== Mutate the database (simulate the damage we need to undo) =="
-docker exec -i "$PG" psql -U postgres -d postgres -c "DELETE FROM invoices WHERE id='i2'; UPDATE companies SET name='CORRUPTED' WHERE id='c1';" >/dev/null 2>&1
+docker exec -i "$PG" psql -U postgres -p "$PGPORT_DRILL" -d postgres -c "DELETE FROM invoices WHERE id='i2'; UPDATE companies SET name='CORRUPTED' WHERE id='c1';" >/dev/null 2>&1
 [ "$(psql_q 'select count(*) from invoices')" = "2" ] && ok "database mutated (2 invoices, corrupted name)" || no "mutation failed"
 
 echo "== Restore INTO THE NON-EMPTY database (the real DR case) =="
 RES="$(docker run --rm --network=host \
   -v "$REPO/scripts:/app/scripts:ro" -v "$WORK/backups:/backups:ro" \
   -e FORCE=1 \
-  -e DIRECT_URL="postgresql://postgres:pw_drill@127.0.0.1:5432/postgres?sslmode=disable" \
+  -e DIRECT_URL="postgresql://postgres:pw_drill@127.0.0.1:${PGPORT_DRILL}/postgres?sslmode=disable" \
   postgres:16-alpine bash /app/scripts/restore-db.sh "/backups/$(basename "$DUMP")" 2>&1)"
 RRC=$?
 [ "$RRC" -eq 0 ] && ok "restore-db.sh succeeded against a populated database" || { no "restore rc=$RRC"; echo "$RES" | tail -5 | sed 's/^/      /'; }
