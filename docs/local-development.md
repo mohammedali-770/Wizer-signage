@@ -26,14 +26,14 @@ with `workspace:*`.
 
 ## 1. Prerequisites
 
-| Tool                 | Version       | Notes                                                                                    |
-| -------------------- | ------------- | ---------------------------------------------------------------------------------------- |
-| **Node.js**          | `>= 20` (LTS) | Install via [nvm](https://github.com/nvm-sh/nvm) (`nvm install 20 && nvm use 20`).       |
-| **pnpm**             | `9.x`         | Enable via Corepack: `corepack enable && corepack prepare pnpm@9 --activate`.            |
-| **Git**              | latest        | For cloning and version control.                                                         |
-| **Docker + Compose** | optional      | Only needed for the optional local Postgres and for testing the production-like stack.   |
-| **JDK**              | `17`          | Required only to build/run the Android TV player.                                        |
-| **Android Studio**   | latest stable | Required only for the Android TV player (Gradle 8 / AGP 8, leanback emulator or device). |
+| Tool                 | Version       | Notes                                                                                                                                                                                                                                      |
+| -------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Node.js**          | `>= 22.18`    | Install via [nvm](https://github.com/nvm-sh/nvm) (`nvm install 22 && nvm use 22`). The dashboard tests are TypeScript run directly by `node --test`, which needs unflagged type stripping (Node 22.18+). Docker images and CI use Node 26. |
+| **pnpm**             | `9.x`         | Enable via Corepack: `corepack enable && corepack prepare pnpm@9 --activate`.                                                                                                                                                              |
+| **Git**              | latest        | For cloning and version control.                                                                                                                                                                                                           |
+| **Docker + Compose** | optional      | Only needed for the optional local Postgres and for testing the production-like stack.                                                                                                                                                     |
+| **JDK**              | `17`          | Required only to build/run the Android TV player.                                                                                                                                                                                          |
+| **Android Studio**   | latest stable | Required only for the Android TV player (Gradle 8 / AGP 8, leanback emulator or device).                                                                                                                                                   |
 
 > **Windows users:** run the project's shell scripts (`scripts/*.sh`) from **Git Bash** or
 > **WSL**. PowerShell/cmd cannot execute the `.sh` runbooks. `pnpm` commands work in any
@@ -42,7 +42,7 @@ with `workspace:*`.
 Verify your toolchain:
 
 ```bash
-node -v      # v20.x
+node -v      # v22.18 or newer
 pnpm -v      # 9.x
 git --version
 ```
@@ -200,7 +200,7 @@ Details and pairing flow: [android-player.md](./android-player.md) and
 | Symptom                                   | Likely cause / fix                                                                          |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `pnpm: command not found`                 | Run `corepack enable` then `corepack prepare pnpm@9 --activate`.                            |
-| Wrong Node version                        | `nvm use 20`. Confirm with `node -v`.                                                       |
+| Wrong Node version                        | `nvm use 22`. Confirm with `node -v` (needs >= 22.18).                                      |
 | `EADDRINUSE` on 3000/3001                 | Another process holds the port. Stop it, or change `DASHBOARD_PORT` / `API_PORT` in `.env`. |
 | API cannot reach the database             | Verify `DATABASE_URL` / `DIRECT_URL` and that your IP is allowed in the Supabase project.   |
 | CORS errors in the browser                | Add your dashboard origin to `CORS_ORIGINS` and restart the API.                            |

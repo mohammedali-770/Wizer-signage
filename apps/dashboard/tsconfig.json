@@ -8,6 +8,10 @@
     "moduleResolution": "Bundler",
     "allowJs": true,
     "noEmit": true,
+    // Lets a test import the module under test by its real path
+    // (`./impersonation.ts`). Node's ESM loader requires the extension;
+    // safe here because noEmit is on, so nothing is rewritten.
+    "allowImportingTsExtensions": true,
     "incremental": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
