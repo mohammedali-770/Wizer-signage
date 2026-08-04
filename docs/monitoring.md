@@ -44,7 +44,7 @@ shows ONLINE / OFFLINE / WARNING / UNPAIRED / PAIRING / DISABLED / ARCHIVED.
 ## Device config (extended)
 
 `GET /api/device/config` now also returns `heartbeatIntervalSeconds`,
-`commandPollIntervalSeconds` (polling delivery; WebSocket is a future option),
+`commandPollIntervalSeconds` (polling delivery — there is no WebSocket channel),
 and `screenshots: { automaticEnabled, automaticIntervalMinutes }` (automatic
 screenshots default **off** to avoid storage abuse; configurable via
 `Company.settings.autoScreenshot`).

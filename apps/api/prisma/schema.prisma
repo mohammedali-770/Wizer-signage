@@ -549,7 +549,24 @@ model Session {
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  /// Super-admin impersonation (see SuperAdminService.startImpersonation).
+  /// Set ONLY on the short-lived, non-refreshable session created when a Super
+  /// Admin acts inside a tenant. `impersonatorId` is the real human; `userId`
+  /// is the same person, and `companyId` is the tenant being acted in — so
+  /// every tenant-scoped query works unchanged while the audit trail can still
+  /// name who was really at the keyboard.
+  impersonatorId    String?
+  impersonationNote String?
+
   refreshTokenHash String // sha256(refresh token); rotated on refresh
+  /// sha256 of the refresh token this session held BEFORE the last rotation,
+  /// accepted for a short grace window after `refreshRotatedAt` (see
+  /// AuthService.refresh). Without it, a client that never receives the rotated
+  /// token — dropped response, app killed mid-request, two tabs refreshing at
+  /// once — retries with the old one and gets its whole session destroyed as
+  /// suspected theft.
+  previousRefreshTokenHash String?
+  refreshRotatedAt         DateTime?
   userAgent        String?
   ip               String?
   mfaSatisfied     Boolean @default(false)
@@ -801,7 +818,13 @@ model Screen {
   use              ScreenUse?   @default(GENERIC)
   orientation      Orientation  @default(UNKNOWN)
   status           ScreenStatus @default(UNPAIRED)
-  deviceIdentifier String?      @unique
+  /// Physical device currently bound to this screen. Uniqueness is enforced by a
+  /// PARTIAL unique index (`WHERE "deletedAt" IS NULL`) created in the
+  /// 20260803130000 migration, NOT by `@unique` here — a globally unique column
+  /// meant a soft-deleted screen kept its identifier reserved forever, so the TV
+  /// could never be paired to any other screen. Prisma cannot express a partial
+  /// unique index, hence the raw migration.
+  deviceIdentifier String?
 
   // Pairing & sync state.
   pairedAt        DateTime?
@@ -1237,8 +1260,12 @@ model Screenshot {
   takenAt       DateTime       @default(now())
   createdAt     DateTime       @default(now())
 
-  @@index([screenId])
-  @@index([companyId])
+  // The gallery is always "one screen, newest first" (screenshot.service.ts
+  // list()), and retention sweeps by takenAt. A composite (screenId, takenAt
+  // DESC) serves both the filter and the sort from one index and subsumes the
+  // former screenId-only index.
+  @@index([screenId, takenAt(sort: Desc)])
+  @@index([companyId, takenAt(sort: Desc)])
   @@index([takenAt])
   @@map("screenshots")
 }
@@ -1404,7 +1431,11 @@ model Notification {
   createdAt DateTime             @default(now())
 
   @@index([companyId])
-  @@index([userId])
+  // The bell polls unreadCount on every dashboard page, and the list is always
+  // "my notifications, newest first" — both were doing a userId index scan and
+  // then sorting. A partial index for the unread count is added alongside this
+  // one in the migration (Prisma has no syntax for `WHERE readAt IS NULL`).
+  @@index([userId, createdAt(sort: Desc)])
   @@index([createdAt])
   @@map("notifications")
 }

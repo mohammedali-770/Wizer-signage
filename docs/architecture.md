@@ -15,20 +15,20 @@ telemetry from every device.
 
 The platform is built for **strict tenant isolation** (every tenant's data is scoped by
 `companyId`), **offline resilience** (players keep playing without a network), and
-**near-real-time control** (commands reach devices over WebSocket with a REST fallback).
+**near-real-time control** (commands reach devices on a short REST poll).
 
 ## 2. Components
 
-| Component             | Technology                                                                             | Responsibility                                                                                                |
-| --------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Dashboard**         | Next.js 14 (App Router), React 18, TypeScript, Tailwind 3.4, next-intl v3, next-themes | Operator web UI. Bilingual (English LTR / Arabic RTL), light/dark themes. Talks to the API over REST.         |
-| **API**               | NestJS 10, TypeScript                                                                  | REST API, business logic, authn/authz, tenant guards. Global prefix `api`. Reads `API_PORT` (default `3001`). |
-| **Database**          | Prisma ORM + Supabase Postgres                                                         | System of record. Accessed via `DATABASE_URL` (pooled) and `DIRECT_URL` (migrations).                         |
-| **Object storage**    | Supabase Storage                                                                       | Content media (images, video), screenshots, APK artifacts. Bucket via `SUPABASE_STORAGE_BUCKET`.              |
-| **WebSocket gateway** | NestJS WebSocket gateway (part of the API)                                             | Bi-directional device channel: heartbeats, commands, emergency broadcasts. Path from `WS_PATH`.               |
-| **Android TV player** | Kotlin 1.9, Jetpack Compose, Media3 ExoPlayer, AGP 8                                   | Native leanback app (`com.wizer.signage`). Plays content, pre-downloads media, reports telemetry.             |
-| **Offline cache**     | On-device storage on the player                                                        | Pre-downloaded media + scheduled playlist so the screen keeps playing without connectivity.                   |
-| **Reverse proxy**     | Nginx                                                                                  | Routes `/` → dashboard, `/api` → API, WebSocket upgrade on `WS_PATH` → API. Terminates SSL (Let's Encrypt).   |
+| Component             | Technology                                                                             | Responsibility                                                                                                                                                                                            |
+| --------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dashboard**         | Next.js 14 (App Router), React 18, TypeScript, Tailwind 3.4, next-intl v3, next-themes | Operator web UI. Bilingual (English LTR / Arabic RTL), light/dark themes. Talks to the API over REST.                                                                                                     |
+| **API**               | NestJS 10, TypeScript                                                                  | REST API, business logic, authn/authz, tenant guards. Global prefix `api`. Reads `API_PORT` (default `3001`).                                                                                             |
+| **Database**          | Prisma ORM + Supabase Postgres                                                         | System of record. Accessed via `DATABASE_URL` (pooled) and `DIRECT_URL` (migrations).                                                                                                                     |
+| **Object storage**    | Supabase Storage                                                                       | Content media (images, video), screenshots, APK artifacts. Bucket via `SUPABASE_STORAGE_BUCKET`.                                                                                                          |
+| **Device channel**    | HTTPS polling against the same REST API                                                | Players poll for the manifest and pending commands, and POST heartbeats + proof-of-play. **No WebSocket** — a poll survives NAT, captive portals, and long offline periods, which a held socket does not. |
+| **Android TV player** | Kotlin 1.9, Jetpack Compose, Media3 ExoPlayer, AGP 8                                   | Native leanback app (`com.wizer.signage`). Plays content, pre-downloads media, reports telemetry.                                                                                                         |
+| **Offline cache**     | On-device storage on the player                                                        | Pre-downloaded media + scheduled playlist so the screen keeps playing without connectivity.                                                                                                               |
+| **Reverse proxy**     | Nginx                                                                                  | Routes `/` → dashboard, `/api` → API. Terminates SSL (Let's Encrypt), rate-limits at the edge.                                                                                                            |
 
 External managed services: **Supabase** (Postgres + Storage). Production has **no local
 database** — Postgres and Storage are Supabase. A dev Compose override may add a local
@@ -43,14 +43,13 @@ Postgres for offline development only (see [local-development.md](./local-develo
                     |            Nginx             |   SSL termination (Let's Encrypt)
                     |   /  -> dashboard:3000        |
                     |   /api -> api:3001            |
-                    |   WS_PATH -> api (upgrade)    |
                     +------+----------------+------+
                            |                |
               +------------v----+      +----v----------------+
               |   Dashboard     |      |       API           |
               |  Next.js :3000  | REST |   NestJS :3001      |
               |  (App Router)   +----->|  prefix /api        |
-              +-----------------+      |  + WS gateway       |
+              +-----------------+      |                     |
                                        +----+-----------+----+
                                             |           |
                           DATABASE_URL /    |           |  Storage SDK
@@ -60,7 +59,7 @@ Postgres for offline development only (see [local-development.md](./local-develo
                                   | Postgres   |   | Storage bucket |
                                   +------------+   +----------------+
 
-         WSS (WS_PATH) / HTTPS (REST fallback)
+              HTTPS polling (manifest / commands / telemetry)
                   ^
                   |
         +---------+-----------+
@@ -156,16 +155,20 @@ Tenant scoping is enforced in the service/data layer, not just the guard — see
 [multi-tenancy.md](./multi-tenancy.md). Roles and capabilities are defined in
 [security.md](./security.md).
 
-## 6. Realtime + REST-fallback strategy
+## 6. Device channel
 
-- **Primary channel:** a persistent **WebSocket** between each player and the NestJS
-  gateway (path from `WS_PATH`, proxied through Nginx with upgrade headers). Used for
-  heartbeats, live commands, and emergency broadcasts — low-latency, push-based.
-- **Fallback channel:** when the WebSocket is unavailable, the player degrades to
-  **REST polling** for config/manifest/commands and **batched REST uploads** for
-  heartbeats and proof-of-play. No control action depends solely on the socket.
+- **One channel: HTTPS polling.** The player polls `/api` for its manifest and for
+  pending commands, and POSTs heartbeats and proof-of-play in batches. There is no
+  WebSocket gateway — a poll survives NAT, captive portals, proxies, and long
+  offline stretches, all of which a held socket does not, and a signage screen has
+  no interaction latency budget that a short poll cannot meet.
+- **Latency:** commands are picked up within one command-poll cycle (~12s). Content
+  edits additionally push a `REFRESH_MANIFEST` command so a screen updates on that
+  same cycle rather than waiting for the periodic manifest refresh.
 - **Idempotency & ordering:** commands carry a unique id and are acknowledged; the
-  device de-duplicates and the server treats unacknowledged commands as still pending.
+  device de-duplicates and the server treats unacknowledged commands as still
+  pending. Proof-of-play is keyed on a device-generated session id, so a re-sent
+  batch converges to the same rows.
 - **Offline-first:** the player always operates against its **offline cache**. The
   network is an optimization for fresh content and control — not a runtime dependency.
 

@@ -34,9 +34,21 @@ private fun ctx(
 
 class PlaybackEventTrackerTest {
 
-    private fun tracker(clock: () -> Long): PlaybackEventTracker {
+    /**
+     * One timeline: wall clock and monotonic clock advance together. A separate
+     * overload is used by the NTP-jump cases below, which move them apart.
+     * (Two overloads rather than a default argument so `tracker { t }` trailing
+     * -lambda syntax still binds to `clock`.)
+     */
+    private fun tracker(clock: () -> Long): PlaybackEventTracker = tracker(clock, clock)
+
+    private fun tracker(clock: () -> Long, elapsed: () -> Long): PlaybackEventTracker {
         var n = 0
-        return PlaybackEventTracker(clock = clock, newSessionId = { "sess-${++n}" })
+        return PlaybackEventTracker(
+            clock = clock,
+            elapsed = elapsed,
+            newSessionId = { "sess-${++n}" },
+        )
     }
 
     @Test
@@ -114,7 +126,7 @@ class PlaybackEventTrackerTest {
     @Test
     fun timestampsAreIso8601UtcMillis() {
         var t = 0L
-        val tr = PlaybackEventTracker(clock = { t }, newSessionId = { "s" })
+        val tr = PlaybackEventTracker(clock = { t }, elapsed = { t }, newSessionId = { "s" })
         val started = tr.started(item(), 0, ctx())[0]
         assertEquals("1970-01-01T00:00:00.000Z", started.startedAt)
 
@@ -122,6 +134,80 @@ class PlaybackEventTrackerTest {
         val completed = tr.completed()!!
         assertEquals("1970-01-01T00:00:00.000Z", completed.startedAt)
         assertEquals("1970-01-02T00:00:00.001Z", completed.endedAt)
+    }
+
+    /**
+     * Durations must come from a MONOTONIC clock.
+     *
+     * An Android TV box has no RTC battery: it boots with a bogus time and jumps,
+     * often by years, the moment NTP lands — routinely mid-playback on the first
+     * item after a power cut. Subtracting two wall-clock readings across that
+     * jump reported hours of playback for a 15-second image, or zero when the
+     * jump went backwards. This is the advertiser-billing record.
+     */
+    @Test
+    fun durationSurvivesAnNtpJumpForward() {
+        var wall = 1_000L
+        var mono = 500L
+        val tr = tracker({ wall }, { mono })
+
+        tr.started(item(), 0, ctx())
+        // 15 seconds of real playback...
+        mono += 15_000
+        // ...during which NTP corrects the clock forward by two years.
+        wall += 63_072_000_000L
+
+        val done = tr.completed()!!
+        assertEquals(15_000L, done.durationMs)
+    }
+
+    @Test
+    fun durationSurvivesAnNtpJumpBackward() {
+        var wall = 63_072_000_000L
+        var mono = 500L
+        val tr = tracker({ wall }, { mono })
+
+        tr.started(item(), 0, ctx())
+        mono += 8_000
+        wall = 1_000L // clock corrected backwards
+
+        val done = tr.completed()!!
+        // Wall-clock subtraction would have been negative and coerced to 0.
+        assertEquals(8_000L, done.durationMs)
+    }
+
+    @Test
+    fun endedAtStaysConsistentWithDurationAcrossAJump() {
+        // Any billing sum depends on endedAt - startedAt == durationMs. Reading
+        // the wall clock again at the end would break that the moment NTP fires.
+        var wall = 0L
+        var mono = 0L
+        val tr = tracker({ wall }, { mono })
+
+        tr.started(item(), 0, ctx())
+        mono += 12_000
+        wall += 99_999_999L
+
+        val done = tr.completed()!!
+        assertEquals("1970-01-01T00:00:00.000Z", done.startedAt)
+        assertEquals("1970-01-01T00:00:12.000Z", done.endedAt)
+        assertEquals(12_000L, done.durationMs)
+    }
+
+    @Test
+    fun interruptedItemAlsoUsesTheMonotonicDuration() {
+        var wall = 1_000L
+        var mono = 0L
+        val tr = tracker({ wall }, { mono })
+
+        tr.started(item(), 0, ctx())
+        mono += 4_000
+        wall += 500_000_000L
+
+        // A second `started` pre-empts the first and auto-closes it.
+        val out = tr.started(item("c2"), 1, ctx())
+        val interrupted = out.first { it.eventType == ProofOfPlayEvent.INTERRUPTED }
+        assertEquals(4_000L, interrupted.durationMs)
     }
 }
 
