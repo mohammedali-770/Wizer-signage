@@ -5,7 +5,7 @@
 # rejected outright from Kotlin 2.0 on, so both moved together in this bump.
 
 [versions]
-agp = "8.5.2"
+agp = "9.3.1"
 kotlin = "2.4.10"
 coreKtx = "1.13.1"
 lifecycle = "2.8.4"
