@@ -14,11 +14,16 @@
 # =============================================================================
 
 # --- Base --------------------------------------------------------------------
-# Pin a concrete Node 20 alpine image and enable corepack-managed pnpm@9.
-FROM node:20-alpine AS base
+# Pin a concrete Node 26 alpine image and install pnpm@9 (see below).
+FROM node:26-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9 --activate
+# Corepack is NOT shipped in node:26-alpine — Node removed it from the
+# distribution after 24, so `corepack enable` exits 127. pnpm is installed
+# directly instead, pinned to the exact version in the root package.json
+# `packageManager` field so the image resolves the lockfile identically to
+# local development. Keep this in step with that field.
+RUN npm install -g pnpm@9.12.0
 WORKDIR /app
 
 # --- Dependencies ------------------------------------------------------------
@@ -65,13 +70,13 @@ RUN pnpm --filter @wizer/api --prod deploy /app/deploy
 RUN cd /app/deploy && ./node_modules/.bin/prisma generate --schema /app/apps/api/prisma/schema.prisma
 
 # --- Runtime -----------------------------------------------------------------
-FROM node:20-alpine AS runtime
+FROM node:26-alpine AS runtime
 ENV NODE_ENV=production
 ENV API_PORT=3001
 WORKDIR /app
 
 # Prisma's schema/query engines (linux-musl-openssl-3.0.x) need OpenSSL/libssl
-# at runtime to start and connect; node:20-alpine does not ship it. Install it
+# at runtime to start and connect; node:26-alpine does not ship it. Install it
 # as root before dropping to the unprivileged user, otherwise `prisma migrate
 # deploy` / the client fail with "failed to detect the libssl/openssl version".
 RUN apk add --no-cache openssl

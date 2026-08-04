@@ -14,6 +14,20 @@ function build() {
       findUnique: jest.fn(({ where }: any) =>
         Promise.resolve(store.get(where.playbackSessionId) ?? null),
       ),
+      // The batch pre-read: one query resolving every session id in the batch.
+      findMany: jest.fn(({ where }: any) =>
+        Promise.resolve(
+          (where.playbackSessionId.in as string[])
+            .map((id) => store.get(id))
+            .filter(Boolean)
+            .map((r: any) => ({
+              playbackSessionId: r.playbackSessionId,
+              status: r.status,
+              companyId: r.companyId,
+              screenId: r.screenId,
+            })),
+        ),
+      ),
       create: jest.fn(({ data }: any) => {
         store.set(data.playbackSessionId, { ...data });
         return Promise.resolve(data);
@@ -333,5 +347,117 @@ describe('ProofOfPlayService cross-tenant write protection', () => {
 
     expect(res.accepted).toBe(1);
     expect(t.store.get('sess-own').status).toBe('COMPLETED');
+  });
+});
+
+/**
+ * Batch ingest.
+ *
+ * A device flushing buffered events used to cost one SELECT per event, run
+ * sequentially, before any write. Across a 1,000-screen fleet that was the
+ * heaviest query pattern in the system — and it sits on the device's request
+ * path, so it is the device that waits.
+ */
+describe('ProofOfPlayService.ingest — batching', () => {
+  it('resolves a whole batch with ONE lookup, not one per event', async () => {
+    const t = build();
+    const events = Array.from({ length: 100 }, (_, i) => event({ playbackSessionId: `sess-${i}` }));
+
+    const out = await t.service.ingest(DEVICE as any, { events } as any);
+
+    expect(out).toEqual({ accepted: 100, rejected: 0 });
+    expect(t.prisma.proofOfPlay.findMany).toHaveBeenCalledTimes(1);
+    expect(t.prisma.proofOfPlay.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('asks for exactly the session ids in the batch', async () => {
+    const t = build();
+    await t.service.ingest(
+      DEVICE as any,
+      {
+        events: [event({ playbackSessionId: 'a' }), event({ playbackSessionId: 'b' })],
+      } as any,
+    );
+
+    expect(t.prisma.proofOfPlay.findMany.mock.calls[0][0].where).toEqual({
+      playbackSessionId: { in: ['a', 'b'] },
+    });
+  });
+
+  it('does not query at all when every event has an unusable timestamp', async () => {
+    const t = build();
+    const out = await t.service.ingest(
+      DEVICE as any,
+      {
+        events: [event({ startedAt: 'not-a-date' }), event({ startedAt: '1999-01-01T00:00:00Z' })],
+      } as any,
+    );
+
+    expect(out).toEqual({ accepted: 0, rejected: 2 });
+    expect(t.prisma.proofOfPlay.findMany).not.toHaveBeenCalled();
+  });
+
+  it('handles a start and its completion in the SAME batch', async () => {
+    // The pre-read happens once, so the completion sees no existing row, loses
+    // the create race with its own predecessor, and must fall through to the
+    // terminal update rather than being lost.
+    const t = build();
+    const out = await t.service.ingest(
+      DEVICE as any,
+      {
+        events: [
+          event({ playbackSessionId: 'sess-x', eventType: 'ITEM_STARTED' }),
+          event({
+            playbackSessionId: 'sess-x',
+            eventType: 'ITEM_COMPLETED',
+            endedAt: new Date().toISOString(),
+            durationMs: 9000,
+          }),
+        ],
+      } as any,
+    );
+
+    expect(out.accepted).toBe(2);
+    expect(t.store.get('sess-x')).toMatchObject({ status: 'COMPLETED', durationMs: 9000 });
+  });
+
+  it('counts a cross-tenant event as rejected, not accepted', async () => {
+    const t = build();
+    t.store.set('stolen', {
+      playbackSessionId: 'stolen',
+      status: 'STARTED',
+      companyId: 'someone-else',
+      screenId: 'their-screen',
+    });
+
+    const out = await t.service.ingest(
+      DEVICE as any,
+      {
+        events: [
+          event({ playbackSessionId: 'stolen', eventType: 'ITEM_COMPLETED' }),
+          event({ playbackSessionId: 'mine' }),
+        ],
+      } as any,
+    );
+
+    expect(out).toEqual({ accepted: 1, rejected: 1 });
+    // The foreign row is untouched.
+    expect(t.store.get('stolen').status).toBe('STARTED');
+  });
+
+  it('keeps mixed good/bad batches partially successful', async () => {
+    const t = build();
+    const out = await t.service.ingest(
+      DEVICE as any,
+      {
+        events: [
+          event({ playbackSessionId: 'ok-1' }),
+          event({ playbackSessionId: 'bad', startedAt: 'nope' }),
+          event({ playbackSessionId: 'ok-2' }),
+        ],
+      } as any,
+    );
+
+    expect(out).toEqual({ accepted: 2, rejected: 1 });
   });
 });

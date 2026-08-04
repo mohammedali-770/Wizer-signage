@@ -4,7 +4,12 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ContentStatus, ContentType, Orientation, Prisma, TagType } from '@prisma/client';
 
 import { resolvePagination } from '../../common/dto/pagination.dto';
-import { CryptoService } from '../../common/crypto/crypto.service';
+import {
+  discardUpload,
+  hashUpload,
+  readUploadHead,
+  type UploadedTempFile,
+} from '../../common/upload/disk-upload';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityCategory, ActivityLogService } from '../activity-log/activity-log.service';
@@ -39,7 +44,7 @@ const CONTENT_INCLUDE = {
 } satisfies Prisma.ContentInclude;
 
 type ContentWithTags = Prisma.ContentGetPayload<{ include: typeof CONTENT_INCLUDE }>;
-type MulterFile = { buffer: Buffer; mimetype: string; originalname: string; size: number };
+type MulterFile = UploadedTempFile;
 
 @Injectable()
 export class ContentService {
@@ -48,7 +53,6 @@ export class ContentService {
     private readonly activityLog: ActivityLogService,
     private readonly usageLimits: UsageLimitsService,
     private readonly storage: StorageService,
-    private readonly crypto: CryptoService,
   ) {}
 
   // --- Create ------------------------------------------------------------
@@ -60,61 +64,80 @@ export class ContentService {
     dto: UploadContentDto,
   ) {
     if (!file) throw new BadRequestException('A file is required.');
-    // Detect the real type from the file's magic bytes — never trust the
-    // client-claimed Content-Type or filename for the allowlist.
-    const detected = this.detectFileType(file.buffer);
-    if (!detected) {
-      throw new BadRequestException(
-        'Unsupported or unrecognized file. Allowed: images (PNG/JPEG/GIF/WEBP), videos (MP4/WEBM/OGG/MOV), PDF.',
-      );
-    }
-    this.assertExtension(detected.type, file.originalname);
-
-    // Per-file + total-storage plan enforcement (storage is grace-aware).
-    await this.usageLimits.assertFileSize(companyId, file.size);
-    await this.usageLimits.assertCanAdd(companyId, 'storageGb', file.size / 1_000_000_000);
-
-    const tagIds = await this.validContentTags(companyId, this.parseTags(dto.tags));
-    const contentId = randomUUID();
-    const storageKey = this.storage.buildKey(companyId, contentId, file.originalname);
-    await this.storage.upload(storageKey, file.buffer, detected.mime);
-
-    let content: ContentWithTags;
+    // The upload is spooled to disk, never held in the heap (see disk-upload.ts).
+    // It must be removed on every exit path, including the validation rejections
+    // below — otherwise a client can fill the disk with rejected uploads.
     try {
-      content = await this.prisma.content.create({
-        data: {
-          id: contentId,
-          companyId,
-          type: detected.type,
-          title: dto.title,
-          description: dto.description,
-          storageKey,
-          fileSize: BigInt(file.size),
-          mimeType: detected.mime, // server-derived, not the client-claimed MIME
-          originalFileName: file.originalname,
-          checksum: this.crypto.sha256Buffer(file.buffer),
-          orientation: dto.orientation ?? Orientation.UNKNOWN,
-          durationSeconds: dto.durationSeconds,
-          expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
-          status: ContentStatus.ACTIVE,
-          createdById: actor.userId,
-          updatedById: actor.userId,
-          tags: tagIds.length ? { create: tagIds.map((tagId) => ({ tagId })) } : undefined,
-        },
-        include: CONTENT_INCLUDE,
-      });
-    } catch (error) {
-      // Don't leak an orphaned (uncounted) storage object if the row fails.
-      await this.storage.remove(storageKey).catch(() => undefined);
-      throw error;
-    }
+      // Detect the real type from the file's magic bytes — never trust the
+      // client-claimed Content-Type or filename for the allowlist.
+      const detected = this.detectFileType(await readUploadHead(file));
+      if (!detected) {
+        throw new BadRequestException(
+          'Unsupported or unrecognized file. Allowed: images (PNG/JPEG/GIF/WEBP), videos (MP4/WEBM/OGG/MOV), PDF.',
+        );
+      }
+      this.assertExtension(detected.type, file.originalname);
 
-    await this.log(actor, companyId, 'content.uploaded', contentId, {
-      title: dto.title,
-      type: detected.type,
-      fileSize: file.size,
-    });
-    return this.toView(content);
+      // Per-file + total-storage plan enforcement (storage is grace-aware).
+      await this.usageLimits.assertFileSize(companyId, file.size);
+      await this.usageLimits.assertCanAdd(companyId, 'storageGb', file.size / 1_000_000_000);
+
+      const checksum = await hashUpload(file);
+      const tagIds = await this.validContentTags(companyId, this.parseTags(dto.tags));
+      const contentId = randomUUID();
+      const storageKey = this.storage.buildKey(companyId, contentId, file.originalname);
+      await this.putObject(storageKey, file, detected.mime);
+
+      let content: ContentWithTags;
+      try {
+        content = await this.prisma.content.create({
+          data: {
+            id: contentId,
+            companyId,
+            type: detected.type,
+            title: dto.title,
+            description: dto.description,
+            storageKey,
+            fileSize: BigInt(file.size),
+            mimeType: detected.mime, // server-derived, not the client-claimed MIME
+            originalFileName: file.originalname,
+            checksum,
+            orientation: dto.orientation ?? Orientation.UNKNOWN,
+            durationSeconds: dto.durationSeconds,
+            expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+            status: ContentStatus.ACTIVE,
+            createdById: actor.userId,
+            updatedById: actor.userId,
+            tags: tagIds.length ? { create: tagIds.map((tagId) => ({ tagId })) } : undefined,
+          },
+          include: CONTENT_INCLUDE,
+        });
+      } catch (error) {
+        // Don't leak an orphaned (uncounted) storage object if the row fails.
+        await this.storage.remove(storageKey).catch(() => undefined);
+        throw error;
+      }
+
+      await this.log(actor, companyId, 'content.uploaded', contentId, {
+        title: dto.title,
+        type: detected.type,
+        fileSize: file.size,
+      });
+      return this.toView(content);
+    } finally {
+      await discardUpload(file);
+    }
+  }
+
+  /**
+   * Hand an upload to object storage by whichever route avoids the heap.
+   * Disk-spooled files stream; the memory-backed shape is still accepted so
+   * unit tests (and any caller that has not moved to diskStorage) keep working.
+   */
+  private async putObject(key: string, file: MulterFile, mime: string): Promise<void> {
+    if (file.path) return this.storage.uploadFile(key, file.path, mime);
+    if (file.buffer) return this.storage.upload(key, file.buffer, mime);
+    throw new BadRequestException('A file is required.');
   }
 
   async createUrl(companyId: string, actor: AuthenticatedUser, dto: CreateUrlContentDto) {
@@ -362,46 +385,51 @@ export class ContentService {
     file: MulterFile | undefined,
   ) {
     if (!file) throw new BadRequestException('A file is required.');
-    const existing = await this.getScopedOrThrow(companyId, id);
-    const detected = this.detectFileType(file.buffer);
-    if (!detected || detected.type !== existing.type) {
-      throw new BadRequestException(`Replacement file must be the same type (${existing.type}).`);
-    }
-    this.assertExtension(detected.type, file.originalname);
-    await this.usageLimits.assertFileSize(companyId, file.size);
-    const delta = file.size - Number(existing.fileSize ?? 0);
-    if (delta > 0)
-      await this.usageLimits.assertCanAdd(companyId, 'storageGb', delta / 1_000_000_000);
-
-    const newKey = this.storage.buildKey(companyId, id, file.originalname);
-    await this.storage.upload(newKey, file.buffer, detected.mime);
-
-    // Commit the DB pointer BEFORE removing the old file, so a failure never
-    // leaves a row pointing at a deleted object.
-    let content: ContentWithTags;
     try {
-      content = await this.prisma.content.update({
-        where: { id },
-        data: {
-          storageKey: newKey,
-          fileSize: BigInt(file.size),
-          mimeType: detected.mime,
-          originalFileName: file.originalname,
-          checksum: this.crypto.sha256Buffer(file.buffer),
-          updatedById: actor.userId,
-        },
-        include: CONTENT_INCLUDE,
-      });
-    } catch (error) {
-      await this.storage.remove(newKey).catch(() => undefined);
-      throw error;
-    }
-    if (existing.storageKey && existing.storageKey !== newKey) {
-      await this.storage.remove(existing.storageKey).catch(() => undefined);
-    }
+      const existing = await this.getScopedOrThrow(companyId, id);
+      const detected = this.detectFileType(await readUploadHead(file));
+      if (!detected || detected.type !== existing.type) {
+        throw new BadRequestException(`Replacement file must be the same type (${existing.type}).`);
+      }
+      this.assertExtension(detected.type, file.originalname);
+      await this.usageLimits.assertFileSize(companyId, file.size);
+      const delta = file.size - Number(existing.fileSize ?? 0);
+      if (delta > 0)
+        await this.usageLimits.assertCanAdd(companyId, 'storageGb', delta / 1_000_000_000);
 
-    await this.log(actor, companyId, 'content.file_replaced', id, { fileSize: file.size });
-    return this.toView(content);
+      const checksum = await hashUpload(file);
+      const newKey = this.storage.buildKey(companyId, id, file.originalname);
+      await this.putObject(newKey, file, detected.mime);
+
+      // Commit the DB pointer BEFORE removing the old file, so a failure never
+      // leaves a row pointing at a deleted object.
+      let content: ContentWithTags;
+      try {
+        content = await this.prisma.content.update({
+          where: { id },
+          data: {
+            storageKey: newKey,
+            fileSize: BigInt(file.size),
+            mimeType: detected.mime,
+            originalFileName: file.originalname,
+            checksum,
+            updatedById: actor.userId,
+          },
+          include: CONTENT_INCLUDE,
+        });
+      } catch (error) {
+        await this.storage.remove(newKey).catch(() => undefined);
+        throw error;
+      }
+      if (existing.storageKey && existing.storageKey !== newKey) {
+        await this.storage.remove(existing.storageKey).catch(() => undefined);
+      }
+
+      await this.log(actor, companyId, 'content.file_replaced', id, { fileSize: file.size });
+      return this.toView(content);
+    } finally {
+      await discardUpload(file);
+    }
   }
 
   // --- Lifecycle ---------------------------------------------------------

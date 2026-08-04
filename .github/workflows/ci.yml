@@ -41,17 +41,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6.0.9
         with:
           version: 9.12.0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 26
           cache: pnpm
 
       - name: Install dependencies
@@ -99,6 +99,14 @@ jobs:
       - name: Backup/restore drill (real Postgres)
         run: bash scripts/tests/backup-restore-drill.sh
 
+      # Rollback is only useful if it is correct the first time it is needed,
+      # in an outage. These cover every decision it makes BEFORE touching the
+      # running stack: tag selection (including not bouncing back into a
+      # release already rolled away from) and refusing pruned images. Docker is
+      # stubbed; no stack is started.
+      - name: Rollback decision-logic tests
+        run: bash scripts/tests/rollback.test.sh
+
       - name: Build
         # The dashboard production build requires an explicit, valid HTTPS
         # NEXT_PUBLIC_API_URL (see apps/dashboard/next.config.mjs). Use a
@@ -116,13 +124,13 @@ jobs:
     # Validates the multi-stage Dockerfiles without pushing anywhere.
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build API image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/api/Dockerfile
@@ -132,7 +140,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build dashboard image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/dashboard/Dockerfile
@@ -144,7 +152,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build maintenance image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: infra/docker/Dockerfile.maintenance
@@ -163,16 +171,16 @@ jobs:
     # Debug build + unit tests need no signing secrets.
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: Unit tests · lint · assemble
         working-directory: apps/android-tv-player
@@ -185,7 +193,7 @@ jobs:
 
       - name: Upload test report on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: android-test-results
           path: apps/android-tv-player/app/build/reports/
@@ -197,20 +205,20 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # gitleaks needs history to scan commits, not just the tree.
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6.0.9
         with:
           version: 9.12.0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 26
           cache: pnpm
 
       - name: Install dependencies

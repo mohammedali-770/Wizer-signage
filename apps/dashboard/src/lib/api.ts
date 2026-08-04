@@ -8,6 +8,7 @@
 
 import { API_BASE_URL } from './api-base';
 import { invalidateApiCache } from './api-cache';
+import { endImpersonation, isImpersonating } from './impersonation';
 
 const BASE = API_BASE_URL;
 
@@ -104,11 +105,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
   if (!res.ok) {
     const error = (json && json.error) || { code: 'ERROR', message: res.statusText };
-    if (res.status === 401) {
-      clearTokens();
-      // Drop cached data tied to the now-invalid session (defense-in-depth).
-      invalidateApiCache();
-    }
+    if (res.status === 401) handleUnauthorized();
     throw new ApiError(error.code, error.message, res.status);
   }
   return json as T;
@@ -135,15 +132,37 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
   const json = text ? JSON.parse(text) : null;
   if (!res.ok) {
     const error = (json && json.error) || { code: 'ERROR', message: res.statusText };
-    if (res.status === 401) {
-      clearTokens();
-      // Drop cached data tied to the now-invalid session (defense-in-depth).
-      invalidateApiCache();
-    }
+    if (res.status === 401) handleUnauthorized();
     throw new ApiError(error.code, error.message, res.status);
   }
   return json as T;
 }
+
+/**
+ * A 401 means the token in hand is finished. What that implies depends on WHICH
+ * token it is: an expired impersonation should drop the admin back into their
+ * own session rather than logging them out of the platform entirely, which is
+ * what clearing everything would do.
+ */
+function handleUnauthorized(): void {
+  if (isImpersonating()) {
+    endImpersonation();
+  } else {
+    clearTokens();
+  }
+  // Drop cached data tied to the now-invalid session (defense-in-depth).
+  invalidateApiCache();
+  // Tell the app the session is gone. Clearing the tokens alone leaves the SPA
+  // rendering a fully-populated console it can no longer refresh: an admin who
+  // revokes a session, a suspended company, or a password changed in another
+  // tab all left the user looking at stale data until they happened to reload.
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(SESSION_INVALIDATED_EVENT));
+  }
+}
+
+/** Fired on `window` when a request proves the stored session is no longer valid. */
+export const SESSION_INVALIDATED_EVENT = 'wizer:session-invalidated';
 
 export const api = {
   get: <T>(path: string) => apiFetch<T>(path),

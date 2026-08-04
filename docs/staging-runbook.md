@@ -280,9 +280,9 @@ curl -fsSI "https://$APP_DOMAIN/" | grep -i strict-transport-security   # HSTS p
 ```
 
 - **`/api` routing:** the `/api/health` check above proves it.
-- **`/ws` upgrade:** WebSocket is reserved for future use (Phase 8 commands use
-  polling). The location + `$connection_upgrade` map are present; nothing to
-  exercise functionally yet.
+- **No `/ws` upgrade:** there is no WebSocket gateway. Devices poll for commands
+  (Phase 8). The dead `/ws` proxy block has been removed from the nginx config —
+  there is nothing to exercise here.
 - **Large upload path:** confirmed by uploading a large video in §9 (nginx allows
   512 MB with streamed `proxy_request_buffering off`).
 
