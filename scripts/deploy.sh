@@ -151,6 +151,44 @@ if [[ "$(wc -l < "${DEPLOY_STATE}")" -gt "${DEPLOY_HISTORY_KEEP}" ]]; then
   mv "${DEPLOY_STATE}.tmp" "${DEPLOY_STATE}"
 fi
 
+# --- 9. Smoke test -------------------------------------------------------------
+# The readiness poll above proves the API can reach its database. It proves
+# nothing about nginx's routing, the security headers, the correlation-ID chain,
+# or the global validation pipe — a release can satisfy /ready and still be
+# broken in every way a user would notice.
+#
+# Deliberately AFTER the release is recorded. rollback.sh reads the last history
+# line as "currently running" and steps back from there; if a failed release
+# were omitted, the last line would be the PREVIOUS good one and a rollback
+# would skip past it to the release before. Recording first keeps that stepping
+# correct, and rollback.sh marks this tag `rolled-back` when the operator
+# escapes it, so it is never selected again.
+SMOKE_SCRIPT="${ROOT_DIR}/scripts/smoke-test.sh"
+if [[ "${SKIP_SMOKE:-0}" == "1" ]]; then
+  echo "==> [deploy] Smoke test SKIPPED (SKIP_SMOKE=1)."
+elif [[ ! -x "${SMOKE_SCRIPT}" ]]; then
+  echo "==> [deploy] WARNING: ${SMOKE_SCRIPT} missing or not executable — skipping." >&2
+else
+  # Prefer the public URL so the run also covers TLS, HSTS and the redirect;
+  # those checks skip over plain http. APP_DOMAIN comes from the same .env the
+  # stack was brought up with.
+  APP_DOMAIN_VALUE="$(grep -E '^APP_DOMAIN=' "${ENV_FILE}" | tail -1 | cut -d= -f2- | tr -d '"'"'"'\r' | xargs || true)"
+  SMOKE_URL="${SMOKE_URL:-${APP_DOMAIN_VALUE:+https://${APP_DOMAIN_VALUE}}}"
+  SMOKE_URL="${SMOKE_URL:-http://localhost}"
+
+  echo "==> [deploy] Smoke testing ${SMOKE_URL} ..."
+  if bash "${SMOKE_SCRIPT}" "${SMOKE_URL}"; then
+    echo "==> [deploy] Smoke test passed."
+  else
+    echo "==> [deploy] FAILED — the stack is up but the smoke test did not pass." >&2
+    echo "==> [deploy] ${IMAGE_TAG} is serving traffic and is recorded as the current release." >&2
+    echo "==> [deploy] Roll back now:  scripts/rollback.sh" >&2
+    echo "==> [deploy] (Re-run this deploy with SKIP_SMOKE=1 only if you have decided" >&2
+    echo "==> [deploy]  the failing checks are acceptable.)" >&2
+    exit 1
+  fi
+fi
+
 echo "==> [deploy] Current services:"
 ${COMPOSE} ps
 

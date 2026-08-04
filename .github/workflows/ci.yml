@@ -113,6 +113,13 @@ jobs:
       - name: Smoke-test self-test
         run: bash scripts/tests/smoke-test.test.sh
 
+      # The deploy's smoke-test gate, and what it writes to the deploy history
+      # when the gate fails. rollback.sh steps back from the last history line,
+      # so a failed release must still be recorded — omit it and a rollback
+      # skips past the last good release. Everything is stubbed; nothing starts.
+      - name: Deploy gate tests
+        run: bash scripts/tests/deploy-gate.test.sh
+
       - name: Build
         # The dashboard production build requires an explicit, valid HTTPS
         # NEXT_PUBLIC_API_URL (see apps/dashboard/next.config.mjs). Use a
