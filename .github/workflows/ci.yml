@@ -107,6 +107,12 @@ jobs:
       - name: Rollback decision-logic tests
         run: bash scripts/tests/rollback.test.sh
 
+      # A smoke test that cannot fail is worse than none — it turns "we verified
+      # the deploy" into a sentence nobody checked. Each case breaks one thing in
+      # a stub server and asserts the smoke test notices. No deployment involved.
+      - name: Smoke-test self-test
+        run: bash scripts/tests/smoke-test.test.sh
+
       - name: Build
         # The dashboard production build requires an explicit, valid HTTPS
         # NEXT_PUBLIC_API_URL (see apps/dashboard/next.config.mjs). Use a

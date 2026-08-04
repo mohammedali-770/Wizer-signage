@@ -258,7 +258,42 @@ A healthy API returns:
 { "status": "ok", "service": "...", "version": "...", "uptime": 0, "timestamp": "..." }
 ```
 
-Open `https://wizer.sa/` to confirm the dashboard loads.
+Open the dashboard at `https://$APP_DOMAIN/` to confirm it loads.
+
+### Smoke test (run this before calling a deploy good)
+
+The curl checks above prove the API answers. They do not exercise the parts a
+deploy actually breaks — nginx's routing and security headers, the correlation
+ID travelling from edge to app, or the global validation pipe. `smoke-test.sh`
+covers those in one command and exits non-zero if anything is wrong:
+
+```bash
+scripts/smoke-test.sh https://$APP_DOMAIN
+```
+
+It is **read-only and needs no credentials**, so it is safe against production:
+every request is a GET, a HEAD, or a POST that validation rejects before it
+reaches any business logic. It creates no data and cannot contribute to an
+account lockout.
+
+```bash
+scripts/smoke-test.sh https://$APP_DOMAIN --verbose      # show response bodies
+scripts/smoke-test.sh https://$APP_DOMAIN --rate-limit   # ALSO test the limiter
+```
+
+`--rate-limit` floods the credential endpoint deliberately and will trip nginx's
+auth zone **for the client IP you run it from** for about a minute — real logins
+from that address are refused while it recovers. Fine from a deploy runner; think
+twice from an office NAT.
+
+Because it returns a proper exit code, it can gate the deploy directly:
+
+```bash
+scripts/deploy.sh && scripts/smoke-test.sh https://$APP_DOMAIN || scripts/rollback.sh
+```
+
+The script's own assertions are covered by `scripts/tests/smoke-test.test.sh`,
+which runs in CI — a smoke test that silently always passes is worse than none.
 
 ---
 
