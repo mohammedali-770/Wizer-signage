@@ -1,7 +1,7 @@
 # Wizer Signage — Android TV Player
 
 Native Android TV (leanback) player for the Wizer Signage digital signage platform.
-Built with **Kotlin 1.9.24**, **Jetpack Compose** (Material3) and **Media3 / ExoPlayer**.
+Built with **Kotlin 2.4.10**, **Jetpack Compose** (Material3) and **Media3 / ExoPlayer**.
 
 This is the **Phase 6 player foundation**: device-initiated pairing, a device-token
 manifest client, and a full-screen Compose/Media3 player for image / video / PDF (first
@@ -35,7 +35,7 @@ scripts/build-android-release.sh --api-base-url=https://signage.wizer.sa/api
 | Target / Compile SDK | 34 |
 | Gradle | 8.7 |
 | AGP | 8.5.x |
-| Kotlin | 1.9.24 (Compose Compiler ext `1.5.14`) |
+| Kotlin | 2.4.10 (Compose Compiler Gradle plugin, versioned with Kotlin) |
 | Form factor | Android TV (leanback launcher) |
 
 ## Prerequisites
@@ -99,9 +99,10 @@ android-tv-player/
 
 ## Notes & later phases
 
-- **Dependency versions** are centralized in `gradle/libs.versions.toml`. We do **not** use
-  the Compose Compiler Gradle plugin (that is Kotlin 2.0+); with Kotlin 1.9 we rely on
-  `buildFeatures.compose` + `composeOptions.kotlinCompilerExtensionVersion = "1.5.14"`.
+- **Dependency versions** are centralized in `gradle/libs.versions.toml`. From Kotlin 2.0
+  the Compose Compiler ships as the `org.jetbrains.kotlin.plugin.compose` Gradle plugin and
+  is versioned in lockstep with Kotlin, so there is no separate compiler-extension version
+  to keep in sync; `composeOptions.kotlinCompilerExtensionVersion` is gone.
 - **Launcher icons / TV banner**: adaptive `mipmap` icons and the TV banner asset are added
   in a later phase. The manifest currently references `@mipmap/ic_launcher`.
 - **Boot auto-start**: a commented `BootReceiver` placeholder exists in the manifest
