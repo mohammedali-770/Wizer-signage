@@ -354,7 +354,9 @@ export default function ScheduleDetailPage() {
                 ) : null}
                 {manifest.outsideHours ? (
                   <Badge tone="warning">
-                    {t('preview.outsideHours', { behavior: manifest.outsideHoursBehavior })}
+                    {t('preview.outsideHours', {
+                      behavior: manifest.outsideHoursBehavior ?? 'FALLBACK',
+                    })}
                   </Badge>
                 ) : null}
               </div>
