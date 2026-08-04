@@ -286,10 +286,26 @@ auth zone **for the client IP you run it from** for about a minute — real logi
 from that address are refused while it recovers. Fine from a deploy runner; think
 twice from an office NAT.
 
-Because it returns a proper exit code, it can gate the deploy directly:
+`scripts/deploy.sh` runs this automatically as its final step, against
+`https://$APP_DOMAIN` taken from `.env`, and **fails the deploy** if it does not
+pass — so a release that satisfies the readiness poll but is broken at the edge
+does not slip through silently. You do not need to run it by hand after a
+deploy; run it by hand to check a stack you did not just deploy.
+
+If it fails, the release is still recorded in the deploy history and is still
+serving traffic. That is deliberate: `rollback.sh` reads the last history line as
+"currently running" and steps back from there, so omitting a failed release would
+make a rollback skip past the last good one. Recover with:
 
 ```bash
-scripts/deploy.sh && scripts/smoke-test.sh https://$APP_DOMAIN || scripts/rollback.sh
+scripts/rollback.sh
+```
+
+Two escape hatches, both explicit:
+
+```bash
+SKIP_SMOKE=1 scripts/deploy.sh                     # accept a failing gate
+SMOKE_URL=https://other.host scripts/deploy.sh     # test a different URL
 ```
 
 The script's own assertions are covered by `scripts/tests/smoke-test.test.sh`,
