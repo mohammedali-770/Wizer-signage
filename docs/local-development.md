@@ -8,7 +8,7 @@ The repo is a pnpm + Turborepo monorepo:
 wizer-signage/
   apps/
     dashboard/         # Next.js 14 (App Router) — port 3000
-    api/               # NestJS 10 — port 3001, routes under /api
+    api/               # NestJS 11 — port 3001, routes under /api
     android-tv-player/ # Kotlin / Jetpack Compose Android TV app
   packages/
     types/             # @wizer/types  — shared TS types/enums

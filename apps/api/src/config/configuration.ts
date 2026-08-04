@@ -9,9 +9,22 @@
  * env.validation.ts) since the API is no longer able to operate without them.
  */
 
+import type { JwtSignOptions } from '@nestjs/jwt';
+
 import { resolveCorsOrigins } from './cors';
 
 export type NodeEnv = 'development' | 'test' | 'production';
+
+/**
+ * What jsonwebtoken accepts as a lifetime. Derived from @nestjs/jwt rather than
+ * spelled out, so it tracks the library instead of drifting from it.
+ *
+ * @types/jsonwebtoken narrowed this from `string` to a template-literal union
+ * in the version @nestjs/jwt 11 pulls in, so a plain `string` no longer fits.
+ * JWT_TTL_PATTERN in env.validation.ts is what makes the env value safe to
+ * treat as one.
+ */
+export type JwtTtl = NonNullable<JwtSignOptions['expiresIn']>;
 
 export interface AppMetaConfig {
   readonly name: string;
@@ -47,8 +60,8 @@ export interface SupabaseConfig {
 export interface JwtConfig {
   readonly accessSecret?: string;
   readonly refreshSecret?: string;
-  readonly accessTtl: string;
-  readonly refreshTtl: string;
+  readonly accessTtl: JwtTtl;
+  readonly refreshTtl: JwtTtl;
   readonly sessionInactivityTimeoutMinutes: number;
 }
 
@@ -152,8 +165,10 @@ export default (): AppConfig => {
     jwt: {
       accessSecret: env.JWT_ACCESS_SECRET,
       refreshSecret: env.JWT_REFRESH_SECRET,
-      accessTtl: env.JWT_ACCESS_TTL ?? '15m',
-      refreshTtl: env.JWT_REFRESH_TTL ?? '30d',
+      // Safe: env.validation.ts rejects anything not matching JWT_TTL_PATTERN
+      // at boot, so a value reaching here is a duration with an explicit unit.
+      accessTtl: (env.JWT_ACCESS_TTL ?? '15m') as JwtTtl,
+      refreshTtl: (env.JWT_REFRESH_TTL ?? '30d') as JwtTtl,
       sessionInactivityTimeoutMinutes: parseIntEnv(env.SESSION_INACTIVITY_TIMEOUT_MINUTES, 30),
     },
     security: {

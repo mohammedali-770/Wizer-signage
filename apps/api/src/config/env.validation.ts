@@ -15,11 +15,32 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   MinLength,
   validateSync,
 } from 'class-validator';
+
+/**
+ * Accepted JWT lifetime format: a number followed by a unit, as understood by
+ * the `ms` library that jsonwebtoken uses (`15m`, `30d`, `2 hours`).
+ *
+ * A UNIT IS REQUIRED, deliberately. `ms` reads a bare string of digits as
+ * MILLISECONDS while jsonwebtoken reads a bare *number* as SECONDS, so
+ * `JWT_ACCESS_TTL=900` is ambiguous and reads as 900ms — access tokens expiring
+ * instantly. Requiring the unit removes the ambiguity rather than picking a
+ * side. Both defaults (`15m`, `30d`) already carry one.
+ *
+ * Previously these were validated as plain strings, so a typo like `15mn` got
+ * through boot and only surfaced as a throw at the first login attempt.
+ */
+export const JWT_TTL_PATTERN =
+  /^\d+(\.\d+)?\s*(ms|s(ec(ond)?s?)?|m(in(ute)?s?)?|h(r|our)?s?|d(ay)?s?|w(eek)?s?|y(ear)?s?)$/i;
+
+export const JWT_TTL_MESSAGE = (name: string): string =>
+  `${name} must be a duration with an explicit unit (e.g. 15m, 30d, 2h). ` +
+  'A bare number is rejected because it would be read as milliseconds, not seconds.';
 
 export enum Environment {
   Development = 'development',
@@ -118,11 +139,11 @@ export class EnvironmentVariables {
   JWT_REFRESH_SECRET!: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(JWT_TTL_PATTERN, { message: JWT_TTL_MESSAGE('JWT_ACCESS_TTL') })
   JWT_ACCESS_TTL?: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(JWT_TTL_PATTERN, { message: JWT_TTL_MESSAGE('JWT_REFRESH_TTL') })
   JWT_REFRESH_TTL?: string;
 
   @IsOptional()

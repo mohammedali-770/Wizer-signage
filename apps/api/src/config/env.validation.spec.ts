@@ -37,6 +37,38 @@ describe('validate (environment)', () => {
     });
   });
 
+  describe('JWT lifetimes', () => {
+    const ttl = (v: Record<string, string>) => () =>
+      validate({ ...base, NODE_ENV: 'development', ...v });
+
+    it('accepts durations carrying an explicit unit', () => {
+      for (const v of ['15m', '30d', '900s', '2h', '1w', '250ms', '1.5h', '2 hours']) {
+        expect(ttl({ JWT_ACCESS_TTL: v })).not.toThrow();
+      }
+    });
+
+    it('rejects a bare number, which would be read as milliseconds', () => {
+      // The trap this validation exists for: `900` looks like 15 minutes but
+      // `ms` reads it as 900ms, so access tokens would expire immediately.
+      expect(ttl({ JWT_ACCESS_TTL: '900' })).toThrow(/JWT_ACCESS_TTL/);
+      expect(ttl({ JWT_REFRESH_TTL: '2592000' })).toThrow(/JWT_REFRESH_TTL/);
+    });
+
+    it('rejects typos and junk that previously passed as plain strings', () => {
+      for (const v of ['15mn', 'fifteen minutes', '', 'm15', '15m30s', 'banana']) {
+        expect(ttl({ JWT_ACCESS_TTL: v })).toThrow(/JWT_ACCESS_TTL/);
+      }
+    });
+
+    it('explains the unit requirement rather than just naming the variable', () => {
+      expect(ttl({ JWT_ACCESS_TTL: '900' })).toThrow(/explicit unit/);
+    });
+
+    it('leaves both optional — the defaults already carry units', () => {
+      expect(() => validate({ ...base, NODE_ENV: 'development' })).not.toThrow();
+    });
+  });
+
   describe('production SMTP requirement', () => {
     // In production the log-only mail fallback is dangerous: password-reset and
     // invitation emails would never arrive while the API still reported success.

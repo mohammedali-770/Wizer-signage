@@ -22,7 +22,7 @@ The platform is built for **strict tenant isolation** (every tenant's data is sc
 | Component             | Technology                                                                             | Responsibility                                                                                                                                                                                            |
 | --------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Dashboard**         | Next.js 14 (App Router), React 18, TypeScript, Tailwind 3.4, next-intl v3, next-themes | Operator web UI. Bilingual (English LTR / Arabic RTL), light/dark themes. Talks to the API over REST.                                                                                                     |
-| **API**               | NestJS 10, TypeScript                                                                  | REST API, business logic, authn/authz, tenant guards. Global prefix `api`. Reads `API_PORT` (default `3001`).                                                                                             |
+| **API**               | NestJS 11, TypeScript                                                                  | REST API, business logic, authn/authz, tenant guards. Global prefix `api`. Reads `API_PORT` (default `3001`).                                                                                             |
 | **Database**          | Prisma ORM + Supabase Postgres                                                         | System of record. Accessed via `DATABASE_URL` (pooled) and `DIRECT_URL` (migrations).                                                                                                                     |
 | **Object storage**    | Supabase Storage                                                                       | Content media (images, video), screenshots, APK artifacts. Bucket via `SUPABASE_STORAGE_BUCKET`.                                                                                                          |
 | **Device channel**    | HTTPS polling against the same REST API                                                | Players poll for the manifest and pending commands, and POST heartbeats + proof-of-play. **No WebSocket** — a poll survives NAT, captive portals, and long offline periods, which a held socket does not. |
@@ -231,7 +231,7 @@ company's. This prevents blank screens during gaps or sync failures.
 | Monorepo         | pnpm 9 workspaces + Turborepo                                            |
 | Language         | TypeScript 5.4+ (strict); Kotlin 1.9 (player)                            |
 | Dashboard        | Next.js 14 App Router, React 18, Tailwind 3.4, next-intl v3, next-themes |
-| API              | NestJS 10                                                                |
+| API              | NestJS 11                                                                |
 | ORM              | Prisma                                                                   |
 | Database         | Supabase Postgres                                                        |
 | Object storage   | Supabase Storage                                                         |
