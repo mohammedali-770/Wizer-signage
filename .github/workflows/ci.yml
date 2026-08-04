@@ -86,6 +86,24 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # The e2e suite boots the real AppModule against the Postgres service
+      # above and drives it over HTTP. It existed but had NEVER run: the API's
+      # jest config is rooted at src/ with testRegex `.spec.ts$`, which excludes
+      # test/*.e2e-spec.ts on both counts, and nothing invoked the e2e config.
+      #
+      # It carries the auth matrix — every guarded GET route probed without a
+      # token. That is the one check the static route-exposure spec cannot make:
+      # unregister the global JwtAuthGuard and the metadata is unchanged, so the
+      # static test still passes while every route becomes anonymous.
+      - name: E2E (auth matrix, real app + Postgres)
+        working-directory: apps/api
+        run: pnpm test:e2e
+        env:
+          JWT_ACCESS_SECRET: ci-only-access-secret-value
+          JWT_REFRESH_SECRET: ci-only-refresh-secret-value
+          ENCRYPTION_KEY: ci-only-encryption-key-value
+          NODE_ENV: test
+
       # Deterministic regression for the maintenance DB-backup URL handling
       # (DIRECT_URL preference + pgbouncer stripping + fail-closed). Mocks
       # pg_dump; no database, docker, or network required.
