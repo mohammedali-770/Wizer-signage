@@ -15,7 +15,7 @@ import { User, UserStatus } from '@prisma/client';
 import { CryptoService } from '../../common/crypto/crypto.service';
 import { PasswordService } from '../../common/crypto/password.service';
 import { hasPermission, Permission, ROLE_PERMISSIONS } from '../../common/rbac/permissions';
-import type { AppConfig } from '../../config/configuration';
+import type { AppConfig, JwtTtl } from '../../config/configuration';
 import type {
   AuthenticatedUser,
   RefreshTokenPayload,
@@ -67,8 +67,8 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly accessSecret: string;
   private readonly refreshSecret: string;
-  private readonly accessTtl: string;
-  private readonly refreshTtl: string;
+  private readonly accessTtl: JwtTtl;
+  private readonly refreshTtl: JwtTtl;
   private readonly dashboardUrl: string;
 
   constructor(

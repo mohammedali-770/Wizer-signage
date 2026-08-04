@@ -30,7 +30,7 @@ software. _Smart Systems. Clearer Decisions._
 wizer-signage/
 ├── apps/
 │   ├── dashboard/          # Next.js 14 (App Router) admin dashboard — port 3000
-│   ├── api/                # NestJS 10 REST + WebSocket API — port 3001
+│   ├── api/                # NestJS 11 REST API — port 3001
 │   └── android-tv-player/  # Kotlin / Jetpack Compose Android TV player
 ├── packages/
 │   ├── types/              # @wizer/types  — shared TypeScript types/enums
@@ -50,7 +50,7 @@ wizer-signage/
 | Monorepo       | pnpm 9 workspaces + Turborepo                                  |
 | Language       | TypeScript 5.4 (strict) · Kotlin 1.9                           |
 | Dashboard      | Next.js 14 (App Router), React 18, Tailwind CSS 3.4, next-intl |
-| API            | NestJS 10 (REST + WebSocket)                                   |
+| API            | NestJS 11 (REST; devices poll — no socket transport)           |
 | Android        | Jetpack Compose, Media3 ExoPlayer (Android TV / leanback)      |
 | Data & Storage | Supabase (PostgreSQL + Storage), Redis                         |
 | Infra          | Docker Compose, Nginx reverse proxy, Let's Encrypt SSL         |

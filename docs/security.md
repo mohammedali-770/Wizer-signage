@@ -134,36 +134,32 @@ build** while moderate and low ones are reported by a separate non-blocking step
 threshold keeps the gate actionable, but it means moderates need a deliberate pass —
 they will not stop a merge on their own.
 
+`pnpm audit --prod` currently reports **no known vulnerabilities**, and there are no
+accepted exceptions.
+
 Transitive advisories are pinned through `pnpm.overrides` in the root `package.json`
 rather than by waiting for the intermediate package to re-release. Each entry is
 range-scoped (`"pkg@<fixed": "^fixed"`) so it applies only to the vulnerable range and
-lapses naturally once the dependency catches up.
+lapses on its own once the dependency catches up.
 
-| Advisory                        | Override  | Why this version                                                                         |
+| Advisory                        | Override  | Notes                                                                                    |
 | ------------------------------- | --------- | ---------------------------------------------------------------------------------------- |
 | `file-type` ASF loop + ZIP bomb | `^21.3.4` | `@nestjs/common` loads it via a dynamic `import()`, so an ESM-only v21 is fine           |
 | `uuid` v3/v5/v6 bounds check    | `^11.1.1` | Last line still shipping a CJS build — `exceljs` does `require('uuid')`; v14 is ESM-only |
-| `qs` `stringify` DoS            | `^6.15.3` | Stays within the 6.x that express 4 expects                                              |
-| `body-parser` limit bypass      | `^1.20.6` | 1.x patch; 2.x is for express 5                                                          |
+| `js-yaml` flow-collection DoS   | `^5.2.3`  | Reached via `@nestjs/swagger` 11; the separate 4.x entry does not cover the 5.x range    |
+| `qs` `stringify` DoS            | `^6.15.3` | Dormant — Express 5 already resolves above the vulnerable range                          |
+| `body-parser` limit bypass      | `^1.20.6` | Dormant — Express 5 uses body-parser 2.x; kept in case a 1.x dependent reappears         |
 
-### Known exception: `@nestjs/core` (GHSA-36xv-jgw5-4q75)
+Dormant entries are deliberately left in place. They cost nothing, and removing one would
+silently drop the protection if some future dependency pulls the old major back in.
 
-`SseStream._transform()` writes `message.type` and `message.id` into the Server-Sent
-Events protocol without escaping newlines, allowing SSE frame injection. **There is no
-10.x fix** — the patch is `@nestjs/core@11.1.18`, and `10.4.22` is the final 10.x
-release. This API runs Nest 10, so `pnpm audit` reports it and will keep doing so.
+### Adding an override
 
-It is **not exposed**: Nest constructs an `SseStream` only for a route carrying
-`SSE_METADATA`, which only the `@Sse()` decorator sets, and this API declares no SSE
-route. The vulnerable code is never entered.
-
-That is a fact about today's code, not a guarantee, so it is pinned by a test —
-`apps/api/src/common/security/no-sse-on-nest10.spec.ts` fails if an `@Sse()` handler is
-added while `@nestjs/core` is still on 10.x, and names the upgrade in the failure. The
-test disables itself once Nest reaches 11 and should be deleted with that upgrade.
-
-Clearing the advisory properly means the Nest 10 → 11 major upgrade, which is tracked
-separately rather than bundled into a dependency sweep.
+Scope the key to the vulnerable range (`"pkg@<fixed": "^fixed"`) rather than pinning the
+package outright, and choose the version by what the _dependents_ can actually load rather
+than by what is newest — `uuid` stops at 11 because `exceljs` does `require('uuid')` and
+v14 is ESM-only for Node. Then exercise the affected code path: a version number moving is
+not evidence that anything still works.
 
 ## 10. Implementation phasing
 
