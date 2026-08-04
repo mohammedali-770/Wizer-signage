@@ -1,7 +1,10 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.compose)
 }
 
 // API base URL baked into BuildConfig.API_BASE_URL. Defaults to PRODUCTION so no
@@ -116,22 +119,21 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-        // Media3 (ExoPlayer/PlayerView) APIs are annotated @UnstableApi, which is
-        // @RequiresOptIn(level = ERROR). Opt the whole module in so usages compile
-        // without a per-call @OptIn and Kotlin doesn't fail with opt-in errors.
-        freeCompilerArgs += "-opt-in=androidx.media3.common.util.UnstableApi"
+    // Kotlin 2 removed the `kotlinOptions` block; `compilerOptions` is the
+    // replacement, and it takes typed properties rather than raw strings.
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+            // Media3 (ExoPlayer/PlayerView) APIs are annotated @UnstableApi, which is
+            // @RequiresOptIn(level = ERROR). Opt the whole module in so usages compile
+            // without a per-call @OptIn and Kotlin doesn't fail with opt-in errors.
+            freeCompilerArgs.add("-opt-in=androidx.media3.common.util.UnstableApi")
+        }
     }
 
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-
-    composeOptions {
-        // Compose Compiler extension compatible with Kotlin 1.9.24.
-        kotlinCompilerExtensionVersion = "1.5.14"
     }
 
     packaging {

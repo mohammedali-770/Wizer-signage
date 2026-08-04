@@ -75,6 +75,20 @@ fun PlayerScreen(
 }
 
 /** True when an item can be shown from cache (or is inherently offline-safe). */
+/**
+ * Identity of a playlist for recomposition purposes: changes whenever the set of
+ * items, their order, or any item's version changes.
+ *
+ * Deliberately NOT inlined into the `remember(items) { ... }` call site. Written
+ * there as a `joinToString` with a trailing lambda, lint's Kotlin analysis (AGP
+ * 8.5.2) fails to resolve the nested lambda's return type, infers Unit, and fails
+ * the build with RememberReturnType — a false positive: the compiler types this as
+ * String and the build otherwise succeeds. Naming the function gives lint a
+ * declared return type to read instead of one to infer.
+ */
+private fun playlistSignature(items: List<ManifestItem>): String =
+    items.joinToString("|") { "${it.contentId}:${it.version}" }
+
 private fun isOfflinePlayable(item: ManifestItem, resolveLocal: (ManifestItem) -> File?): Boolean =
     when (item.type) {
         ManifestItem.TYPE_TEXT -> true
@@ -117,7 +131,7 @@ fun ManifestPlayer(
         return
     }
 
-    val signature = remember(items) { items.joinToString("|") { "${it.contentId}:${it.version}" } }
+    val signature = remember(items) { playlistSignature(items) }
     // restartEpoch in the key makes a remote RESTART_PLAYBACK reset to the first item.
     var index by remember(signature, restartEpoch) { mutableStateOf(0) }
     // Increments on every advance. A single-item playlist loops back to the very
