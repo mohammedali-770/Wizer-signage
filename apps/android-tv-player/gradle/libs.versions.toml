@@ -1,11 +1,12 @@
 # Wizer Signage TV Player — Gradle version catalog.
-# Kotlin 1.9.24 is paired with Compose Compiler extension 1.5.14 (see app/build.gradle.kts).
-# We intentionally do NOT use the Compose Compiler Gradle plugin (that is Kotlin 2.0+);
-# instead we rely on buildFeatures.compose + composeOptions.kotlinCompilerExtensionVersion.
+# Kotlin 2.x ships the Compose compiler as a Gradle plugin (kotlin-compose below) and
+# versions it in lockstep with Kotlin itself. The old pairing — buildFeatures.compose +
+# composeOptions.kotlinCompilerExtensionVersion — is a Kotlin 1.x arrangement and is
+# rejected outright from Kotlin 2.0 on, so both moved together in this bump.
 
 [versions]
 agp = "8.5.2"
-kotlin = "1.9.24"
+kotlin = "2.4.10"
 coreKtx = "1.13.1"
 lifecycle = "2.8.4"
 activityCompose = "1.9.1"
@@ -18,7 +19,7 @@ accompanist = "0.34.0"
 okhttp = "4.12.0"
 kotlinxSerialization = "1.6.3"
 coroutines = "1.11.0"
-securityCrypto = "1.1.0-alpha06"
+securityCrypto = "1.1.0"
 junit = "4.13.2"
 junitExt = "1.2.1"
 espresso = "3.6.1"
@@ -72,3 +73,4 @@ androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-te
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
