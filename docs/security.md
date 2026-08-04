@@ -127,7 +127,45 @@ _(Phase: Auth + Audit)_
   the dashboard or the player. Only `NEXT_PUBLIC_*` values may reach the browser.
 - `CORS_ORIGINS` restricts which origins may call the API.
 
-## 9. Implementation phasing
+## 9. Dependency advisories
+
+CI runs `pnpm audit --prod --audit-level=high`, so **high and critical findings fail the
+build** while moderate and low ones are reported by a separate non-blocking step. That
+threshold keeps the gate actionable, but it means moderates need a deliberate pass —
+they will not stop a merge on their own.
+
+Transitive advisories are pinned through `pnpm.overrides` in the root `package.json`
+rather than by waiting for the intermediate package to re-release. Each entry is
+range-scoped (`"pkg@<fixed": "^fixed"`) so it applies only to the vulnerable range and
+lapses naturally once the dependency catches up.
+
+| Advisory                        | Override  | Why this version                                                                         |
+| ------------------------------- | --------- | ---------------------------------------------------------------------------------------- |
+| `file-type` ASF loop + ZIP bomb | `^21.3.4` | `@nestjs/common` loads it via a dynamic `import()`, so an ESM-only v21 is fine           |
+| `uuid` v3/v5/v6 bounds check    | `^11.1.1` | Last line still shipping a CJS build — `exceljs` does `require('uuid')`; v14 is ESM-only |
+| `qs` `stringify` DoS            | `^6.15.3` | Stays within the 6.x that express 4 expects                                              |
+| `body-parser` limit bypass      | `^1.20.6` | 1.x patch; 2.x is for express 5                                                          |
+
+### Known exception: `@nestjs/core` (GHSA-36xv-jgw5-4q75)
+
+`SseStream._transform()` writes `message.type` and `message.id` into the Server-Sent
+Events protocol without escaping newlines, allowing SSE frame injection. **There is no
+10.x fix** — the patch is `@nestjs/core@11.1.18`, and `10.4.22` is the final 10.x
+release. This API runs Nest 10, so `pnpm audit` reports it and will keep doing so.
+
+It is **not exposed**: Nest constructs an `SseStream` only for a route carrying
+`SSE_METADATA`, which only the `@Sse()` decorator sets, and this API declares no SSE
+route. The vulnerable code is never entered.
+
+That is a fact about today's code, not a guarantee, so it is pinned by a test —
+`apps/api/src/common/security/no-sse-on-nest10.spec.ts` fails if an `@Sse()` handler is
+added while `@nestjs/core` is still on 10.x, and names the upgrade in the failure. The
+test disables itself once Nest reaches 11 and should be deleted with that upgrade.
+
+Clearing the advisory properly means the Nest 10 → 11 major upgrade, which is tracked
+separately rather than bundled into a dependency sweep.
+
+## 10. Implementation phasing
 
 | Control                                                     | Implemented in      |
 | ----------------------------------------------------------- | ------------------- |
