@@ -1,0 +1,153 @@
+name: Nightly
+
+# The slow, expensive checks that must not gate every push but must not go
+# unrun either. Both of these existed in the repo and were never scheduled:
+# scripts/load-test/smoke.js carries real thresholds (p95 < 800ms, <1% errors)
+# that nothing enforced, and backup-maintenance-e2e.sh is the drill that proves
+# a dump can actually be restored.
+#
+# A performance regression that only shows up under concurrency, or a backup
+# path that quietly stopped working, is exactly the class of failure a green
+# per-push CI cannot see.
+
+on:
+  schedule:
+    # 02:30 UTC daily. Deliberately off the hour: GitHub's scheduled runners are
+    # heavily contended at :00 and queue for a long time.
+    - cron: '30 2 * * *'
+  # Runnable on demand — an operator investigating a slowdown should not have to
+  # wait for tomorrow, or push a commit to trigger it.
+  workflow_dispatch:
+
+# A nightly that overlaps itself gets slower and noisier, never more useful.
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  load-test:
+    name: k6 smoke (ephemeral stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci_postgres_password
+          POSTGRES_DB: wizer_nightly
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # Synthetic, throwaway database and secrets — never real credentials.
+      DATABASE_URL: postgresql://postgres:ci_postgres_password@127.0.0.1:5432/wizer_nightly
+      DIRECT_URL: postgresql://postgres:ci_postgres_password@127.0.0.1:5432/wizer_nightly
+      JWT_ACCESS_SECRET: nightly-only-access-secret-value
+      JWT_REFRESH_SECRET: nightly-only-refresh-secret-value
+      ENCRYPTION_KEY: nightly-only-encryption-key-value
+      NODE_ENV: production
+      API_HOST: 127.0.0.1
+      API_PORT: '3001'
+      APP_URL: https://signage.example.invalid
+      CORS_ORIGINS: https://signage.example.invalid
+      # NODE_ENV=production makes SMTP mandatory — env.validation.ts fails boot
+      # without it, so that mail delivery cannot silently fall back to log-only
+      # in a real deployment. Nothing is sent here: k6 exercises read paths only.
+      # The host is on the reserved .invalid TLD and cannot resolve, which is the
+      # point — a nightly that could email anyone is a nightly that eventually
+      # emails someone.
+      SMTP_HOST: smtp.example.invalid
+      SMTP_PORT: '587'
+      SMTP_FROM: nightly@signage.example.invalid
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6.0.9
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: pnpm prisma generate
+
+      - name: Apply migrations
+        working-directory: apps/api
+        run: pnpm prisma migrate deploy
+
+      - name: Build the API
+        run: pnpm --filter @wizer/api build
+
+      - name: Start the API
+        working-directory: apps/api
+        run: |
+          node dist/main.js > "${RUNNER_TEMP}/api.log" 2>&1 &
+          echo "API_PID=$!" >> "$GITHUB_ENV"
+
+      # Poll readiness, not liveness: /api/health answers from process.uptime()
+      # and would report OK against a dead database, so k6 would then measure a
+      # stack that cannot serve a single real request.
+      - name: Wait for readiness
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3001/api/health/ready >/dev/null 2>&1; then
+              echo "API ready after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "API did not become ready." >&2
+          cat "${RUNNER_TEMP}/api.log" >&2
+          exit 1
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://github.com/grafana/k6/releases/download/v0.54.0/k6-v0.54.0-linux-amd64.tar.gz \
+            | tar -xz --strip-components=1 -C /usr/local/bin k6-v0.54.0-linux-amd64/k6
+          k6 version
+
+      # No TOKEN/DEVICE_TOKEN: the script skips the authenticated paths without
+      # them, and seeding a real tenant here would mean committing credentials.
+      # The thresholds in the script are the gate — k6 exits non-zero when p95
+      # or the error rate breaches them, which is the whole point of scheduling
+      # this rather than eyeballing a chart.
+      - name: k6 smoke
+        run: k6 run -e BASE_URL=http://127.0.0.1:3001/api scripts/load-test/smoke.js
+
+      - name: API log (on failure)
+        if: failure()
+        run: cat "${RUNNER_TEMP}/api.log"
+
+      - name: Stop the API
+        if: always()
+        run: kill "${API_PID}" 2>/dev/null || true
+
+  backup-drill:
+    name: Backup + maintenance E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The drill script drives docker compose itself: it builds the maintenance
+      # image, takes a dump, and restores it into a fresh database. Running it
+      # nightly is what turns "we have backups" into "we have restores".
+      - name: Backup + maintenance end-to-end drill
+        run: bash scripts/tests/backup-maintenance-e2e.sh
