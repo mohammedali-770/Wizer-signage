@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
+
+import { sharedMessages } from '@/i18n/messages';
 import { ThemeProvider } from 'next-themes';
 import { routing, type Locale } from '@/i18n/routing';
 import { AppProviders } from '@/components/app-providers';
@@ -41,7 +43,12 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   // Enable static rendering for this request's locale.
   setRequestLocale(locale);
 
-  const messages = await getMessages();
+  // The SHARED slice only. Each route group's layout re-provides the union of
+  // this and its own namespaces; login and accept-invitation have no group
+  // layout and are served entirely by what is here. Shipping the whole
+  // catalogue put 83 KB of `en` (113 KB of `ar`) into every page's RSC payload,
+  // including a login screen that renders six strings.
+  const messages = sharedMessages(await getMessages());
   const dir = locale === 'ar' ? 'rtl' : 'ltr';
 
   return (
