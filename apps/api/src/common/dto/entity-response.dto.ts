@@ -318,3 +318,101 @@ export class ContentDto extends TenantOwnedDto {
   @ApiProperty({ type: [TagDto] })
   tags!: TagDto[];
 }
+
+/** A schedule target as nested in a schedule. */
+export class ScheduleTargetDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty({ enum: ['SCREEN', 'SCREEN_GROUP', 'LOCATION', 'COMPANY'] })
+  targetType!: string;
+
+  @ApiProperty({ description: "The referenced entity, or 'company' for a company-wide target." })
+  targetId!: string;
+}
+
+/** The playlist summary a schedule carries inline. */
+export class PlaylistRefDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty({ enum: ['DRAFT', 'ACTIVE', 'ARCHIVED'] })
+  status!: string;
+}
+
+/**
+ * A schedule as the API returns it.
+ *
+ * `SchedulesService.toView` is an explicit allow-list rather than a spread, so
+ * this is a direct transcription of it — including `targetCount`, which is
+ * computed from the targets array and is not a column.
+ */
+export class ScheduleDto extends TenantOwnedDto {
+  @ApiProperty()
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  playlistId?: string | null;
+
+  @ApiPropertyOptional({ type: PlaylistRefDto, nullable: true })
+  playlist?: PlaylistRefDto | null;
+
+  @ApiProperty({ enum: ['DRAFT', 'ACTIVE', 'PAUSED', 'ARCHIVED'] })
+  status!: string;
+
+  @ApiProperty({ enum: ['ONE_TIME', 'RECURRING', 'ALWAYS'] })
+  scheduleType!: string;
+
+  @ApiProperty({ description: 'Higher wins when two schedules cover the same screen and time.' })
+  priority!: number;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  startDate?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  endDate?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, example: '09:00' })
+  startTime?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, example: '17:30' })
+  endTime?: string | null;
+
+  @ApiProperty()
+  isAllDay!: boolean;
+
+  @ApiProperty({ type: [Number], description: '0 = Sunday.' })
+  daysOfWeek!: number[];
+
+  @ApiPropertyOptional({
+    nullable: true,
+    example: 'Asia/Riyadh',
+    description:
+      'IANA zone the times resolve against; a bare city name runs the schedule hours off.',
+  })
+  timezone?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  recurrence?: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  createdById?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  updatedById?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  archivedAt?: string | null;
+
+  @ApiProperty({ type: [ScheduleTargetDto] })
+  targets!: ScheduleTargetDto[];
+
+  @ApiProperty({ description: 'targets.length, computed — not a column.' })
+  targetCount!: number;
+}
