@@ -104,6 +104,36 @@
     "moduleNameMapper": {
       "^@wizer/types(.*)$": "<rootDir>/../../../packages/types/src$1",
       "^@wizer/shared(.*)$": "<rootDir>/../../../packages/shared/src$1"
-    }
+    },
+    "coverageThreshold": {
+      "global": {
+        "statements": 58,
+        "lines": 58
+      },
+      "./src/common/rbac/": {
+        "statements": 95,
+        "lines": 95
+      },
+      "./src/modules/auth/": {
+        "statements": 68,
+        "lines": 68
+      },
+      "./src/modules/sessions/": {
+        "statements": 38,
+        "lines": 35
+      },
+      "./src/common/guards/": {
+        "statements": 24,
+        "lines": 24
+      },
+      "./src/modules/two-factor/": {
+        "statements": 28,
+        "lines": 28
+      }
+    },
+    "coveragePathIgnorePatterns": [
+      "\\.spec\\.ts$",
+      "/main\\.ts$"
+    ]
   }
 }
