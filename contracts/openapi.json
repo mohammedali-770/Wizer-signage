@@ -456,7 +456,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UserViewDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -485,7 +507,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserViewDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -522,7 +551,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserViewDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -549,7 +585,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -578,7 +621,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserViewDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -607,7 +657,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserViewDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -636,7 +693,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserViewDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5915,22 +5979,6 @@
         "type": "object",
         "properties": {}
       },
-      "UpdateUserDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "TotpCodeDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "VerifyTwoFactorCodeDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "CreateInvitationDto": {
-        "type": "object",
-        "properties": {}
-      },
       "UserViewDto": {
         "type": "object",
         "properties": {
@@ -5996,6 +6044,62 @@
           "updatedAt"
         ]
       },
+      "PageMetaDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "number",
+            "example": 25
+          },
+          "total": {
+            "type": "number",
+            "example": 137,
+            "description": "Total matching rows, ignoring pagination."
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 6
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "totalPages"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "SuccessResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "TotpCodeDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "VerifyTwoFactorCodeDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateInvitationDto": {
+        "type": "object",
+        "properties": {}
+      },
       "AuthTokensDto": {
         "type": "object",
         "properties": {
@@ -6049,18 +6153,6 @@
       "RefreshTokenDto": {
         "type": "object",
         "properties": {}
-      },
-      "SuccessResponseDto": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "example": true
-          }
-        },
-        "required": [
-          "success"
-        ]
       },
       "ForgotPasswordDto": {
         "type": "object",
