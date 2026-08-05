@@ -1,5 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
+import { TagDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -18,6 +21,7 @@ export class TagsController {
   @Post()
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Create a tag (company-scoped).' })
+  @ApiOkResponse({ type: TagDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -29,6 +33,7 @@ export class TagsController {
   @Get()
   @RequirePermissions(Permission.ScreenRead)
   @ApiOperation({ summary: 'List tags (filter by type).' })
+  @ApiPaginatedResponse(TagDto)
   list(@CurrentCompany() companyId: string, @Query() query: ListTagsQueryDto) {
     return this.tags.list(companyId, query);
   }

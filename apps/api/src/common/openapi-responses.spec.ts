@@ -136,15 +136,16 @@ describe('OpenAPI response coverage', () => {
   });
 
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 15 of ~180 operations (auth + users). Raise it as
+    // A RATCHET, not a target: 30 of ~180 operations (auth, users, tags,
+    // screen-groups, locations). Raise it as
     // controllers are annotated; it fails the moment a route loses its response
-    // type. 36 of 38 controllers are still unannotated — that is the remaining
+    // type. 33 of 38 controllers are still unannotated — that is the remaining
     // work, and this number is how it stays visible rather than forgotten.
     //
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(15);
+    expect(annotated.length).toBeGreaterThanOrEqual(30);
     expect(total).toBeGreaterThan(100);
   });
 });
