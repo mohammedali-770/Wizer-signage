@@ -1,6 +1,9 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { LocationStatus } from '@prisma/client';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import { ApiPaginatedResponse, SuccessResponseDto } from '../../common/dto/api-response.dto';
+import { LocationDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -19,6 +22,7 @@ export class LocationsController {
   @Post()
   @RequirePermissions(Permission.LocationManage)
   @ApiOperation({ summary: 'Create a location/branch.' })
+  @ApiOkResponse({ type: LocationDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -30,6 +34,7 @@ export class LocationsController {
   @Get()
   @RequirePermissions(Permission.LocationRead)
   @ApiOperation({ summary: 'List locations (company-scoped).' })
+  @ApiPaginatedResponse(LocationDto)
   list(@CurrentCompany() companyId: string, @Query() query: ListLocationsQueryDto) {
     return this.locations.list(companyId, query);
   }
@@ -37,6 +42,7 @@ export class LocationsController {
   @Get(':id')
   @RequirePermissions(Permission.LocationRead)
   @ApiOperation({ summary: 'Location detail with screen metrics.' })
+  @ApiOkResponse({ type: LocationDto })
   detail(@CurrentCompany() companyId: string, @Param('id') id: string) {
     return this.locations.getDetail(companyId, id);
   }
@@ -44,6 +50,7 @@ export class LocationsController {
   @Patch(':id')
   @RequirePermissions(Permission.LocationManage)
   @ApiOperation({ summary: 'Update a location.' })
+  @ApiOkResponse({ type: LocationDto })
   update(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -57,6 +64,7 @@ export class LocationsController {
   @HttpCode(200)
   @RequirePermissions(Permission.LocationManage)
   @ApiOperation({ summary: 'Archive a location.' })
+  @ApiOkResponse({ type: LocationDto })
   archive(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -69,6 +77,7 @@ export class LocationsController {
   @HttpCode(200)
   @RequirePermissions(Permission.LocationManage)
   @ApiOperation({ summary: 'Deactivate a location.' })
+  @ApiOkResponse({ type: LocationDto })
   deactivate(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -81,6 +90,7 @@ export class LocationsController {
   @HttpCode(200)
   @RequirePermissions(Permission.LocationManage)
   @ApiOperation({ summary: 'Reactivate a location.' })
+  @ApiOkResponse({ type: LocationDto })
   reactivate(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -93,6 +103,7 @@ export class LocationsController {
   @HttpCode(200)
   @RequirePermissions(Permission.LocationManage)
   @ApiOperation({ summary: 'Delete (soft) a location; its screens are unassigned.' })
+  @ApiOkResponse({ type: SuccessResponseDto })
   async remove(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

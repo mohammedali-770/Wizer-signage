@@ -1,5 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
+import { ScreenGroupDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -23,6 +26,7 @@ export class ScreenGroupsController {
   @Post()
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Create a screen group.' })
+  @ApiOkResponse({ type: ScreenGroupDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -34,6 +38,7 @@ export class ScreenGroupsController {
   @Get()
   @RequirePermissions(Permission.ScreenRead)
   @ApiOperation({ summary: 'List screen groups (with member counts).' })
+  @ApiPaginatedResponse(ScreenGroupDto)
   list(@CurrentCompany() companyId: string, @Query() query: ListScreenGroupsQueryDto) {
     return this.groups.list(companyId, query);
   }
@@ -41,6 +46,7 @@ export class ScreenGroupsController {
   @Get(':id')
   @RequirePermissions(Permission.ScreenRead)
   @ApiOperation({ summary: 'Group detail with member screens.' })
+  @ApiOkResponse({ type: ScreenGroupDto })
   detail(@CurrentCompany() companyId: string, @Param('id') id: string) {
     return this.groups.getDetail(companyId, id);
   }
@@ -60,6 +66,7 @@ export class ScreenGroupsController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Add screens to a group.' })
+  @ApiOkResponse({ type: ScreenGroupDto })
   addScreens(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -73,6 +80,7 @@ export class ScreenGroupsController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Remove screens from a group.' })
+  @ApiOkResponse({ type: ScreenGroupDto })
   removeScreens(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

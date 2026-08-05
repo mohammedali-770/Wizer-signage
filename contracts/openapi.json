@@ -1903,8 +1903,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1922,7 +1929,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LocationDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1951,7 +1980,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1988,7 +2024,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2015,7 +2058,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2044,7 +2094,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2073,7 +2130,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2102,7 +2166,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2598,8 +2669,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenGroupDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2617,7 +2695,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ScreenGroupDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2646,7 +2746,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenGroupDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2747,7 +2854,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenGroupDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2784,7 +2898,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenGroupDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2813,8 +2934,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2832,7 +2960,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TagDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6252,6 +6402,92 @@
         "type": "object",
         "properties": {}
       },
+      "LocationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string",
+            "description": "Owning tenant. Derived from the caller's token, never the body."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "object",
+            "nullable": true,
+            "description": "Tenant-unique short code."
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "address": {
+            "type": "object",
+            "nullable": true
+          },
+          "city": {
+            "type": "object",
+            "nullable": true
+          },
+          "region": {
+            "type": "object",
+            "nullable": true
+          },
+          "country": {
+            "type": "object",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "number",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "nullable": true
+          },
+          "timezone": {
+            "type": "object",
+            "nullable": true,
+            "example": "Asia/Riyadh",
+            "description": "IANA zone. Schedules resolve against it, so a bare city name runs them hours off."
+          },
+          "notes": {
+            "type": "object",
+            "nullable": true
+          },
+          "workingHours": {
+            "type": "object",
+            "nullable": true,
+            "description": "Opening hours per weekday; screens outside them follow the outside-hours policy."
+          },
+          "fallbackContentId": {
+            "type": "object",
+            "nullable": true
+          },
+          "screenCount": {
+            "type": "number",
+            "description": "Screens at this location, when the endpoint includes it."
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "createdAt",
+          "updatedAt",
+          "name"
+        ]
+      },
       "UpdateLocationDto": {
         "type": "object",
         "properties": {}
@@ -6292,6 +6528,48 @@
         "type": "object",
         "properties": {}
       },
+      "ScreenGroupDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string",
+            "description": "Owning tenant. Derived from the caller's token, never the body."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "category": {
+            "type": "object",
+            "nullable": true
+          },
+          "screenCount": {
+            "type": "number",
+            "description": "Members, when the endpoint includes them."
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "createdAt",
+          "updatedAt",
+          "name"
+        ]
+      },
       "UpdateScreenGroupDto": {
         "type": "object",
         "properties": {}
@@ -6303,6 +6581,54 @@
       "CreateTagDto": {
         "type": "object",
         "properties": {}
+      },
+      "TagDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string",
+            "description": "Owning tenant. Derived from the caller's token, never the body."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "object",
+            "nullable": true,
+            "example": "#2F80ED"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CONTENT",
+              "SCREEN",
+              "BOTH"
+            ],
+            "description": "Which resources the tag may be applied to."
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "createdAt",
+          "updatedAt",
+          "name"
+        ]
       },
       "UpdateTagDto": {
         "type": "object",
