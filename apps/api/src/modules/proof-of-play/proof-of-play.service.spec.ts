@@ -93,16 +93,42 @@ describe('ProofOfPlayService.ingest', () => {
 
   it('ITEM_COMPLETED after STARTED sets COMPLETED + endedAt + duration', async () => {
     const t = build();
-    const started = event();
-    const ended = new Date().toISOString();
-    await t.service.ingest(DEVICE as any, { events: [started] });
+    const startedAt = new Date().toISOString();
+    await t.service.ingest(DEVICE as any, { events: [event({ startedAt })] });
     await t.service.ingest(DEVICE as any, {
-      events: [event({ eventType: 'ITEM_COMPLETED', endedAt: ended, durationMs: 9000 })],
+      events: [
+        event({
+          eventType: 'ITEM_COMPLETED',
+          startedAt,
+          endedAt: new Date(Date.parse(startedAt) + 9000).toISOString(),
+          durationMs: 9000,
+        }),
+      ],
     });
     const row = t.store.get('sess-1');
     expect(row.status).toBe('COMPLETED');
     expect(row.durationMs).toBe(9000);
-    expect(row.endedAt).toEqual(new Date(ended));
+    // endedAt - startedAt === durationMs. The player already derives endedAt
+    // this way (PlaybackEventTracker.terminal), so a consistent device sees its
+    // own value stored unchanged.
+    expect(row.endedAt).toEqual(new Date(Date.parse(startedAt) + 9000));
+  });
+
+  it('derives endedAt from the duration when the device contradicts itself', async () => {
+    // A device reporting endedAt === startedAt alongside durationMs: 9000 is
+    // describing an interval that cannot exist. Storing both verbatim leaves a
+    // row where a report summing durationMs and a report subtracting the
+    // timestamps disagree, with nothing marking which is wrong.
+    const t = build();
+    const startedAt = new Date().toISOString();
+    await t.service.ingest(DEVICE as any, { events: [event({ startedAt })] });
+    await t.service.ingest(DEVICE as any, {
+      events: [
+        event({ eventType: 'ITEM_COMPLETED', startedAt, endedAt: startedAt, durationMs: 9000 }),
+      ],
+    });
+    const row = t.store.get('sess-1');
+    expect(row.endedAt.getTime() - Date.parse(startedAt)).toBe(row.durationMs);
   });
 
   it('does not regress a terminal status back to STARTED (out-of-order/idempotent)', async () => {
@@ -459,5 +485,86 @@ describe('ProofOfPlayService.ingest — batching', () => {
     );
 
     expect(out).toEqual({ accepted: 2, rejected: 1 });
+  });
+});
+
+describe('ProofOfPlayService duration clamping', () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  /**
+   * Run STARTED then a terminal event and return the stored row. `startedAt` is
+   * passed IN rather than returned, so a case can build an `endedAt` relative to
+   * the same instant the session opened at.
+   */
+  async function complete(over: any, startedAt: string = new Date().toISOString()) {
+    const t = build();
+    await t.service.ingest(DEVICE as any, { events: [event({ startedAt })] });
+    await t.service.ingest(DEVICE as any, {
+      events: [event({ eventType: 'ITEM_COMPLETED', startedAt, ...over })],
+    });
+    return t.store.get('sess-1');
+  }
+
+  it('stores a plausible duration unchanged', async () => {
+    expect((await complete({ durationMs: 15_000 })).durationMs).toBe(15_000);
+  });
+
+  it('caps a duration beyond the ceiling', async () => {
+    // durationMs is summed into the advertiser-billing total. Unbounded, ONE
+    // event from any device-token holder dominates every figure for the tenant
+    // — and an Android TV box with no RTC reaches the same place by accident
+    // when NTP lands mid-item.
+    expect((await complete({ durationMs: Number.MAX_SAFE_INTEGER })).durationMs).toBe(DAY_MS);
+  });
+
+  it('keeps endedAt consistent with the clamped duration', async () => {
+    // Clamping the number but keeping the device's endedAt would leave a row
+    // that still encodes the implausible interval in its timestamps.
+    const startedAt = new Date().toISOString();
+    const row = await complete(
+      {
+        durationMs: 400 * DAY_MS,
+        endedAt: new Date(Date.parse(startedAt) + 400 * DAY_MS).toISOString(),
+      },
+      startedAt,
+    );
+    expect(row.durationMs).toBe(DAY_MS);
+    expect(row.endedAt.getTime() - Date.parse(startedAt)).toBe(DAY_MS);
+  });
+
+  it('caps an over-long interval reported as timestamps with no duration', async () => {
+    // The same inflation without the durationMs field: a far-future endedAt
+    // makes any report that subtracts the timestamps show the same figure.
+    const startedAt = new Date().toISOString();
+    const row = await complete(
+      { endedAt: new Date(Date.parse(startedAt) + 400 * DAY_MS).toISOString() },
+      startedAt,
+    );
+    expect(row.endedAt.getTime() - Date.parse(startedAt)).toBe(DAY_MS);
+  });
+
+  it('drops an endedAt that precedes startedAt', async () => {
+    // A negative interval breaks every downstream range query and would render
+    // as negative playback in a report.
+    const startedAt = new Date().toISOString();
+    const row = await complete(
+      { endedAt: new Date(Date.parse(startedAt) - 60_000).toISOString() },
+      startedAt,
+    );
+    expect(row.endedAt).toBeNull();
+  });
+
+  it('drops an unparseable endedAt rather than storing Invalid Date', async () => {
+    expect((await complete({ endedAt: 'not-a-date' })).endedAt).toBeNull();
+  });
+
+  it('leaves a terminal event carrying no interval fields alone', async () => {
+    const row = await complete({});
+    expect(row.durationMs).toBeNull();
+    expect(row.endedAt).toBeNull();
+  });
+
+  it('never records a negative duration', async () => {
+    expect((await complete({ durationMs: -5000 })).durationMs).toBe(0);
   });
 });
