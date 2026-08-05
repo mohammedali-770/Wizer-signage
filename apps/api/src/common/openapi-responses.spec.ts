@@ -135,17 +135,43 @@ describe('OpenAPI response coverage', () => {
     expect(schema?.properties?.items?.items?.$ref).toBe('#/components/schemas/UserViewDto');
   });
 
+  it('the screen shape never publishes the kiosk PIN hash', () => {
+    // ScreensService.toView strips `kioskPinHash` and substitutes `hasKioskPin`.
+    // A DTO written from the PRISMA MODEL instead of the view would document a
+    // password-hash field as part of the API, and the name sits close enough to
+    // the other 32 to survive a skim. This is the check that makes writing the
+    // DTO from the wrong source fail loudly.
+    const { components } = loadContract();
+    const screen = components.schemas.ScreenDto as { properties?: Record<string, unknown> };
+    const props = Object.keys(screen?.properties ?? {});
+
+    expect(props).not.toContain('kioskPinHash');
+    expect(props).toContain('hasKioskPin');
+  });
+
+  it('64-bit byte counts are documented as strings, not numbers', () => {
+    // PrismaService patches BigInt.prototype.toJSON, so these serialise as
+    // strings. Documenting them as `number` would tell clients to parse a value
+    // that arrives quoted — and would imply a precision the column does not have.
+    const { components } = loadContract();
+    const screen = components.schemas.ScreenDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+    expect(screen?.properties?.storageUsedBytes?.type).toBe('string');
+    expect(screen?.properties?.storageTotalBytes?.type).toBe('string');
+  });
+
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 30 of ~180 operations (auth, users, tags,
-    // screen-groups, locations). Raise it as
+    // A RATCHET, not a target: 41 of ~180 operations (auth, users, tags,
+    // screen-groups, locations, screens). Raise it as
     // controllers are annotated; it fails the moment a route loses its response
-    // type. 33 of 38 controllers are still unannotated — that is the remaining
+    // type. 32 of 38 controllers are still unannotated — that is the remaining
     // work, and this number is how it stays visible rather than forgotten.
     //
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(30);
+    expect(annotated.length).toBeGreaterThanOrEqual(41);
     expect(total).toBeGreaterThan(100);
   });
 });

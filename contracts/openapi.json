@@ -2202,8 +2202,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2221,7 +2228,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ScreenDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2251,7 +2280,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2281,7 +2317,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2310,7 +2353,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2347,7 +2397,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2412,7 +2469,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2451,7 +2515,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2490,7 +2561,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2529,7 +2607,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2556,7 +2641,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6496,6 +6588,239 @@
         "type": "object",
         "properties": {}
       },
+      "NestedRefDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "TagDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string",
+            "description": "Owning tenant. Derived from the caller's token, never the body."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "object",
+            "nullable": true,
+            "example": "#2F80ED"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CONTENT",
+              "SCREEN",
+              "BOTH"
+            ],
+            "description": "Which resources the tag may be applied to."
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "createdAt",
+          "updatedAt",
+          "name"
+        ]
+      },
+      "ScreenDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string",
+            "description": "Owning tenant. Derived from the caller's token, never the body."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "object",
+            "nullable": true
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "locationId": {
+            "type": "object",
+            "nullable": true
+          },
+          "location": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NestedRefDto"
+              }
+            ]
+          },
+          "deviceIdentifier": {
+            "type": "object",
+            "nullable": true,
+            "description": "Hardware id reported by the paired player; null until pairing."
+          },
+          "pairedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "lastHeartbeatAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "lastSyncAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "appVersion": {
+            "type": "object",
+            "nullable": true
+          },
+          "audioEnabled": {
+            "type": "boolean"
+          },
+          "volume": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "muted": {
+            "type": "boolean"
+          },
+          "muteSchedule": {
+            "type": "object",
+            "nullable": true
+          },
+          "workingHours": {
+            "type": "object",
+            "nullable": true
+          },
+          "kioskEnabled": {
+            "type": "boolean"
+          },
+          "hasKioskPin": {
+            "type": "boolean",
+            "description": "Whether an exit PIN is set. The PIN itself is stored hashed and is never returned — this boolean replaces it."
+          },
+          "autoStartEnabled": {
+            "type": "boolean"
+          },
+          "powerControlMode": {
+            "type": "object",
+            "nullable": true
+          },
+          "fallbackContentId": {
+            "type": "object",
+            "nullable": true
+          },
+          "currentContentId": {
+            "type": "object",
+            "nullable": true
+          },
+          "currentPlaylistId": {
+            "type": "object",
+            "nullable": true
+          },
+          "storageUsedBytes": {
+            "type": "string",
+            "nullable": true,
+            "description": "Bytes, as a STRING. The column is a 64-bit integer and would lose precision as a JSON number, so PrismaService serialises BigInt via toJSON."
+          },
+          "storageTotalBytes": {
+            "type": "string",
+            "nullable": true,
+            "description": "Bytes, as a string."
+          },
+          "capabilities": {
+            "type": "object",
+            "nullable": true
+          },
+          "heartbeatIntervalSeconds": {
+            "type": "number"
+          },
+          "latitude": {
+            "type": "number",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "nullable": true
+          },
+          "notes": {
+            "type": "object",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagDto"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NestedRefDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "createdAt",
+          "updatedAt",
+          "name",
+          "audioEnabled",
+          "volume",
+          "muted",
+          "kioskEnabled",
+          "hasKioskPin",
+          "autoStartEnabled",
+          "heartbeatIntervalSeconds",
+          "tags",
+          "groups"
+        ]
+      },
       "BulkScreenTagDto": {
         "type": "object",
         "properties": {}
@@ -6581,54 +6906,6 @@
       "CreateTagDto": {
         "type": "object",
         "properties": {}
-      },
-      "TagDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "companyId": {
-            "type": "string",
-            "description": "Owning tenant. Derived from the caller's token, never the body."
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "name": {
-            "type": "string"
-          },
-          "color": {
-            "type": "object",
-            "nullable": true,
-            "example": "#2F80ED"
-          },
-          "description": {
-            "type": "object",
-            "nullable": true
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "CONTENT",
-              "SCREEN",
-              "BOTH"
-            ],
-            "description": "Which resources the tag may be applied to."
-          }
-        },
-        "required": [
-          "id",
-          "companyId",
-          "createdAt",
-          "updatedAt",
-          "name"
-        ]
       },
       "UpdateTagDto": {
         "type": "object",

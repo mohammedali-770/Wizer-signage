@@ -11,7 +11,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { ScreenStatus } from '@prisma/client';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import { ApiPaginatedResponse, SuccessResponseDto } from '../../common/dto/api-response.dto';
+import { ScreenDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -40,6 +43,7 @@ export class ScreensController {
   @Post()
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Create a screen profile.' })
+  @ApiOkResponse({ type: ScreenDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -51,6 +55,7 @@ export class ScreensController {
   @Get()
   @RequirePermissions(Permission.ScreenRead)
   @ApiOperation({ summary: 'List screens (filter by location/status/orientation/use/tag/group).' })
+  @ApiPaginatedResponse(ScreenDto)
   list(@CurrentCompany() companyId: string, @Query() query: ListScreensQueryDto) {
     return this.screens.list(companyId, query);
   }
@@ -59,6 +64,7 @@ export class ScreensController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Bulk add/remove a tag across screens.' })
+  @ApiOkResponse({ type: SuccessResponseDto })
   bulkTags(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -71,6 +77,7 @@ export class ScreensController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Bulk add/remove screens to a group.' })
+  @ApiOkResponse({ type: SuccessResponseDto })
   bulkGroups(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -82,6 +89,7 @@ export class ScreensController {
   @Get(':id')
   @RequirePermissions(Permission.ScreenRead)
   @ApiOperation({ summary: 'Screen detail (with monitoring placeholders).' })
+  @ApiOkResponse({ type: ScreenDto })
   detail(@CurrentCompany() companyId: string, @Param('id') id: string) {
     return this.screens.getDetail(companyId, id);
   }
@@ -89,6 +97,7 @@ export class ScreensController {
   @Patch(':id')
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Update screen fields (incl. audio/working-hours/kiosk).' })
+  @ApiOkResponse({ type: ScreenDto })
   update(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -102,6 +111,7 @@ export class ScreensController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Move a screen to another location (or unassign).' })
+  @ApiOkResponse({ type: ScreenDto })
   move(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -114,6 +124,7 @@ export class ScreensController {
   @Put(':id/tags')
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Replace a screen’s tags.' })
+  @ApiOkResponse({ type: ScreenDto })
   tags(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -126,6 +137,7 @@ export class ScreensController {
   @Put(':id/groups')
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Replace a screen’s group memberships.' })
+  @ApiOkResponse({ type: ScreenDto })
   groups(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -138,6 +150,7 @@ export class ScreensController {
   @Put(':id/kiosk-pin')
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Set the screen kiosk exit PIN (stored hashed).' })
+  @ApiOkResponse({ type: SuccessResponseDto })
   setKioskPin(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -151,6 +164,7 @@ export class ScreensController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Clear the screen kiosk exit PIN.' })
+  @ApiOkResponse({ type: SuccessResponseDto })
   resetKioskPin(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
