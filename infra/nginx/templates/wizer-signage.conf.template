@@ -71,6 +71,41 @@ server {
     add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy        "camera=(), microphone=(), geolocation=(), payment=()" always;
 
+    # -------------------------------------------------------------------------
+    # Content-Security-Policy
+    # -------------------------------------------------------------------------
+    # There was no CSP anywhere before this. This one carries ONLY the
+    # directives that work without a per-request nonce, and deliberately sets
+    # NO fetch directives at all — no default-src, no script-src, no style-src.
+    #
+    # That omission is the whole design. Next.js App Router inlines the RSC
+    # hydration payload as a <script>, so any policy that restricts scripts needs
+    # either 'unsafe-inline' (which is decorative — it voids 'strict-dynamic' and
+    # every hash allowance) or a nonce minted per request in the Next middleware
+    # and threaded through the render. nginx cannot produce one.
+    #
+    # And a `default-src 'self'` with script-src absent does NOT leave scripts
+    # alone — script-src falls back to default-src, so the inline hydration
+    # payload is blocked and the dashboard renders a blank page. A CSP that takes
+    # the app down is worse than no CSP, so the fetch directives wait for the
+    # middleware.
+    #
+    # What IS here needs no nonce, cannot break a working page, and each line
+    # closes a real class of attack on its own:
+    #
+    #   base-uri 'self'        — one injected <base> tag otherwise re-points every
+    #                            relative script URL on the page at another host.
+    #   object-src 'none'      — plugin-hosted script execution.
+    #   form-action 'self'     — stops an injected form POSTing a session
+    #                            elsewhere.
+    #   frame-ancestors 'self' — clickjacking. Matches the X-Frame-Options
+    #                            SAMEORIGIN above rather than tightening to
+    #                            'none', so this is not a silent behaviour change
+    #                            for any same-origin embed; it is still an upgrade
+    #                            because browsers honour frame-ancestors where
+    #                            they now ignore X-Frame-Options.
+    add_header Content-Security-Policy "base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'self'" always;
+
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
         default_type "text/plain";

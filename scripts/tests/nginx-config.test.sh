@@ -123,6 +123,35 @@ check "the static android subtree is still matched before the proxied one" \
   "$([[ $(grep -n 'location \^~ /api/downloads/android/' "${DIRECTIVES}" | cut -d: -f1) -lt \
         $(grep -n 'location \^~ /api/downloads/ ' "${DIRECTIVES}" | cut -d: -f1) ]]; echo $?)"
 
+# Content-Security-Policy.
+#
+# The critical assertion is the NEGATIVE one. A `default-src 'self'` with no
+# script-src does not leave scripts alone — script-src falls back to it, which
+# blocks the inline hydration payload Next.js emits and renders the dashboard
+# blank. A CSP that takes the app down is worse than no CSP, so no fetch
+# directive may appear until a nonce-minting middleware exists.
+csp=$(grep -o 'Content-Security-Policy "[^"]*"' "${DIRECTIVES}" | head -1)
+
+check "a Content-Security-Policy is set at all" \
+  "$([[ -n "${csp}" ]]; echo $?)"
+
+for directive in \
+  "base-uri 'self'" \
+  "object-src 'none'" \
+  "form-action 'self'" \
+  "frame-ancestors"; do
+  check "CSP carries ${directive}" \
+    "$(printf '%s' "${csp}" | grep -qF "${directive}"; echo $?)"
+done
+
+for forbidden in default-src script-src style-src; do
+  check "CSP sets no ${forbidden} (it would block Next.js hydration)" \
+    "$(! printf '%s' "${csp}" | grep -qF "${forbidden}"; echo $?)"
+done
+
+check "frame-ancestors is not tightened past the X-Frame-Options it replaces" \
+  "$(printf '%s' "${csp}" | grep -qF "frame-ancestors 'self'"; echo $?)"
+
 # Regression guard for a block that was removed deliberately: the API has no
 # WebSocket gateway, and a /ws location proxying to it held a 3600s timeout
 # open for an endpoint that never existed.
