@@ -537,3 +537,65 @@ export class PlaylistDetailDto extends PlaylistSummaryDto {
   @ApiProperty({ type: [String] })
   warnings!: string[];
 }
+
+/**
+ * A company as the API returns it.
+ *
+ * `CompaniesService.toView` strips `defaultKioskPinHash` — the THIRD view in
+ * this file that exists to keep a hashed secret out of the response, after
+ * `Screen.kioskPinHash` and the user's `passwordHash`. That is a pattern rather
+ * than a coincidence, and it is why these classes are transcribed from the view
+ * and never from the Prisma model.
+ */
+export class CompanyDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty({ description: 'URL-safe identifier, unique across the platform.' })
+  slug!: string;
+
+  @ApiProperty({ example: 'en' })
+  defaultLocale!: string;
+
+  @ApiProperty({ example: 'Asia/Riyadh' })
+  timezone!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  logoUrl?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, example: '#2F80ED' })
+  primaryColor?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  customDomain?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  brandedEmailFrom?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  resellerId?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  fallbackContentId?: string | null;
+
+  @ApiProperty({ enum: ['ACTIVE', 'SUSPENDED', 'CANCELLED'] })
+  status!: string;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  suspendedAt?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  suspendedReason?: string | null;
+
+  @ApiProperty({ description: 'Tenant preferences blob.' })
+  settings!: Record<string, unknown>;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: string;
+}
