@@ -1,6 +1,12 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { UserStatus } from '@prisma/client';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import {
+  ApiPaginatedResponse,
+  SuccessResponseDto,
+  UserViewDto,
+} from '../../common/dto/api-response.dto';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -23,6 +29,7 @@ export class UsersController {
   @Get()
   @RequirePermissions(Permission.UserRead)
   @ApiOperation({ summary: 'List users (tenant-scoped).' })
+  @ApiPaginatedResponse(UserViewDto)
   list(@Query() query: ListUsersQueryDto, @CurrentUser() user: AuthenticatedUser) {
     return this.users.list(user, query);
   }
@@ -30,6 +37,7 @@ export class UsersController {
   @Get(':id')
   @RequirePermissions(Permission.UserRead)
   @ApiOperation({ summary: 'Get a user by id.' })
+  @ApiOkResponse({ type: UserViewDto })
   get(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.users.getView(user, id);
   }
@@ -37,6 +45,7 @@ export class UsersController {
   @Patch(':id')
   @RequirePermissions(Permission.UserUpdate)
   @ApiOperation({ summary: 'Update a user (name, role, status, locations).' })
+  @ApiOkResponse({ type: UserViewDto })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
@@ -57,6 +66,7 @@ export class UsersController {
   @HttpCode(200)
   @RequirePermissions(Permission.UserUpdate)
   @ApiOperation({ summary: 'Disable a user account.' })
+  @ApiOkResponse({ type: UserViewDto })
   async disable(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     const result = await this.users.setStatus(user, id, UserStatus.DISABLED);
     await this.activityLog.log({
@@ -72,6 +82,7 @@ export class UsersController {
   @HttpCode(200)
   @RequirePermissions(Permission.UserUpdate)
   @ApiOperation({ summary: 'Re-enable a user account.' })
+  @ApiOkResponse({ type: UserViewDto })
   async enable(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     const result = await this.users.setStatus(user, id, UserStatus.ACTIVE);
     await this.activityLog.log({
@@ -87,6 +98,7 @@ export class UsersController {
   @HttpCode(200)
   @RequirePermissions(Permission.UserUpdate)
   @ApiOperation({ summary: 'Manually unlock a locked-out account.' })
+  @ApiOkResponse({ type: UserViewDto })
   async unlock(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     const result = await this.users.unlock(user, id);
     await this.activityLog.log({
@@ -102,6 +114,7 @@ export class UsersController {
   @HttpCode(200)
   @RequirePermissions(Permission.UserDelete)
   @ApiOperation({ summary: 'Delete (soft) a user account.' })
+  @ApiOkResponse({ type: SuccessResponseDto })
   async remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     await this.users.remove(user, id);
     await this.activityLog.log({

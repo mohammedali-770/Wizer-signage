@@ -107,16 +107,44 @@ describe('OpenAPI response coverage', () => {
     expect(props).toContain('email');
   });
 
+  it('every users route declares what it returns', () => {
+    const { annotated } = operationsWithResponseSchema();
+    for (const route of [
+      'GET /users',
+      'GET /users/{id}',
+      'PATCH /users/{id}',
+      'POST /users/{id}/disable',
+      'POST /users/{id}/enable',
+      'POST /users/{id}/unlock',
+      'DELETE /users/{id}',
+    ]) {
+      expect(annotated).toContain(route);
+    }
+  });
+
+  it('list endpoints describe the pagination envelope, not a bare array', () => {
+    // Swagger cannot express a generic — `type: Paginated<UserViewDto>` compiles
+    // and emits nothing, because the generic is erased before the decorator sees
+    // it. ApiPaginatedResponse writes the envelope out; this pins that it stays
+    // an { items, meta } object and not the array the item type alone implies.
+    const { paths } = loadContract();
+    const schema = paths['/users']?.get?.responses?.['200']?.content?.['application/json']
+      ?.schema as { properties?: Record<string, { items?: { $ref?: string } }> } | undefined;
+
+    expect(Object.keys(schema?.properties ?? {}).sort()).toEqual(['items', 'meta']);
+    expect(schema?.properties?.items?.items?.$ref).toBe('#/components/schemas/UserViewDto');
+  });
+
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 8 of ~180 operations, all in auth. Raise it as
+    // A RATCHET, not a target: 15 of ~180 operations (auth + users). Raise it as
     // controllers are annotated; it fails the moment a route loses its response
-    // type. 37 of 38 controllers are still unannotated — that is the remaining
+    // type. 36 of 38 controllers are still unannotated — that is the remaining
     // work, and this number is how it stays visible rather than forgotten.
     //
-    // The 8 is measured, not estimated. An earlier version of this line guessed
-    // 9 and failed on the first run.
+    // Measured, never estimated: an earlier version guessed the count and failed
+    // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(8);
+    expect(annotated.length).toBeGreaterThanOrEqual(15);
     expect(total).toBeGreaterThan(100);
   });
 });

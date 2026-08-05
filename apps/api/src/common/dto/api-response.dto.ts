@@ -1,4 +1,11 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { applyDecorators, type Type } from '@nestjs/common';
+import {
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
 
 /**
  * Response shapes for the OpenAPI contract.
@@ -79,4 +86,32 @@ export class UserViewDto {
 
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;
+}
+
+/**
+ * `@ApiPaginatedResponse(Dto)` — a 200 whose body is `{ items: Dto[], meta }`.
+ *
+ * Every list endpoint on the platform returns that envelope, and Swagger has no
+ * way to express a generic: `@ApiOkResponse({ type: Paginated<UserViewDto> })`
+ * compiles and emits nothing useful, because the generic is erased before the
+ * decorator ever sees it. Written out per endpoint it is eight lines of
+ * boilerplate each, across ~40 list routes, which is how a contract ends up with
+ * the envelope described inconsistently or not at all.
+ */
+export function ApiPaginatedResponse<T extends Type<unknown>>(model: T) {
+  return applyDecorators(
+    // The item model is referenced only from inside the inline schema below, so
+    // Swagger would not otherwise emit it into components.schemas.
+    ApiExtraModels(model, PageMetaDto),
+    ApiOkResponse({
+      schema: {
+        type: 'object',
+        required: ['items', 'meta'],
+        properties: {
+          items: { type: 'array', items: { $ref: getSchemaPath(model) } },
+          meta: { $ref: getSchemaPath(PageMetaDto) },
+        },
+      },
+    }),
+  );
 }
