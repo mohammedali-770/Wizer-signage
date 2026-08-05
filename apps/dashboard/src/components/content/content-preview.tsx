@@ -68,10 +68,24 @@ export function ContentPreview({
         <div className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
           External page preview. Some sites block embedding — use “Open” if it appears blank.
         </div>
+        {/*
+          NO allow-same-origin. Combined with allow-scripts it is a documented
+          sandbox escape: the framed page keeps its real origin, so a URL aimed
+          at THIS dashboard would run with the viewer's session — reading its
+          storage and acting as them, up to a Super Admin. The two flags together
+          are equivalent to no sandbox at all for a same-origin src, and the src
+          here is tenant-supplied.
+
+          Dropping it costs the framed page its own cookies and storage, which
+          external preview targets do not need. The API refuses to store URL
+          content pointing at our own origin (assertNotSelfOrigin) — this is the
+          other half, so neither layer alone has to be right.
+        */}
         <iframe
           src={data.url}
           title="URL preview"
-          sandbox="allow-scripts allow-same-origin allow-popups"
+          sandbox="allow-scripts allow-popups"
+          referrerPolicy="no-referrer"
           className={`h-[55vh] w-full ${box}`}
         />
         <OpenLink url={data.url} label="Open link in a new tab" />
