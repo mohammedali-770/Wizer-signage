@@ -872,7 +872,21 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/AuthTokensDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TwoFactorChallengeDto"
+                    }
+                  ]
+                }
+              }
+            }
           }
         },
         "summary": "Authenticate with email + password (may require 2FA).",
@@ -897,7 +911,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensDto"
+                }
+              }
+            }
           }
         },
         "summary": "Complete login by verifying a 2FA code.",
@@ -922,7 +943,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensDto"
+                }
+              }
+            }
           }
         },
         "summary": "Exchange a refresh token for a new token pair.",
@@ -937,7 +965,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -967,7 +1002,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Request a password-reset email.",
@@ -992,7 +1034,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Reset a password with a valid reset token.",
@@ -1017,7 +1066,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptInvitationResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Accept an invitation and create the account.",
@@ -1032,7 +1088,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5868,6 +5931,113 @@
         "type": "object",
         "properties": {}
       },
+      "UserViewDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPER_ADMIN",
+              "COMPANY_ADMIN",
+              "LOCATION_MANAGER",
+              "CONTENT_MANAGER",
+              "VIEWER"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INVITED",
+              "LOCKED",
+              "DISABLED"
+            ]
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true,
+            "description": "null for a platform-level Super Admin."
+          },
+          "lastLoginAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "twoFactorEnabled": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "role",
+          "status",
+          "twoFactorEnabled",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AuthTokensDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Short-lived bearer token for the Authorization header."
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Rotated on every use; reuse is treated as theft."
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserViewDto"
+          },
+          "mustEnableTwoFactor": {
+            "type": "boolean",
+            "description": "True when the account must enrol in 2FA before it has full access — a Super Admin, or a user whose company enforces it. The session is confined to the enrollment routes until it does."
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "user"
+        ]
+      },
+      "TwoFactorChallengeDto": {
+        "type": "object",
+        "properties": {
+          "challengeToken": {
+            "type": "string",
+            "description": "Present the code for this challenge at POST /auth/login/2fa."
+          },
+          "twoFactorRequired": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "challengeToken",
+          "twoFactorRequired"
+        ]
+      },
       "LoginDto": {
         "type": "object",
         "properties": {}
@@ -5880,6 +6050,18 @@
         "type": "object",
         "properties": {}
       },
+      "SuccessResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
       "ForgotPasswordDto": {
         "type": "object",
         "properties": {}
@@ -5891,6 +6073,52 @@
       "AcceptInvitationDto": {
         "type": "object",
         "properties": {}
+      },
+      "AcceptInvitationResponseDto": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "example": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Taken from the invitation, never from the request body."
+          }
+        },
+        "required": [
+          "accepted",
+          "email"
+        ]
+      },
+      "MeResponseDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserViewDto"
+          },
+          "permissions": {
+            "description": "Effective permissions, derived from the DATABASE role rather than the token.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mfaSatisfied": {
+            "type": "boolean",
+            "description": "Whether THIS session has satisfied 2FA."
+          },
+          "twoFactorRequired": {
+            "type": "boolean",
+            "description": "Whether 2FA is mandatory for this account."
+          }
+        },
+        "required": [
+          "user",
+          "permissions",
+          "mfaSatisfied",
+          "twoFactorRequired"
+        ]
       },
       "CreatePlanDto": {
         "type": "object",
