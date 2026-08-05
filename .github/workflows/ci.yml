@@ -150,6 +150,31 @@ jobs:
       - name: Nginx config tests
         run: bash scripts/tests/nginx-config.test.sh
 
+      # The committed OpenAPI contract must describe the API that is actually
+      # here. Re-emit it and fail on any difference: a route added, renamed or
+      # given a new DTO without regenerating means contracts/openapi.json is
+      # describing an API that no longer exists, and anything generated from it
+      # (starting with the dashboard's hand-copied types) inherits the lie.
+      #
+      # Runs in PREVIEW mode, so no database is involved — a contract check that
+      # needed Postgres is one that gets skipped.
+      - name: OpenAPI contract is up to date
+        working-directory: apps/api
+        run: |
+          pnpm openapi:emit "${RUNNER_TEMP}/openapi.json"
+          if ! diff -u ../../contracts/openapi.json "${RUNNER_TEMP}/openapi.json"; then
+            echo "::error::contracts/openapi.json is stale. Run: pnpm --filter @wizer/api openapi:emit"
+            exit 1
+          fi
+        env:
+          # Synthetic — the app is never started and never connects to anything.
+          DATABASE_URL: postgresql://openapi:openapi@127.0.0.1:5432/openapi
+          DIRECT_URL: postgresql://openapi:openapi@127.0.0.1:5432/openapi
+          JWT_ACCESS_SECRET: ci-only-access-secret-value
+          JWT_REFRESH_SECRET: ci-only-refresh-secret-value
+          ENCRYPTION_KEY: ci-only-encryption-key-value
+          NODE_ENV: development
+
       - name: Build
         # The dashboard production build requires an explicit, valid HTTPS
         # NEXT_PUBLIC_API_URL (see apps/dashboard/next.config.mjs). Use a
