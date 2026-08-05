@@ -1,5 +1,11 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
 import { ScreenGroupDto } from '../../common/dto/entity-response.dto';
@@ -26,7 +32,7 @@ export class ScreenGroupsController {
   @Post()
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Create a screen group.' })
-  @ApiOkResponse({ type: ScreenGroupDto })
+  @ApiCreatedResponse({ type: ScreenGroupDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

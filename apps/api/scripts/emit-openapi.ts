@@ -4,7 +4,6 @@ import { join, resolve } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
 
-import { AppModule } from '../src/app.module';
 import { buildOpenApiConfig } from '../src/openapi.config';
 
 /**
@@ -22,6 +21,14 @@ import { buildOpenApiConfig } from '../src/openapi.config';
  * The version is pinned from package.json rather than npm_package_version so the
  * output is identical however the script is invoked; otherwise the drift check
  * in CI would fail on a difference that means nothing.
+ *
+ * AppModule is imported lazily, INSIDE main(). Preview mode skips providers but
+ * not module construction, and `ConfigModule.forRoot` validates the environment
+ * while the module file is being evaluated — so a static import throws before
+ * `main().catch(...)` exists to catch it, and the run ends on exit code 1 with
+ * nothing written to stderr at all. Missing DATABASE_URL then looks identical to
+ * a crash, an OOM, or a broken toolchain. Deferring the import puts the throw
+ * inside the promise chain, where the handler below can name the cause.
  */
 async function main(): Promise<void> {
   const out = resolve(
@@ -33,9 +40,16 @@ async function main(): Promise<void> {
   const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8')) as {
     version?: string;
   };
+  const { AppModule } = await import('../src/app.module');
   const app = await NestFactory.create(AppModule, {
     preview: true,
     logger: false,
+    // Without this, NestFactory handles a bootstrap error by logging it and
+    // then ABORTING the process — and `logger: false` means it logs nowhere.
+    // The run ends on exit code 1 having written not one byte, so a missing
+    // DATABASE_URL is indistinguishable from an OOM or a broken toolchain.
+    // `false` makes it reject instead, and the handler below names the cause.
+    abortOnError: false,
   });
   const document = SwaggerModule.createDocument(app, buildOpenApiConfig(pkg.version ?? '0.0.0'));
   await app.close();
@@ -50,5 +64,7 @@ async function main(): Promise<void> {
 
 main().catch((err: unknown) => {
   process.stderr.write(`Failed to emit OpenAPI: ${String(err)}\n`);
-  process.exit(1);
+  // exitCode, not exit(): process.exit() tears the process down before an async
+  // stderr pipe has flushed, which would put the message back where it started.
+  process.exitCode = 1;
 });

@@ -11,9 +11,20 @@ import {
   Query,
 } from '@nestjs/common';
 import { ScreenStatus } from '@prisma/client';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
-import { ApiPaginatedResponse, SuccessResponseDto } from '../../common/dto/api-response.dto';
+import {
+  AffectedResponseDto,
+  ApiPaginatedResponse,
+  ResetResponseDto,
+  UpdatedResponseDto,
+} from '../../common/dto/api-response.dto';
 import { ScreenDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
@@ -43,7 +54,7 @@ export class ScreensController {
   @Post()
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Create a screen profile.' })
-  @ApiOkResponse({ type: ScreenDto })
+  @ApiCreatedResponse({ type: ScreenDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -64,7 +75,7 @@ export class ScreensController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Bulk add/remove a tag across screens.' })
-  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiOkResponse({ type: AffectedResponseDto })
   bulkTags(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -77,7 +88,7 @@ export class ScreensController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Bulk add/remove screens to a group.' })
-  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiOkResponse({ type: AffectedResponseDto })
   bulkGroups(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -150,7 +161,7 @@ export class ScreensController {
   @Put(':id/kiosk-pin')
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Set the screen kiosk exit PIN (stored hashed).' })
-  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiOkResponse({ type: UpdatedResponseDto })
   setKioskPin(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -164,7 +175,7 @@ export class ScreensController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Clear the screen kiosk exit PIN.' })
-  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiOkResponse({ type: ResetResponseDto })
   resetKioskPin(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

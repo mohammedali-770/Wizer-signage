@@ -1,6 +1,12 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
 import { CompanyDto } from '../../common/dto/entity-response.dto';
@@ -39,7 +45,7 @@ export class CompaniesController {
   @Post()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create a company (Super Admin).' })
-  @ApiOkResponse({ type: CompanyDto })
+  @ApiCreatedResponse({ type: CompanyDto })
   create(@Body() dto: CreateCompanyDto, @CurrentUser() user: AuthenticatedUser) {
     return this.companies.create(user, dto);
   }
@@ -82,7 +88,7 @@ export class CompaniesController {
   @Post(':id/suspend')
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Suspend a company (blocks its users; data preserved).' })
-  @ApiOkResponse({ type: CompanyDto })
+  @ApiCreatedResponse({ type: CompanyDto })
   suspend(
     @Param('id') id: string,
     @Body() dto: SuspendCompanyDto,
@@ -94,7 +100,7 @@ export class CompaniesController {
   @Post(':id/reactivate')
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Reactivate a suspended company.' })
-  @ApiOkResponse({ type: CompanyDto })
+  @ApiCreatedResponse({ type: CompanyDto })
   reactivate(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.companies.reactivate(user, id);
   }

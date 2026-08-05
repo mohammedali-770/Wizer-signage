@@ -1,5 +1,14 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+
+import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
+import { EmergencyBroadcastDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -29,6 +38,7 @@ export class EmergencyBroadcastController {
   @Get()
   @RequirePermissions(Permission.ScreenRead)
   @ApiOperation({ summary: 'List emergency broadcasts (filter by status/search).' })
+  @ApiPaginatedResponse(EmergencyBroadcastDto)
   list(@CurrentCompany() companyId: string, @Query() query: ListEmergencyBroadcastsQueryDto) {
     return this.emergency.list(companyId, query);
   }
@@ -36,6 +46,7 @@ export class EmergencyBroadcastController {
   @Post()
   @RequirePermissions(Permission.EmergencySend)
   @ApiOperation({ summary: 'Create an emergency broadcast (DRAFT).' })
+  @ApiCreatedResponse({ type: EmergencyBroadcastDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -47,6 +58,7 @@ export class EmergencyBroadcastController {
   @Post('quick-text')
   @RequirePermissions(Permission.EmergencySend)
   @ApiOperation({ summary: 'Create and immediately activate a text emergency broadcast.' })
+  @ApiCreatedResponse({ type: EmergencyBroadcastDto })
   quickText(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -58,6 +70,7 @@ export class EmergencyBroadcastController {
   @Get(':id')
   @RequirePermissions(Permission.ScreenRead)
   @ApiOperation({ summary: 'Emergency broadcast detail (with validation + affected screens).' })
+  @ApiOkResponse({ type: EmergencyBroadcastDto })
   detail(@CurrentCompany() companyId: string, @Param('id') id: string) {
     return this.emergency.getDetail(companyId, id);
   }
@@ -72,6 +85,7 @@ export class EmergencyBroadcastController {
   @Patch(':id')
   @RequirePermissions(Permission.EmergencySend)
   @ApiOperation({ summary: 'Update an emergency broadcast.' })
+  @ApiOkResponse({ type: EmergencyBroadcastDto })
   update(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -83,6 +97,7 @@ export class EmergencyBroadcastController {
 
   @Post(':id/activate')
   @HttpCode(200)
+  @ApiOkResponse({ type: EmergencyBroadcastDto })
   @RequirePermissions(Permission.EmergencySend)
   activate(
     @CurrentCompany() companyId: string,
@@ -94,6 +109,7 @@ export class EmergencyBroadcastController {
 
   @Post(':id/pause')
   @HttpCode(200)
+  @ApiOkResponse({ type: EmergencyBroadcastDto })
   @RequirePermissions(Permission.EmergencySend)
   pause(
     @CurrentCompany() companyId: string,
@@ -105,6 +121,7 @@ export class EmergencyBroadcastController {
 
   @Post(':id/end')
   @HttpCode(200)
+  @ApiOkResponse({ type: EmergencyBroadcastDto })
   @RequirePermissions(Permission.EmergencySend)
   end(
     @CurrentCompany() companyId: string,
@@ -116,6 +133,7 @@ export class EmergencyBroadcastController {
 
   @Post(':id/archive')
   @HttpCode(200)
+  @ApiOkResponse({ type: EmergencyBroadcastDto })
   @RequirePermissions(Permission.EmergencySend)
   archive(
     @CurrentCompany() companyId: string,

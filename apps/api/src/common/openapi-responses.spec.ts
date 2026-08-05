@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -37,6 +37,17 @@ function loadContract(): {
       `Could not read ${CONTRACT}. Regenerate it with: pnpm --filter @wizer/api openapi:emit (${String(e)})`,
     );
   }
+}
+
+/** Every `*.controller.ts` under src/modules, recursively. */
+function controllerFiles(root = join(__dirname, '..', 'modules')): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) found.push(...controllerFiles(path));
+    else if (entry.name.endsWith('.controller.ts')) found.push(path);
+  }
+  return found;
 }
 
 /** Operations that declare a success response with an actual schema. */
@@ -216,18 +227,128 @@ describe('OpenAPI response coverage', () => {
     }
   });
 
+  it('a bare @Post documents 201, not 200', () => {
+    // Nest answers 201 for a @Post with no @HttpCode, and 200 for everything
+    // else — verified against a live Nest app, not assumed. The first ten
+    // annotated controllers reached for @ApiOkResponse everywhere, so 18 create
+    // routes told clients their body arrives under 200 when it arrives under
+    // 201. A generated client keys the response type off the status code, so it
+    // typed every create as returning nothing.
+    //
+    // This reads the SOURCE rather than the contract, because the contract
+    // cannot show the mismatch: it records the status the decorator claimed and
+    // has no idea what the route actually returns.
+    const offenders: string[] = [];
+    for (const file of controllerFiles()) {
+      const src = readFileSync(file, 'utf8');
+      for (const block of src.match(/@Post\([^)]*\)[\s\S]*?\n {2}[a-zA-Z_]+\(/g) ?? []) {
+        if (block.includes('@HttpCode')) continue;
+        if (block.includes('ApiOkResponse') || block.includes('ApiPaginatedResponse')) {
+          offenders.push(`${file.split('/modules/')[1]}: ${block.split('\n')[0]}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('the create routes really are documented under 201 in the contract', () => {
+    // The source guard above is the general rule; this is the end-to-end proof
+    // that it actually reaches the emitted document.
+    const { paths } = loadContract();
+    for (const route of ['/tags', '/screens', '/playlists', '/locations']) {
+      const post = paths[route]?.post;
+      expect(post?.responses?.['201']?.content?.['application/json']?.schema).toBeDefined();
+      expect(post?.responses?.['200']).toBeUndefined();
+    }
+  });
+
+  it('the screenshot list never publishes the storage key', () => {
+    // Same rule content follows: the object-storage path is internal, and an
+    // image is reachable only through a signed URL that expires.
+    const { components } = loadContract();
+    const shot = components.schemas.ScreenshotSummaryDto as {
+      properties?: Record<string, unknown>;
+    };
+    const props = Object.keys(shot?.properties ?? {});
+    expect(props).not.toContain('storageKey');
+    expect(props).toContain('url');
+  });
+
+  it('the embedded screenshot is a NARROWER shape than the list row', () => {
+    // ScreenshotService.latest returns four fields where list returns six.
+    // Sharing one schema would tell a client the monitoring payload carries a
+    // file size it never loads — the same trap the playlist split avoids.
+    const { components } = loadContract();
+    const listRow = components.schemas.ScreenshotSummaryDto as {
+      properties?: Record<string, unknown>;
+    };
+    const embedded = components.schemas.LatestScreenshotDto as {
+      properties?: Record<string, unknown>;
+    };
+
+    for (const listOnly of ['mimeType', 'fileSizeBytes']) {
+      expect(Object.keys(listRow?.properties ?? {})).toContain(listOnly);
+      expect(Object.keys(embedded?.properties ?? {})).not.toContain(listOnly);
+    }
+  });
+
+  it.each([
+    ['post', '/auth/logout', 'success'],
+    ['post', '/auth/forgot-password', 'success'],
+    ['post', '/auth/reset-password', 'success'],
+    ['delete', '/users/{id}', 'deleted'],
+    ['delete', '/locations/{id}', 'deleted'],
+    ['delete', '/playlists/{id}', 'deleted'],
+    ['delete', '/schedules/{id}', 'deleted'],
+    ['delete', '/tags/{id}', 'deleted'],
+    ['post', '/screens/bulk/tags', 'affected'],
+    ['post', '/screens/bulk/groups', 'affected'],
+    ['put', '/screens/{id}/kiosk-pin', 'updated'],
+    ['delete', '/screens/{id}/kiosk-pin', 'reset'],
+    ['post', '/content/trash/purge', 'purged'],
+  ])('%s %s acknowledges with `%s`', (method, path, field) => {
+    // These thirteen endpoints all "return nothing useful", and the first pass
+    // pointed every one of them at SuccessResponseDto. Nine were wrong: they
+    // send `deleted`, `affected`, `updated`, `reset` or `purged`, so the
+    // contract promised a `success` field that has never existed and hid the
+    // one that does. A client checking `res.success` reads undefined and treats
+    // a successful delete as a failure.
+    //
+    // The table is the point. Written as "they all return SuccessResponseDto"
+    // this test would restate the bug instead of catching it — each row is
+    // copied from the `return` statement that actually runs.
+    const { paths, components } = loadContract();
+    const schema = (
+      paths[path]?.[method] as
+        | {
+            responses?: Record<
+              string,
+              { content?: Record<string, { schema?: { $ref?: string } }> }
+            >;
+          }
+        | undefined
+    )?.responses?.['200']?.content?.['application/json']?.schema;
+
+    const ref = schema?.$ref;
+    expect(ref).toBeDefined();
+    const model = components.schemas[ref!.split('/').pop()!] as {
+      properties?: Record<string, unknown>;
+    };
+    expect(Object.keys(model?.properties ?? {})).toEqual([field]);
+  });
+
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 73 of ~180 operations (auth, users, tags,
+    // A RATCHET, not a target: 94 of ~180 operations (auth, users, tags,
     // screen-groups, locations, screens, content, schedules, playlists,
-    // companies). Raise it as
-    // controllers are annotated; it fails the moment a route loses its response
-    // type. 28 of 38 controllers are still unannotated — that is the remaining
-    // work, and this number is how it stays visible rather than forgotten.
+    // companies, emergency, monitoring). Raise it as controllers are annotated;
+    // it fails the moment a route loses its response type. 25 of 38 controllers
+    // are still unannotated — that is the remaining work, and this number is how
+    // it stays visible rather than forgotten.
     //
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(73);
+    expect(annotated.length).toBeGreaterThanOrEqual(94);
     expect(total).toBeGreaterThan(100);
   });
 });

@@ -4,7 +4,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swa
 
 import {
   ApiPaginatedResponse,
-  SuccessResponseDto,
+  DeletedResponseDto,
   UserViewDto,
 } from '../../common/dto/api-response.dto';
 
@@ -114,7 +114,7 @@ export class UsersController {
   @HttpCode(200)
   @RequirePermissions(Permission.UserDelete)
   @ApiOperation({ summary: 'Delete (soft) a user account.' })
-  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiOkResponse({ type: DeletedResponseDto })
   async remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     await this.users.remove(user, id);
     await this.activityLog.log({
