@@ -4,7 +4,9 @@ import { Logger, ValidationPipe, type LogLevel } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
+
+import { buildOpenApiConfig } from './openapi.config';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
@@ -120,12 +122,9 @@ async function bootstrap(): Promise<void> {
   // it on (e.g. a locked-down staging host).
   const swaggerEnabled = nodeEnv !== 'production' || process.env.SWAGGER_ENABLED === 'true';
   if (swaggerEnabled) {
-    const swaggerConfig = new DocumentBuilder()
-      .setTitle('Wizer Signage API')
-      .setDescription('Wizer Signage — multi-tenant digital signage SaaS platform REST API.')
-      .setVersion(process.env.npm_package_version ?? '0.0.0')
-      .addBearerAuth()
-      .build();
+    // Shared with scripts/emit-openapi.ts so the committed contract in
+    // contracts/openapi.json describes the same surface these docs serve.
+    const swaggerConfig = buildOpenApiConfig(process.env.npm_package_version ?? '0.0.0');
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('api/docs', app, document, {
       swaggerOptions: { persistAuthorization: true },
