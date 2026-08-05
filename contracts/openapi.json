@@ -12,7 +12,9 @@
           }
         },
         "summary": "Liveness probe",
-        "tags": ["health"]
+        "tags": [
+          "health"
+        ]
       }
     },
     "/health/ready": {
@@ -29,7 +31,9 @@
           }
         },
         "summary": "Readiness probe",
-        "tags": ["health"]
+        "tags": [
+          "health"
+        ]
       }
     },
     "/public/trial-signup": {
@@ -52,7 +56,9 @@
           }
         },
         "summary": "Create a trial tenant (company + owner + trial subscription).",
-        "tags": ["public"]
+        "tags": [
+          "public"
+        ]
       }
     },
     "/public/demo-request": {
@@ -75,7 +81,9 @@
           }
         },
         "summary": "Submit a \"Book a Demo\" / contact-sales request.",
-        "tags": ["public"]
+        "tags": [
+          "public"
+        ]
       }
     },
     "/public/plans": {
@@ -88,7 +96,9 @@
           }
         },
         "summary": "List active public plans for the marketing pricing page.",
-        "tags": ["public"]
+        "tags": [
+          "public"
+        ]
       }
     },
     "/activity-logs": {
@@ -106,7 +116,9 @@
           }
         ],
         "summary": "List audit/activity logs (tenant-scoped).",
-        "tags": ["activity-logs"]
+        "tags": [
+          "activity-logs"
+        ]
       }
     },
     "/companies/me": {
@@ -124,7 +136,9 @@
           }
         ],
         "summary": "Get the current user's company.",
-        "tags": ["companies"]
+        "tags": [
+          "companies"
+        ]
       }
     },
     "/companies": {
@@ -152,7 +166,9 @@
           }
         ],
         "summary": "Create a company (Super Admin).",
-        "tags": ["companies"]
+        "tags": [
+          "companies"
+        ]
       },
       "get": {
         "operationId": "CompaniesController_list",
@@ -168,7 +184,9 @@
           }
         ],
         "summary": "List companies (search/filter/sort).",
-        "tags": ["companies"]
+        "tags": [
+          "companies"
+        ]
       }
     },
     "/companies/{id}": {
@@ -195,7 +213,9 @@
           }
         ],
         "summary": "Company detail with metrics, subscription, and plan.",
-        "tags": ["companies"]
+        "tags": [
+          "companies"
+        ]
       },
       "patch": {
         "operationId": "CompaniesController_update",
@@ -230,7 +250,9 @@
           }
         ],
         "summary": "Update company details.",
-        "tags": ["companies"]
+        "tags": [
+          "companies"
+        ]
       }
     },
     "/companies/{id}/usage": {
@@ -257,7 +279,9 @@
           }
         ],
         "summary": "Company usage vs plan limits (with grace status).",
-        "tags": ["companies"]
+        "tags": [
+          "companies"
+        ]
       }
     },
     "/companies/{id}/suspend": {
@@ -294,7 +318,9 @@
           }
         ],
         "summary": "Suspend a company (blocks its users; data preserved).",
-        "tags": ["companies"]
+        "tags": [
+          "companies"
+        ]
       }
     },
     "/companies/{id}/reactivate": {
@@ -321,7 +347,9 @@
           }
         ],
         "summary": "Reactivate a suspended company.",
-        "tags": ["companies"]
+        "tags": [
+          "companies"
+        ]
       }
     },
     "/sessions": {
@@ -339,7 +367,9 @@
           }
         ],
         "summary": "List the current user's active sessions.",
-        "tags": ["sessions"]
+        "tags": [
+          "sessions"
+        ]
       }
     },
     "/sessions/others": {
@@ -357,7 +387,9 @@
           }
         ],
         "summary": "Sign out of all other sessions (keep the current one).",
-        "tags": ["sessions"]
+        "tags": [
+          "sessions"
+        ]
       }
     },
     "/sessions/{id}": {
@@ -384,7 +416,9 @@
           }
         ],
         "summary": "Revoke one of the current user’s sessions.",
-        "tags": ["sessions"]
+        "tags": [
+          "sessions"
+        ]
       }
     },
     "/sessions/users/{userId}/terminate": {
@@ -411,7 +445,9 @@
           }
         ],
         "summary": "Admin: terminate all of a user's sessions (force sign-out).",
-        "tags": ["sessions"]
+        "tags": [
+          "sessions"
+        ]
       }
     },
     "/users": {
@@ -429,7 +465,9 @@
           }
         ],
         "summary": "List users (tenant-scoped).",
-        "tags": ["users"]
+        "tags": [
+          "users"
+        ]
       }
     },
     "/users/{id}": {
@@ -456,7 +494,9 @@
           }
         ],
         "summary": "Get a user by id.",
-        "tags": ["users"]
+        "tags": [
+          "users"
+        ]
       },
       "patch": {
         "operationId": "UsersController_update",
@@ -491,7 +531,9 @@
           }
         ],
         "summary": "Update a user (name, role, status, locations).",
-        "tags": ["users"]
+        "tags": [
+          "users"
+        ]
       },
       "delete": {
         "operationId": "UsersController_remove",
@@ -516,7 +558,9 @@
           }
         ],
         "summary": "Delete (soft) a user account.",
-        "tags": ["users"]
+        "tags": [
+          "users"
+        ]
       }
     },
     "/users/{id}/disable": {
@@ -543,7 +587,9 @@
           }
         ],
         "summary": "Disable a user account.",
-        "tags": ["users"]
+        "tags": [
+          "users"
+        ]
       }
     },
     "/users/{id}/enable": {
@@ -570,7 +616,9 @@
           }
         ],
         "summary": "Re-enable a user account.",
-        "tags": ["users"]
+        "tags": [
+          "users"
+        ]
       }
     },
     "/users/{id}/unlock": {
@@ -597,7 +645,9 @@
           }
         ],
         "summary": "Manually unlock a locked-out account.",
-        "tags": ["users"]
+        "tags": [
+          "users"
+        ]
       }
     },
     "/auth/2fa/status": {
@@ -615,7 +665,9 @@
           }
         ],
         "summary": "Current 2FA status for the authenticated user.",
-        "tags": ["two-factor"]
+        "tags": [
+          "two-factor"
+        ]
       }
     },
     "/auth/2fa/setup": {
@@ -633,7 +685,9 @@
           }
         ],
         "summary": "Begin 2FA enrollment (returns secret + QR code).",
-        "tags": ["two-factor"]
+        "tags": [
+          "two-factor"
+        ]
       }
     },
     "/auth/2fa/enable": {
@@ -661,7 +715,9 @@
           }
         ],
         "summary": "Verify a code and enable 2FA (returns backup codes once).",
-        "tags": ["two-factor"]
+        "tags": [
+          "two-factor"
+        ]
       }
     },
     "/auth/2fa/disable": {
@@ -689,7 +745,9 @@
           }
         ],
         "summary": "Disable 2FA (not permitted when 2FA is mandatory).",
-        "tags": ["two-factor"]
+        "tags": [
+          "two-factor"
+        ]
       }
     },
     "/invitations": {
@@ -717,7 +775,9 @@
           }
         ],
         "summary": "Invite a user by email (3-day expiry).",
-        "tags": ["invitations"]
+        "tags": [
+          "invitations"
+        ]
       },
       "get": {
         "operationId": "InvitationsController_list",
@@ -733,7 +793,9 @@
           }
         ],
         "summary": "List invitations (tenant-scoped).",
-        "tags": ["invitations"]
+        "tags": [
+          "invitations"
+        ]
       }
     },
     "/invitations/{id}/resend": {
@@ -760,7 +822,9 @@
           }
         ],
         "summary": "Resend an invitation (new token + expiry).",
-        "tags": ["invitations"]
+        "tags": [
+          "invitations"
+        ]
       }
     },
     "/invitations/{id}": {
@@ -787,7 +851,9 @@
           }
         ],
         "summary": "Revoke a pending invitation.",
-        "tags": ["invitations"]
+        "tags": [
+          "invitations"
+        ]
       }
     },
     "/auth/login": {
@@ -810,7 +876,9 @@
           }
         },
         "summary": "Authenticate with email + password (may require 2FA).",
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/login/2fa": {
@@ -833,7 +901,9 @@
           }
         },
         "summary": "Complete login by verifying a 2FA code.",
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/refresh": {
@@ -856,7 +926,9 @@
           }
         },
         "summary": "Exchange a refresh token for a new token pair.",
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/logout": {
@@ -874,7 +946,9 @@
           }
         ],
         "summary": "Revoke the current session.",
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/forgot-password": {
@@ -897,7 +971,9 @@
           }
         },
         "summary": "Request a password-reset email.",
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/reset-password": {
@@ -920,7 +996,9 @@
           }
         },
         "summary": "Reset a password with a valid reset token.",
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/accept-invitation": {
@@ -943,7 +1021,9 @@
           }
         },
         "summary": "Accept an invitation and create the account.",
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/me": {
@@ -961,7 +1041,9 @@
           }
         ],
         "summary": "Get the current user, permissions, and 2FA status.",
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/plans": {
@@ -989,7 +1071,9 @@
           }
         ],
         "summary": "Create a plan (Super Admin).",
-        "tags": ["plans"]
+        "tags": [
+          "plans"
+        ]
       },
       "get": {
         "operationId": "PlansController_list",
@@ -1005,7 +1089,9 @@
           }
         ],
         "summary": "List plans.",
-        "tags": ["plans"]
+        "tags": [
+          "plans"
+        ]
       }
     },
     "/plans/{id}": {
@@ -1032,7 +1118,9 @@
           }
         ],
         "summary": "Get a plan by id.",
-        "tags": ["plans"]
+        "tags": [
+          "plans"
+        ]
       },
       "patch": {
         "operationId": "PlansController_update",
@@ -1067,7 +1155,9 @@
           }
         ],
         "summary": "Update a plan.",
-        "tags": ["plans"]
+        "tags": [
+          "plans"
+        ]
       }
     },
     "/plans/{id}/archive": {
@@ -1094,7 +1184,9 @@
           }
         ],
         "summary": "Archive (deactivate) a plan.",
-        "tags": ["plans"]
+        "tags": [
+          "plans"
+        ]
       }
     },
     "/plans/{id}/activate": {
@@ -1121,7 +1213,9 @@
           }
         ],
         "summary": "Re-activate a plan.",
-        "tags": ["plans"]
+        "tags": [
+          "plans"
+        ]
       }
     },
     "/subscriptions": {
@@ -1149,7 +1243,9 @@
           }
         ],
         "summary": "Create a subscription for a company (Super Admin).",
-        "tags": ["subscriptions"]
+        "tags": [
+          "subscriptions"
+        ]
       },
       "get": {
         "operationId": "SubscriptionsController_list",
@@ -1165,7 +1261,9 @@
           }
         ],
         "summary": "List subscriptions.",
-        "tags": ["subscriptions"]
+        "tags": [
+          "subscriptions"
+        ]
       }
     },
     "/subscriptions/{id}": {
@@ -1192,7 +1290,9 @@
           }
         ],
         "summary": "Get a subscription by id.",
-        "tags": ["subscriptions"]
+        "tags": [
+          "subscriptions"
+        ]
       },
       "patch": {
         "operationId": "SubscriptionsController_update",
@@ -1227,7 +1327,9 @@
           }
         ],
         "summary": "Update a subscription (change plan, status, dates).",
-        "tags": ["subscriptions"]
+        "tags": [
+          "subscriptions"
+        ]
       }
     },
     "/subscriptions/{id}/history": {
@@ -1254,7 +1356,9 @@
           }
         ],
         "summary": "Subscription change history (from the audit trail).",
-        "tags": ["subscriptions"]
+        "tags": [
+          "subscriptions"
+        ]
       }
     },
     "/subscriptions/{id}/cancel": {
@@ -1281,7 +1385,9 @@
           }
         ],
         "summary": "Cancel a subscription.",
-        "tags": ["subscriptions"]
+        "tags": [
+          "subscriptions"
+        ]
       }
     },
     "/invoices": {
@@ -1309,7 +1415,9 @@
           }
         ],
         "summary": "Create a manual invoice (Super Admin).",
-        "tags": ["invoices"]
+        "tags": [
+          "invoices"
+        ]
       },
       "get": {
         "operationId": "InvoicesController_list",
@@ -1325,7 +1433,9 @@
           }
         ],
         "summary": "List invoices.",
-        "tags": ["invoices"]
+        "tags": [
+          "invoices"
+        ]
       }
     },
     "/invoices/{id}": {
@@ -1352,7 +1462,9 @@
           }
         ],
         "summary": "Get an invoice by id.",
-        "tags": ["invoices"]
+        "tags": [
+          "invoices"
+        ]
       }
     },
     "/invoices/{id}/status": {
@@ -1389,7 +1501,9 @@
           }
         ],
         "summary": "Update invoice status (Draft/Unpaid/Paid/Overdue/Cancelled).",
-        "tags": ["invoices"]
+        "tags": [
+          "invoices"
+        ]
       }
     },
     "/super-admin/impersonation": {
@@ -1417,7 +1531,9 @@
           }
         ],
         "summary": "Start an audited impersonation of a company (requires a fresh 2FA code and a reason). Returns a short-lived, non-refreshable access token.",
-        "tags": ["super-admin"]
+        "tags": [
+          "super-admin"
+        ]
       },
       "delete": {
         "operationId": "SuperAdminController_endImpersonation",
@@ -1433,7 +1549,9 @@
           }
         ],
         "summary": "End the impersonation this token belongs to.",
-        "tags": ["super-admin"]
+        "tags": [
+          "super-admin"
+        ]
       }
     },
     "/super-admin/impersonation/active": {
@@ -1451,7 +1569,9 @@
           }
         ],
         "summary": "Every impersonation session that is live right now.",
-        "tags": ["super-admin"]
+        "tags": [
+          "super-admin"
+        ]
       }
     },
     "/super-admin/overview": {
@@ -1469,7 +1589,9 @@
           }
         ],
         "summary": "Platform overview counters.",
-        "tags": ["super-admin"]
+        "tags": [
+          "super-admin"
+        ]
       }
     },
     "/super-admin/admins": {
@@ -1487,7 +1609,9 @@
           }
         ],
         "summary": "List Super Admin accounts.",
-        "tags": ["super-admin"]
+        "tags": [
+          "super-admin"
+        ]
       }
     },
     "/super-admin/admins/invite": {
@@ -1515,7 +1639,9 @@
           }
         ],
         "summary": "Invite a new Super Admin.",
-        "tags": ["super-admin"]
+        "tags": [
+          "super-admin"
+        ]
       }
     },
     "/super-admin/admins/{id}/activate": {
@@ -1542,7 +1668,9 @@
           }
         ],
         "summary": "Activate a Super Admin account.",
-        "tags": ["super-admin"]
+        "tags": [
+          "super-admin"
+        ]
       }
     },
     "/super-admin/admins/{id}/deactivate": {
@@ -1569,7 +1697,9 @@
           }
         ],
         "summary": "Deactivate a Super Admin (last active one is protected).",
-        "tags": ["super-admin"]
+        "tags": [
+          "super-admin"
+        ]
       }
     },
     "/super-admin/demo-requests": {
@@ -1587,7 +1717,9 @@
           }
         ],
         "summary": "List marketing-site demo requests.",
-        "tags": ["super-admin"]
+        "tags": [
+          "super-admin"
+        ]
       }
     },
     "/super-admin/demo-requests/{id}": {
@@ -1624,7 +1756,9 @@
           }
         ],
         "summary": "Update a demo request status.",
-        "tags": ["super-admin"]
+        "tags": [
+          "super-admin"
+        ]
       }
     },
     "/locations": {
@@ -1652,7 +1786,9 @@
           }
         ],
         "summary": "Create a location/branch.",
-        "tags": ["locations"]
+        "tags": [
+          "locations"
+        ]
       },
       "get": {
         "operationId": "LocationsController_list",
@@ -1668,7 +1804,9 @@
           }
         ],
         "summary": "List locations (company-scoped).",
-        "tags": ["locations"]
+        "tags": [
+          "locations"
+        ]
       }
     },
     "/locations/{id}": {
@@ -1695,7 +1833,9 @@
           }
         ],
         "summary": "Location detail with screen metrics.",
-        "tags": ["locations"]
+        "tags": [
+          "locations"
+        ]
       },
       "patch": {
         "operationId": "LocationsController_update",
@@ -1730,7 +1870,9 @@
           }
         ],
         "summary": "Update a location.",
-        "tags": ["locations"]
+        "tags": [
+          "locations"
+        ]
       },
       "delete": {
         "operationId": "LocationsController_remove",
@@ -1755,7 +1897,9 @@
           }
         ],
         "summary": "Delete (soft) a location; its screens are unassigned.",
-        "tags": ["locations"]
+        "tags": [
+          "locations"
+        ]
       }
     },
     "/locations/{id}/archive": {
@@ -1782,7 +1926,9 @@
           }
         ],
         "summary": "Archive a location.",
-        "tags": ["locations"]
+        "tags": [
+          "locations"
+        ]
       }
     },
     "/locations/{id}/deactivate": {
@@ -1809,7 +1955,9 @@
           }
         ],
         "summary": "Deactivate a location.",
-        "tags": ["locations"]
+        "tags": [
+          "locations"
+        ]
       }
     },
     "/locations/{id}/reactivate": {
@@ -1836,7 +1984,9 @@
           }
         ],
         "summary": "Reactivate a location.",
-        "tags": ["locations"]
+        "tags": [
+          "locations"
+        ]
       }
     },
     "/screens": {
@@ -1864,7 +2014,9 @@
           }
         ],
         "summary": "Create a screen profile.",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       },
       "get": {
         "operationId": "ScreensController_list",
@@ -1880,7 +2032,9 @@
           }
         ],
         "summary": "List screens (filter by location/status/orientation/use/tag/group).",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/bulk/tags": {
@@ -1908,7 +2062,9 @@
           }
         ],
         "summary": "Bulk add/remove a tag across screens.",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/bulk/groups": {
@@ -1936,7 +2092,9 @@
           }
         ],
         "summary": "Bulk add/remove screens to a group.",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}": {
@@ -1963,7 +2121,9 @@
           }
         ],
         "summary": "Screen detail (with monitoring placeholders).",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       },
       "patch": {
         "operationId": "ScreensController_update",
@@ -1998,7 +2158,9 @@
           }
         ],
         "summary": "Update screen fields (incl. audio/working-hours/kiosk).",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       },
       "delete": {
         "operationId": "ScreensController_remove",
@@ -2022,7 +2184,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/move": {
@@ -2059,7 +2223,9 @@
           }
         ],
         "summary": "Move a screen to another location (or unassign).",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/tags": {
@@ -2096,7 +2262,9 @@
           }
         ],
         "summary": "Replace a screen’s tags.",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/groups": {
@@ -2133,7 +2301,9 @@
           }
         ],
         "summary": "Replace a screen’s group memberships.",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/kiosk-pin": {
@@ -2170,7 +2340,9 @@
           }
         ],
         "summary": "Set the screen kiosk exit PIN (stored hashed).",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       },
       "delete": {
         "operationId": "ScreensController_resetKioskPin",
@@ -2195,7 +2367,9 @@
           }
         ],
         "summary": "Clear the screen kiosk exit PIN.",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/archive": {
@@ -2221,7 +2395,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/disable": {
@@ -2247,7 +2423,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/reactivate": {
@@ -2273,7 +2451,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screen-groups": {
@@ -2301,7 +2481,9 @@
           }
         ],
         "summary": "Create a screen group.",
-        "tags": ["screen-groups"]
+        "tags": [
+          "screen-groups"
+        ]
       },
       "get": {
         "operationId": "ScreenGroupsController_list",
@@ -2317,7 +2499,9 @@
           }
         ],
         "summary": "List screen groups (with member counts).",
-        "tags": ["screen-groups"]
+        "tags": [
+          "screen-groups"
+        ]
       }
     },
     "/screen-groups/{id}": {
@@ -2344,7 +2528,9 @@
           }
         ],
         "summary": "Group detail with member screens.",
-        "tags": ["screen-groups"]
+        "tags": [
+          "screen-groups"
+        ]
       },
       "patch": {
         "operationId": "ScreenGroupsController_update",
@@ -2378,7 +2564,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screen-groups"]
+        "tags": [
+          "screen-groups"
+        ]
       },
       "delete": {
         "operationId": "ScreenGroupsController_remove",
@@ -2402,7 +2590,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screen-groups"]
+        "tags": [
+          "screen-groups"
+        ]
       }
     },
     "/screen-groups/{id}/screens": {
@@ -2439,7 +2629,9 @@
           }
         ],
         "summary": "Add screens to a group.",
-        "tags": ["screen-groups"]
+        "tags": [
+          "screen-groups"
+        ]
       },
       "delete": {
         "operationId": "ScreenGroupsController_removeScreens",
@@ -2474,7 +2666,9 @@
           }
         ],
         "summary": "Remove screens from a group.",
-        "tags": ["screen-groups"]
+        "tags": [
+          "screen-groups"
+        ]
       }
     },
     "/tags": {
@@ -2502,7 +2696,9 @@
           }
         ],
         "summary": "Create a tag (company-scoped).",
-        "tags": ["tags"]
+        "tags": [
+          "tags"
+        ]
       },
       "get": {
         "operationId": "TagsController_list",
@@ -2518,7 +2714,9 @@
           }
         ],
         "summary": "List tags (filter by type).",
-        "tags": ["tags"]
+        "tags": [
+          "tags"
+        ]
       }
     },
     "/tags/{id}": {
@@ -2554,7 +2752,9 @@
             "bearer": []
           }
         ],
-        "tags": ["tags"]
+        "tags": [
+          "tags"
+        ]
       },
       "delete": {
         "operationId": "TagsController_remove",
@@ -2578,7 +2778,9 @@
             "bearer": []
           }
         ],
-        "tags": ["tags"]
+        "tags": [
+          "tags"
+        ]
       }
     },
     "/company-settings": {
@@ -2596,7 +2798,9 @@
           }
         ],
         "summary": "Get the current company's settings (billing read-only).",
-        "tags": ["company-settings"]
+        "tags": [
+          "company-settings"
+        ]
       },
       "patch": {
         "operationId": "CompanySettingsController_update",
@@ -2622,7 +2826,9 @@
           }
         ],
         "summary": "Update company settings (name/timezone/defaults/working hours).",
-        "tags": ["company-settings"]
+        "tags": [
+          "company-settings"
+        ]
       }
     },
     "/company-settings/usage": {
@@ -2640,7 +2846,9 @@
           }
         ],
         "summary": "The company's usage vs plan limits (with grace status).",
-        "tags": ["company-settings"]
+        "tags": [
+          "company-settings"
+        ]
       }
     },
     "/company-settings/kiosk-pin": {
@@ -2668,7 +2876,9 @@
           }
         ],
         "summary": "Set the company default kiosk PIN (stored hashed).",
-        "tags": ["company-settings"]
+        "tags": [
+          "company-settings"
+        ]
       },
       "delete": {
         "operationId": "CompanySettingsController_resetKioskPin",
@@ -2684,7 +2894,9 @@
           }
         ],
         "summary": "Clear the company default kiosk PIN.",
-        "tags": ["company-settings"]
+        "tags": [
+          "company-settings"
+        ]
       }
     },
     "/content/upload": {
@@ -2712,7 +2924,9 @@
           }
         ],
         "summary": "Upload image/video/PDF content.",
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/url": {
@@ -2740,7 +2954,9 @@
           }
         ],
         "summary": "Create URL content.",
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/text": {
@@ -2768,7 +2984,9 @@
           }
         ],
         "summary": "Create a text announcement.",
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content": {
@@ -2786,7 +3004,9 @@
           }
         ],
         "summary": "List content (filter by type/status/orientation/tag/expiry; sortable).",
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/usage": {
@@ -2804,7 +3024,9 @@
           }
         ],
         "summary": "Storage usage + content counts for the library.",
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/bulk/archive": {
@@ -2831,7 +3053,9 @@
             "bearer": []
           }
         ],
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/bulk/unarchive": {
@@ -2858,7 +3082,9 @@
             "bearer": []
           }
         ],
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/bulk/trash": {
@@ -2885,7 +3111,9 @@
             "bearer": []
           }
         ],
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/bulk/restore": {
@@ -2912,7 +3140,9 @@
             "bearer": []
           }
         ],
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/bulk/tags": {
@@ -2939,7 +3169,9 @@
             "bearer": []
           }
         ],
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/trash/purge": {
@@ -2957,7 +3189,9 @@
           }
         ],
         "summary": "Permanently remove this company’s trash older than 14 days.",
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/{id}": {
@@ -2984,7 +3218,9 @@
           }
         ],
         "summary": "Content detail.",
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       },
       "patch": {
         "operationId": "ContentController_update",
@@ -3019,7 +3255,9 @@
           }
         ],
         "summary": "Update content metadata (title/description/orientation/expiry/tags/...).",
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/{id}/preview": {
@@ -3046,7 +3284,9 @@
           }
         ],
         "summary": "A signed preview URL (files) or the URL/text payload.",
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/{id}/replace": {
@@ -3073,7 +3313,9 @@
           }
         ],
         "summary": "Replace the uploaded file (same type).",
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/{id}/archive": {
@@ -3099,7 +3341,9 @@
             "bearer": []
           }
         ],
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/{id}/unarchive": {
@@ -3125,7 +3369,9 @@
             "bearer": []
           }
         ],
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/{id}/trash": {
@@ -3151,7 +3397,9 @@
             "bearer": []
           }
         ],
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/content/{id}/restore": {
@@ -3177,7 +3425,9 @@
             "bearer": []
           }
         ],
-        "tags": ["content"]
+        "tags": [
+          "content"
+        ]
       }
     },
     "/playlists": {
@@ -3195,7 +3445,9 @@
           }
         ],
         "summary": "List playlists (filter by status/search/created date).",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       },
       "post": {
         "operationId": "PlaylistsController_create",
@@ -3221,7 +3473,9 @@
           }
         ],
         "summary": "Create a playlist (optionally with initial items).",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       }
     },
     "/playlists/{id}": {
@@ -3248,7 +3502,9 @@
           }
         ],
         "summary": "Playlist detail with items + validity.",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       },
       "patch": {
         "operationId": "PlaylistsController_update",
@@ -3283,7 +3539,9 @@
           }
         ],
         "summary": "Update playlist metadata (title/description/status).",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       },
       "delete": {
         "operationId": "PlaylistsController_remove",
@@ -3308,7 +3566,9 @@
           }
         ],
         "summary": "Soft-delete a playlist.",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       }
     },
     "/playlists/{id}/validate": {
@@ -3335,7 +3595,9 @@
           }
         ],
         "summary": "Validation summary (schedulable, invalid items, orientation, duration).",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       }
     },
     "/playlists/{id}/archive": {
@@ -3361,7 +3623,9 @@
             "bearer": []
           }
         ],
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       }
     },
     "/playlists/{id}/unarchive": {
@@ -3387,7 +3651,9 @@
             "bearer": []
           }
         ],
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       }
     },
     "/playlists/{id}/duplicate": {
@@ -3424,7 +3690,9 @@
           }
         ],
         "summary": "Duplicate a playlist (copies all items).",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       }
     },
     "/playlists/{id}/items": {
@@ -3461,7 +3729,9 @@
           }
         ],
         "summary": "Add an item (ACTIVE, non-expired, same-company content).",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       }
     },
     "/playlists/{id}/items/reorder": {
@@ -3498,7 +3768,9 @@
           }
         ],
         "summary": "Reorder items (full ordered list of item ids).",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       }
     },
     "/playlists/{id}/items/{itemId}": {
@@ -3543,7 +3815,9 @@
           }
         ],
         "summary": "Update an item (duration / playFullVideo / PDF page duration).",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       },
       "delete": {
         "operationId": "PlaylistsController_removeItem",
@@ -3576,7 +3850,9 @@
           }
         ],
         "summary": "Remove an item.",
-        "tags": ["playlists"]
+        "tags": [
+          "playlists"
+        ]
       }
     },
     "/schedules": {
@@ -3594,7 +3870,9 @@
           }
         ],
         "summary": "List schedules (filter by status/type/target/date/priority/search).",
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       },
       "post": {
         "operationId": "SchedulesController_create",
@@ -3620,7 +3898,9 @@
           }
         ],
         "summary": "Create a schedule (with optional targets).",
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       }
     },
     "/schedules/conflicts": {
@@ -3638,7 +3918,9 @@
           }
         ],
         "summary": "All overlapping ACTIVE schedule pairs (shared screens + winner).",
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       }
     },
     "/schedules/{id}": {
@@ -3665,7 +3947,9 @@
           }
         ],
         "summary": "Schedule detail.",
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       },
       "patch": {
         "operationId": "SchedulesController_update",
@@ -3700,7 +3984,9 @@
           }
         ],
         "summary": "Update a schedule.",
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       },
       "delete": {
         "operationId": "SchedulesController_remove",
@@ -3725,7 +4011,9 @@
           }
         ],
         "summary": "Soft-delete a schedule.",
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       }
     },
     "/schedules/{id}/validate": {
@@ -3752,7 +4040,9 @@
           }
         ],
         "summary": "Validation summary (playlist/targets, orientation + conflict warnings).",
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       }
     },
     "/schedules/{id}/pause": {
@@ -3778,7 +4068,9 @@
             "bearer": []
           }
         ],
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       }
     },
     "/schedules/{id}/resume": {
@@ -3804,7 +4096,9 @@
             "bearer": []
           }
         ],
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       }
     },
     "/schedules/{id}/archive": {
@@ -3830,7 +4124,9 @@
             "bearer": []
           }
         ],
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       }
     },
     "/schedules/{id}/targets": {
@@ -3867,7 +4163,9 @@
           }
         ],
         "summary": "Add a target (SCREEN/SCREEN_GROUP/LOCATION/COMPANY).",
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       }
     },
     "/schedules/{id}/targets/{targetId}": {
@@ -3902,7 +4200,9 @@
           }
         ],
         "summary": "Remove a target.",
-        "tags": ["schedules"]
+        "tags": [
+          "schedules"
+        ]
       }
     },
     "/screens/{id}/playback-manifest": {
@@ -3929,7 +4229,9 @@
           }
         ],
         "summary": "Resolve what a screen should play now (or at ?at=ISO).",
-        "tags": ["playback"]
+        "tags": [
+          "playback"
+        ]
       }
     },
     "/screens/{id}/pair": {
@@ -3966,7 +4268,9 @@
           }
         ],
         "summary": "Pair a screen by entering the code shown on the TV.",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/unpair": {
@@ -3993,7 +4297,9 @@
           }
         ],
         "summary": "Unpair a screen (revokes the device token).",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/pairing-status": {
@@ -4020,7 +4326,9 @@
           }
         ],
         "summary": "Pairing + device status for a screen.",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/monitoring": {
@@ -4047,7 +4355,9 @@
           }
         ],
         "summary": "Live status + telemetry + cache/sync + latest screenshot for a screen.",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/screenshots": {
@@ -4073,7 +4383,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/commands": {
@@ -4099,7 +4411,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       },
       "post": {
         "operationId": "ScreenMonitoringController_issueCommand",
@@ -4134,7 +4448,9 @@
           }
         ],
         "summary": "Issue a remote command to a screen.",
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/commands/{commandId}": {
@@ -4168,7 +4484,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/actions/force-sync": {
@@ -4194,7 +4512,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/actions/refresh-manifest": {
@@ -4220,7 +4540,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/actions/restart-playback": {
@@ -4246,7 +4568,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/actions/clear-cache": {
@@ -4272,7 +4596,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/actions/take-screenshot": {
@@ -4298,7 +4624,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/screens/{id}/actions/reboot": {
@@ -4324,7 +4652,9 @@
             "bearer": []
           }
         ],
-        "tags": ["screens"]
+        "tags": [
+          "screens"
+        ]
       }
     },
     "/monitoring/overview": {
@@ -4342,7 +4672,9 @@
           }
         ],
         "summary": "Fleet status counts, sync breakdown, alerts, and per-screen status.",
-        "tags": ["monitoring"]
+        "tags": [
+          "monitoring"
+        ]
       }
     },
     "/notifications": {
@@ -4360,7 +4692,9 @@
           }
         ],
         "summary": "List the caller's notifications (paginated; ?unreadOnly).",
-        "tags": ["notifications"]
+        "tags": [
+          "notifications"
+        ]
       }
     },
     "/notifications/unread-count": {
@@ -4377,7 +4711,9 @@
             "bearer": []
           }
         ],
-        "tags": ["notifications"]
+        "tags": [
+          "notifications"
+        ]
       }
     },
     "/notifications/preferences": {
@@ -4394,7 +4730,9 @@
             "bearer": []
           }
         ],
-        "tags": ["notifications"]
+        "tags": [
+          "notifications"
+        ]
       },
       "put": {
         "operationId": "NotificationsController_updatePreferences",
@@ -4420,7 +4758,9 @@
           }
         ],
         "summary": "Update notification preferences (channel/event opt in/out).",
-        "tags": ["notifications"]
+        "tags": [
+          "notifications"
+        ]
       }
     },
     "/notifications/{id}/read": {
@@ -4446,7 +4786,9 @@
             "bearer": []
           }
         ],
-        "tags": ["notifications"]
+        "tags": [
+          "notifications"
+        ]
       }
     },
     "/notifications/read-all": {
@@ -4463,7 +4805,9 @@
             "bearer": []
           }
         ],
-        "tags": ["notifications"]
+        "tags": [
+          "notifications"
+        ]
       }
     },
     "/alerts": {
@@ -4481,7 +4825,9 @@
           }
         ],
         "summary": "List alerts (filter by status/severity/type/screen/date).",
-        "tags": ["alerts"]
+        "tags": [
+          "alerts"
+        ]
       }
     },
     "/alerts/{id}/acknowledge": {
@@ -4507,7 +4853,9 @@
             "bearer": []
           }
         ],
-        "tags": ["alerts"]
+        "tags": [
+          "alerts"
+        ]
       }
     },
     "/alerts/{id}/resolve": {
@@ -4533,7 +4881,9 @@
             "bearer": []
           }
         ],
-        "tags": ["alerts"]
+        "tags": [
+          "alerts"
+        ]
       }
     },
     "/alerts/{id}/dismiss": {
@@ -4559,7 +4909,9 @@
             "bearer": []
           }
         ],
-        "tags": ["alerts"]
+        "tags": [
+          "alerts"
+        ]
       }
     },
     "/proof-of-play": {
@@ -4577,7 +4929,9 @@
           }
         ],
         "summary": "Proof-of-play events (paginated, filterable).",
-        "tags": ["proof-of-play"]
+        "tags": [
+          "proof-of-play"
+        ]
       }
     },
     "/proof-of-play/summary": {
@@ -4595,7 +4949,9 @@
           }
         ],
         "summary": "Aggregated proof-of-play summary (counts, duration, top content, failing screens).",
-        "tags": ["proof-of-play"]
+        "tags": [
+          "proof-of-play"
+        ]
       }
     },
     "/proof-of-play/export.csv": {
@@ -4613,7 +4969,9 @@
           }
         ],
         "summary": "Export filtered proof-of-play events as CSV.",
-        "tags": ["proof-of-play"]
+        "tags": [
+          "proof-of-play"
+        ]
       }
     },
     "/emergency-broadcasts": {
@@ -4631,7 +4989,9 @@
           }
         ],
         "summary": "List emergency broadcasts (filter by status/search).",
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       },
       "post": {
         "operationId": "EmergencyBroadcastController_create",
@@ -4657,7 +5017,9 @@
           }
         ],
         "summary": "Create an emergency broadcast (DRAFT).",
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       }
     },
     "/emergency-broadcasts/quick-text": {
@@ -4685,7 +5047,9 @@
           }
         ],
         "summary": "Create and immediately activate a text emergency broadcast.",
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       }
     },
     "/emergency-broadcasts/{id}": {
@@ -4712,7 +5076,9 @@
           }
         ],
         "summary": "Emergency broadcast detail (with validation + affected screens).",
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       },
       "patch": {
         "operationId": "EmergencyBroadcastController_update",
@@ -4747,7 +5113,9 @@
           }
         ],
         "summary": "Update an emergency broadcast.",
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       }
     },
     "/emergency-broadcasts/{id}/validate": {
@@ -4774,7 +5142,9 @@
           }
         ],
         "summary": "Validation report (errors, warnings, affected screen count).",
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       }
     },
     "/emergency-broadcasts/{id}/activate": {
@@ -4800,7 +5170,9 @@
             "bearer": []
           }
         ],
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       }
     },
     "/emergency-broadcasts/{id}/pause": {
@@ -4826,7 +5198,9 @@
             "bearer": []
           }
         ],
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       }
     },
     "/emergency-broadcasts/{id}/end": {
@@ -4852,7 +5226,9 @@
             "bearer": []
           }
         ],
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       }
     },
     "/emergency-broadcasts/{id}/archive": {
@@ -4878,7 +5254,9 @@
             "bearer": []
           }
         ],
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       }
     },
     "/emergency-broadcasts/{id}/targets": {
@@ -4914,7 +5292,9 @@
             "bearer": []
           }
         ],
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       }
     },
     "/emergency-broadcasts/{id}/targets/{targetId}": {
@@ -4948,7 +5328,9 @@
             "bearer": []
           }
         ],
-        "tags": ["emergency-broadcasts"]
+        "tags": [
+          "emergency-broadcasts"
+        ]
       }
     },
     "/exports/{type}": {
@@ -4966,7 +5348,9 @@
           }
         ],
         "summary": "Export a dataset as CSV/XLSX/PDF (?format, ?from, ?to, ?screenId, ?status).",
-        "tags": ["exports"]
+        "tags": [
+          "exports"
+        ]
       }
     },
     "/imports/templates/{type}": {
@@ -4993,7 +5377,9 @@
           }
         ],
         "summary": "Download a CSV template for an import type.",
-        "tags": ["imports"]
+        "tags": [
+          "imports"
+        ]
       }
     },
     "/imports": {
@@ -5020,7 +5406,9 @@
           }
         ],
         "summary": "Upload + validate a CSV/XLSX import (?type=). Returns a preview job.",
-        "tags": ["imports"]
+        "tags": [
+          "imports"
+        ]
       },
       "get": {
         "operationId": "ImportsController_list",
@@ -5036,7 +5424,9 @@
           }
         ],
         "summary": "Import history.",
-        "tags": ["imports"]
+        "tags": [
+          "imports"
+        ]
       }
     },
     "/imports/{id}": {
@@ -5062,7 +5452,9 @@
             "bearer": []
           }
         ],
-        "tags": ["imports"]
+        "tags": [
+          "imports"
+        ]
       }
     },
     "/imports/{id}/commit": {
@@ -5089,7 +5481,9 @@
           }
         ],
         "summary": "Commit a validated import (creates the rows, reusing entity validation + plan limits).",
-        "tags": ["imports"]
+        "tags": [
+          "imports"
+        ]
       }
     },
     "/imports/{id}/cancel": {
@@ -5115,7 +5509,9 @@
             "bearer": []
           }
         ],
-        "tags": ["imports"]
+        "tags": [
+          "imports"
+        ]
       }
     },
     "/scheduled-reports": {
@@ -5132,7 +5528,9 @@
             "bearer": []
           }
         ],
-        "tags": ["scheduled-reports"]
+        "tags": [
+          "scheduled-reports"
+        ]
       },
       "post": {
         "operationId": "ScheduledReportsController_create",
@@ -5158,7 +5556,9 @@
           }
         ],
         "summary": "Create a scheduled report.",
-        "tags": ["scheduled-reports"]
+        "tags": [
+          "scheduled-reports"
+        ]
       }
     },
     "/scheduled-reports/{id}": {
@@ -5184,7 +5584,9 @@
             "bearer": []
           }
         ],
-        "tags": ["scheduled-reports"]
+        "tags": [
+          "scheduled-reports"
+        ]
       },
       "patch": {
         "operationId": "ScheduledReportsController_update",
@@ -5218,7 +5620,9 @@
             "bearer": []
           }
         ],
-        "tags": ["scheduled-reports"]
+        "tags": [
+          "scheduled-reports"
+        ]
       },
       "delete": {
         "operationId": "ScheduledReportsController_remove",
@@ -5242,7 +5646,9 @@
             "bearer": []
           }
         ],
-        "tags": ["scheduled-reports"]
+        "tags": [
+          "scheduled-reports"
+        ]
       }
     },
     "/scheduled-reports/{id}/enable": {
@@ -5268,7 +5674,9 @@
             "bearer": []
           }
         ],
-        "tags": ["scheduled-reports"]
+        "tags": [
+          "scheduled-reports"
+        ]
       }
     },
     "/scheduled-reports/{id}/disable": {
@@ -5294,7 +5702,9 @@
             "bearer": []
           }
         ],
-        "tags": ["scheduled-reports"]
+        "tags": [
+          "scheduled-reports"
+        ]
       }
     },
     "/scheduled-reports/{id}/run": {
@@ -5321,7 +5731,9 @@
           }
         ],
         "summary": "Run the report now and email it.",
-        "tags": ["scheduled-reports"]
+        "tags": [
+          "scheduled-reports"
+        ]
       }
     },
     "/admin/backups": {
@@ -5339,7 +5751,9 @@
           }
         ],
         "summary": "Backup health: last successful database backup, staleness, recent runs.",
-        "tags": ["admin-maintenance"]
+        "tags": [
+          "admin-maintenance"
+        ]
       },
       "post": {
         "operationId": "MaintenanceController_recordBackup",
@@ -5365,7 +5779,9 @@
           }
         ],
         "summary": "Record a backup run result (used by the backup script / integrations).",
-        "tags": ["admin-maintenance"]
+        "tags": [
+          "admin-maintenance"
+        ]
       }
     },
     "/admin/maintenance/run": {
@@ -5393,7 +5809,9 @@
           }
         ],
         "summary": "Run a maintenance job now (all | sweep | retention | reports | emergencies | backup-check).",
-        "tags": ["admin-maintenance"]
+        "tags": [
+          "admin-maintenance"
+        ]
       }
     }
   },

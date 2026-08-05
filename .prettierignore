@@ -19,3 +19,10 @@ apps/android-tv-player/
 # Generated / vendor
 *.min.js
 *.min.css
+
+# Generated contracts. These are byte-compared in CI against a fresh emit
+# (scripts/emit-openapi.ts, and the manifest goldens read by both the API and
+# the Android player), so reformatting them makes the drift check fail on a
+# difference that means nothing. Prettier collapsing short arrays here already
+# broke it once.
+contracts/
