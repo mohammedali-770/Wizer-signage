@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Pencil, Plus, Search, Trash2, Users2 } from 'lucide-react';
 
 import { api, apiFetch, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
+import { useAllPages, useApiResource } from '@/lib/use-api';
 import { formatNumber } from '@/lib/format';
 import type { Paginated, Screen, ScreenGroup, ScreenGroupDetail } from '@/lib/types';
 import {
@@ -371,7 +371,7 @@ function ManageScreensDialog({
   const { toast } = useToast();
 
   const detail = useApiResource<ScreenGroupDetail>(`/screen-groups/${group.id}`);
-  const allScreens = useApiResource<Paginated<Screen>>('/screens?pageSize=100');
+  const allScreens = useAllPages<Screen>('/screens');
 
   const [selected, setSelected] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);

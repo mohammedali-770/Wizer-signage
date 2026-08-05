@@ -3,14 +3,8 @@
 import { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 
-import { useApiResource } from '@/lib/use-api';
-import type {
-  LocationListItem,
-  Paginated,
-  Screen,
-  ScheduleTargetType,
-  ScreenGroup,
-} from '@/lib/types';
+import { useAllPages } from '@/lib/use-api';
+import type { LocationListItem, Screen, ScheduleTargetType, ScreenGroup } from '@/lib/types';
 import { Badge, Button, Select } from '@/components/ui';
 
 export interface SelectedTarget {
@@ -37,9 +31,9 @@ export function TargetSelector({
   const [type, setType] = useState<ScheduleTargetType>('SCREEN');
   const [entityId, setEntityId] = useState('');
 
-  const screens = useApiResource<Paginated<Screen>>('/screens?pageSize=100');
-  const groups = useApiResource<Paginated<ScreenGroup>>('/screen-groups?pageSize=100');
-  const locations = useApiResource<Paginated<LocationListItem>>('/locations?pageSize=100');
+  const screens = useAllPages<Screen>('/screens');
+  const groups = useAllPages<ScreenGroup>('/screen-groups');
+  const locations = useAllPages<LocationListItem>('/locations');
 
   const labelFor = useMemo(() => {
     const map = new Map<string, string>();
@@ -61,6 +55,19 @@ export function TargetSelector({
           ? (locations.data?.items.map((l) => ({ id: l.id, name: l.name })) ?? [])
           : [];
 
+  // The span of whichever list is on screen. A capped list that does not admit
+  // it is the actual defect: a screen missing from this dropdown is
+  // indistinguishable from a screen that was never created, and the user has no
+  // way to find out which.
+  const span =
+    type === 'SCREEN'
+      ? screens.span
+      : type === 'SCREEN_GROUP'
+        ? groups.span
+        : type === 'LOCATION'
+          ? locations.span
+          : null;
+
   const add = () => {
     if (type === 'COMPANY') {
       onAdd({ targetType: 'COMPANY', targetId: 'company' });
@@ -74,6 +81,12 @@ export function TargetSelector({
 
   return (
     <div className="space-y-3">
+      {span?.truncated && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          Showing the first {span.loaded} of {span.total}. Narrow the list from the main page to
+          reach the rest.
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         {targets.length === 0 ? (
           <span className="text-muted-foreground text-sm">No targets yet.</span>

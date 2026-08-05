@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
+import { useAllPages, useApiResource } from '@/lib/use-api';
 import { formatBytes, formatDate, formatNumber } from '@/lib/format';
 import type {
   Content,
@@ -141,7 +141,7 @@ export default function ContentLibraryPage() {
   const [busy, setBusy] = useState(false);
 
   const usage = useApiResource<ContentUsage>('/content/usage');
-  const tags = useApiResource<Paginated<Tag>>('/tags?pageSize=100');
+  const tags = useAllPages<Tag>('/tags');
 
   const contentTags = useMemo(
     () => (tags.data?.items ?? []).filter((t) => t.type === 'CONTENT' || t.type === 'BOTH'),

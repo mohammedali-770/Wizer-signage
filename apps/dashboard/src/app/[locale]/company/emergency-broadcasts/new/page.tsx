@@ -6,12 +6,11 @@ import { ArrowLeft } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
+import { useAllPages } from '@/lib/use-api';
 import type {
   Content,
   EmergencyBroadcast,
   EmergencyBroadcastType,
-  Paginated,
   PlaylistListItem,
 } from '@/lib/types';
 import { TargetSelector, type SelectedTarget } from '@/components/schedules/target-selector';
@@ -36,10 +35,8 @@ export default function NewEmergencyBroadcastPage() {
   const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
-  const contents = useApiResource<Paginated<Content>>('/content?status=ACTIVE&pageSize=100');
-  const playlists = useApiResource<Paginated<PlaylistListItem>>(
-    '/playlists?status=ACTIVE&pageSize=100',
-  );
+  const contents = useAllPages<Content>('/content?status=ACTIVE');
+  const playlists = useAllPages<PlaylistListItem>('/playlists?status=ACTIVE');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');

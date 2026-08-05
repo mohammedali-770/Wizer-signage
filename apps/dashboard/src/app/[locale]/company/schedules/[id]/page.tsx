@@ -7,9 +7,8 @@ import { ArrowLeft, Pause, Play, Trash2 } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
+import { useAllPages, useApiResource } from '@/lib/use-api';
 import type {
-  Paginated,
   PlaybackManifest,
   Schedule,
   ScheduleType,
@@ -54,7 +53,7 @@ export default function ScheduleDetailPage() {
     reload,
   } = useApiResource<Schedule>(id ? `/schedules/${id}` : null);
   const validation = useApiResource<ScheduleValidation>(id ? `/schedules/${id}/validate` : null);
-  const screens = useApiResource<Paginated<Screen>>('/screens?pageSize=100');
+  const screens = useAllPages<Screen>('/screens');
 
   const [busy, setBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Monitor, Plus, Search } from 'lucide-react';
 
-import { useApiResource } from '@/lib/use-api';
+import { useAllPages, useApiResource } from '@/lib/use-api';
 import { formatDate } from '@/lib/format';
 import type {
   LocationListItem,
@@ -79,8 +79,8 @@ export default function ScreensPage() {
   // Pending search input (committed on Enter / button click).
   const [searchInput, setSearchInput] = useState('');
 
-  const locations = useApiResource<Paginated<LocationListItem>>('/locations?pageSize=100');
-  const tags = useApiResource<Paginated<Tag>>('/tags?pageSize=100');
+  const locations = useAllPages<LocationListItem>('/locations');
+  const tags = useAllPages<Tag>('/tags');
 
   const path = useMemo(() => {
     const params = new URLSearchParams();

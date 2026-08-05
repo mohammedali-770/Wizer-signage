@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Download } from 'lucide-react';
 
 import { getAccessToken } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
+import { useAllPages, useApiResource } from '@/lib/use-api';
 import type {
   Paginated,
   ProofOfPlayEvent,
@@ -60,7 +60,7 @@ export default function ProofOfPlayReportPage() {
   const t = useTranslations('pages.proofOfPlay');
   const tc = useTranslations('common');
   const { toast } = useToast();
-  const screens = useApiResource<Paginated<Screen>>('/screens?pageSize=100');
+  const screens = useAllPages<Screen>('/screens');
 
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');

@@ -5,8 +5,8 @@ import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
-import type { Company, Paginated, Plan } from '@/lib/types';
+import { useAllPages } from '@/lib/use-api';
+import type { Company, Plan } from '@/lib/types';
 import { Link, useRouter } from '@/i18n/navigation';
 import {
   Button,
@@ -33,7 +33,7 @@ export default function NewCompanyPage() {
   const t = useTranslations('pages.adminCompanyNew');
   const tc = useTranslations('common');
 
-  const { data: plansData } = useApiResource<Paginated<Plan>>('/plans?pageSize=100&isActive=true');
+  const { data: plansData } = useAllPages<Plan>('/plans?isActive=true');
   const plans = plansData?.items ?? [];
 
   const [name, setName] = useState('');

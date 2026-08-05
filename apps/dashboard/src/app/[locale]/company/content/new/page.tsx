@@ -5,8 +5,8 @@ import { useTranslations } from 'next-intl';
 import { ArrowLeft, FileText, Link2, Upload } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
-import type { Content, Orientation, Paginated, Tag } from '@/lib/types';
+import { useAllPages } from '@/lib/use-api';
+import type { Content, Orientation, Tag } from '@/lib/types';
 import { Link, useRouter } from '@/i18n/navigation';
 import {
   Button,
@@ -84,7 +84,7 @@ export default function NewContentPage() {
   const [busy, setBusy] = useState(false);
 
   // Content tags (CONTENT or BOTH) for the multi-select.
-  const tagsResource = useApiResource<Paginated<Tag>>('/tags?pageSize=100');
+  const tagsResource = useAllPages<Tag>('/tags');
   const contentTags = useMemo(
     () => (tagsResource.data?.items ?? []).filter((t) => t.type === 'CONTENT' || t.type === 'BOTH'),
     [tagsResource.data],
