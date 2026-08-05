@@ -10,7 +10,10 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import { ApiPaginatedResponse, SuccessResponseDto } from '../../common/dto/api-response.dto';
+import { ScheduleDto } from '../../common/dto/entity-response.dto';
 import { ScheduleStatus } from '@prisma/client';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
@@ -37,6 +40,7 @@ export class SchedulesController {
   @Get()
   @RequirePermissions(Permission.ScheduleRead)
   @ApiOperation({ summary: 'List schedules (filter by status/type/target/date/priority/search).' })
+  @ApiPaginatedResponse(ScheduleDto)
   list(@CurrentCompany() companyId: string, @Query() query: ListSchedulesQueryDto) {
     return this.schedules.list(companyId, query);
   }
@@ -44,6 +48,7 @@ export class SchedulesController {
   @Post()
   @RequirePermissions(Permission.ScheduleManage)
   @ApiOperation({ summary: 'Create a schedule (with optional targets).' })
+  @ApiOkResponse({ type: ScheduleDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -62,6 +67,7 @@ export class SchedulesController {
   @Get(':id')
   @RequirePermissions(Permission.ScheduleRead)
   @ApiOperation({ summary: 'Schedule detail.' })
+  @ApiOkResponse({ type: ScheduleDto })
   detail(@CurrentCompany() companyId: string, @Param('id') id: string) {
     return this.schedules.getDetail(companyId, id);
   }
@@ -78,6 +84,7 @@ export class SchedulesController {
   @Patch(':id')
   @RequirePermissions(Permission.ScheduleManage)
   @ApiOperation({ summary: 'Update a schedule.' })
+  @ApiOkResponse({ type: ScheduleDto })
   update(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -123,6 +130,7 @@ export class SchedulesController {
   @Delete(':id')
   @RequirePermissions(Permission.ScheduleManage)
   @ApiOperation({ summary: 'Soft-delete a schedule.' })
+  @ApiOkResponse({ type: SuccessResponseDto })
   remove(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -134,6 +142,7 @@ export class SchedulesController {
   @Post(':id/targets')
   @RequirePermissions(Permission.ScheduleManage)
   @ApiOperation({ summary: 'Add a target (SCREEN/SCREEN_GROUP/LOCATION/COMPANY).' })
+  @ApiOkResponse({ type: ScheduleDto })
   addTarget(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -146,6 +155,7 @@ export class SchedulesController {
   @Delete(':id/targets/:targetId')
   @RequirePermissions(Permission.ScheduleManage)
   @ApiOperation({ summary: 'Remove a target.' })
+  @ApiOkResponse({ type: ScheduleDto })
   removeTarget(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

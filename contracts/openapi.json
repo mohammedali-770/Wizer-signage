@@ -4301,7 +4301,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ScheduleDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4328,8 +4350,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4378,7 +4407,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4415,7 +4451,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4442,7 +4485,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4593,8 +4643,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4631,7 +4688,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7172,6 +7236,194 @@
       "UpdatePlaylistItemDto": {
         "type": "object",
         "properties": {}
+      },
+      "PlaylistRefDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status"
+        ]
+      },
+      "ScheduleTargetDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "SCREEN_GROUP",
+              "LOCATION",
+              "COMPANY"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "description": "The referenced entity, or 'company' for a company-wide target."
+          }
+        },
+        "required": [
+          "id",
+          "targetType",
+          "targetId"
+        ]
+      },
+      "ScheduleDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string",
+            "description": "Owning tenant. Derived from the caller's token, never the body."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlistId": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlist": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlaylistRefDto"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "PAUSED",
+              "ARCHIVED"
+            ]
+          },
+          "scheduleType": {
+            "type": "string",
+            "enum": [
+              "ONE_TIME",
+              "RECURRING",
+              "ALWAYS"
+            ]
+          },
+          "priority": {
+            "type": "number",
+            "description": "Higher wins when two schedules cover the same screen and time."
+          },
+          "startDate": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "startTime": {
+            "type": "object",
+            "nullable": true,
+            "example": "09:00"
+          },
+          "endTime": {
+            "type": "object",
+            "nullable": true,
+            "example": "17:30"
+          },
+          "isAllDay": {
+            "type": "boolean"
+          },
+          "daysOfWeek": {
+            "description": "0 = Sunday.",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "timezone": {
+            "type": "object",
+            "nullable": true,
+            "example": "Asia/Riyadh",
+            "description": "IANA zone the times resolve against; a bare city name runs the schedule hours off."
+          },
+          "recurrence": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdById": {
+            "type": "object",
+            "nullable": true
+          },
+          "updatedById": {
+            "type": "object",
+            "nullable": true
+          },
+          "archivedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleTargetDto"
+            }
+          },
+          "targetCount": {
+            "type": "number",
+            "description": "targets.length, computed — not a column."
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "createdAt",
+          "updatedAt",
+          "name",
+          "status",
+          "scheduleType",
+          "priority",
+          "isAllDay",
+          "daysOfWeek",
+          "targets",
+          "targetCount"
+        ]
       },
       "CreateScheduleDto": {
         "type": "object",
