@@ -11,9 +11,16 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
-import { ApiPaginatedResponse, SuccessResponseDto } from '../../common/dto/api-response.dto';
+import { ApiPaginatedResponse, PurgedResponseDto } from '../../common/dto/api-response.dto';
 import { ContentDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
@@ -55,7 +62,7 @@ export class ContentController {
   @UseInterceptors(FileInterceptor('file', UPLOAD_LIMIT))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload image/video/PDF content.' })
-  @ApiOkResponse({ type: ContentDto })
+  @ApiCreatedResponse({ type: ContentDto })
   upload(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -68,7 +75,7 @@ export class ContentController {
   @Post('url')
   @RequirePermissions(Permission.ContentManage)
   @ApiOperation({ summary: 'Create URL content.' })
-  @ApiOkResponse({ type: ContentDto })
+  @ApiCreatedResponse({ type: ContentDto })
   createUrl(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -80,7 +87,7 @@ export class ContentController {
   @Post('text')
   @RequirePermissions(Permission.ContentManage)
   @ApiOperation({ summary: 'Create a text announcement.' })
-  @ApiOkResponse({ type: ContentDto })
+  @ApiCreatedResponse({ type: ContentDto })
   createText(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -165,7 +172,7 @@ export class ContentController {
   @HttpCode(200)
   @RequirePermissions(Permission.ContentManage)
   @ApiOperation({ summary: 'Permanently remove this company’s trash older than 14 days.' })
-  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiOkResponse({ type: PurgedResponseDto })
   async purge(@CurrentCompany() companyId: string) {
     const purged = await this.cleanup.purgeExpiredTrash(companyId);
     return { purged };
@@ -206,7 +213,7 @@ export class ContentController {
   @UseInterceptors(FileInterceptor('file', UPLOAD_LIMIT))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Replace the uploaded file (same type).' })
-  @ApiOkResponse({ type: ContentDto })
+  @ApiCreatedResponse({ type: ContentDto })
   replace(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

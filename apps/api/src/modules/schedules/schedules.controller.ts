@@ -10,9 +10,15 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
-import { ApiPaginatedResponse, SuccessResponseDto } from '../../common/dto/api-response.dto';
+import { ApiPaginatedResponse, DeletedResponseDto } from '../../common/dto/api-response.dto';
 import { ScheduleDto } from '../../common/dto/entity-response.dto';
 import { ScheduleStatus } from '@prisma/client';
 
@@ -48,7 +54,7 @@ export class SchedulesController {
   @Post()
   @RequirePermissions(Permission.ScheduleManage)
   @ApiOperation({ summary: 'Create a schedule (with optional targets).' })
-  @ApiOkResponse({ type: ScheduleDto })
+  @ApiCreatedResponse({ type: ScheduleDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -130,7 +136,7 @@ export class SchedulesController {
   @Delete(':id')
   @RequirePermissions(Permission.ScheduleManage)
   @ApiOperation({ summary: 'Soft-delete a schedule.' })
-  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiOkResponse({ type: DeletedResponseDto })
   remove(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -142,7 +148,7 @@ export class SchedulesController {
   @Post(':id/targets')
   @RequirePermissions(Permission.ScheduleManage)
   @ApiOperation({ summary: 'Add a target (SCREEN/SCREEN_GROUP/LOCATION/COMPANY).' })
-  @ApiOkResponse({ type: ScheduleDto })
+  @ApiCreatedResponse({ type: ScheduleDto })
   addTarget(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

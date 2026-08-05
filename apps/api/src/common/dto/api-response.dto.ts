@@ -40,10 +40,57 @@ export class PageMetaDto {
   totalPages!: number;
 }
 
-/** `{ success: true }` — the shape returned by endpoints with nothing to say. */
+/**
+ * The acknowledgement shapes.
+ *
+ * There are five of them, and that is the point. Every one of these endpoints
+ * "returns nothing useful", so the first pass pointed all of them at
+ * `SuccessResponseDto` — which made the contract claim a `success` field on
+ * nine routes that have never sent one, while hiding the field they do send.
+ * A client checking `res.success` reads `undefined` and treats a successful
+ * delete as a failure.
+ *
+ * Reaching for one shared shape is the same mistake as deriving a DTO from the
+ * Prisma model: it documents what the shape ought to be rather than what it is.
+ * The API is inconsistent here; the contract's job is to say so accurately, not
+ * to tidy it up. Unifying them is a breaking API change and belongs in its own
+ * commit, not in a documentation pass.
+ */
+
+/** `{ success: true }` — auth's logout / forgot-password / reset-password. */
 export class SuccessResponseDto {
   @ApiProperty({ example: true })
   success!: boolean;
+}
+
+/** `{ deleted: true }` — the delete routes (users, locations, playlists, schedules, tags). */
+export class DeletedResponseDto {
+  @ApiProperty({ example: true })
+  deleted!: boolean;
+}
+
+/** `{ updated: true }` — PUT /screens/{id}/kiosk-pin. */
+export class UpdatedResponseDto {
+  @ApiProperty({ example: true })
+  updated!: boolean;
+}
+
+/** `{ reset: true }` — DELETE /screens/{id}/kiosk-pin. */
+export class ResetResponseDto {
+  @ApiProperty({ example: true })
+  reset!: boolean;
+}
+
+/** `{ affected: n }` — the bulk screen operations. A COUNT, not a boolean. */
+export class AffectedResponseDto {
+  @ApiProperty({ example: 12, description: 'How many screens the operation touched.' })
+  affected!: number;
+}
+
+/** `{ purged: n }` — POST /content/trash/purge. A COUNT, not a boolean. */
+export class PurgedResponseDto {
+  @ApiProperty({ example: 3, description: 'How many trashed items were permanently removed.' })
+  purged!: number;
 }
 
 /**

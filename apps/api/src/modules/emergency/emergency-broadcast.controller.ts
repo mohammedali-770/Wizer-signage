@@ -1,5 +1,11 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
 import { EmergencyBroadcastDto } from '../../common/dto/entity-response.dto';
@@ -40,7 +46,7 @@ export class EmergencyBroadcastController {
   @Post()
   @RequirePermissions(Permission.EmergencySend)
   @ApiOperation({ summary: 'Create an emergency broadcast (DRAFT).' })
-  @ApiOkResponse({ type: EmergencyBroadcastDto })
+  @ApiCreatedResponse({ type: EmergencyBroadcastDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -52,7 +58,7 @@ export class EmergencyBroadcastController {
   @Post('quick-text')
   @RequirePermissions(Permission.EmergencySend)
   @ApiOperation({ summary: 'Create and immediately activate a text emergency broadcast.' })
-  @ApiOkResponse({ type: EmergencyBroadcastDto })
+  @ApiCreatedResponse({ type: EmergencyBroadcastDto })
   quickText(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

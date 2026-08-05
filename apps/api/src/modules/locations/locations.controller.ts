@@ -1,8 +1,14 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { LocationStatus } from '@prisma/client';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
-import { ApiPaginatedResponse, SuccessResponseDto } from '../../common/dto/api-response.dto';
+import { ApiPaginatedResponse, DeletedResponseDto } from '../../common/dto/api-response.dto';
 import { LocationDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
@@ -22,7 +28,7 @@ export class LocationsController {
   @Post()
   @RequirePermissions(Permission.LocationManage)
   @ApiOperation({ summary: 'Create a location/branch.' })
-  @ApiOkResponse({ type: LocationDto })
+  @ApiCreatedResponse({ type: LocationDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -103,7 +109,7 @@ export class LocationsController {
   @HttpCode(200)
   @RequirePermissions(Permission.LocationManage)
   @ApiOperation({ summary: 'Delete (soft) a location; its screens are unassigned.' })
-  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiOkResponse({ type: DeletedResponseDto })
   async remove(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

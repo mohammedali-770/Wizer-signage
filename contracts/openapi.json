@@ -163,7 +163,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -358,7 +358,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -394,7 +394,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -653,7 +653,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
+                  "$ref": "#/components/schemas/DeletedResponseDto"
                 }
               }
             }
@@ -1967,7 +1967,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -2126,7 +2126,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
+                  "$ref": "#/components/schemas/DeletedResponseDto"
                 }
               }
             }
@@ -2266,7 +2266,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -2348,7 +2348,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
+                  "$ref": "#/components/schemas/AffectedResponseDto"
                 }
               }
             }
@@ -2385,7 +2385,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
+                  "$ref": "#/components/schemas/AffectedResponseDto"
                 }
               }
             }
@@ -2675,7 +2675,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
+                  "$ref": "#/components/schemas/UpdatedResponseDto"
                 }
               }
             }
@@ -2709,7 +2709,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
+                  "$ref": "#/components/schemas/ResetResponseDto"
                 }
               }
             }
@@ -2825,7 +2825,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -3090,7 +3090,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -3177,7 +3177,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3185,6 +3192,7 @@
             "bearer": []
           }
         ],
+        "summary": "Rename or recolour a tag.",
         "tags": [
           "tags"
         ]
@@ -3203,7 +3211,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3211,6 +3226,7 @@
             "bearer": []
           }
         ],
+        "summary": "Delete a tag and detach it from every screen.",
         "tags": [
           "tags"
         ]
@@ -3347,7 +3363,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -3384,7 +3400,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -3421,7 +3437,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -3660,7 +3676,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
+                  "$ref": "#/components/schemas/PurgedResponseDto"
                 }
               }
             }
@@ -3800,7 +3816,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -3989,7 +4005,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -4108,7 +4124,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
+                  "$ref": "#/components/schemas/DeletedResponseDto"
                 }
               }
             }
@@ -4234,7 +4250,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -4280,7 +4296,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -4499,7 +4515,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -4638,7 +4654,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponseDto"
+                  "$ref": "#/components/schemas/DeletedResponseDto"
                 }
               }
             }
@@ -4792,7 +4808,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -4999,7 +5015,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenMonitoringDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5028,7 +5051,29 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ScreenshotSummaryDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5036,6 +5081,7 @@
             "bearer": []
           }
         ],
+        "summary": "Paginated screenshot history for a screen, newest first.",
         "tags": [
           "screens"
         ]
@@ -5056,7 +5102,29 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DeviceCommandDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5064,6 +5132,7 @@
             "bearer": []
           }
         ],
+        "summary": "Paginated remote-command history for a screen.",
         "tags": [
           "screens"
         ]
@@ -5092,7 +5161,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommandDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5129,7 +5205,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommandDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5137,6 +5220,7 @@
             "bearer": []
           }
         ],
+        "summary": "Get one remote command, including its result or error.",
         "tags": [
           "screens"
         ]
@@ -5157,7 +5241,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommandDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5165,6 +5256,7 @@
             "bearer": []
           }
         ],
+        "summary": "Force a full re-sync of the screen’s assets.",
         "tags": [
           "screens"
         ]
@@ -5185,7 +5277,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommandDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5193,6 +5292,7 @@
             "bearer": []
           }
         ],
+        "summary": "Ask the screen to re-fetch its playback manifest.",
         "tags": [
           "screens"
         ]
@@ -5213,7 +5313,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommandDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5221,6 +5328,7 @@
             "bearer": []
           }
         ],
+        "summary": "Restart playback on the screen.",
         "tags": [
           "screens"
         ]
@@ -5241,7 +5349,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommandDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5249,6 +5364,7 @@
             "bearer": []
           }
         ],
+        "summary": "Clear the screen’s local asset cache.",
         "tags": [
           "screens"
         ]
@@ -5269,7 +5385,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommandDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5277,6 +5400,7 @@
             "bearer": []
           }
         ],
+        "summary": "Ask the screen to capture and upload a screenshot.",
         "tags": [
           "screens"
         ]
@@ -5297,7 +5421,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommandDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5305,6 +5436,7 @@
             "bearer": []
           }
         ],
+        "summary": "Reboot the device.",
         "tags": [
           "screens"
         ]
@@ -5316,7 +5448,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringOverviewDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5682,7 +5821,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -5719,7 +5858,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -6768,16 +6907,16 @@
         "type": "object",
         "properties": {}
       },
-      "SuccessResponseDto": {
+      "DeletedResponseDto": {
         "type": "object",
         "properties": {
-          "success": {
+          "deleted": {
             "type": "boolean",
             "example": true
           }
         },
         "required": [
-          "success"
+          "deleted"
         ]
       },
       "TotpCodeDto": {
@@ -6845,6 +6984,18 @@
       "RefreshTokenDto": {
         "type": "object",
         "properties": {}
+      },
+      "SuccessResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "success"
+        ]
       },
       "ForgotPasswordDto": {
         "type": "object",
@@ -7275,6 +7426,19 @@
         "type": "object",
         "properties": {}
       },
+      "AffectedResponseDto": {
+        "type": "object",
+        "properties": {
+          "affected": {
+            "type": "number",
+            "example": 12,
+            "description": "How many screens the operation touched."
+          }
+        },
+        "required": [
+          "affected"
+        ]
+      },
       "BulkScreenGroupDto": {
         "type": "object",
         "properties": {}
@@ -7298,6 +7462,30 @@
       "SetKioskPinDto": {
         "type": "object",
         "properties": {}
+      },
+      "UpdatedResponseDto": {
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "updated"
+        ]
+      },
+      "ResetResponseDto": {
+        "type": "object",
+        "properties": {
+          "reset": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "reset"
+        ]
       },
       "CreateScreenGroupDto": {
         "type": "object",
@@ -7523,6 +7711,19 @@
       "BulkContentTagDto": {
         "type": "object",
         "properties": {}
+      },
+      "PurgedResponseDto": {
+        "type": "object",
+        "properties": {
+          "purged": {
+            "type": "number",
+            "example": 3,
+            "description": "How many trashed items were permanently removed."
+          }
+        },
+        "required": [
+          "purged"
+        ]
       },
       "UpdateContentDto": {
         "type": "object",
@@ -8033,9 +8234,561 @@
         "type": "object",
         "properties": {}
       },
+      "ScreenTelemetryDto": {
+        "type": "object",
+        "properties": {
+          "playbackState": {
+            "type": "object",
+            "nullable": true
+          },
+          "networkStatus": {
+            "type": "object",
+            "nullable": true
+          },
+          "currentContentId": {
+            "type": "object",
+            "nullable": true
+          },
+          "currentPlaylistId": {
+            "type": "object",
+            "nullable": true
+          },
+          "currentScheduleId": {
+            "type": "object",
+            "nullable": true
+          },
+          "manifestVersion": {
+            "type": "object",
+            "nullable": true
+          },
+          "uptimeSeconds": {
+            "type": "object",
+            "nullable": true
+          },
+          "appVersion": {
+            "type": "object",
+            "nullable": true
+          },
+          "deviceModel": {
+            "type": "object",
+            "nullable": true,
+            "description": "Device `modelName`, renamed by the view."
+          },
+          "osVersion": {
+            "type": "object",
+            "nullable": true
+          },
+          "platform": {
+            "type": "object",
+            "nullable": true
+          }
+        }
+      },
+      "ScreenCacheDto": {
+        "type": "object",
+        "properties": {
+          "syncStatus": {
+            "type": "object",
+            "nullable": true
+          },
+          "manifestSource": {
+            "type": "object",
+            "nullable": true
+          },
+          "cacheSizeBytes": {
+            "type": "object",
+            "nullable": true,
+            "description": "Serialised as a string — a 64-bit column, not a JSON number."
+          },
+          "availableStorageBytes": {
+            "type": "object",
+            "nullable": true,
+            "description": "Serialised as a string — a 64-bit column, not a JSON number."
+          },
+          "requiredAssets": {
+            "type": "number"
+          },
+          "cachedAssets": {
+            "type": "number"
+          },
+          "failedDownloads": {
+            "type": "number"
+          },
+          "lastSyncAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": "object",
+            "nullable": true,
+            "description": "Device `lastSyncError`, renamed by view."
+          }
+        },
+        "required": [
+          "requiredAssets",
+          "cachedAssets",
+          "failedDownloads"
+        ]
+      },
+      "LatestScreenshotDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "takenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "AUTO",
+              "MANUAL"
+            ]
+          },
+          "url": {
+            "type": "object",
+            "nullable": true,
+            "description": "Short-lived signed URL."
+          }
+        },
+        "required": [
+          "id",
+          "takenAt",
+          "type"
+        ]
+      },
+      "ScreenCapabilitiesDto": {
+        "type": "object",
+        "properties": {
+          "screenshot": {
+            "type": "boolean",
+            "description": "Defaults to true when the device has not reported."
+          },
+          "reboot": {
+            "type": "boolean",
+            "description": "Defaults to false when the device has not reported."
+          },
+          "powerControl": {
+            "type": "boolean",
+            "description": "Defaults to false when the device has not reported."
+          },
+          "kiosk": {
+            "type": "boolean",
+            "description": "Defaults to false when the device has not reported."
+          },
+          "autoStart": {
+            "type": "boolean",
+            "description": "Defaults to false when the device has not reported."
+          }
+        },
+        "required": [
+          "screenshot",
+          "reboot",
+          "powerControl",
+          "kiosk",
+          "autoStart"
+        ]
+      },
+      "ScreenMonitoringDto": {
+        "type": "object",
+        "properties": {
+          "screenId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ONLINE",
+              "OFFLINE",
+              "WARNING",
+              "UNPAIRED",
+              "PAIRING",
+              "DISABLED",
+              "ARCHIVED"
+            ],
+            "description": "DERIVED on every read from the last heartbeat, not a stored column — a paired screen with no fresh heartbeat reads OFFLINE without any scheduler having written that."
+          },
+          "warningReason": {
+            "type": "object",
+            "nullable": true,
+            "description": "Set only when status is WARNING."
+          },
+          "lastHeartbeatAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "heartbeatIntervalSeconds": {
+            "type": "object",
+            "nullable": true
+          },
+          "paired": {
+            "type": "boolean",
+            "description": "True only for a device row in ACTIVE status."
+          },
+          "telemetry": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScreenTelemetryDto"
+              }
+            ]
+          },
+          "cache": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScreenCacheDto"
+              }
+            ]
+          },
+          "latestScreenshot": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LatestScreenshotDto"
+              }
+            ]
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/ScreenCapabilitiesDto"
+          }
+        },
+        "required": [
+          "screenId",
+          "name",
+          "status",
+          "paired",
+          "capabilities"
+        ]
+      },
+      "ScreenshotSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "takenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "AUTO",
+              "MANUAL"
+            ]
+          },
+          "mimeType": {
+            "type": "object",
+            "nullable": true
+          },
+          "fileSizeBytes": {
+            "type": "object",
+            "nullable": true,
+            "description": "Serialised as a string — a 64-bit column, not a JSON number."
+          },
+          "url": {
+            "type": "object",
+            "nullable": true,
+            "description": "Short-lived signed URL. null when signing failed; the caller re-reads rather than caching it."
+          }
+        },
+        "required": [
+          "id",
+          "takenAt",
+          "type"
+        ]
+      },
+      "DeviceCommandDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "screenId": {
+            "type": "string"
+          },
+          "commandType": {
+            "type": "string",
+            "enum": [
+              "FORCE_SYNC",
+              "REFRESH_MANIFEST",
+              "RESTART_PLAYBACK",
+              "CLEAR_CACHE",
+              "TAKE_SCREENSHOT",
+              "REBOOT_DEVICE",
+              "UNPAIR_DEVICE",
+              "RELOAD_CONFIG"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "DELIVERED",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "EXPIRED",
+              "CANCELLED"
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true,
+            "description": "Command-specific arguments; `{}` for the parameterless actions."
+          },
+          "result": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true,
+            "description": "Whatever the device reported back; null until it completes."
+          },
+          "error": {
+            "type": "object",
+            "nullable": true
+          },
+          "issuedById": {
+            "type": "object",
+            "nullable": true,
+            "description": "null for a system-issued command."
+          },
+          "deliveredAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "A command not collected by this time is marked EXPIRED on the next poll."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "screenId",
+          "commandType",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "IssueCommandDto": {
         "type": "object",
         "properties": {}
+      },
+      "FleetTotalsDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "online": {
+            "type": "number"
+          },
+          "offline": {
+            "type": "number"
+          },
+          "warning": {
+            "type": "number"
+          },
+          "unpaired": {
+            "type": "number"
+          },
+          "pairing": {
+            "type": "number"
+          },
+          "disabled": {
+            "type": "number"
+          },
+          "archived": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "online",
+          "offline",
+          "warning",
+          "unpaired",
+          "pairing",
+          "disabled",
+          "archived"
+        ]
+      },
+      "FleetAlertDto": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "WARNING",
+              "CRITICAL"
+            ]
+          },
+          "screenId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity",
+          "screenId",
+          "name",
+          "message"
+        ]
+      },
+      "FleetScreenDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "object",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ONLINE",
+              "OFFLINE",
+              "WARNING",
+              "UNPAIRED",
+              "PAIRING",
+              "DISABLED",
+              "ARCHIVED"
+            ]
+          },
+          "warningReason": {
+            "type": "object",
+            "nullable": true
+          },
+          "lastHeartbeatAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "playbackState": {
+            "type": "object",
+            "nullable": true
+          },
+          "currentContentId": {
+            "type": "object",
+            "nullable": true
+          },
+          "syncStatus": {
+            "type": "object",
+            "nullable": true
+          },
+          "appVersion": {
+            "type": "object",
+            "nullable": true
+          },
+          "cacheSizeBytes": {
+            "type": "object",
+            "nullable": true,
+            "description": "Serialised as a string (64-bit column)."
+          },
+          "failedDownloads": {
+            "type": "number"
+          },
+          "paired": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "failedDownloads",
+          "paired"
+        ]
+      },
+      "MonitoringOverviewDto": {
+        "type": "object",
+        "properties": {
+          "totals": {
+            "$ref": "#/components/schemas/FleetTotalsDto"
+          },
+          "syncBreakdown": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Screen count per sync status. The keys are whatever the fleet is currently reporting, plus 'NONE' for screens with no device row — so it is an open map, not a fixed set.",
+            "example": {
+              "SYNCED": 12,
+              "SYNCING": 1,
+              "NONE": 3
+            }
+          },
+          "withFailedDownloads": {
+            "type": "number"
+          },
+          "missingHeartbeat": {
+            "type": "number",
+            "description": "Paired screens whose derived status is OFFLINE."
+          },
+          "alerts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetAlertDto"
+            }
+          },
+          "screens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetScreenDto"
+            }
+          }
+        },
+        "required": [
+          "totals",
+          "syncBreakdown",
+          "withFailedDownloads",
+          "missingHeartbeat",
+          "alerts",
+          "screens"
+        ]
       },
       "UpdateNotificationPreferencesDto": {
         "type": "object",

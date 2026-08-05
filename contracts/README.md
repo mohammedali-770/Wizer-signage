@@ -37,7 +37,25 @@ Skipping step 3 is the failure this directory exists to prevent.
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `device-manifest.schedule.golden.json`  | The ordinary path: a scheduled playlist with one item of every content type, and the `pageCount` metadata shape.                                    |
 | `device-manifest.emergency.golden.json` | An emergency broadcast: synthetic `emg:` content ids, the `emergency` metadata shape, and the null-heavy item fields that go with TEXT/URL content. |
+| `openapi.json`                          | The whole REST surface. Generated, never hand-edited; CI re-emits it and fails on any difference.                                                   |
 
 Values are synthetic. No real screen ids, tenant data, hostnames, or signed
 URLs — the signed URLs point at `example.com`, which is reserved for
 documentation (RFC 2606).
+
+## Regenerating `openapi.json`
+
+```sh
+pnpm --filter @wizer/api openapi:emit
+```
+
+It builds the module graph in Nest's **preview mode** — controller metadata
+without provider instantiation — so nothing connects to a database. It does
+still construct `ConfigModule`, which validates the environment, so the command
+needs the variables set even though it uses none of their values. Any synthetic
+values will do; CI uses a loopback Postgres URL and `ci-only-*` secrets.
+
+Missing them used to end the run on exit code 1 with no output at all, because
+`NestFactory` aborts the process on a bootstrap error and the emitter disables
+the logger. It now passes `abortOnError: false` and prints which variables are
+missing and why.

@@ -10,9 +10,15 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
-import { ApiPaginatedResponse, SuccessResponseDto } from '../../common/dto/api-response.dto';
+import { ApiPaginatedResponse, DeletedResponseDto } from '../../common/dto/api-response.dto';
 import { PlaylistDetailDto, PlaylistSummaryDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
@@ -50,7 +56,7 @@ export class PlaylistsController {
   @Post()
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Create a playlist (optionally with initial items).' })
-  @ApiOkResponse({ type: PlaylistDetailDto })
+  @ApiCreatedResponse({ type: PlaylistDetailDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -114,7 +120,7 @@ export class PlaylistsController {
   @Post(':id/duplicate')
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Duplicate a playlist (copies all items).' })
-  @ApiOkResponse({ type: PlaylistDetailDto })
+  @ApiCreatedResponse({ type: PlaylistDetailDto })
   duplicate(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -127,7 +133,7 @@ export class PlaylistsController {
   @Delete(':id')
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Soft-delete a playlist.' })
-  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiOkResponse({ type: DeletedResponseDto })
   remove(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -141,7 +147,7 @@ export class PlaylistsController {
   @Post(':id/items')
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Add an item (ACTIVE, non-expired, same-company content).' })
-  @ApiOkResponse({ type: PlaylistDetailDto })
+  @ApiCreatedResponse({ type: PlaylistDetailDto })
   addItem(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
