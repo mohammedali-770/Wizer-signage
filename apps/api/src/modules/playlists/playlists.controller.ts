@@ -10,7 +10,10 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import { ApiPaginatedResponse, SuccessResponseDto } from '../../common/dto/api-response.dto';
+import { PlaylistDetailDto, PlaylistSummaryDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -39,6 +42,7 @@ export class PlaylistsController {
   @Get()
   @RequirePermissions(Permission.PlaylistRead)
   @ApiOperation({ summary: 'List playlists (filter by status/search/created date).' })
+  @ApiPaginatedResponse(PlaylistSummaryDto)
   list(@CurrentCompany() companyId: string, @Query() query: ListPlaylistsQueryDto) {
     return this.playlists.list(companyId, query);
   }
@@ -46,6 +50,7 @@ export class PlaylistsController {
   @Post()
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Create a playlist (optionally with initial items).' })
+  @ApiOkResponse({ type: PlaylistDetailDto })
   create(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -57,6 +62,7 @@ export class PlaylistsController {
   @Get(':id')
   @RequirePermissions(Permission.PlaylistRead)
   @ApiOperation({ summary: 'Playlist detail with items + validity.' })
+  @ApiOkResponse({ type: PlaylistDetailDto })
   detail(@CurrentCompany() companyId: string, @Param('id') id: string) {
     return this.playlists.getDetail(companyId, id);
   }
@@ -73,6 +79,7 @@ export class PlaylistsController {
   @Patch(':id')
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Update playlist metadata (title/description/status).' })
+  @ApiOkResponse({ type: PlaylistDetailDto })
   update(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -107,6 +114,7 @@ export class PlaylistsController {
   @Post(':id/duplicate')
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Duplicate a playlist (copies all items).' })
+  @ApiOkResponse({ type: PlaylistDetailDto })
   duplicate(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -119,6 +127,7 @@ export class PlaylistsController {
   @Delete(':id')
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Soft-delete a playlist.' })
+  @ApiOkResponse({ type: SuccessResponseDto })
   remove(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -132,6 +141,7 @@ export class PlaylistsController {
   @Post(':id/items')
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Add an item (ACTIVE, non-expired, same-company content).' })
+  @ApiOkResponse({ type: PlaylistDetailDto })
   addItem(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -144,6 +154,7 @@ export class PlaylistsController {
   @Patch(':id/items/reorder')
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Reorder items (full ordered list of item ids).' })
+  @ApiOkResponse({ type: PlaylistDetailDto })
   reorder(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -156,6 +167,7 @@ export class PlaylistsController {
   @Patch(':id/items/:itemId')
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Update an item (duration / playFullVideo / PDF page duration).' })
+  @ApiOkResponse({ type: PlaylistDetailDto })
   updateItem(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -169,6 +181,7 @@ export class PlaylistsController {
   @Delete(':id/items/:itemId')
   @RequirePermissions(Permission.PlaylistManage)
   @ApiOperation({ summary: 'Remove an item.' })
+  @ApiOkResponse({ type: PlaylistDetailDto })
   removeItem(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

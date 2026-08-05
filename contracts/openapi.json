@@ -3876,7 +3876,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlaylistSummaryDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3903,8 +3925,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3933,7 +3962,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3970,7 +4006,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3997,7 +4040,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4120,8 +4170,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4159,8 +4216,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4199,7 +4263,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4246,7 +4317,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4281,7 +4359,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7213,9 +7298,286 @@
         "type": "object",
         "properties": {}
       },
+      "PlaylistSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string",
+            "description": "Owning tenant. Derived from the caller's token, never the body."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "itemCount": {
+            "type": "number",
+            "description": "From a Prisma _count; the list does not load the items."
+          },
+          "createdById": {
+            "type": "object",
+            "nullable": true
+          },
+          "updatedById": {
+            "type": "object",
+            "nullable": true
+          },
+          "archivedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "createdAt",
+          "updatedAt",
+          "title",
+          "status",
+          "itemCount"
+        ]
+      },
       "CreatePlaylistDto": {
         "type": "object",
         "properties": {}
+      },
+      "PlaylistItemContentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "PDF",
+              "URL",
+              "TEXT"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "UNKNOWN"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "ARCHIVED",
+              "TRASHED"
+            ]
+          },
+          "expiresAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "isExpired": {
+            "type": "boolean",
+            "description": "Derived at read time — no such column."
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "orientation",
+          "status",
+          "isExpired"
+        ]
+      },
+      "PlaylistItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "contentId": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          },
+          "durationSeconds": {
+            "type": "object",
+            "nullable": true,
+            "description": "Per-item override."
+          },
+          "playFullVideo": {
+            "type": "boolean"
+          },
+          "pdfPageDurationSeconds": {
+            "type": "object",
+            "nullable": true
+          },
+          "transitionType": {
+            "type": "object",
+            "nullable": true
+          },
+          "settings": {
+            "type": "object",
+            "nullable": true
+          },
+          "effectiveDurationSeconds": {
+            "type": "number",
+            "description": "What actually plays, after per-item and per-type defaults."
+          },
+          "valid": {
+            "type": "boolean",
+            "description": "False when the referenced content cannot play."
+          },
+          "issue": {
+            "type": "object",
+            "nullable": true,
+            "description": "Why the item cannot play — expired, archived, trashed or deleted content."
+          },
+          "content": {
+            "$ref": "#/components/schemas/PlaylistItemContentDto"
+          }
+        },
+        "required": [
+          "id",
+          "contentId",
+          "position",
+          "playFullVideo",
+          "effectiveDurationSeconds",
+          "valid",
+          "content"
+        ]
+      },
+      "PlaylistDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string",
+            "description": "Owning tenant. Derived from the caller's token, never the body."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "itemCount": {
+            "type": "number",
+            "description": "From a Prisma _count; the list does not load the items."
+          },
+          "createdById": {
+            "type": "object",
+            "nullable": true
+          },
+          "updatedById": {
+            "type": "object",
+            "nullable": true
+          },
+          "archivedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlaylistItemDto"
+            }
+          },
+          "validItemCount": {
+            "type": "number"
+          },
+          "invalidItemCount": {
+            "type": "number"
+          },
+          "totalDurationSeconds": {
+            "type": "number",
+            "description": "Sum over VALID items only."
+          },
+          "orientationProfile": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "MIXED",
+              "UNKNOWN"
+            ]
+          },
+          "schedulable": {
+            "type": "boolean",
+            "description": "At least one playable item AND status ACTIVE."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "createdAt",
+          "updatedAt",
+          "title",
+          "status",
+          "itemCount",
+          "items",
+          "validItemCount",
+          "invalidItemCount",
+          "totalDurationSeconds",
+          "orientationProfile",
+          "schedulable",
+          "warnings"
+        ]
       },
       "UpdatePlaylistDto": {
         "type": "object",

@@ -416,3 +416,124 @@ export class ScheduleDto extends TenantOwnedDto {
   @ApiProperty({ description: 'targets.length, computed — not a column.' })
   targetCount!: number;
 }
+
+/** The content summary a playlist item carries inline. */
+export class PlaylistItemContentDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty({ enum: ['IMAGE', 'VIDEO', 'PDF', 'URL', 'TEXT'] })
+  type!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty({ enum: ['LANDSCAPE', 'PORTRAIT', 'UNKNOWN'] })
+  orientation!: string;
+
+  @ApiProperty({ enum: ['ACTIVE', 'ARCHIVED', 'TRASHED'] })
+  status!: string;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  expiresAt?: string | null;
+
+  @ApiProperty({ description: 'Derived at read time — no such column.' })
+  isExpired!: boolean;
+}
+
+export class PlaylistItemDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  contentId!: string;
+
+  @ApiProperty()
+  position!: number;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Per-item override.' })
+  durationSeconds?: number | null;
+
+  @ApiProperty()
+  playFullVideo!: boolean;
+
+  @ApiPropertyOptional({ nullable: true })
+  pdfPageDurationSeconds?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  transitionType?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  settings?: Record<string, unknown> | null;
+
+  @ApiProperty({ description: 'What actually plays, after per-item and per-type defaults.' })
+  effectiveDurationSeconds!: number;
+
+  @ApiProperty({ description: 'False when the referenced content cannot play.' })
+  valid!: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Why the item cannot play — expired, archived, trashed or deleted content.',
+  })
+  issue?: string | null;
+
+  @ApiProperty({ type: PlaylistItemContentDto })
+  content!: PlaylistItemContentDto;
+}
+
+/** A playlist row as the LIST endpoint returns it (no items, just a count). */
+export class PlaylistSummaryDto extends TenantOwnedDto {
+  @ApiProperty()
+  title!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
+
+  @ApiProperty({ enum: ['DRAFT', 'ACTIVE', 'ARCHIVED'] })
+  status!: string;
+
+  @ApiProperty({ description: 'From a Prisma _count; the list does not load the items.' })
+  itemCount!: number;
+
+  @ApiPropertyOptional({ nullable: true })
+  createdById?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  updatedById?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  archivedAt?: string | null;
+}
+
+/**
+ * A playlist as the DETAIL endpoint returns it.
+ *
+ * Deliberately a different class from the list row. `toDetailView` computes
+ * seven fields that exist in no column — the validity counts, the total
+ * duration, the orientation profile, `schedulable` and the warnings — and none
+ * of them are present on the list. Describing both with one schema would
+ * promise the list endpoint fields it never sends.
+ */
+export class PlaylistDetailDto extends PlaylistSummaryDto {
+  @ApiProperty({ type: [PlaylistItemDto] })
+  items!: PlaylistItemDto[];
+
+  @ApiProperty()
+  validItemCount!: number;
+
+  @ApiProperty()
+  invalidItemCount!: number;
+
+  @ApiProperty({ description: 'Sum over VALID items only.' })
+  totalDurationSeconds!: number;
+
+  @ApiProperty({ enum: ['LANDSCAPE', 'PORTRAIT', 'MIXED', 'UNKNOWN'] })
+  orientationProfile!: string;
+
+  @ApiProperty({ description: 'At least one playable item AND status ACTIVE.' })
+  schedulable!: boolean;
+
+  @ApiProperty({ type: [String] })
+  warnings!: string[];
+}
