@@ -14,6 +14,7 @@ import {
   EVENT_STATUS,
   EXPORT_ROW_CAP,
   FUTURE_SKEW_MS,
+  MAX_EVENT_DURATION_MS,
 } from './proof-of-play.constants';
 
 const TERMINAL_STATUSES: ProofOfPlayStatus[] = [
@@ -109,6 +110,61 @@ export class ProofOfPlayService {
   }
 
   /**
+   * Bound the reported playback interval before it is persisted.
+   *
+   * `durationMs` and `endedAt` are device-supplied and feed the advertiser-billing
+   * and compliance totals (`_sum: { durationMs }`), so neither can be trusted
+   * verbatim. Three things are enforced here:
+   *
+   *  - Duration is capped at MAX_EVENT_DURATION_MS. Uncapped, a single event
+   *    could carry an arbitrary integer and swamp every total for the tenant.
+   *  - `endedAt` is DERIVED from `startedAt + durationMs` whenever a duration is
+   *    reported, rather than taken from the device's second wall-clock reading.
+   *    That makes `endedAt - startedAt === durationMs` hold on every row, which
+   *    is what any report summing one and displaying the other depends on, and
+   *    it stays true across an NTP correction landing mid-item.
+   *  - A standalone `endedAt` that precedes `startedAt` is dropped rather than
+   *    stored, since a negative interval breaks every downstream range query.
+   *
+   * Clamping, not rejecting: the playback really happened, and discarding the
+   * row would lose the record rather than correct it.
+   */
+  private normaliseInterval(
+    event: ProofOfPlayEventDto,
+    startedAt: Date,
+  ): { durationMs: number | null; endedAt: Date | null } {
+    if (event.durationMs != null) {
+      const clamped = Math.min(Math.max(Math.trunc(event.durationMs), 0), MAX_EVENT_DURATION_MS);
+      if (clamped !== event.durationMs) {
+        // No identifiers: this log line is reachable by any device-token holder.
+        this.logger.warn(
+          `Clamped an implausible proof-of-play duration (${event.durationMs}ms) to ${clamped}ms.`,
+        );
+      }
+      return { durationMs: clamped, endedAt: new Date(startedAt.getTime() + clamped) };
+    }
+
+    if (!event.endedAt) return { durationMs: null, endedAt: null };
+
+    const endedAt = new Date(event.endedAt);
+    const endMs = endedAt.getTime();
+    if (Number.isNaN(endMs) || endMs < startedAt.getTime()) {
+      this.logger.warn(
+        'Dropped a proof-of-play endedAt that is unparseable or precedes startedAt.',
+      );
+      return { durationMs: null, endedAt: null };
+    }
+    // An end with no reported duration: cap the implied interval the same way.
+    if (endMs - startedAt.getTime() > MAX_EVENT_DURATION_MS) {
+      return {
+        durationMs: null,
+        endedAt: new Date(startedAt.getTime() + MAX_EVENT_DURATION_MS),
+      };
+    }
+    return { durationMs: null, endedAt };
+  }
+
+  /**
    * Idempotent upsert keyed on `playbackSessionId`. ITEM_STARTED opens the row;
    * a terminal event closes it. A terminal status is never regressed back to
    * STARTED, and the first terminal state wins (devices send one terminal event
@@ -129,7 +185,7 @@ export class ProofOfPlayService {
     } | null,
   ): Promise<boolean> {
     const status = EVENT_STATUS[event.eventType] as ProofOfPlayStatus;
-    const endedAt = event.endedAt ? new Date(event.endedAt) : null;
+    const { durationMs, endedAt } = this.normaliseInterval(event, startedAt);
 
     // playbackSessionId is CLIENT-SUPPLIED and globally unique across all
     // tenants, so a lookup by it alone can resolve to another company's row.
@@ -169,7 +225,7 @@ export class ProofOfPlayService {
             contentType: event.contentType ?? null,
             startedAt,
             endedAt,
-            durationMs: event.durationMs ?? null,
+            durationMs,
             expectedDurationMs: event.expectedDurationMs ?? null,
             status,
             failureReason: event.failureReason ?? null,
@@ -207,7 +263,7 @@ export class ProofOfPlayService {
       data: {
         status,
         endedAt,
-        durationMs: event.durationMs ?? undefined,
+        durationMs: durationMs ?? undefined,
         failureReason: event.failureReason ?? undefined,
         // Late context that may only be known at completion.
         emergencyBroadcastId: event.emergencyBroadcastId ?? undefined,

@@ -113,14 +113,33 @@ ${COMPOSE} run --rm api npx prisma migrate deploy
 echo "==> [deploy] Starting stack (docker compose up -d)..."
 ${COMPOSE} up -d
 
-# --- 6. Restart nginx so it re-resolves the recreated upstreams --------------
+# --- 6. Reload nginx so it re-resolves the recreated upstreams ---------------
 # nginx resolves the `dashboard`/`api` upstream hostnames once at startup and
 # caches their container IPs. `up -d` recreates those containers with NEW IPs,
 # so a long-running nginx keeps proxying to the dead IPs and returns 502 Bad
-# Gateway. Restarting nginx forces it to re-resolve. Always do this after
-# recreating upstreams.
-echo "==> [deploy] Restarting nginx (re-resolve upstream IPs)..."
-${COMPOSE} restart nginx
+# Gateway. Re-resolution is mandatory after recreating upstreams.
+#
+# RELOAD, not restart. `restart` stops the container: every connection it is
+# holding dies mid-flight, which on this platform means in-progress content
+# uploads (up to 300 MB, minutes long over a venue's uplink) fail and have to be
+# started over. A reload starts new workers on the new config while the old
+# workers finish the requests they are already serving, so nothing in flight is
+# dropped.
+#
+# `nginx -t` first: a reload with a broken config leaves the OLD config running
+# and returns non-zero, which would otherwise be indistinguishable from a
+# working deploy until the next restart picked up the broken file.
+echo "==> [deploy] Reloading nginx (re-resolve upstream IPs)..."
+if ${COMPOSE} exec -T nginx nginx -t && ${COMPOSE} exec -T nginx nginx -s reload; then
+  echo "    [deploy] nginx reloaded gracefully."
+else
+  # Falls back rather than aborting: an unreloadable nginx (not yet running,
+  # exec unavailable) must not strand the stack on stale upstream IPs — every
+  # request would 502 until an operator intervened. The restart drops in-flight
+  # connections, which is why it is the fallback and not the default.
+  echo "==> [deploy] WARNING: graceful reload failed; falling back to restart." >&2
+  ${COMPOSE} restart nginx
+fi
 
 # --- 7. Health check loop ----------------------------------------------------
 echo "==> [deploy] Waiting for API health at ${HEALTH_URL} ..."
