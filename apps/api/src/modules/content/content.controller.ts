@@ -11,7 +11,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import { ApiPaginatedResponse, SuccessResponseDto } from '../../common/dto/api-response.dto';
+import { ContentDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -52,6 +55,7 @@ export class ContentController {
   @UseInterceptors(FileInterceptor('file', UPLOAD_LIMIT))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload image/video/PDF content.' })
+  @ApiOkResponse({ type: ContentDto })
   upload(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -64,6 +68,7 @@ export class ContentController {
   @Post('url')
   @RequirePermissions(Permission.ContentManage)
   @ApiOperation({ summary: 'Create URL content.' })
+  @ApiOkResponse({ type: ContentDto })
   createUrl(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -75,6 +80,7 @@ export class ContentController {
   @Post('text')
   @RequirePermissions(Permission.ContentManage)
   @ApiOperation({ summary: 'Create a text announcement.' })
+  @ApiOkResponse({ type: ContentDto })
   createText(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -88,6 +94,7 @@ export class ContentController {
   @ApiOperation({
     summary: 'List content (filter by type/status/orientation/tag/expiry; sortable).',
   })
+  @ApiPaginatedResponse(ContentDto)
   list(@CurrentCompany() companyId: string, @Query() query: ListContentQueryDto) {
     return this.content.list(companyId, query);
   }
@@ -158,6 +165,7 @@ export class ContentController {
   @HttpCode(200)
   @RequirePermissions(Permission.ContentManage)
   @ApiOperation({ summary: 'Permanently remove this company’s trash older than 14 days.' })
+  @ApiOkResponse({ type: SuccessResponseDto })
   async purge(@CurrentCompany() companyId: string) {
     const purged = await this.cleanup.purgeExpiredTrash(companyId);
     return { purged };
@@ -166,6 +174,7 @@ export class ContentController {
   @Get(':id')
   @RequirePermissions(Permission.ContentRead)
   @ApiOperation({ summary: 'Content detail.' })
+  @ApiOkResponse({ type: ContentDto })
   detail(@CurrentCompany() companyId: string, @Param('id') id: string) {
     return this.content.getDetail(companyId, id);
   }
@@ -182,6 +191,7 @@ export class ContentController {
   @ApiOperation({
     summary: 'Update content metadata (title/description/orientation/expiry/tags/...).',
   })
+  @ApiOkResponse({ type: ContentDto })
   update(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -196,6 +206,7 @@ export class ContentController {
   @UseInterceptors(FileInterceptor('file', UPLOAD_LIMIT))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Replace the uploaded file (same type).' })
+  @ApiOkResponse({ type: ContentDto })
   replace(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

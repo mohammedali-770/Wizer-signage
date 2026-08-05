@@ -3283,8 +3283,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3313,8 +3320,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3343,8 +3357,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3364,7 +3385,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContentDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3549,7 +3592,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3578,7 +3628,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3615,7 +3672,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3672,8 +3736,15 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6922,6 +6993,141 @@
       "UploadContentDto": {
         "type": "object",
         "properties": {}
+      },
+      "ContentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string",
+            "description": "Owning tenant. Derived from the caller's token, never the body."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "PDF",
+              "URL",
+              "TEXT"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "ARCHIVED",
+              "TRASHED"
+            ]
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "UNKNOWN"
+            ]
+          },
+          "url": {
+            "type": "object",
+            "nullable": true,
+            "description": "External address for URL content."
+          },
+          "textBody": {
+            "type": "object",
+            "nullable": true,
+            "description": "Body for TEXT content."
+          },
+          "textStyle": {
+            "type": "object",
+            "nullable": true
+          },
+          "fileSize": {
+            "type": "string",
+            "nullable": true,
+            "description": "Bytes, as a STRING — a 64-bit column serialised via BigInt.toJSON."
+          },
+          "mimeType": {
+            "type": "object",
+            "nullable": true
+          },
+          "originalFileName": {
+            "type": "object",
+            "nullable": true
+          },
+          "pageCount": {
+            "type": "object",
+            "nullable": true,
+            "description": "Pages in a PDF."
+          },
+          "durationSeconds": {
+            "type": "object",
+            "nullable": true,
+            "description": "Default dwell time when scheduled."
+          },
+          "expiresAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "isExpired": {
+            "type": "boolean",
+            "description": "Derived at read time from expiresAt — there is no such column."
+          },
+          "archivedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "trashedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdById": {
+            "type": "object",
+            "nullable": true
+          },
+          "updatedById": {
+            "type": "object",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "createdAt",
+          "updatedAt",
+          "title",
+          "type",
+          "status",
+          "orientation",
+          "isExpired",
+          "tags"
+        ]
       },
       "CreateUrlContentDto": {
         "type": "object",
