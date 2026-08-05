@@ -143,6 +143,21 @@ android {
     }
 }
 
+// ManifestContractTest reads the shared fixtures in <repo>/contracts at RUNTIME,
+// by walking up from the working directory. Gradle cannot infer that, so without
+// this declaration the task stays UP-TO-DATE when only a fixture changes — the
+// contract test would pass by not running, which is the failure mode it exists
+// to prevent. Verified: editing a fixture and re-running now re-executes the
+// task instead of reporting success in a second.
+tasks.withType<Test>().configureEach {
+    val contracts = rootProject.layout.projectDirectory.dir("../../contracts")
+    if (contracts.asFile.isDirectory) {
+        inputs.dir(contracts)
+            .withPropertyName("sharedContractFixtures")
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+}
+
 dependencies {
     // AndroidX core / lifecycle / activity.
     implementation(libs.androidx.core.ktx)

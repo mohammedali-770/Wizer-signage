@@ -86,4 +86,15 @@ data class ManifestItem(
 @Serializable
 data class ManifestItemMeta(
     val pageCount: Int? = null,
+    /**
+     * Set on the synthetic TEXT/URL items an emergency broadcast generates.
+     *
+     * The player keys emergency handling off `sourceType` and
+     * `emergencyBroadcastId`, so nothing reads this yet — it is modelled because
+     * the backend sends it. Production parses with `ignoreUnknownKeys = true`,
+     * which meant this field was silently discarded and no test noticed; the
+     * contract fixtures now parse strictly, so a field the API sends and this
+     * model omits is a build failure.
+     */
+    val emergency: Boolean? = null,
 )
