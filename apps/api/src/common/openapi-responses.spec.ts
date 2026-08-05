@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { CompanyStatus, DemoRequestStatus, SubscriptionStatus } from '@prisma/client';
+
 /**
  * Response coverage in the committed OpenAPI contract.
  *
@@ -337,18 +339,82 @@ describe('OpenAPI response coverage', () => {
     expect(Object.keys(model?.properties ?? {})).toEqual([field]);
   });
 
+  it('the invitation shape is pinned, because its view is a SPREAD', () => {
+    // Every other DTO here is transcribed from a view that NAMES its fields, so
+    // a new column has to be added deliberately. InvitationsService.toView is
+    // `const { tokenHash: _omit, ...view }` — add a column to the Prisma model
+    // and it starts appearing in responses with nothing in the code changing to
+    // say so. An exact match is the only guard that catches that; `not.toContain
+    // ('tokenHash')` would pass while a new secret rode in beside it.
+    const { components } = loadContract();
+    const created = components.schemas.InvitationCreatedDto as {
+      properties?: Record<string, unknown>;
+    };
+    expect(Object.keys(created?.properties ?? {}).sort()).toEqual([
+      'acceptedAt',
+      'companyId',
+      'createdAt',
+      'email',
+      'expiresAt',
+      'id',
+      'invitedById',
+      'locationIds',
+      'revokedAt',
+      'role',
+      'status',
+      // The RAW token, returned only here — the row stores a hash, so this is
+      // the one moment it is readable. Deliberate; `tokenHash` is not.
+      'token',
+      'updatedAt',
+    ]);
+  });
+
+  it('an impersonation token cannot be extended', () => {
+    // start() returns an accessToken and NO refreshToken on purpose: an
+    // impersonation is restarted, not renewed, and restarting forces a fresh
+    // 2FA code, a fresh reason, and another pair of audit entries. Documenting
+    // a refreshToken would invite a client to try.
+    const { components } = loadContract();
+    const started = components.schemas.ImpersonationStartedDto as {
+      properties?: Record<string, unknown>;
+    };
+    expect(Object.keys(started?.properties ?? {}).sort()).toEqual([
+      'accessToken',
+      'company',
+      'expiresAt',
+    ]);
+  });
+
+  it.each([
+    ['DemoRequestDto', DemoRequestStatus],
+    ['RecentCompanyDto', CompanyStatus],
+    ['RecentCompanySubscriptionDto', SubscriptionStatus],
+  ])('%s documents the real enum members', (schema, prismaEnum) => {
+    // Hand-listing these got three of four wrong on the first pass, inventing
+    // `PAST_DUE` and `QUALIFIED` alongside real members. Every mistake compiled
+    // and emitted. A generated client builds a union from the documented list,
+    // so an invented member is a value the client accepts and the API rejects.
+    const { components } = loadContract();
+    const model = components.schemas[schema] as {
+      properties?: Record<string, { enum?: string[] }>;
+    };
+    expect(model?.properties?.status?.enum?.slice().sort()).toEqual(
+      Object.values(prismaEnum).slice().sort(),
+    );
+  });
+
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 94 of ~180 operations (auth, users, tags,
+    // A RATCHET, not a target: 106 of ~180 operations (auth, users, tags,
     // screen-groups, locations, screens, content, schedules, playlists,
-    // companies, emergency, monitoring). Raise it as controllers are annotated;
-    // it fails the moment a route loses its response type. 25 of 38 controllers
-    // are still unannotated — that is the remaining work, and this number is how
-    // it stays visible rather than forgotten.
+    // companies, emergency, monitoring, super-admin). Raise it as controllers
+    // are annotated; it fails the moment a route loses its response type. 24 of
+    // 38 controllers are still unannotated — that is the remaining work, and
+    // this number is how it stays visible rather than forgotten.
     //
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(94);
+    expect(annotated.length).toBeGreaterThanOrEqual(106);
     expect(total).toBeGreaterThan(100);
   });
 });

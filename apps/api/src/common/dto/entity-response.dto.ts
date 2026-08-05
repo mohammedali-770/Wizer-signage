@@ -682,3 +682,78 @@ export class EmergencyBroadcastDto {
   @ApiProperty({ type: String, format: 'date-time' })
   updatedAt!: string;
 }
+
+/**
+ * An invitation as the API returns it.
+ *
+ * `InvitationsService.toView` is `const { tokenHash: _omit, ...view }` — a
+ * SPREAD view, not an allow-list. Every other DTO in this file is transcribed
+ * from a view that names its fields, so a new column has to be added here
+ * deliberately. This one is the opposite: add a column to the Prisma model and
+ * it starts appearing in responses immediately, with nothing in the code
+ * changing to say so. The field list below is the only place that records what
+ * the endpoint is supposed to return.
+ *
+ * `tokenHash` is the one field the spread removes, and it is why the view
+ * exists. It must stay absent.
+ */
+export class InvitationDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiPropertyOptional({ nullable: true, description: 'null for a platform-level Super Admin.' })
+  companyId?: string | null;
+
+  @ApiProperty({ example: 'user@example.com' })
+  email!: string;
+
+  @ApiProperty({
+    enum: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'LOCATION_MANAGER', 'CONTENT_MANAGER', 'VIEWER'],
+  })
+  role!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  invitedById?: string | null;
+
+  @ApiProperty({ enum: ['PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED'] })
+  status!: string;
+
+  @ApiProperty({ type: [String], description: 'Location scope, for LOCATION_MANAGER invites.' })
+  locationIds!: string[];
+
+  @ApiProperty({ format: 'date-time' })
+  expiresAt!: string;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  acceptedAt?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  revokedAt?: string | null;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: string;
+}
+
+/**
+ * What create/resend return: the invitation PLUS the raw token.
+ *
+ * Only the hash is stored, so this is the one and only moment the token is
+ * readable — it exists so the inviter can copy the accept link when email
+ * delivery is not configured. It is a bearer credential: anyone holding it can
+ * accept the invitation and create the account.
+ *
+ * A separate class rather than an optional field on `InvitationDto`, because
+ * the read endpoints must not be documented as maybe-returning it.
+ */
+export class InvitationCreatedDto extends InvitationDto {
+  @ApiProperty({
+    description:
+      'Single-use acceptance token, returned ONLY here. The database stores a hash, so it ' +
+      'cannot be read back later. Treat it as a credential: do not log it, and deliver it ' +
+      'over a channel you would send a password reset link over.',
+  })
+  token!: string;
+}
