@@ -70,6 +70,13 @@ services:
     expose:
       - '3001'
     restart: unless-stopped
+    # Time between SIGTERM and the SIGKILL that follows it. The default is 10s,
+    # which is shorter than a content upload takes to finish: a redeploy during
+    # a 300 MB upload killed the request mid-body and the user started over.
+    # Nest closes its listener on SIGTERM and stops accepting new connections,
+    # so this window is spent draining what is already in flight, not admitting
+    # more work.
+    stop_grace_period: 60s
     healthcheck:
       # Hit the NestJS health endpoint (global prefix "api"). Use 127.0.0.1
       # explicitly: inside the container "localhost" may resolve to IPv6 [::1],

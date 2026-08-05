@@ -138,6 +138,18 @@ jobs:
       - name: Deploy gate tests
         run: bash scripts/tests/deploy-gate.test.sh
 
+      # Which of `nginx -s reload` / `restart nginx` the deploy runs. Both leave
+      # a green deploy log; only one keeps in-flight uploads alive. Stubbed.
+      - name: Deploy nginx-reload tests
+        run: bash scripts/tests/deploy-nginx-reload.test.sh
+
+      # Validates the production nginx config with the real `nginx -t`, and pins
+      # the directives that are valid-but-inert when they regress — a keepalive
+      # pool with no cleared Connection header, a proxy_cache_valid with no cache
+      # zone. Neither produces a warning from nginx.
+      - name: Nginx config tests
+        run: bash scripts/tests/nginx-config.test.sh
+
       - name: Build
         # The dashboard production build requires an explicit, valid HTTPS
         # NEXT_PUBLIC_API_URL (see apps/dashboard/next.config.mjs). Use a

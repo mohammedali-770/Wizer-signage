@@ -20,6 +20,13 @@
 # runtime variables like $host. See docs/nginx-ssl.md.
 # =============================================================================
 
+# `keepalive` holds idle upstream connections open for reuse. It has two
+# prerequisites, and BOTH must hold or the pool is configured but never used:
+#   1. proxy_http_version 1.1  — set once at the http{} level in nginx.conf
+#   2. an absent Connection header on the proxied request
+# nginx defaults to sending `Connection: close` upstream, so (2) requires an
+# explicit `proxy_set_header Connection ""` in every location that proxies here
+# (or, for the dashboard, the $connection_upgrade map whose empty branch is "").
 upstream dashboard_upstream { server dashboard:3000; keepalive 32; }
 upstream api_upstream       { server api:3001;       keepalive 32; }
 
@@ -130,6 +137,8 @@ server {
         proxy_set_header X-Forwarded-Host  $host;
         proxy_set_header X-Forwarded-Port  $server_port;
         proxy_set_header X-Request-Id      $request_id;
+        # Required for the api_upstream keepalive pool — see the note there.
+        proxy_set_header Connection        "";
         proxy_read_timeout 60s;
         proxy_send_timeout 60s;
         proxy_no_cache      1;
@@ -155,6 +164,11 @@ server {
         # Correlation ID: the API honours this header and echoes it back in the
         # error envelope, so nginx's access log and the app log share one key.
         proxy_set_header X-Request-Id      $request_id;
+        # Required for the api_upstream keepalive pool — see the note there.
+        # This is the hot path: every screen in the fleet polls the manifest,
+        # heartbeat and command endpoints on a fixed cadence, so without pooling
+        # each poll pays a fresh TCP handshake into Node.
+        proxy_set_header Connection        "";
         client_max_body_size 512m;
         proxy_request_buffering off;
         proxy_read_timeout      300s;
@@ -167,8 +181,16 @@ server {
 
     location /_next/static/ {
         proxy_pass http://dashboard_upstream;
-        proxy_set_header Host $host;
-        proxy_cache_valid 200 60m;
+        proxy_set_header Host       $host;
+        # Required for the dashboard_upstream keepalive pool — see the note there.
+        proxy_set_header Connection "";
+        # NOTE: there is deliberately no proxy_cache_valid here. It only has an
+        # effect alongside a proxy_cache_path/proxy_cache pair, and this
+        # deployment defines neither — the directive that used to sit here read
+        # as "nginx caches these for an hour" while nginx cached nothing at all.
+        # The real caching is the immutable Cache-Control below, which is
+        # correct for content-hashed Next.js build assets and is served by the
+        # browser and any CDN in front of us.
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
