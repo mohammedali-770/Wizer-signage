@@ -88,6 +88,13 @@ server {
     location ^~ /api/downloads/android/ {
         alias /usr/share/nginx/downloads/android/;
 
+        # Bandwidth, not request count, is the scarce resource here — see the
+        # zone definition in nginx.conf. burst=10 absorbs a device resuming a
+        # ranged download without letting a loop run free; limit_conn caps how
+        # many large transfers one address can hold open at once.
+        limit_req  zone=wizer_downloads burst=10 nodelay;
+        limit_conn wizer_conn 8;
+
         # Read-only distribution: only GET/HEAD; reject upload/mutation methods.
         limit_except GET HEAD { deny all; }
         # No directory listing.
@@ -120,6 +127,26 @@ server {
         add_header Cache-Control             $wizer_android_cache;
         # HTTP range requests (resumable large-APK downloads) stay enabled by
         # default for static files — do not disable.
+    }
+
+    # Everything else under /api/downloads/ — the API's own APK route. The
+    # android/ subtree above is a LONGER ^~ prefix and still wins for those URLs;
+    # this catches the rest, which would otherwise fall through to the general
+    # /api/ block and be bounded only by the 30r/s API zone. Same reasoning as
+    # the static subtree: the response is a large binary, not a JSON payload.
+    location ^~ /api/downloads/ {
+        limit_req  zone=wizer_downloads burst=10 nodelay;
+        limit_conn wizer_conn 8;
+
+        proxy_pass http://api_upstream;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-Id      $request_id;
+        proxy_set_header Connection        "";
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
     }
 
     # Credential endpoints, matched BEFORE the general /api/ block (a longer
