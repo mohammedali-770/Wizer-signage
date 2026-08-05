@@ -54,13 +54,22 @@ function build() {
     getSignedUrl: jest.fn().mockResolvedValue('https://signed'),
     remove: jest.fn().mockResolvedValue(undefined),
   };
+  // The platform's own origins, as the self-origin guard reads them. Synthetic
+  // hosts on the reserved example.com domain — never the deployed one.
+  const config = {
+    get: jest.fn(() => ({
+      dashboardUrl: 'https://signage.example.com',
+      apiUrl: 'https://api.signage.example.com',
+    })),
+  };
   const service = new ContentService(
     prisma,
     activityLog as any,
     usageLimits as any,
     storage as any,
+    config as any,
   );
-  return { service, prisma, activityLog, usageLimits, storage };
+  return { service, prisma, config, activityLog, usageLimits, storage };
 }
 
 const actor: any = { userId: 'u1', isSuperAdmin: false, companyId: 'comp1', role: 'COMPANY_ADMIN' };
@@ -362,5 +371,88 @@ describe('ContentService.assertSelectableFallback', () => {
     await expect(t.service.assertSelectableFallback('comp1', 'archived')).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+});
+
+/**
+ * URL content is rendered in an iframe on the dashboard and a WebView on the
+ * player. A tenant-supplied URL on the platform's OWN host makes that frame
+ * same-origin with the viewer's authenticated session — a token-theft primitive
+ * against whoever opens the preview, up to a Super Admin.
+ *
+ * The iframe sandbox is the other half of this defence. Both exist because
+ * either one alone is a single edit away from being undone.
+ */
+describe('ContentService — self-origin URL content', () => {
+  const SELF = 'https://signage.example.com/anything';
+  const API_SELF = 'https://api.signage.example.com/api/health';
+
+  it('creates URL content pointing somewhere external', async () => {
+    const t = build();
+    await expect(
+      t.service.createUrl('comp1', actor, { title: 'Site', url: 'https://news.example.org/live' }),
+    ).resolves.toBeDefined();
+  });
+
+  it('refuses URL content pointing at the dashboard origin', async () => {
+    const t = build();
+    await expect(t.service.createUrl('comp1', actor, { title: 'Evil', url: SELF })).rejects.toThrow(
+      /cannot point at this platform/i,
+    );
+    expect(t.prisma.content.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses URL content pointing at the API origin', async () => {
+    const t = build();
+    await expect(
+      t.service.createUrl('comp1', actor, { title: 'Evil', url: API_SELF }),
+    ).rejects.toThrow(/cannot point at this platform/i);
+    expect(t.prisma.content.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects BEFORE consuming a tag lookup or writing anything', async () => {
+    // Ordering matters: a rejection that happens after the write is not a
+    // rejection.
+    const t = build();
+    await expect(
+      t.service.createUrl('comp1', actor, { title: 'Evil', url: SELF, tagIds: ['ct'] }),
+    ).rejects.toThrow();
+    expect(t.prisma.content.create).not.toHaveBeenCalled();
+    expect(t.activityLog.log).not.toHaveBeenCalled();
+  });
+
+  it('refuses to EDIT existing URL content into a self-origin URL', async () => {
+    // Create clean, edit dirty. Without the check on the update path the
+    // create-time gate is trivially walked past.
+    const t = build();
+    t.prisma.content.findFirst.mockResolvedValue({
+      id: 'c1',
+      companyId: 'comp1',
+      type: 'URL',
+      url: 'https://news.example.org/live',
+      status: 'ACTIVE',
+      deletedAt: null,
+    });
+
+    await expect(t.service.update('comp1', actor, 'c1', { url: SELF })).rejects.toThrow(
+      /cannot point at this platform/i,
+    );
+    expect(t.prisma.content.update).not.toHaveBeenCalled();
+  });
+
+  it('still allows editing to another external URL', async () => {
+    const t = build();
+    t.prisma.content.findFirst.mockResolvedValue({
+      id: 'c1',
+      companyId: 'comp1',
+      type: 'URL',
+      url: 'https://news.example.org/live',
+      status: 'ACTIVE',
+      deletedAt: null,
+    });
+
+    await expect(
+      t.service.update('comp1', actor, 'c1', { url: 'https://other.example.org/page' }),
+    ).resolves.toBeDefined();
   });
 });

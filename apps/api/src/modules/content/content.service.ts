@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ContentStatus, ContentType, Orientation, Prisma, TagType } from '@prisma/client';
 
 import { resolvePagination } from '../../common/dto/pagination.dto';
+import { isSelfOrigin } from '../../common/security/self-origin';
 import {
   discardUpload,
   hashUpload,
@@ -11,6 +13,7 @@ import {
   type UploadedTempFile,
 } from '../../common/upload/disk-upload';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
+import type { AppConfig } from '../../config/configuration';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityCategory, ActivityLogService } from '../activity-log/activity-log.service';
 import { StorageService } from '../storage/storage.service';
@@ -53,7 +56,28 @@ export class ContentService {
     private readonly activityLog: ActivityLogService,
     private readonly usageLimits: UsageLimitsService,
     private readonly storage: StorageService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Refuse URL content aimed at our own origin.
+   *
+   * The dashboard renders URL content in an iframe and the player in a WebView.
+   * A tenant-supplied URL on OUR host makes the frame same-origin with the
+   * viewer's authenticated session, which is a token-theft primitive against
+   * whoever opens the preview — up to a Super Admin. The iframe sandbox blocks
+   * it today; this stops the content existing in the first place, so a future
+   * edit to a sandbox attribute cannot silently re-open it.
+   */
+  private assertNotSelfOrigin(url: string | undefined): void {
+    if (!url) return;
+    const app = this.config.get<AppConfig['app']>('app', { infer: true });
+    if (isSelfOrigin(url, [app?.dashboardUrl, app?.apiUrl])) {
+      throw new BadRequestException(
+        'URL content cannot point at this platform. Use an external address.',
+      );
+    }
+  }
 
   // --- Create ------------------------------------------------------------
 
@@ -141,6 +165,7 @@ export class ContentService {
   }
 
   async createUrl(companyId: string, actor: AuthenticatedUser, dto: CreateUrlContentDto) {
+    this.assertNotSelfOrigin(dto.url);
     const tagIds = await this.validContentTags(companyId, dto.tagIds ?? []);
     const content = await this.prisma.content.create({
       data: {
@@ -335,6 +360,9 @@ export class ContentService {
       changed.push('expiresAt');
     }
     if (dto.url !== undefined && existing.type === ContentType.URL) {
+      // Also checked on update: creating clean and editing to a self-origin URL
+      // afterwards would otherwise walk straight past the create-time gate.
+      this.assertNotSelfOrigin(dto.url);
       data.url = dto.url;
       changed.push('url');
     }
