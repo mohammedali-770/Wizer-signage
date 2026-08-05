@@ -235,3 +235,86 @@ export class ScreenDto extends TenantOwnedDto {
   @ApiProperty({ type: [NestedRefDto] })
   groups!: NestedRefDto[];
 }
+
+/**
+ * A content item as the API returns it.
+ *
+ * From `ContentService.toView`, not the Prisma model. The view strips three
+ * fields, and each omission is deliberate:
+ *
+ *   storageKey — the object-storage path. Publishing it hands a client the
+ *                internal layout of the bucket; files are reached through a
+ *                short-lived signed URL from the preview endpoint instead.
+ *   checksum   — an integrity value for the player's cache, not part of the
+ *                dashboard contract.
+ *   meta       — untyped internal JSON with no stable shape to document.
+ *
+ * It adds `isExpired`, which is derived at read time and exists in no column.
+ */
+export class ContentDto extends TenantOwnedDto {
+  @ApiProperty()
+  title!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
+
+  @ApiProperty({ enum: ['IMAGE', 'VIDEO', 'PDF', 'URL', 'TEXT'] })
+  type!: string;
+
+  @ApiProperty({ enum: ['ACTIVE', 'ARCHIVED', 'TRASHED'] })
+  status!: string;
+
+  @ApiProperty({ enum: ['LANDSCAPE', 'PORTRAIT', 'UNKNOWN'] })
+  orientation!: string;
+
+  @ApiPropertyOptional({ nullable: true, description: 'External address for URL content.' })
+  url?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Body for TEXT content.' })
+  textBody?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  textStyle?: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'Bytes, as a STRING — a 64-bit column serialised via BigInt.toJSON.',
+  })
+  fileSize?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  mimeType?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  originalFileName?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Pages in a PDF.' })
+  pageCount?: number | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Default dwell time when scheduled.' })
+  durationSeconds?: number | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  expiresAt?: string | null;
+
+  @ApiProperty({
+    description: 'Derived at read time from expiresAt — there is no such column.',
+  })
+  isExpired!: boolean;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  archivedAt?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  trashedAt?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  createdById?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  updatedById?: string | null;
+
+  @ApiProperty({ type: [TagDto] })
+  tags!: TagDto[];
+}

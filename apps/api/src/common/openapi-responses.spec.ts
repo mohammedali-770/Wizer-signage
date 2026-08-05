@@ -161,17 +161,33 @@ describe('OpenAPI response coverage', () => {
     expect(screen?.properties?.storageTotalBytes?.type).toBe('string');
   });
 
+  it('the content shape never publishes the storage key', () => {
+    // ContentService.toView strips storageKey, checksum and meta. storageKey is
+    // the object-storage path — publishing it hands a client the internal layout
+    // of the bucket, when files are meant to be reached only through a
+    // short-lived signed URL from the preview endpoint.
+    const { components } = loadContract();
+    const content = components.schemas.ContentDto as { properties?: Record<string, unknown> };
+    const props = Object.keys(content?.properties ?? {});
+
+    for (const stripped of ['storageKey', 'checksum', 'meta']) {
+      expect(props).not.toContain(stripped);
+    }
+    // Derived at read time; there is no such column.
+    expect(props).toContain('isExpired');
+  });
+
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 41 of ~180 operations (auth, users, tags,
-    // screen-groups, locations, screens). Raise it as
+    // A RATCHET, not a target: 49 of ~180 operations (auth, users, tags,
+    // screen-groups, locations, screens, content). Raise it as
     // controllers are annotated; it fails the moment a route loses its response
-    // type. 32 of 38 controllers are still unannotated — that is the remaining
+    // type. 31 of 38 controllers are still unannotated — that is the remaining
     // work, and this number is how it stays visible rather than forgotten.
     //
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(41);
+    expect(annotated.length).toBeGreaterThanOrEqual(49);
     expect(total).toBeGreaterThan(100);
   });
 });
