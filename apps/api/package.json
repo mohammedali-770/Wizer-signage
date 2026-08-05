@@ -107,8 +107,12 @@
     },
     "coverageThreshold": {
       "global": {
-        "statements": 58,
-        "lines": 58
+        "statements": 62,
+        "lines": 64
+      },
+      "./src/common/guards/": {
+        "statements": 90,
+        "lines": 90
       },
       "./src/common/rbac/": {
         "statements": 95,
@@ -118,17 +122,13 @@
         "statements": 68,
         "lines": 68
       },
-      "./src/modules/sessions/": {
-        "statements": 38,
-        "lines": 35
-      },
-      "./src/common/guards/": {
-        "statements": 24,
-        "lines": 24
-      },
       "./src/modules/two-factor/": {
-        "statements": 28,
-        "lines": 28
+        "statements": 62,
+        "lines": 62
+      },
+      "./src/modules/sessions/": {
+        "statements": 75,
+        "lines": 75
       }
     },
     "coveragePathIgnorePatterns": [

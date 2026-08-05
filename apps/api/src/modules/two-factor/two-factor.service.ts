@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -27,6 +28,7 @@ export function requiresTwoFactor(user: Pick<User, 'role' | 'twoFactorEnforced'>
 
 @Injectable()
 export class TwoFactorService {
+  private readonly logger = new Logger(TwoFactorService.name);
   private readonly issuer: string;
 
   constructor(
@@ -130,7 +132,23 @@ export class TwoFactorService {
 
   private async verifyForUser(user: User, code: string): Promise<boolean> {
     if (!user.twoFactorSecret) return false;
-    const secret = this.crypto.decrypt(user.twoFactorSecret);
+
+    // decrypt() throws on a GCM auth-tag mismatch, which is exactly what an
+    // ENCRYPTION_KEY rotation produces for every previously-stored secret. Left
+    // to propagate, it escapes verifyCodeForUser BEFORE the backup-code
+    // fallback, so the one credential that could still get an administrator in
+    // becomes unreachable and the platform is permanently unadministrable.
+    // Returning false keeps that path open.
+    let secret: string;
+    try {
+      secret = this.crypto.decrypt(user.twoFactorSecret);
+    } catch {
+      this.logger.error(
+        `2FA secret for user ${user.id} could not be decrypted; falling back to backup codes. ` +
+          'This usually means ENCRYPTION_KEY was rotated without re-encrypting stored secrets.',
+      );
+      return false;
+    }
     return this.verifyToken(secret, code);
   }
 
