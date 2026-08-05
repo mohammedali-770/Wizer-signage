@@ -5633,7 +5633,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5660,8 +5682,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5690,8 +5719,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5720,7 +5756,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5757,7 +5800,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5815,7 +5865,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5843,7 +5900,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5871,7 +5935,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5899,7 +5970,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7962,6 +8040,134 @@
       "UpdateNotificationPreferencesDto": {
         "type": "object",
         "properties": {}
+      },
+      "BroadcastTargetDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "SCREEN_GROUP",
+              "LOCATION",
+              "COMPANY"
+            ]
+          },
+          "targetId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "targetType",
+          "targetId"
+        ]
+      },
+      "EmergencyBroadcastDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "broadcastType": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "URL",
+              "CONTENT",
+              "PLAYLIST"
+            ],
+            "description": "Which of message/url/contentId/playlistId carries the payload."
+          },
+          "message": {
+            "type": "object",
+            "nullable": true,
+            "description": "Body for a TEXT broadcast."
+          },
+          "url": {
+            "type": "object",
+            "nullable": true
+          },
+          "contentId": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlistId": {
+            "type": "object",
+            "nullable": true
+          },
+          "priority": {
+            "type": "number",
+            "description": "Outranks every schedule while the broadcast is ACTIVE."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "PAUSED",
+              "ENDED",
+              "ARCHIVED"
+            ]
+          },
+          "startAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "stoppedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BroadcastTargetDto"
+            }
+          },
+          "createdById": {
+            "type": "object",
+            "nullable": true
+          },
+          "updatedById": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "broadcastType",
+          "priority",
+          "status",
+          "targets",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "CreateEmergencyBroadcastDto": {
         "type": "object",

@@ -599,3 +599,86 @@ export class CompanyDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;
 }
+
+/** A target attached to an emergency broadcast. */
+export class BroadcastTargetDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty({ enum: ['SCREEN', 'SCREEN_GROUP', 'LOCATION', 'COMPANY'] })
+  targetType!: string;
+
+  @ApiProperty()
+  targetId!: string;
+}
+
+/**
+ * An emergency broadcast as the API returns it.
+ *
+ * `EmergencyBroadcastService.toView` is an allow-list and — unusually — already
+ * converts its dates to ISO strings itself rather than leaving that to the JSON
+ * serialiser, so the timestamps here are documented as strings for the same
+ * reason the byte counts elsewhere are: this is what actually goes on the wire.
+ *
+ * `companyId` is NOT returned, so it is not declared. The broadcast is always
+ * fetched within the caller's tenant, and a DTO that promised the field would
+ * describe a response clients never receive.
+ */
+export class EmergencyBroadcastDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
+
+  @ApiProperty({
+    enum: ['TEXT', 'URL', 'CONTENT', 'PLAYLIST'],
+    description: 'Which of message/url/contentId/playlistId carries the payload.',
+  })
+  broadcastType!: string;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Body for a TEXT broadcast.' })
+  message?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  url?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  contentId?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  playlistId?: string | null;
+
+  @ApiProperty({ description: 'Outranks every schedule while the broadcast is ACTIVE.' })
+  priority!: number;
+
+  @ApiProperty({ enum: ['DRAFT', 'ACTIVE', 'PAUSED', 'ENDED', 'ARCHIVED'] })
+  status!: string;
+
+  @ApiPropertyOptional({ nullable: true, type: String, format: 'date-time' })
+  startAt?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String, format: 'date-time' })
+  endAt?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String, format: 'date-time' })
+  stoppedAt?: string | null;
+
+  @ApiProperty({ type: [BroadcastTargetDto] })
+  targets!: BroadcastTargetDto[];
+
+  @ApiPropertyOptional({ nullable: true })
+  createdById?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  updatedById?: string | null;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt!: string;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  updatedAt!: string;
+}
