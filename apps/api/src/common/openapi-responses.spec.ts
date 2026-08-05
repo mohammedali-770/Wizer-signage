@@ -198,18 +198,36 @@ describe('OpenAPI response coverage', () => {
     expect(Object.keys(summary?.properties ?? {})).toContain('itemCount');
   });
 
+  it.each([
+    ['UserViewDto', ['passwordHash', 'twoFactorSecret', 'twoFactorPendingSecret']],
+    ['ScreenDto', ['kioskPinHash']],
+    ['CompanyDto', ['defaultKioskPinHash']],
+    ['ContentDto', ['storageKey', 'checksum', 'meta']],
+  ])('%s publishes none of the fields its view strips', (schema, stripped) => {
+    // Four views now exist to keep something out of the response, three of them
+    // a hashed secret. That is a pattern, not a coincidence, and it is the
+    // reason every DTO here is transcribed from the service's view and never
+    // from the Prisma model — a model-derived class would publish all of these.
+    const { components } = loadContract();
+    const model = components.schemas[schema] as { properties?: Record<string, unknown> };
+    const props = Object.keys(model?.properties ?? {});
+    for (const field of stripped) {
+      expect(props).not.toContain(field);
+    }
+  });
+
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 66 of ~180 operations (auth, users, tags,
-    // screen-groups, locations, screens, content, schedules, playlists).
-    // Raise it as
+    // A RATCHET, not a target: 73 of ~180 operations (auth, users, tags,
+    // screen-groups, locations, screens, content, schedules, playlists,
+    // companies). Raise it as
     // controllers are annotated; it fails the moment a route loses its response
-    // type. 29 of 38 controllers are still unannotated — that is the remaining
+    // type. 28 of 38 controllers are still unannotated — that is the remaining
     // work, and this number is how it stays visible rather than forgotten.
     //
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(66);
+    expect(annotated.length).toBeGreaterThanOrEqual(73);
     expect(total).toBeGreaterThan(100);
   });
 });

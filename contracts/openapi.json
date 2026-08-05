@@ -127,7 +127,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -156,8 +163,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -175,7 +189,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CompanyDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -204,7 +240,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -241,7 +284,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -308,8 +358,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -337,8 +394,15 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6429,9 +6493,125 @@
         "type": "object",
         "properties": {}
       },
+      "CompanyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "description": "URL-safe identifier, unique across the platform."
+          },
+          "defaultLocale": {
+            "type": "string",
+            "example": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Asia/Riyadh"
+          },
+          "logoUrl": {
+            "type": "object",
+            "nullable": true
+          },
+          "primaryColor": {
+            "type": "object",
+            "nullable": true,
+            "example": "#2F80ED"
+          },
+          "customDomain": {
+            "type": "object",
+            "nullable": true
+          },
+          "brandedEmailFrom": {
+            "type": "object",
+            "nullable": true
+          },
+          "resellerId": {
+            "type": "object",
+            "nullable": true
+          },
+          "fallbackContentId": {
+            "type": "object",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "CANCELLED"
+            ]
+          },
+          "suspendedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "suspendedReason": {
+            "type": "object",
+            "nullable": true
+          },
+          "settings": {
+            "type": "object",
+            "description": "Tenant preferences blob."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "defaultLocale",
+          "timezone",
+          "status",
+          "settings",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "CreateCompanyDto": {
         "type": "object",
         "properties": {}
+      },
+      "PageMetaDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "number",
+            "example": 25
+          },
+          "total": {
+            "type": "number",
+            "example": 137,
+            "description": "Total matching rows, ignoring pagination."
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 6
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "totalPages"
+        ]
       },
       "UpdateCompanyDto": {
         "type": "object",
@@ -6504,34 +6684,6 @@
           "twoFactorEnabled",
           "createdAt",
           "updatedAt"
-        ]
-      },
-      "PageMetaDto": {
-        "type": "object",
-        "properties": {
-          "page": {
-            "type": "number",
-            "example": 1
-          },
-          "pageSize": {
-            "type": "number",
-            "example": 25
-          },
-          "total": {
-            "type": "number",
-            "example": 137,
-            "description": "Total matching rows, ignoring pagination."
-          },
-          "totalPages": {
-            "type": "number",
-            "example": 6
-          }
-        },
-        "required": [
-          "page",
-          "pageSize",
-          "total",
-          "totalPages"
         ]
       },
       "UpdateUserDto": {

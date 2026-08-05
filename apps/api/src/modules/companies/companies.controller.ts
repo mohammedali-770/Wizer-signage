@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
+import { CompanyDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -26,6 +29,7 @@ export class CompaniesController {
   @Get('me')
   @RequirePermissions(Permission.CompanyRead)
   @ApiOperation({ summary: "Get the current user's company." })
+  @ApiOkResponse({ type: CompanyDto })
   myCompany(@CurrentUser() user: AuthenticatedUser) {
     return this.companies.getForPrincipal(user.companyId);
   }
@@ -35,6 +39,7 @@ export class CompaniesController {
   @Post()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create a company (Super Admin).' })
+  @ApiOkResponse({ type: CompanyDto })
   create(@Body() dto: CreateCompanyDto, @CurrentUser() user: AuthenticatedUser) {
     return this.companies.create(user, dto);
   }
@@ -42,6 +47,7 @@ export class CompaniesController {
   @Get()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'List companies (search/filter/sort).' })
+  @ApiPaginatedResponse(CompanyDto)
   list(@Query() query: ListCompaniesQueryDto) {
     return this.companies.list(query);
   }
@@ -49,6 +55,7 @@ export class CompaniesController {
   @Get(':id')
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Company detail with metrics, subscription, and plan.' })
+  @ApiOkResponse({ type: CompanyDto })
   detail(@Param('id') id: string) {
     return this.companies.getDetail(id);
   }
@@ -63,6 +70,7 @@ export class CompaniesController {
   @Patch(':id')
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update company details.' })
+  @ApiOkResponse({ type: CompanyDto })
   update(
     @Param('id') id: string,
     @Body() dto: UpdateCompanyDto,
@@ -74,6 +82,7 @@ export class CompaniesController {
   @Post(':id/suspend')
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Suspend a company (blocks its users; data preserved).' })
+  @ApiOkResponse({ type: CompanyDto })
   suspend(
     @Param('id') id: string,
     @Body() dto: SuspendCompanyDto,
@@ -85,6 +94,7 @@ export class CompaniesController {
   @Post(':id/reactivate')
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Reactivate a suspended company.' })
+  @ApiOkResponse({ type: CompanyDto })
   reactivate(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.companies.reactivate(user, id);
   }
