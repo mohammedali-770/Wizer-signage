@@ -143,7 +143,35 @@ export class UsersService {
     passwordHash: string,
     opts: { activate?: boolean } = {},
   ): Promise<void> {
+    const current = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { status: true, lockedUntil: true },
+    });
+
     const data: Prisma.UserUpdateInput = { passwordHash, mustResetPassword: false };
+
+    // Clear a FAILED-LOGIN lockout. Someone who locked themselves out and then
+    // reset their password would otherwise get a success page and still be
+    // refused at login until the window elapsed, with neither screen explaining
+    // why. The stale failedLoginCount also left them one attempt from re-locking.
+    //
+    // A time-based lock is the ONLY kind cleared here: an administrative lock is
+    // `status = LOCKED` with no `lockedUntil`, and DISABLED is a status of its
+    // own, so neither is reachable from this branch. Resetting your own password
+    // must not be a way to reactivate an account an admin closed.
+    if (current?.lockedUntil) {
+      data.failedLoginCount = 0;
+      data.lockedUntil = null;
+      if (current.status === UserStatus.LOCKED) {
+        // recordFailedLogin writes status=LOCKED *together with* lockedUntil.
+        // Clearing only the timestamp would leave LOCKED with no expiry, which
+        // isBlocked() reads as an indefinite administrative lock — turning a
+        // 15-minute lockout into a permanent one. recordSuccessfulLogin resets
+        // status for the same reason.
+        data.status = UserStatus.ACTIVE;
+      }
+    }
+
     if (opts.activate) {
       data.status = UserStatus.ACTIVE;
       data.emailVerifiedAt = new Date();
