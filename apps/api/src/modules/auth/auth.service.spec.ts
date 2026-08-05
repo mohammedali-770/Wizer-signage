@@ -1,6 +1,7 @@
-import { HttpException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, UnauthorizedException } from '@nestjs/common';
 import { UserRole, UserStatus } from '@prisma/client';
 
+import { Permission } from '../../common/rbac/permissions';
 import { AuthService } from './auth.service';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -25,6 +26,12 @@ function makeUser(overrides: Partial<any> = {}): any {
 function build() {
   const prisma = {
     loginEvent: { create: jest.fn().mockResolvedValue({}) },
+    passwordResetToken: {
+      create: jest.fn().mockResolvedValue({ id: 'prt-1' }),
+      findUnique: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     twoFactorChallenge: {
       create: jest.fn().mockResolvedValue({ id: 'chal-1' }),
       findFirst: jest.fn().mockResolvedValue({ id: 'chal-1', userId: 'user-1' }),
@@ -41,6 +48,8 @@ function build() {
     findById: jest.fn(),
     isLocked: jest.fn().mockReturnValue(false),
     // Mirrors the real implementation so the gates are exercised, not stubbed.
+    setPassword: jest.fn().mockResolvedValue(undefined),
+    getRecentPasswordHashes: jest.fn().mockResolvedValue([]),
     isBlocked: jest.fn(
       (u: any) =>
         u.status === UserStatus.DISABLED ||
@@ -49,6 +58,9 @@ function build() {
     ),
     recordFailedLogin: jest.fn().mockResolvedValue({ locked: false }),
     recordSuccessfulLogin: jest.fn().mockResolvedValue(undefined),
+    createFromInvitation: jest.fn(async (input: any) =>
+      makeUser({ id: 'invited-1', email: input.email, name: input.name, role: input.role }),
+    ),
     toView: jest.fn((u: any) => ({ id: u.id, email: u.email })),
   };
   const sessions = {
@@ -56,6 +68,7 @@ function build() {
     validateForAccess: jest.fn(),
     rotate: jest.fn().mockResolvedValue({}),
     revoke: jest.fn().mockResolvedValue(undefined),
+    revokeAllForUser: jest.fn().mockResolvedValue(0),
     // Mirrors the real implementation so the refresh gate is exercised.
     isWithinRotationGrace: jest.fn(
       (sess: any, presented: string, now: number = Date.now()) =>
@@ -70,11 +83,27 @@ function build() {
     isSuspended: jest.fn().mockReturnValue(false),
   };
   const twoFactor = { verifyCodeForUser: jest.fn() };
-  const invitations = {};
+  const invitations = {
+    consumeByToken: jest.fn().mockResolvedValue({
+      id: 'inv-1',
+      email: 'invitee@acme.test',
+      role: UserRole.LOCATION_MANAGER,
+      companyId: 'company-1',
+      locationIds: ['loc-1'],
+    }),
+  };
   const activityLog = { log: jest.fn().mockResolvedValue(undefined) };
   const mail = { send: jest.fn().mockResolvedValue(undefined) };
-  const crypto = { sha256: jest.fn().mockReturnValue('hash'), hashEquals: jest.fn() };
-  const password = { verify: jest.fn(), evaluate: jest.fn() };
+  const crypto = {
+    sha256: jest.fn().mockReturnValue('hash'),
+    hashEquals: jest.fn(),
+    randomToken: jest.fn().mockReturnValue('RAWTOKEN'),
+  };
+  const password = {
+    verify: jest.fn(),
+    evaluate: jest.fn().mockReturnValue({ valid: true, errors: [] }),
+    hash: jest.fn().mockResolvedValue('new-hash'),
+  };
   const config = {
     get: (key: string) =>
       key === 'jwt'
@@ -105,7 +134,20 @@ function build() {
     config as any,
   );
 
-  return { service, prisma, jwt, users, sessions, companies, twoFactor, password, crypto };
+  return {
+    service,
+    prisma,
+    jwt,
+    users,
+    sessions,
+    companies,
+    twoFactor,
+    password,
+    crypto,
+    mail,
+    activityLog,
+    invitations,
+  };
 }
 
 const meta = { ip: '127.0.0.1', userAgent: 'jest' };
@@ -442,5 +484,324 @@ describe('AuthService.refresh', () => {
     const { t } = setup();
     t.jwt.verifyAsync.mockResolvedValue({ typ: 'access', sub: 'user-1', sid: 'session-1' });
     await expect(t.service.refresh('current')).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+});
+
+/**
+ * Password reset.
+ *
+ * Every branch here is reachable by an unauthenticated caller, so the
+ * interesting assertions are about what is NOT revealed and what is NOT left
+ * usable — not the happy path.
+ */
+describe('AuthService.forgotPassword', () => {
+  it('returns success for an unknown email without creating a token', async () => {
+    // Uniform response: a different status or timing tells an attacker which
+    // addresses have accounts.
+    const { service, prisma } = build();
+    await expect(service.forgotPassword({ email: 'nobody@example.com' }, meta)).resolves.toEqual({
+      success: true,
+    });
+    expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
+  });
+
+  it('issues a token for a real account', async () => {
+    const { service, prisma, users } = build();
+    users.findByEmail.mockResolvedValue(makeUser());
+    await service.forgotPassword({ email: 'user@acme.test' }, meta);
+    expect(prisma.passwordResetToken.create).toHaveBeenCalled();
+  });
+
+  it('stores only a hash of the token, never the token itself', async () => {
+    const { service, prisma, users, crypto } = build();
+    users.findByEmail.mockResolvedValue(makeUser());
+    await service.forgotPassword({ email: 'user@acme.test' }, meta);
+
+    const data = prisma.passwordResetToken.create.mock.calls[0][0].data;
+    expect(data.tokenHash).toBe('hash');
+    expect(JSON.stringify(data)).not.toContain('RAWTOKEN');
+    expect(crypto.sha256).toHaveBeenCalledWith('RAWTOKEN');
+  });
+
+  it('still returns success when the mail transport fails', async () => {
+    // The enumeration oracle: a 500 for real accounts and a 200 for unknown
+    // ones distinguishes them precisely. The row is already persisted, so the
+    // user can retry once mail recovers.
+    const { service, mail, users } = build();
+    users.findByEmail.mockResolvedValue(makeUser());
+    mail.send.mockRejectedValue(new Error('SMTP down'));
+
+    await expect(service.forgotPassword({ email: 'user@acme.test' }, meta)).resolves.toEqual({
+      success: true,
+    });
+  });
+
+  it('does not issue a token for a disabled account', async () => {
+    const { service, prisma, users } = build();
+    users.findByEmail.mockResolvedValue(makeUser({ status: UserStatus.DISABLED }));
+    await service.forgotPassword({ email: 'user@acme.test' }, meta);
+    expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
+  });
+
+  it('does not issue a token for an account with no password (invited, never accepted)', async () => {
+    const { service, prisma, users } = build();
+    users.findByEmail.mockResolvedValue(makeUser({ passwordHash: null }));
+    await service.forgotPassword({ email: 'user@acme.test' }, meta);
+    expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService.resetPassword', () => {
+  const validToken = () => ({
+    id: 'prt-1',
+    userId: 'user-1',
+    usedAt: null,
+    expiresAt: new Date(Date.now() + 60_000),
+  });
+
+  it('rejects an unknown token', async () => {
+    const { service, prisma } = build();
+    prisma.passwordResetToken.findUnique.mockResolvedValue(null);
+    await expect(
+      service.resetPassword({ token: 't', password: 'Str0ng!Passw0rd' }, meta),
+    ).rejects.toThrow(/invalid or has expired/i);
+  });
+
+  it('rejects an already-used token', async () => {
+    // Single use: a reset link forwarded or found in a mailbox later must not
+    // work a second time.
+    const { service, prisma } = build();
+    prisma.passwordResetToken.findUnique.mockResolvedValue({ ...validToken(), usedAt: new Date() });
+    await expect(
+      service.resetPassword({ token: 't', password: 'Str0ng!Passw0rd' }, meta),
+    ).rejects.toThrow(/invalid or has expired/i);
+  });
+
+  it('rejects an expired token', async () => {
+    const { service, prisma } = build();
+    prisma.passwordResetToken.findUnique.mockResolvedValue({
+      ...validToken(),
+      expiresAt: new Date(Date.now() - 1000),
+    });
+    await expect(
+      service.resetPassword({ token: 't', password: 'Str0ng!Passw0rd' }, meta),
+    ).rejects.toThrow(/invalid or has expired/i);
+  });
+
+  it('gives the same message for every rejection', async () => {
+    // Distinguishing "unknown" from "expired" would confirm that a token, and
+    // therefore an account, exists.
+    const { service, prisma } = build();
+    const messages: string[] = [];
+    for (const record of [null, { ...validToken(), usedAt: new Date() }]) {
+      prisma.passwordResetToken.findUnique.mockResolvedValue(record);
+      await service
+        .resetPassword({ token: 't', password: 'Str0ng!Passw0rd' }, meta)
+        .catch((e: Error) => messages.push(e.message));
+    }
+    expect(new Set(messages).size).toBe(1);
+  });
+
+  it('consumes the token and invalidates any other outstanding ones', async () => {
+    const { service, prisma, users } = build();
+    prisma.passwordResetToken.findUnique.mockResolvedValue(validToken());
+    users.findById.mockResolvedValue(makeUser());
+
+    await service.resetPassword({ token: 't', password: 'Str0ng!Passw0rd' }, meta);
+
+    expect(prisma.passwordResetToken.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ usedAt: expect.any(Date) }) }),
+    );
+    expect(prisma.passwordResetToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ usedAt: null }) }),
+    );
+  });
+
+  it('revokes every session on success', async () => {
+    // A reset is the response to a suspected compromise; leaving the attacker's
+    // session alive would defeat the point.
+    const { service, prisma, users, sessions } = build();
+    prisma.passwordResetToken.findUnique.mockResolvedValue(validToken());
+    users.findById.mockResolvedValue(makeUser());
+
+    await service.resetPassword({ token: 't', password: 'Str0ng!Passw0rd' }, meta);
+    expect(sessions.revokeAllForUser).toHaveBeenCalledWith('user-1', 'password_reset');
+  });
+
+  it('rejects when the token points at a user that no longer exists', async () => {
+    const { service, prisma, users } = build();
+    prisma.passwordResetToken.findUnique.mockResolvedValue(validToken());
+    users.findById.mockResolvedValue(null);
+    await expect(
+      service.resetPassword({ token: 't', password: 'Str0ng!Passw0rd' }, meta),
+    ).rejects.toThrow(/invalid or has expired/i);
+  });
+});
+
+const principal = {
+  userId: 'user-1',
+  email: 'user@acme.test',
+  role: UserRole.VIEWER,
+  companyId: 'company-1',
+  sessionId: 'session-1',
+  isSuperAdmin: false,
+  mfaSatisfied: false,
+  twoFactorRequired: false,
+} as any;
+
+describe('AuthService.logout', () => {
+  it('revokes the session the caller is holding', async () => {
+    const t = build();
+    await expect(t.service.logout(principal)).resolves.toEqual({ success: true });
+    expect(t.sessions.revoke).toHaveBeenCalledWith('session-1', 'logout');
+  });
+
+  it('revokes only the calling session, not every session for the user', async () => {
+    // Logging out of one browser must not sign the user out of their phone.
+    // `revokeAllForUser` here would be a silent behaviour change with no
+    // failing test to catch it.
+    const t = build();
+    await t.service.logout(principal);
+    expect(t.sessions.revokeAllForUser).not.toHaveBeenCalled();
+  });
+
+  it('audits the logout', async () => {
+    const t = build();
+    await t.service.logout(principal);
+    expect(t.activityLog.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'auth.logout', actorId: 'user-1' }),
+    );
+  });
+});
+
+describe('AuthService.acceptInvitation', () => {
+  const dto = { token: 'INVITE', name: 'New Person', password: 'Str0ng!Passw0rd' };
+
+  it('creates the user from the invitation and returns the invited email', async () => {
+    const t = build();
+    await expect(t.service.acceptInvitation(dto)).resolves.toEqual({
+      accepted: true,
+      email: 'invitee@acme.test',
+    });
+  });
+
+  it('takes email, role and company from the invitation, never from the request', async () => {
+    // The DTO is attacker-controlled. If any of these were read off `dto`, an
+    // invitee could self-promote to SUPER_ADMIN or land in another tenant.
+    const t = build();
+    await t.service.acceptInvitation({
+      ...dto,
+      email: 'attacker@evil.test',
+      role: UserRole.SUPER_ADMIN,
+      companyId: 'company-2',
+    } as any);
+
+    expect(t.users.createFromInvitation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'invitee@acme.test',
+        role: UserRole.LOCATION_MANAGER,
+        companyId: 'company-1',
+      }),
+    );
+  });
+
+  it('rejects a weak password without consuming the invitation', async () => {
+    // A single-use token burned by a failed password-policy check leaves the
+    // invitee unable to sign up at all and needing an admin to re-invite.
+    const t = build();
+    t.password.evaluate.mockReturnValue({ valid: false, errors: ['Password is too short.'] });
+
+    await expect(t.service.acceptInvitation({ ...dto, password: 'short' })).rejects.toThrow(
+      /too short/i,
+    );
+    expect(t.invitations.consumeByToken).not.toHaveBeenCalled();
+    expect(t.users.createFromInvitation).not.toHaveBeenCalled();
+  });
+
+  it('never stores the plaintext password', async () => {
+    const t = build();
+    await t.service.acceptInvitation(dto);
+    expect(t.password.hash).toHaveBeenCalledWith(dto.password);
+    expect(t.users.createFromInvitation).toHaveBeenCalledWith(
+      expect.objectContaining({ passwordHash: 'new-hash' }),
+    );
+  });
+
+  it('does not create a user when the token is already spent', async () => {
+    const t = build();
+    t.invitations.consumeByToken.mockRejectedValue(
+      new BadRequestException('This invitation has already been used.'),
+    );
+
+    await expect(t.service.acceptInvitation(dto)).rejects.toThrow(/already been used/i);
+    expect(t.users.createFromInvitation).not.toHaveBeenCalled();
+  });
+
+  it('audits both the user creation and the acceptance', async () => {
+    const t = build();
+    await t.service.acceptInvitation(dto);
+    const actions = t.activityLog.log.mock.calls.map((c: any[]) => c[0].action);
+    expect(actions).toEqual(expect.arrayContaining(['user.created', 'invitation.accepted']));
+  });
+});
+
+describe('AuthService.getMe', () => {
+  it('rejects a principal whose user record no longer exists', async () => {
+    // The access token outlives a hard-deleted account; without this the
+    // request would proceed with a null user.
+    const t = build();
+    t.users.findById.mockResolvedValue(null);
+    await expect(t.service.getMe(principal)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('returns the permission set for the stored role', async () => {
+    const t = build();
+    t.users.findById.mockResolvedValue(makeUser({ role: UserRole.VIEWER }));
+
+    const me = await t.service.getMe(principal);
+    expect(me.permissions).toEqual(expect.arrayContaining([Permission.ScreenRead]));
+    expect(me.permissions).not.toContain(Permission.UserUpdate);
+  });
+
+  it('derives permissions from the DATABASE role, not the token claim', async () => {
+    // A role demotion must take effect on the next request. Reading
+    // `principal.role` would keep the old permissions alive until the access
+    // token expired.
+    const t = build();
+    t.users.findById.mockResolvedValue(makeUser({ role: UserRole.VIEWER }));
+
+    const me = await t.service.getMe({ ...principal, role: UserRole.COMPANY_ADMIN });
+    expect(me.permissions).not.toContain(Permission.UserUpdate);
+  });
+
+  it('grants a Super Admin the full permission set', async () => {
+    const t = build();
+    t.users.findById.mockResolvedValue(makeUser({ role: UserRole.SUPER_ADMIN, companyId: null }));
+
+    const me = await t.service.getMe({ ...principal, isSuperAdmin: true });
+    expect(me.permissions).toEqual(expect.arrayContaining(Object.values(Permission)));
+  });
+
+  it('reports the session 2FA state so the dashboard can gate on it', async () => {
+    const t = build();
+    t.users.findById.mockResolvedValue(makeUser());
+
+    const me = await t.service.getMe({
+      ...principal,
+      mfaSatisfied: false,
+      twoFactorRequired: true,
+    });
+    expect(me).toMatchObject({ mfaSatisfied: false, twoFactorRequired: true });
+  });
+
+  it('returns the redacted view, never the raw record', async () => {
+    // `toView` is what strips passwordHash and the 2FA secret.
+    const t = build();
+    t.users.findById.mockResolvedValue(makeUser());
+
+    const me = await t.service.getMe(principal);
+    expect(t.users.toView).toHaveBeenCalled();
+    expect(me.user).not.toHaveProperty('passwordHash');
+    expect(me.user).not.toHaveProperty('twoFactorSecret');
   });
 });

@@ -108,7 +108,7 @@
     "coverageThreshold": {
       "global": {
         "statements": 62,
-        "lines": 64
+        "lines": 65
       },
       "./src/common/guards/": {
         "statements": 90,
@@ -119,8 +119,12 @@
         "lines": 95
       },
       "./src/modules/auth/": {
-        "statements": 68,
-        "lines": 68
+        "statements": 84,
+        "lines": 85
+      },
+      "./src/modules/users/": {
+        "statements": 40,
+        "lines": 41
       },
       "./src/modules/two-factor/": {
         "statements": 62,
