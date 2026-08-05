@@ -109,6 +109,20 @@ check "upstreams still declare keepalive pools" \
 check "proxy_http_version 1.1 is set (keepalive's other precondition)" \
   "$(grep -q 'proxy_http_version 1.1' "${NGINX_DIRECTIVES}"; echo $?)"
 
+# APK downloads stream tens of megabytes per request off a single VPS. The
+# generic 30r/s API zone is priced for JSON, not for that: at that rate the
+# uplink saturates and every screen's manifest poll fails with it.
+dl_blocks=$(grep -c 'zone=wizer_downloads' "${DIRECTIVES}")
+check "both /api/downloads/ locations carry the tight rate zone (found ${dl_blocks}/2)" \
+  "$([[ "${dl_blocks}" -eq 2 ]]; echo $?)"
+
+check "the downloads zone is declared and is tighter than the API zone" \
+  "$(grep -qE 'zone=wizer_downloads:[0-9]+m\s+rate=[0-9]+r/m' "${NGINX_DIRECTIVES}"; echo $?)"
+
+check "the static android subtree is still matched before the proxied one" \
+  "$([[ $(grep -n 'location \^~ /api/downloads/android/' "${DIRECTIVES}" | cut -d: -f1) -lt \
+        $(grep -n 'location \^~ /api/downloads/ ' "${DIRECTIVES}" | cut -d: -f1) ]]; echo $?)"
+
 # Regression guard for a block that was removed deliberately: the API has no
 # WebSocket gateway, and a /ws location proxying to it held a 3600s timeout
 # open for an endpoint that never existed.

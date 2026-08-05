@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
+import { useAllPages, useApiResource } from '@/lib/use-api';
 import { formatDate } from '@/lib/format';
 import type {
   Paginated,
@@ -69,9 +69,8 @@ export default function SubscriptionsPage() {
   const { data, loading, error, reload } = useApiResource<Paginated<Subscription>>(listPath);
 
   // Lookups for create dialog selects.
-  const { data: companiesData } =
-    useApiResource<Paginated<CompanyListItem>>('/companies?pageSize=100');
-  const { data: plansData } = useApiResource<Paginated<Plan>>('/plans?pageSize=100&isActive=true');
+  const { data: companiesData } = useAllPages<CompanyListItem>('/companies');
+  const { data: plansData } = useAllPages<Plan>('/plans?isActive=true');
   const companies = companiesData?.items ?? [];
   const plans = plansData?.items ?? [];
 

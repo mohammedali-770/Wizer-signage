@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Plus, Trash2 } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
+import { useAllPages, useApiResource } from '@/lib/use-api';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { Company, Invoice, InvoiceStatus, Paginated } from '@/lib/types';
 import {
@@ -218,8 +218,8 @@ function CreateInvoiceDialog({
   const { toast } = useToast();
 
   // Only fetch companies when the dialog is open.
-  const { data: companiesData, loading: companiesLoading } = useApiResource<Paginated<Company>>(
-    open ? '/companies?pageSize=100' : null,
+  const { data: companiesData, loading: companiesLoading } = useAllPages<Company>(
+    open ? '/companies' : null,
   );
   const companies = companiesData?.items ?? [];
 

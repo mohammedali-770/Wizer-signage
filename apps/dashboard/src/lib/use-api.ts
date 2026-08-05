@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { api, ApiError } from './api';
+import { describeSpan, hasMorePages, PAGE_SIZE, pageUrl, type PageSpan } from './paginate';
+import type { PageMeta, Paginated } from './types';
 import { apiCache as cache, apiInflight as inflight, invalidateApiCache } from './api-cache';
 
 // Re-exported so existing imports (`from './use-api'`) keep working.
@@ -113,4 +115,85 @@ export function useApiResource<T>(
   }, [path, nonce, readFresh]);
 
   return { data, loading, error, reload };
+}
+
+/** What `useAllPages` returns: the same shape as a single-page fetch, plus span. */
+interface AllPagesState<T> extends ApiResourceState<Paginated<T>> {
+  /** Records loaded vs records that exist. `truncated` means the UI must say so. */
+  span: PageSpan;
+}
+
+/**
+ * Fetch EVERY page of a paginated resource, not just the first.
+ *
+ * Twenty-two selectors used `useApiResource('/x?pageSize=100')` and rendered
+ * whatever came back. A tenant with 120 screens saw 100 of them with nothing to
+ * indicate the rest existed — those screens could not be scheduled, grouped, or
+ * reported on, and a missing screen is indistinguishable from a screen that was
+ * never created. At 101 companies a Super Admin could not invoice the newest
+ * customer.
+ *
+ * Bounded at MAX_PAGES, and when the bound bites `span.truncated` is true so the
+ * caller renders a notice. A cap is fine; a SILENT cap is the defect.
+ *
+ * Returns `Paginated<T>` rather than a bare array so existing call sites keep
+ * reading `.items` and `.meta` unchanged.
+ */
+export function useAllPages<T>(path: string | null, options?: UseApiOptions): AllPagesState<T> {
+  const ttl = options?.ttl ?? DEFAULT_TTL;
+  const [data, setData] = useState<Paginated<T> | null>(null);
+  const [loading, setLoading] = useState<boolean>(path !== null);
+  const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
+
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
+
+  useEffect(() => {
+    if (path === null) {
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    setError(null);
+
+    void (async () => {
+      try {
+        const items: T[] = [];
+        let meta: PageMeta | undefined;
+        let page = 1;
+
+        // Sequential, not parallel: page count is unknown until the first
+        // response, and firing 20 speculative requests would cost every small
+        // tenant 19 pointless round trips to save one large tenant some latency.
+        do {
+          const url = pageUrl(path, page, PAGE_SIZE);
+          const fresh =
+            ttl > 0 && cache.get(url) && Date.now() - cache.get(url)!.ts < ttl
+              ? (cache.get(url)!.data as Paginated<T>)
+              : null;
+          const chunk = fresh ?? (await api.get<Paginated<T>>(url));
+          if (!fresh) cache.set(url, { data: chunk, ts: Date.now() });
+          if (!active) return;
+
+          items.push(...(chunk.items ?? []));
+          meta = chunk.meta;
+          page += 1;
+        } while (hasMorePages(meta, page - 1));
+
+        if (!active) return;
+        setData({ items, meta: { ...(meta as PageMeta), total: meta?.total ?? items.length } });
+      } catch (err: unknown) {
+        if (active) setError(err instanceof ApiError ? err.message : 'Failed to load data.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [path, nonce, ttl]);
+
+  return { data, loading, error, reload, span: describeSpan(data?.items.length ?? 0, data?.meta) };
 }

@@ -6,14 +6,8 @@ import { ArrowLeft } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
-import type {
-  Paginated,
-  PlaylistListItem,
-  Schedule,
-  ScheduleStatus,
-  ScheduleType,
-} from '@/lib/types';
+import { useAllPages } from '@/lib/use-api';
+import type { PlaylistListItem, Schedule, ScheduleStatus, ScheduleType } from '@/lib/types';
 import { DaysOfWeekField } from '@/components/schedules/days-of-week-field';
 import { TargetSelector, type SelectedTarget } from '@/components/schedules/target-selector';
 import {
@@ -41,9 +35,7 @@ export default function NewSchedulePage() {
   const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
-  const playlists = useApiResource<Paginated<PlaylistListItem>>(
-    '/playlists?status=ACTIVE&pageSize=100',
-  );
+  const playlists = useAllPages<PlaylistListItem>('/playlists?status=ACTIVE');
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');

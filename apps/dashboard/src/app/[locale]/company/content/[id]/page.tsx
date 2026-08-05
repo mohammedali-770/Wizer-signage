@@ -14,9 +14,9 @@ import {
 } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
+import { useAllPages, useApiResource } from '@/lib/use-api';
 import { formatBytes, formatDate, formatDateTime } from '@/lib/format';
-import type { Content, ContentType, Orientation, Paginated, Tag } from '@/lib/types';
+import type { Content, ContentType, Orientation, Tag } from '@/lib/types';
 import { Link } from '@/i18n/navigation';
 import { ContentPreview } from '@/components/content/content-preview';
 import {
@@ -92,7 +92,7 @@ export default function ContentDetailPage() {
     error,
     reload,
   } = useApiResource<Content>(id ? `/content/${id}` : null);
-  const tagsRes = useApiResource<Paginated<Tag>>('/tags?pageSize=100');
+  const tagsRes = useAllPages<Tag>('/tags');
   const contentTags = useMemo(
     () => (tagsRes.data?.items ?? []).filter((t) => t.type === 'CONTENT' || t.type === 'BOTH'),
     [tagsRes.data],

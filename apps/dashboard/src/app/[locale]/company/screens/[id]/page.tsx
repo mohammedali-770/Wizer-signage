@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { ArrowLeft, Pencil } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
+import { useAllPages, useApiResource } from '@/lib/use-api';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import type {
   DeviceCommand,
@@ -164,13 +164,9 @@ export default function ScreenDetailPage() {
   // Dialog lookups: fetched only when the relevant dialog opens (not on page
   // load), then cached by useApiResource so reopening is instant. Avoids 3 of
   // the page's mount-time API calls for data only used inside dialogs.
-  const locations = useApiResource<Paginated<LocationListItem>>(
-    moveOpen ? '/locations?pageSize=100' : null,
-  );
-  const allTags = useApiResource<Paginated<Tag>>(tagsOpen ? '/tags?pageSize=100' : null);
-  const allGroups = useApiResource<Paginated<ScreenGroup>>(
-    groupsOpen ? '/screen-groups?pageSize=100' : null,
-  );
+  const locations = useAllPages<LocationListItem>(moveOpen ? '/locations' : null);
+  const allTags = useAllPages<Tag>(tagsOpen ? '/tags' : null);
+  const allGroups = useAllPages<ScreenGroup>(groupsOpen ? '/screen-groups' : null);
   const [pinOpen, setPinOpen] = useState(false);
   const [pairOpen, setPairOpen] = useState(false);
   const [unpairOpen, setUnpairOpen] = useState(false);

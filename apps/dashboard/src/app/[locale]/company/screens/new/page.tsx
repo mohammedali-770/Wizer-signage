@@ -4,15 +4,8 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
-import type {
-  LocationListItem,
-  Orientation,
-  Paginated,
-  Screen,
-  ScreenUse,
-  WorkingHours,
-} from '@/lib/types';
+import { useAllPages } from '@/lib/use-api';
+import type { LocationListItem, Orientation, Screen, ScreenUse, WorkingHours } from '@/lib/types';
 import { useRouter, Link } from '@/i18n/navigation';
 import { WorkingHoursEditor } from '@/components/working-hours-editor';
 import {
@@ -53,7 +46,7 @@ export default function NewScreenPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const locations = useApiResource<Paginated<LocationListItem>>('/locations?pageSize=100');
+  const locations = useAllPages<LocationListItem>('/locations');
 
   const [name, setName] = useState('');
   const [code, setCode] = useState('');

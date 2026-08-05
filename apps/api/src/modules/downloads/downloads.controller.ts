@@ -1,5 +1,4 @@
 import { Controller, Get, NotFoundException, Param, Res } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { createReadStream, existsSync, statSync } from 'node:fs';
@@ -16,7 +15,11 @@ import { Public } from '../../common/decorators/public.decorator';
  */
 @ApiExcludeController()
 @Public()
-@SkipThrottle()
+// NOT @SkipThrottle(). Each response streams tens of megabytes off a single
+// VPS, so an unthrottled loop here saturates the uplink and takes the dashboard
+// and every screen's manifest poll down with it. nginx bounds this at the edge
+// too (zone=wizer_downloads); this is the half that survives someone hitting
+// the container directly.
 @Controller('downloads')
 export class DownloadsController {
   private readonly dir = process.env.APK_DOWNLOAD_DIR ?? '/srv/downloads';
