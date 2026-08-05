@@ -177,17 +177,39 @@ describe('OpenAPI response coverage', () => {
     expect(props).toContain('isExpired');
   });
 
+  it('the playlist LIST row does not promise the detail-only fields', () => {
+    // toDetailView computes seven fields that exist in no column — the validity
+    // counts, total duration, orientation profile, schedulable, warnings — and
+    // the list endpoint sends none of them. One shared schema would tell clients
+    // the list carries data it never loads.
+    const { components } = loadContract();
+    const summary = components.schemas.PlaylistSummaryDto as {
+      properties?: Record<string, unknown>;
+    };
+    const detail = components.schemas.PlaylistDetailDto as {
+      properties?: Record<string, unknown>;
+    };
+
+    for (const detailOnly of ['items', 'schedulable', 'warnings', 'totalDurationSeconds']) {
+      expect(Object.keys(summary?.properties ?? {})).not.toContain(detailOnly);
+      expect(Object.keys(detail?.properties ?? {})).toContain(detailOnly);
+    }
+    // Both carry the count, which the list gets from a Prisma _count.
+    expect(Object.keys(summary?.properties ?? {})).toContain('itemCount');
+  });
+
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 56 of ~180 operations (auth, users, tags,
-    // screen-groups, locations, screens, content, schedules). Raise it as
+    // A RATCHET, not a target: 66 of ~180 operations (auth, users, tags,
+    // screen-groups, locations, screens, content, schedules, playlists).
+    // Raise it as
     // controllers are annotated; it fails the moment a route loses its response
-    // type. 30 of 38 controllers are still unannotated — that is the remaining
+    // type. 29 of 38 controllers are still unannotated — that is the remaining
     // work, and this number is how it stays visible rather than forgotten.
     //
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(56);
+    expect(annotated.length).toBeGreaterThanOrEqual(66);
     expect(total).toBeGreaterThan(100);
   });
 });
