@@ -3725,7 +3725,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySettingsDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3753,7 +3760,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySettingsDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3773,7 +3787,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageEvaluationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3803,7 +3824,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3821,7 +3849,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6510,7 +6545,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProofOfPlayEventDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6530,7 +6587,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProofOfPlaySummaryDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6550,7 +6614,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "The filtered events as CSV.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7030,7 +7101,26 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "The rendered export. Content-Type follows ?format.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7059,7 +7149,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "A CSV template with the expected header row.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7088,7 +7185,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7106,7 +7210,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ImportJobDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7135,7 +7261,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7143,6 +7276,7 @@
             "bearer": []
           }
         ],
+        "summary": "One import job, including the rows awaiting commit.",
         "tags": [
           "imports"
         ]
@@ -7163,7 +7297,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportCommitResultDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7192,7 +7333,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7200,6 +7348,7 @@
             "bearer": []
           }
         ],
+        "summary": "Cancel an uncommitted import.",
         "tags": [
           "imports"
         ]
@@ -7510,7 +7659,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupStatusDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7538,7 +7694,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupRunDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7568,7 +7731,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceRunResultDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -9986,6 +10156,116 @@
         "type": "object",
         "properties": {}
       },
+      "CompanyPlanSummaryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "example": "pro"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "TRIALING",
+              "EXPIRED",
+              "SUSPENDED",
+              "CANCELLED"
+            ]
+          },
+          "limits": {
+            "$ref": "#/components/schemas/PlanLimitsDto"
+          }
+        },
+        "required": [
+          "name",
+          "code",
+          "status",
+          "limits"
+        ]
+      },
+      "CompanySettingsDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "PENDING",
+              "CANCELLED"
+            ]
+          },
+          "defaultLocale": {
+            "type": "string",
+            "example": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA timezone. Schedules resolve in it.",
+            "example": "Asia/Riyadh"
+          },
+          "defaultWorkingHours": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true,
+            "description": "Per-weekday open/close used as the default for new schedules."
+          },
+          "defaultHeartbeatIntervalSeconds": {
+            "type": "number",
+            "description": "Defaulted to 60 at read time when unset — never null."
+          },
+          "notificationEmails": {
+            "description": "Defaulted to [] at read time — never null.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fallbackContentId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Content played when nothing is scheduled."
+          },
+          "hasDefaultKioskPin": {
+            "type": "boolean",
+            "description": "Whether a default kiosk PIN is set. The HASH is never returned — same substitution ScreenDto.hasKioskPin makes."
+          },
+          "plan": {
+            "nullable": true,
+            "description": "Read-only; a Super Admin manages the subscription. null when there is none.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CompanyPlanSummaryDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "status",
+          "defaultLocale",
+          "timezone",
+          "defaultHeartbeatIntervalSeconds",
+          "notificationEmails",
+          "hasDefaultKioskPin"
+        ]
+      },
       "UpdateCompanySettingsDto": {
         "type": "object",
         "properties": {}
@@ -12213,6 +12493,224 @@
           "createdAt"
         ]
       },
+      "ProofOfPlayEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "screenId": {
+            "type": "string"
+          },
+          "screenName": {
+            "type": "object",
+            "nullable": true,
+            "description": "null if the screen row is gone."
+          },
+          "locationId": {
+            "type": "object",
+            "nullable": true
+          },
+          "locationName": {
+            "type": "object",
+            "nullable": true
+          },
+          "contentId": {
+            "type": "object",
+            "nullable": true,
+            "description": "null for a synthetic `emg:` emergency item — there is no Content row to reference."
+          },
+          "contentTitle": {
+            "type": "object",
+            "nullable": true
+          },
+          "contentType": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlistId": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlistTitle": {
+            "type": "object",
+            "nullable": true
+          },
+          "scheduleId": {
+            "type": "object",
+            "nullable": true
+          },
+          "scheduleName": {
+            "type": "object",
+            "nullable": true
+          },
+          "emergencyBroadcastId": {
+            "type": "object",
+            "nullable": true
+          },
+          "emergencyBroadcastTitle": {
+            "type": "object",
+            "nullable": true
+          },
+          "sourceType": {
+            "type": "object",
+            "nullable": true,
+            "description": "Why it played: SCHEDULE/FALLBACK/EMERGENCY."
+          },
+          "playbackSource": {
+            "type": "object",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "STARTED",
+              "COMPLETED",
+              "FAILED",
+              "SKIPPED",
+              "INTERRUPTED"
+            ]
+          },
+          "durationMs": {
+            "type": "object",
+            "nullable": true,
+            "description": "How long it actually played."
+          },
+          "expectedDurationMs": {
+            "type": "object",
+            "nullable": true,
+            "description": "How long it was supposed to play."
+          },
+          "offlinePlayback": {
+            "type": "object",
+            "nullable": true,
+            "description": "Played from cache with no network."
+          },
+          "failureReason": {
+            "type": "object",
+            "nullable": true
+          },
+          "manifestVersion": {
+            "type": "object",
+            "nullable": true
+          },
+          "itemSequence": {
+            "type": "object",
+            "nullable": true,
+            "description": "Position within the playlist for this play."
+          },
+          "playbackSessionId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Groups the plays of one playlist pass."
+          }
+        },
+        "required": [
+          "id",
+          "startedAt",
+          "screenId",
+          "status"
+        ]
+      },
+      "TopContentDto": {
+        "type": "object",
+        "properties": {
+          "contentId": {
+            "type": "object",
+            "nullable": true
+          },
+          "title": {
+            "type": "object",
+            "nullable": true
+          },
+          "plays": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "plays"
+        ]
+      },
+      "FailingScreenDto": {
+        "type": "object",
+        "properties": {
+          "screenId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "object",
+            "nullable": true
+          },
+          "failures": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "screenId",
+          "failures"
+        ]
+      },
+      "ProofOfPlaySummaryDto": {
+        "type": "object",
+        "properties": {
+          "totalPlays": {
+            "type": "number",
+            "description": "Every event in the window, whatever its status."
+          },
+          "completedPlays": {
+            "type": "number"
+          },
+          "failedPlays": {
+            "type": "number"
+          },
+          "skippedPlays": {
+            "type": "number"
+          },
+          "interruptedPlays": {
+            "type": "number"
+          },
+          "startedPlays": {
+            "type": "number",
+            "description": "Started and not yet resolved — these are still counted in totalPlays."
+          },
+          "totalDurationMs": {
+            "type": "number",
+            "description": "Summed actual playback time. 0 when nothing reported a duration."
+          },
+          "mostPlayedContent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopContentDto"
+            }
+          },
+          "screensWithFailures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FailingScreenDto"
+            }
+          }
+        },
+        "required": [
+          "totalPlays",
+          "completedPlays",
+          "failedPlays",
+          "skippedPlays",
+          "interruptedPlays",
+          "startedPlays",
+          "totalDurationMs",
+          "mostPlayedContent",
+          "screensWithFailures"
+        ]
+      },
       "BroadcastTargetDto": {
         "type": "object",
         "properties": {
@@ -12393,6 +12891,271 @@
       "EmergencyTargetDto": {
         "type": "object",
         "properties": {}
+      },
+      "ImportJobDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "COMPANY",
+              "LOCATION",
+              "SCREEN",
+              "USER",
+              "SCREEN_GROUP",
+              "TAG"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "UPLOADED",
+              "VALIDATED",
+              "COMMITTED",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "description": "The uploaded filename, as given."
+          },
+          "totalRows": {
+            "type": "number"
+          },
+          "validRows": {
+            "type": "number"
+          },
+          "invalidRows": {
+            "type": "number"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Per-row validation errors found during upload. `[]` when the file was clean."
+          },
+          "committedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "type",
+          "status",
+          "fileName",
+          "totalRows",
+          "validRows",
+          "invalidRows",
+          "errors",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ImportJobDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "COMPANY",
+              "LOCATION",
+              "SCREEN",
+              "USER",
+              "SCREEN_GROUP",
+              "TAG"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "UPLOADED",
+              "VALIDATED",
+              "COMMITTED",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "description": "The uploaded filename, as given."
+          },
+          "totalRows": {
+            "type": "number"
+          },
+          "validRows": {
+            "type": "number"
+          },
+          "invalidRows": {
+            "type": "number"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Per-row validation errors found during upload. `[]` when the file was clean."
+          },
+          "committedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "preview": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "nullable": true,
+            "description": "The parsed rows awaiting commit. Only the DETAIL route loads this — the list never carries it, which is why these are separate classes."
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "type",
+          "status",
+          "fileName",
+          "totalRows",
+          "validRows",
+          "invalidRows",
+          "errors",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ImportCommitResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "COMPANY",
+              "LOCATION",
+              "SCREEN",
+              "USER",
+              "SCREEN_GROUP",
+              "TAG"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "UPLOADED",
+              "VALIDATED",
+              "COMMITTED",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "description": "The uploaded filename, as given."
+          },
+          "totalRows": {
+            "type": "number"
+          },
+          "validRows": {
+            "type": "number"
+          },
+          "invalidRows": {
+            "type": "number"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Per-row validation errors found during upload. `[]` when the file was clean."
+          },
+          "committedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "committed": {
+            "type": "number",
+            "description": "Rows successfully created."
+          },
+          "failed": {
+            "type": "number",
+            "description": "Rows that failed AT COMMIT time — distinct from `invalidRows`, which counts what upload validation rejected. A row can pass upload and still fail here, on a plan limit or a uniqueness clash created since."
+          },
+          "rowErrors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "The commit-time failures, one entry each."
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "type",
+          "status",
+          "fileName",
+          "totalRows",
+          "validRows",
+          "invalidRows",
+          "errors",
+          "createdAt",
+          "updatedAt",
+          "committed",
+          "failed",
+          "rowErrors"
+        ]
       },
       "ScheduledReportDto": {
         "type": "object",
@@ -12635,6 +13398,89 @@
         "type": "object",
         "properties": {}
       },
+      "BackupRunDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "description": "What was backed up, e.g. DATABASE."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "FAILED"
+            ]
+          },
+          "location": {
+            "type": "object",
+            "nullable": true,
+            "description": "Where it was written. A path or bucket key, not a credential."
+          },
+          "sizeBytes": {
+            "type": "object",
+            "nullable": true,
+            "description": "Serialised as a string — a 64-bit column, not a JSON number."
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "status",
+          "startedAt",
+          "createdAt"
+        ]
+      },
+      "BackupStatusDto": {
+        "type": "object",
+        "properties": {
+          "lastSuccessfulDatabaseBackupAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "null means NO successful database backup has ever been recorded."
+          },
+          "stale": {
+            "type": "boolean",
+            "description": "True when the last success is older than the threshold — OR when there has never been one. Both are the same alert, and a client reading only the timestamp misses the second."
+          },
+          "staleThresholdDays": {
+            "type": "number"
+          },
+          "recent": {
+            "description": "Recent runs, newest first.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupRunDto"
+            }
+          }
+        },
+        "required": [
+          "stale",
+          "staleThresholdDays",
+          "recent"
+        ]
+      },
       "RecordBackupDto": {
         "type": "object",
         "properties": {}
@@ -12642,6 +13488,36 @@
       "RunMaintenanceDto": {
         "type": "object",
         "properties": {}
+      },
+      "MaintenanceRunResultDto": {
+        "type": "object",
+        "properties": {
+          "sweep": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "retention": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "autoEndedEmergencies": {
+            "type": "object",
+            "nullable": true,
+            "description": "How many broadcasts were auto-ended."
+          },
+          "scheduledReports": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "backupStale": {
+            "type": "object",
+            "nullable": true,
+            "description": "Whether the backup recency check failed."
+          }
+        }
       }
     }
   }
