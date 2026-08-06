@@ -15,12 +15,18 @@ import {
   ApiBearerAuth,
   ApiConsumes,
   ApiCreatedResponse,
+  ApiExtraModels,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
 
-import { ApiPaginatedResponse, PurgedResponseDto } from '../../common/dto/api-response.dto';
+import {
+  AffectedResponseDto,
+  ApiPaginatedResponse,
+  PurgedResponseDto,
+} from '../../common/dto/api-response.dto';
 import { ContentDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
@@ -31,6 +37,12 @@ import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { diskUploadOptions } from '../../common/upload/disk-upload';
 import { ManifestRefreshInterceptor } from '../sync/manifest-refresh.interceptor';
 import { ContentCleanupService } from './content-cleanup.service';
+import {
+  ContentUsageDto,
+  FilePreviewDto,
+  TextPreviewDto,
+  UrlPreviewDto,
+} from './dto/content-response.dto';
 import { ContentService } from './content.service';
 import {
   BulkContentDto,
@@ -48,6 +60,9 @@ import {
 const UPLOAD_LIMIT = diskUploadOptions(300 * 1024 * 1024);
 
 @ApiTags('content')
+// Referenced only from inside the preview oneOf, so Swagger would not otherwise
+// emit them into components.schemas.
+@ApiExtraModels(UrlPreviewDto, TextPreviewDto, FilePreviewDto)
 @ApiBearerAuth()
 @Controller('content')
 @UseInterceptors(ManifestRefreshInterceptor)
@@ -107,6 +122,8 @@ export class ContentController {
   }
 
   @Get('usage')
+  @ApiOperation({ summary: "Storage and content counts for the library's usage card." })
+  @ApiOkResponse({ type: ContentUsageDto })
   @RequirePermissions(Permission.ContentRead)
   @ApiOperation({ summary: 'Storage usage + content counts for the library.' })
   usage(@CurrentCompany() companyId: string) {
@@ -115,6 +132,8 @@ export class ContentController {
 
   @Post('bulk/archive')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Archive many content items at once.' })
+  @ApiOkResponse({ type: AffectedResponseDto })
   @RequirePermissions(Permission.ContentManage)
   bulkArchive(
     @CurrentCompany() companyId: string,
@@ -126,6 +145,8 @@ export class ContentController {
 
   @Post('bulk/unarchive')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Restore many archived items to ACTIVE.' })
+  @ApiOkResponse({ type: AffectedResponseDto })
   @RequirePermissions(Permission.ContentManage)
   bulkUnarchive(
     @CurrentCompany() companyId: string,
@@ -137,6 +158,8 @@ export class ContentController {
 
   @Post('bulk/trash')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Move many items to the trash.' })
+  @ApiOkResponse({ type: AffectedResponseDto })
   @RequirePermissions(Permission.ContentManage)
   bulkTrash(
     @CurrentCompany() companyId: string,
@@ -148,6 +171,8 @@ export class ContentController {
 
   @Post('bulk/restore')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Restore many trashed items.' })
+  @ApiOkResponse({ type: AffectedResponseDto })
   @RequirePermissions(Permission.ContentManage)
   bulkRestore(
     @CurrentCompany() companyId: string,
@@ -159,6 +184,8 @@ export class ContentController {
 
   @Post('bulk/tags')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Bulk add/remove a tag across content items.' })
+  @ApiOkResponse({ type: AffectedResponseDto })
   @RequirePermissions(Permission.ContentManage)
   bulkTags(
     @CurrentCompany() companyId: string,
@@ -187,6 +214,19 @@ export class ContentController {
   }
 
   @Get(':id/preview')
+  @ApiOperation({ summary: 'A previewable representation, shaped by content type.' })
+  // THREE shapes, not one. A TEXT item has no `url` at all; documenting only
+  // the file shape would promise clients a URL that is never sent.
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(UrlPreviewDto) },
+        { $ref: getSchemaPath(TextPreviewDto) },
+        { $ref: getSchemaPath(FilePreviewDto) },
+      ],
+      discriminator: { propertyName: 'type' },
+    },
+  })
   @RequirePermissions(Permission.ContentRead)
   @ApiOperation({ summary: 'A signed preview URL (files) or the URL/text payload.' })
   preview(@CurrentCompany() companyId: string, @Param('id') id: string) {
@@ -225,6 +265,8 @@ export class ContentController {
 
   @Post(':id/archive')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Archive a content item.' })
+  @ApiOkResponse({ type: ContentDto })
   @RequirePermissions(Permission.ContentManage)
   archive(
     @CurrentCompany() companyId: string,
@@ -236,6 +278,8 @@ export class ContentController {
 
   @Post(':id/unarchive')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Restore an archived item to ACTIVE.' })
+  @ApiOkResponse({ type: ContentDto })
   @RequirePermissions(Permission.ContentManage)
   unarchive(
     @CurrentCompany() companyId: string,
@@ -247,6 +291,8 @@ export class ContentController {
 
   @Post(':id/trash')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Move an item to the trash.' })
+  @ApiOkResponse({ type: ContentDto })
   @RequirePermissions(Permission.ContentManage)
   trash(
     @CurrentCompany() companyId: string,
@@ -258,6 +304,8 @@ export class ContentController {
 
   @Post(':id/restore')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Restore a trashed item.' })
+  @ApiOkResponse({ type: ContentDto })
   @RequirePermissions(Permission.ContentManage)
   restore(
     @CurrentCompany() companyId: string,

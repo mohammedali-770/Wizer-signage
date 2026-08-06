@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import {
   AlertStatus,
   CompanyStatus,
+  ScreenStatus,
   DemoRequestStatus,
   ReportDeliveryStatus,
   ReportType,
@@ -500,6 +501,104 @@ describe('OpenAPI response coverage', () => {
     expect(props).toContain('triggeredAt');
   });
 
+  it('the content preview documents ALL THREE shapes, not just the file one', () => {
+    // A URL item returns the URL it points at; a TEXT item returns a body and
+    // styling and NO url; a file returns a signed url + mime type. The file
+    // shape is the obvious one to document and would have told every client
+    // that `url` is always present — for a TEXT item it is never present.
+    // Same half-truth POST /auth/login would have told, handled the same way.
+    const { paths, components } = loadContract();
+    const schema = paths['/content/{id}/preview']?.get?.responses?.['200']?.content?.[
+      'application/json'
+    ]?.schema as
+      | { oneOf?: Array<{ $ref: string }>; discriminator?: { propertyName?: string } }
+      | undefined;
+
+    expect((schema?.oneOf ?? []).map((r) => r.$ref.split('/').pop())).toEqual([
+      'UrlPreviewDto',
+      'TextPreviewDto',
+      'FilePreviewDto',
+    ]);
+    expect(schema?.discriminator?.propertyName).toBe('type');
+
+    // The branch that makes the union necessary.
+    const text = components.schemas.TextPreviewDto as { properties?: Record<string, unknown> };
+    expect(Object.keys(text?.properties ?? {})).not.toContain('url');
+  });
+
+  it('the two byte figures disagree on type, on purpose', () => {
+    // `ContentDto.fileSize` is the raw BigInt column and serialises as a
+    // STRING. `ContentUsage.storage.usedBytes` is a SUM already passed through
+    // Number(), so it is a JSON number. Documenting both as one type would be
+    // wrong whichever was chosen, and a client adding them together is the bug
+    // this pins — it is the same quantity in two different encodings.
+    const { components } = loadContract();
+    const content = components.schemas.ContentDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+    const usage = components.schemas.ContentStorageUsageDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+
+    expect(content?.properties?.fileSize?.type).toBe('string');
+    expect(usage?.properties?.usedBytes?.type).toBe('number');
+  });
+
+  it('a pairing response never carries the device credential', () => {
+    // Pairing mints a device token. It is returned to the DEVICE once, at
+    // collection, and never to the dashboard — so none of the three dashboard
+    // pairing routes may document one. The device row is the obvious place for
+    // such a field to be added by accident.
+    const { components } = loadContract();
+    const device = components.schemas.PairedDeviceDto as {
+      properties?: Record<string, unknown>;
+    };
+    const props = Object.keys(device?.properties ?? {});
+
+    for (const secret of ['token', 'deviceToken', 'tokenHash', 'refreshTokenHash']) {
+      expect(props).not.toContain(secret);
+    }
+    expect(props).toContain('deviceId');
+  });
+
+  it('the screen status enum is the real one', () => {
+    // Hand-written, this came out as UNPAIRED/PAIRING/ACTIVE/DISABLED/ARCHIVED:
+    // an ACTIVE that does not exist, and ONLINE, OFFLINE and WARNING all
+    // missing. Third time in this run that writing an enum from memory produced
+    // a wrong one that compiled and emitted.
+    const { components } = loadContract();
+    const model = components.schemas.PairingStatusDto as {
+      properties?: Record<string, { enum?: string[] }>;
+    };
+    expect(model?.properties?.screenStatus?.enum?.slice().sort()).toEqual(
+      Object.values(ScreenStatus).slice().sort(),
+    );
+  });
+
+  it('the usage evaluation is pinned, because the service returns it WHOLE', () => {
+    // GET /companies/{id}/usage returns `usageLimits.evaluate()` directly — no
+    // view, no allow-list. That is the same hazard as a spread view: a field
+    // added to the UsageEvaluation interface is a field the endpoint starts
+    // returning, with nothing in the code saying so. `limits` was nearly missed
+    // when this DTO was written; an exact match is what catches the next one.
+    const { components } = loadContract();
+    const model = components.schemas.UsageEvaluationDto as {
+      properties?: Record<string, unknown>;
+    };
+    expect(Object.keys(model?.properties ?? {}).sort()).toEqual([
+      'graceExpired',
+      'gracePeriodEndsAt',
+      'inGrace',
+      'limits',
+      'planCode',
+      'planName',
+      'resources',
+      'status',
+      'subscriptionStatus',
+      'usage',
+    ]);
+  });
+
   it('coverage is reported against what CAN be annotated', () => {
     // Five controllers carry @ApiExcludeController and never appear in the
     // contract at all — the device-facing routes (the Android player has its
@@ -537,6 +636,10 @@ describe('OpenAPI response coverage', () => {
       'scheduled-reports',
       'notifications',
       'alerts',
+      'content',
+      'screens',
+      'screen-groups',
+      'companies',
     ]) {
       const seen = perTag[tag];
       // Report the tag AND both numbers in the failure, so a break says
@@ -546,8 +649,12 @@ describe('OpenAPI response coverage', () => {
   });
 
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 124 of the 172 operations the contract can
-    // describe. Raise it as controllers are annotated; it fails the moment a
+    // A RATCHET, not a target: 145 of the 209 operations in the contract.
+    //
+    // "172" appeared here one commit ago and was never measured — I carried a
+    // number forward instead of counting. The figure below is read off the
+    // emitted document, and the assertion under it now pins the denominator so
+    // a stale count fails rather than being quoted again. Raise it as controllers are annotated; it fails the moment a
     // route loses its response type.
     //
     // The per-tag test above is the sharper one — this floor cannot notice a
@@ -557,7 +664,9 @@ describe('OpenAPI response coverage', () => {
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(124);
-    expect(total).toBeGreaterThan(100);
+    expect(annotated.length).toBeGreaterThanOrEqual(145);
+    // Pinned, not a floor: the comment above quotes this number, and a quoted
+    // number that nothing checks is how the wrong one survived.
+    expect(total).toBe(209);
   });
 });

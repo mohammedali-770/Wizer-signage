@@ -10,6 +10,7 @@ import {
 
 import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
 import { CompanyDto } from '../../common/dto/entity-response.dto';
+import { UsageEvaluationDto } from '../usage-limits/dto/usage-response.dto';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -69,6 +70,7 @@ export class CompaniesController {
   @Get(':id/usage')
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Company usage vs plan limits (with grace status).' })
+  @ApiOkResponse({ type: UsageEvaluationDto })
   usage(@Param('id') id: string) {
     return this.companies.getUsage(id);
   }
