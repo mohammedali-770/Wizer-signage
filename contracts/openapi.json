@@ -1713,7 +1713,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImpersonationStartedDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1731,7 +1738,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1751,7 +1765,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActiveImpersonationDto"
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1771,7 +1795,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformOverviewDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1791,7 +1822,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UserViewDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1821,7 +1874,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationCreatedDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1850,7 +1910,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserViewDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1879,7 +1946,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserViewDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1899,7 +1973,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DemoRequestDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1938,7 +2034,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoRequestDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6708,7 +6811,75 @@
       },
       "DemoRequestDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "object",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "example": "lead@example.com"
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true
+          },
+          "screens": {
+            "type": "object",
+            "nullable": true,
+            "description": "Fleet size the lead reported."
+          },
+          "message": {
+            "type": "object",
+            "nullable": true
+          },
+          "locale": {
+            "type": "object",
+            "nullable": true,
+            "description": "The marketing site's locale, e.g. 'ar'."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "CONTACTED",
+              "SCHEDULED",
+              "CLOSED"
+            ]
+          },
+          "ip": {
+            "type": "object",
+            "nullable": true,
+            "description": "Captured for abuse triage."
+          },
+          "userAgent": {
+            "type": "object",
+            "nullable": true,
+            "description": "Captured for abuse triage."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "CompanyDto": {
         "type": "object",
@@ -7083,9 +7254,426 @@
         "type": "object",
         "properties": {}
       },
+      "ImpersonationCompanyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "ImpersonationStartedDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Short-lived bearer token scoped to the impersonated company."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "company": {
+            "$ref": "#/components/schemas/ImpersonationCompanyDto"
+          }
+        },
+        "required": [
+          "accessToken",
+          "expiresAt",
+          "company"
+        ]
+      },
+      "ActiveImpersonationDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "adminId": {
+            "type": "object",
+            "nullable": true
+          },
+          "adminEmail": {
+            "type": "object",
+            "nullable": true,
+            "example": "admin@example.com"
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true
+          },
+          "companyName": {
+            "type": "object",
+            "nullable": true
+          },
+          "reason": {
+            "type": "object",
+            "nullable": true,
+            "description": "The justification the admin gave when starting it (`impersonationNote`)."
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ip": {
+            "type": "object",
+            "nullable": true,
+            "description": "Where the impersonation was started from."
+          }
+        },
+        "required": [
+          "sessionId",
+          "startedAt",
+          "expiresAt"
+        ]
+      },
+      "StatusCountsDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "byStatus": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Every status in the enum, INCLUDING the ones at zero — `toStatusMap` seeds the map from the full enum before folding the groupBy in, so a missing key means a new status the API does not know about rather than a count of none.",
+            "example": {
+              "ACTIVE": 12,
+              "SUSPENDED": 0,
+              "PENDING": 3,
+              "CANCELLED": 0
+            }
+          }
+        },
+        "required": [
+          "total",
+          "byStatus"
+        ]
+      },
+      "ActivePlansDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "active"
+        ]
+      },
+      "UnpaidInvoicesDto": {
+        "type": "object",
+        "properties": {
+          "unpaid": {
+            "type": "number"
+          },
+          "unpaidTotal": {
+            "type": "number",
+            "description": "Summed with Number(), so it is a JSON number rather than the string a Decimal column would otherwise serialise to."
+          }
+        },
+        "required": [
+          "unpaid",
+          "unpaidTotal"
+        ]
+      },
+      "TotalUsersDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total"
+        ]
+      },
+      "ActiveSuperAdminsDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "active"
+        ]
+      },
+      "TrialCountsDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "number",
+            "description": "Still TRIALING and not past its end date."
+          },
+          "expired": {
+            "type": "number",
+            "description": "EXPIRED, or TRIALING but past its end date — the second case is a subscription the expiry job has not swept yet, and it counts as expired here rather than as active."
+          }
+        },
+        "required": [
+          "active",
+          "expired"
+        ]
+      },
+      "DemoRequestCountsDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "new": {
+            "type": "number",
+            "description": "Requests still in NEW status."
+          }
+        },
+        "required": [
+          "total",
+          "new"
+        ]
+      },
+      "RecentCompanyPlanDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ]
+      },
+      "RecentCompanySubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "TRIALING",
+              "EXPIRED",
+              "SUSPENDED",
+              "CANCELLED"
+            ]
+          },
+          "trialEndsAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "plan": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecentCompanyPlanDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "RecentCompanyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "PENDING",
+              "CANCELLED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "subscription": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecentCompanySubscriptionDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "status",
+          "createdAt"
+        ]
+      },
+      "PlatformOverviewDto": {
+        "type": "object",
+        "properties": {
+          "companies": {
+            "$ref": "#/components/schemas/StatusCountsDto"
+          },
+          "subscriptions": {
+            "$ref": "#/components/schemas/StatusCountsDto"
+          },
+          "plans": {
+            "$ref": "#/components/schemas/ActivePlansDto"
+          },
+          "invoices": {
+            "$ref": "#/components/schemas/UnpaidInvoicesDto"
+          },
+          "users": {
+            "$ref": "#/components/schemas/TotalUsersDto"
+          },
+          "superAdmins": {
+            "$ref": "#/components/schemas/ActiveSuperAdminsDto"
+          },
+          "trials": {
+            "$ref": "#/components/schemas/TrialCountsDto"
+          },
+          "paidTenants": {
+            "type": "number",
+            "description": "Subscriptions in ACTIVE status."
+          },
+          "demoRequests": {
+            "$ref": "#/components/schemas/DemoRequestCountsDto"
+          },
+          "recent": {
+            "description": "The six most recently created.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecentCompanyDto"
+            }
+          }
+        },
+        "required": [
+          "companies",
+          "subscriptions",
+          "plans",
+          "invoices",
+          "users",
+          "superAdmins",
+          "trials",
+          "paidTenants",
+          "demoRequests",
+          "recent"
+        ]
+      },
       "InviteSuperAdminDto": {
         "type": "object",
         "properties": {}
+      },
+      "InvitationCreatedDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true,
+            "description": "null for a platform-level Super Admin."
+          },
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPER_ADMIN",
+              "COMPANY_ADMIN",
+              "LOCATION_MANAGER",
+              "CONTENT_MANAGER",
+              "VIEWER"
+            ]
+          },
+          "invitedById": {
+            "type": "object",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "REVOKED",
+              "EXPIRED"
+            ]
+          },
+          "locationIds": {
+            "description": "Location scope, for LOCATION_MANAGER invites.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acceptedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "token": {
+            "type": "string",
+            "description": "Single-use acceptance token, returned ONLY here. The database stores a hash, so it cannot be read back later. Treat it as a credential: do not log it, and deliver it over a channel you would send a password reset link over."
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "status",
+          "locationIds",
+          "expiresAt",
+          "createdAt",
+          "updatedAt",
+          "token"
+        ]
       },
       "UpdateDemoRequestDto": {
         "type": "object",
