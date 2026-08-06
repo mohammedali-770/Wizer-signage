@@ -8,7 +8,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Service is alive."
+            "description": "Service is alive.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatusDto"
+                }
+              }
+            }
           }
         },
         "summary": "Liveness probe",
@@ -24,10 +31,24 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Service is ready."
+            "description": "Service is ready.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessStatusDto"
+                }
+              }
+            }
           },
           "503": {
-            "description": "Service is not ready (e.g. database unreachable)."
+            "description": "Not ready. Same body, with status `degraded` and the failing check.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessStatusDto"
+                }
+              }
+            }
           }
         },
         "summary": "Readiness probe",
@@ -52,7 +73,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrialSignupResultDto"
+                }
+              }
+            }
           }
         },
         "summary": "Create a trial tenant (company + owner + trial subscription).",
@@ -77,7 +105,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoRequestResultDto"
+                }
+              }
+            }
           }
         },
         "summary": "Submit a \"Book a Demo\" / contact-sales request.",
@@ -92,7 +127,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicPlanDto"
+                  }
+                }
+              }
+            }
           }
         },
         "summary": "List active public plans for the marketing pricing page.",
@@ -107,7 +152,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ActivityLogDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5469,7 +5536,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackManifestDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7526,9 +7600,132 @@
       }
     },
     "schemas": {
+      "HealthStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ],
+            "description": "Always `ok`; the process answering at all IS the check."
+          },
+          "service": {
+            "type": "string",
+            "example": "wizer-signage-api"
+          },
+          "version": {
+            "type": "string",
+            "description": "The API version, read from package.json at startup."
+          },
+          "uptime": {
+            "type": "number",
+            "description": "Process uptime in seconds, fractional.",
+            "example": 1234.56
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "version",
+          "uptime",
+          "timestamp"
+        ]
+      },
+      "ReadinessChecksDto": {
+        "type": "object",
+        "properties": {
+          "database": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ],
+            "description": "A lightweight `SELECT 1`."
+          },
+          "storageConfigured": {
+            "type": "boolean",
+            "description": "An object-storage driver is configured."
+          },
+          "mailConfigured": {
+            "type": "boolean",
+            "description": "An SMTP transport is configured; otherwise mail is log-only."
+          }
+        },
+        "required": [
+          "database",
+          "storageConfigured",
+          "mailConfigured"
+        ]
+      },
+      "ReadinessStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "description": "Under a 200 this is always `ok`; `degraded` arrives with a 503."
+          },
+          "service": {
+            "type": "string",
+            "example": "wizer-signage-api"
+          },
+          "checks": {
+            "$ref": "#/components/schemas/ReadinessChecksDto"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "checks",
+          "timestamp"
+        ]
+      },
       "TrialSignupDto": {
         "type": "object",
         "properties": {}
+      },
+      "TrialSignupResultDto": {
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "description": "The tenant slug, as allocated — may differ from what was asked for."
+          },
+          "email": {
+            "type": "string",
+            "example": "owner@example.com"
+          },
+          "trialEndsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "redirectUrl": {
+            "type": "string",
+            "description": "Where to send the browser next. NO tokens are issued here — the owner signs in normally, so an unauthenticated endpoint never mints a session."
+          }
+        },
+        "required": [
+          "companyId",
+          "slug",
+          "email",
+          "trialEndsAt",
+          "redirectUrl"
+        ]
       },
       "DemoRequestDto": {
         "type": "object",
@@ -7600,6 +7797,218 @@
           "status",
           "createdAt",
           "updatedAt"
+        ]
+      },
+      "DemoRequestResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "received"
+            ],
+            "example": "received"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      },
+      "PlanLimitsDto": {
+        "type": "object",
+        "properties": {
+          "maxCompanies": {
+            "type": "object",
+            "nullable": true
+          },
+          "maxLocations": {
+            "type": "object",
+            "nullable": true
+          },
+          "maxScreens": {
+            "type": "object",
+            "nullable": true
+          },
+          "maxUsers": {
+            "type": "object",
+            "nullable": true
+          },
+          "storageGb": {
+            "type": "object",
+            "nullable": true
+          },
+          "maxFileSizeMb": {
+            "type": "object",
+            "nullable": true
+          },
+          "autoScreenshotsPerDay": {
+            "type": "object",
+            "nullable": true
+          },
+          "scheduledReports": {
+            "type": "object",
+            "nullable": true
+          },
+          "dataRetentionDays": {
+            "type": "object",
+            "nullable": true
+          },
+          "apiRequestsPerDay": {
+            "type": "object",
+            "nullable": true
+          },
+          "webhooks": {
+            "type": "object",
+            "nullable": true
+          }
+        }
+      },
+      "PublicPlanDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "example": "pro"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "priceMonthly": {
+            "type": "number",
+            "description": "A NUMBER here — passed through Number(). GET /plans returns the same column as a string.",
+            "example": 49.9
+          },
+          "priceYearly": {
+            "type": "object",
+            "nullable": true,
+            "description": "A number, or null when the plan is not sold yearly.",
+            "example": 499
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "trialDays": {
+            "type": "number"
+          },
+          "limits": {
+            "description": "`{}` when the plan sets no limits.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanLimitsDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code",
+          "priceMonthly",
+          "currency",
+          "trialDays",
+          "limits"
+        ]
+      },
+      "ActivityLogDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true
+          },
+          "actorId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Nulled if the actor is deleted."
+          },
+          "action": {
+            "type": "string",
+            "description": "Dotted event name.",
+            "example": "subscription.updated"
+          },
+          "category": {
+            "type": "string",
+            "description": "A plain String column, not an enum.",
+            "example": "SUBSCRIPTION"
+          },
+          "targetType": {
+            "type": "object",
+            "nullable": true
+          },
+          "targetId": {
+            "type": "object",
+            "nullable": true
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "ip": {
+            "type": "object",
+            "nullable": true
+          },
+          "userAgent": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "category",
+          "metadata",
+          "createdAt"
+        ]
+      },
+      "PageMetaDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "number",
+            "example": 25
+          },
+          "total": {
+            "type": "number",
+            "example": 137,
+            "description": "Total matching rows, ignoring pagination."
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 6
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "totalPages"
         ]
       },
       "CompanyDto": {
@@ -7694,34 +8103,6 @@
         "type": "object",
         "properties": {}
       },
-      "PageMetaDto": {
-        "type": "object",
-        "properties": {
-          "page": {
-            "type": "number",
-            "example": 1
-          },
-          "pageSize": {
-            "type": "number",
-            "example": 25
-          },
-          "total": {
-            "type": "number",
-            "example": 137,
-            "description": "Total matching rows, ignoring pagination."
-          },
-          "totalPages": {
-            "type": "number",
-            "example": 6
-          }
-        },
-        "required": [
-          "page",
-          "pageSize",
-          "total",
-          "totalPages"
-        ]
-      },
       "UsageCountsDto": {
         "type": "object",
         "properties": {
@@ -7798,55 +8179,6 @@
           "exceeded",
           "approaching"
         ]
-      },
-      "PlanLimitsDto": {
-        "type": "object",
-        "properties": {
-          "maxCompanies": {
-            "type": "object",
-            "nullable": true
-          },
-          "maxLocations": {
-            "type": "object",
-            "nullable": true
-          },
-          "maxScreens": {
-            "type": "object",
-            "nullable": true
-          },
-          "maxUsers": {
-            "type": "object",
-            "nullable": true
-          },
-          "storageGb": {
-            "type": "object",
-            "nullable": true
-          },
-          "maxFileSizeMb": {
-            "type": "object",
-            "nullable": true
-          },
-          "autoScreenshotsPerDay": {
-            "type": "object",
-            "nullable": true
-          },
-          "scheduledReports": {
-            "type": "object",
-            "nullable": true
-          },
-          "dataRetentionDays": {
-            "type": "object",
-            "nullable": true
-          },
-          "apiRequestsPerDay": {
-            "type": "object",
-            "nullable": true
-          },
-          "webhooks": {
-            "type": "object",
-            "nullable": true
-          }
-        }
       },
       "UsageEvaluationDto": {
         "type": "object",
@@ -8745,68 +9077,6 @@
           "createdAt",
           "updatedAt",
           "company"
-        ]
-      },
-      "ActivityLogDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "companyId": {
-            "type": "object",
-            "nullable": true
-          },
-          "actorId": {
-            "type": "object",
-            "nullable": true,
-            "description": "Nulled if the actor is deleted."
-          },
-          "action": {
-            "type": "string",
-            "description": "Dotted event name.",
-            "example": "subscription.updated"
-          },
-          "category": {
-            "type": "string",
-            "description": "A plain String column, not an enum.",
-            "example": "SUBSCRIPTION"
-          },
-          "targetType": {
-            "type": "object",
-            "nullable": true
-          },
-          "targetId": {
-            "type": "object",
-            "nullable": true
-          },
-          "description": {
-            "type": "object",
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "ip": {
-            "type": "object",
-            "nullable": true
-          },
-          "userAgent": {
-            "type": "object",
-            "nullable": true
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "action",
-          "category",
-          "metadata",
-          "createdAt"
         ]
       },
       "UpdateSubscriptionDto": {
@@ -10813,6 +11083,192 @@
       "AddScheduleTargetDto": {
         "type": "object",
         "properties": {}
+      },
+      "ManifestItemDto": {
+        "type": "object",
+        "properties": {
+          "contentId": {
+            "type": "string",
+            "description": "Library content id, or a synthetic `emg:` id for a direct TEXT/URL emergency item that no Content row backs. The player keys on the prefix and reports proof-of-play with a null contentId for those, because there is no FK to satisfy."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "PDF",
+              "URL",
+              "TEXT"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "durationSeconds": {
+            "type": "number"
+          },
+          "playFullVideo": {
+            "type": "boolean",
+            "description": "Play the whole video rather than cutting at durationSeconds."
+          },
+          "pdfPageDurationSeconds": {
+            "type": "object",
+            "nullable": true,
+            "description": "Per-page dwell for PDFs; null otherwise."
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "UNKNOWN"
+            ]
+          },
+          "fileSizeBytes": {
+            "type": "object",
+            "nullable": true,
+            "description": "Serialised as a string — a 64-bit column, not a JSON number."
+          },
+          "checksum": {
+            "type": "object",
+            "nullable": true,
+            "description": "For cache validation after download."
+          },
+          "mimeType": {
+            "type": "object",
+            "nullable": true
+          },
+          "signedUrl": {
+            "type": "object",
+            "nullable": true,
+            "description": "Short-lived signed URL for ONLINE playback of a stored file; null for URL/TEXT items. Excluded from manifestHash, because it rotates on every read."
+          },
+          "downloadPath": {
+            "type": "object",
+            "nullable": true,
+            "description": "Device-authenticated path for OFFLINE caching, relative to /api — e.g. `/device/content/{id}/download`. null for URL/TEXT."
+          },
+          "version": {
+            "type": "string",
+            "description": "Content version marker (the row's updatedAt) so a cache can detect changes."
+          },
+          "url": {
+            "type": "object",
+            "nullable": true,
+            "description": "External URL for URL content."
+          },
+          "textBody": {
+            "type": "object",
+            "nullable": true,
+            "description": "Body for TEXT content."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "contentId",
+          "type",
+          "title",
+          "durationSeconds",
+          "playFullVideo",
+          "orientation",
+          "version",
+          "metadata"
+        ]
+      },
+      "PlaybackManifestDto": {
+        "type": "object",
+        "properties": {
+          "screenId": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Excluded from manifestHash — it always changes."
+          },
+          "manifestHash": {
+            "type": "string",
+            "description": "SHA-256 of WHAT plays — items, schedule/playlist/emergency identity, priority, message — and deliberately NOT of generatedAt or the rotating signed URLs. So it changes only when the effective configuration changes, which is what makes \"out of date\" cheap to detect. The player reports this back as its synced manifest version."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "The screen's IANA timezone, which the resolution was made in."
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "SCHEDULE",
+              "FALLBACK",
+              "EMERGENCY",
+              "NONE"
+            ],
+            "description": "Why these items were chosen. NONE means nothing applies and items is empty."
+          },
+          "scheduleId": {
+            "type": "object",
+            "nullable": true
+          },
+          "scheduleName": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlistId": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlistTitle": {
+            "type": "object",
+            "nullable": true
+          },
+          "emergencyBroadcastId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Set only when sourceType is EMERGENCY."
+          },
+          "priority": {
+            "type": "object",
+            "nullable": true
+          },
+          "outsideHours": {
+            "type": "boolean",
+            "description": "True when the resolution time falls outside the schedule window."
+          },
+          "outsideHoursBehavior": {
+            "type": "object",
+            "nullable": true
+          },
+          "message": {
+            "type": "object",
+            "nullable": true,
+            "description": "Emergency message text, when present."
+          },
+          "items": {
+            "description": "Empty when sourceType is NONE.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManifestItemDto"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "screenId",
+          "generatedAt",
+          "manifestHash",
+          "timezone",
+          "sourceType",
+          "outsideHours",
+          "items",
+          "warnings"
+        ]
       },
       "PairScreenDto": {
         "type": "object",

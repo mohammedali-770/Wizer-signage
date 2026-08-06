@@ -817,6 +817,76 @@ describe('OpenAPI response coverage', () => {
     expect(schema?.$ref).toBe('#/components/schemas/ScheduleConflictsDto');
   });
 
+  it('the SAME plan column is a number publicly and a string for admins', () => {
+    // GET /public/plans maps each row through Number(p.priceMonthly).
+    // GET /plans returns the raw Prisma Decimal, which serialises as a string.
+    // Same table, same field name, two endpoints, two types — a client sharing
+    // one Plan type between the marketing site and the admin dashboard is
+    // wrong on one of them. Third instance of this split in the API, after
+    // fileSize/usedBytes and total/unpaidTotal.
+    const { components } = loadContract();
+    const pub = components.schemas.PublicPlanDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+    const admin = components.schemas.PlanDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+
+    expect(pub?.properties?.priceMonthly?.type).toBe('number');
+    expect(admin?.properties?.priceMonthly?.type).toBe('string');
+
+    // And the public row is genuinely narrower — not the admin one renamed.
+    for (const adminOnly of ['isActive', 'isPublic', 'billingInterval', 'createdAt']) {
+      expect(Object.keys(pub?.properties ?? {})).not.toContain(adminOnly);
+    }
+  });
+
+  it('a health probe documents its BODY, not just that a 200 happens', () => {
+    // Both routes already carried `@ApiResponse({ status: 200, description })`,
+    // which says a 200 occurs and nothing about what is in it — a generated
+    // client got `unknown`, and the routes still counted as unannotated. A
+    // description is not a schema.
+    const { paths } = loadContract();
+    const ok = paths['/health']?.get?.responses?.['200']?.content?.['application/json']?.schema;
+    expect(ok).toBeDefined();
+
+    // The 503 carries the same shape, with status `degraded` — a caller that
+    // only reads the 200 will never see that value.
+    const notReady =
+      paths['/health/ready']?.get?.responses?.['503']?.content?.['application/json']?.schema;
+    expect(notReady).toBeDefined();
+  });
+
+  it('the playback manifest agrees with the golden fixtures', () => {
+    // This is the one response shape that already had an independent guard:
+    // contracts/device-manifest.*.golden.json are parsed by BOTH the API spec
+    // and the player's ManifestContractTest, so a renamed field fails the
+    // Kotlin build rather than blanking a fleet quietly. The DTO must not
+    // drift from those files — this checks the item keys line up.
+    const { components } = loadContract();
+    const item = components.schemas.ManifestItemDto as {
+      properties?: Record<string, unknown>;
+    };
+    const golden = JSON.parse(
+      readFileSync(
+        join(
+          __dirname,
+          '..',
+          '..',
+          '..',
+          '..',
+          'contracts',
+          'device-manifest.schedule.golden.json',
+        ),
+        'utf8',
+      ),
+    ) as { items: Record<string, unknown>[] };
+
+    expect(Object.keys(item?.properties ?? {}).sort()).toEqual(
+      Object.keys(golden.items[0] ?? {}).sort(),
+    );
+  });
+
   it('coverage is reported against what CAN be annotated', () => {
     // Five controllers carry @ApiExcludeController and never appear in the
     // contract at all — the device-facing routes (the Android player has its
@@ -867,6 +937,10 @@ describe('OpenAPI response coverage', () => {
       'schedules',
       'playlists',
       'emergency-broadcasts',
+      'health',
+      'public',
+      'activity-logs',
+      'playback',
     ]) {
       const seen = perTag[tag];
       // Report the tag AND both numbers in the failure, so a break says
@@ -876,7 +950,7 @@ describe('OpenAPI response coverage', () => {
   });
 
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 184 of the 209 operations in the contract.
+    // A RATCHET, not a target: 191 of the 209 operations in the contract.
     //
     // "172" appeared here one commit ago and was never measured — I carried a
     // number forward instead of counting. The figure below is read off the
@@ -891,7 +965,7 @@ describe('OpenAPI response coverage', () => {
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(184);
+    expect(annotated.length).toBeGreaterThanOrEqual(191);
     // Pinned, not a floor: the comment above quotes this number, and a quoted
     // number that nothing checks is how the wrong one survived.
     expect(total).toBe(209);

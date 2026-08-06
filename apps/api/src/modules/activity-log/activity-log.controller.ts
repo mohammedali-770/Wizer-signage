@@ -1,6 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
+import { ActivityLogDto } from '../plans/dto/billing-response.dto';
+
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
@@ -17,6 +20,7 @@ export class ActivityLogController {
   @Get()
   @RequirePermissions(Permission.ActivityRead)
   @ApiOperation({ summary: 'List audit/activity logs (tenant-scoped).' })
+  @ApiPaginatedResponse(ActivityLogDto)
   async list(@Query() query: QueryActivityLogDto, @CurrentUser() user: AuthenticatedUser) {
     return this.activityLog.query({
       companyId: user.companyId,

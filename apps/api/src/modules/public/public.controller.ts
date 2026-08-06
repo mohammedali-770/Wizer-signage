@@ -1,11 +1,16 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { Public } from '../../common/decorators/public.decorator';
 import { ReqMeta, type RequestMeta } from '../../common/decorators/request-meta.decorator';
 import { DemoRequestDto } from './dto/demo-request.dto';
 import { TrialSignupDto } from './dto/trial-signup.dto';
+import {
+  DemoRequestResultDto,
+  PublicPlanDto,
+  TrialSignupResultDto,
+} from './dto/public-response.dto';
 import { PublicService } from './public.service';
 
 /**
@@ -22,6 +27,8 @@ export class PublicController {
   @HttpCode(201)
   @Throttle({ default: { limit: 5, ttl: 3_600_000 } }) // 5 / hour per IP
   @ApiOperation({ summary: 'Create a trial tenant (company + owner + trial subscription).' })
+  // No tokens: an unauthenticated endpoint never mints a session.
+  @ApiCreatedResponse({ type: TrialSignupResultDto })
   trialSignup(@Body() dto: TrialSignupDto, @ReqMeta() meta: RequestMeta) {
     return this.publicSvc.trialSignup(dto, meta);
   }
@@ -30,6 +37,7 @@ export class PublicController {
   @HttpCode(201)
   @Throttle({ default: { limit: 5, ttl: 3_600_000 } }) // 5 / hour per IP
   @ApiOperation({ summary: 'Submit a "Book a Demo" / contact-sales request.' })
+  @ApiCreatedResponse({ type: DemoRequestResultDto })
   demoRequest(@Body() dto: DemoRequestDto, @ReqMeta() meta: RequestMeta) {
     return this.publicSvc.demoRequest(dto, meta);
   }
@@ -37,6 +45,9 @@ export class PublicController {
   @Get('plans')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @ApiOperation({ summary: 'List active public plans for the marketing pricing page.' })
+  // PublicPlanDto, NOT PlanDto: narrower, and the prices are NUMBERS here
+  // where the admin endpoint returns the same column as a string.
+  @ApiOkResponse({ type: [PublicPlanDto] })
   plans() {
     return this.publicSvc.listPublicPlans();
   }

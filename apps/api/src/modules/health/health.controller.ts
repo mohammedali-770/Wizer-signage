@@ -1,9 +1,10 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Public } from '../../common/decorators/public.decorator';
 import { HealthService, type HealthStatus, type ReadinessStatus } from './health.service';
+import { HealthStatusDto, ReadinessStatusDto } from './dto/health-response.dto';
 
 // Health probes must be reachable without a token (load balancers, Nginx, k8s
 // liveness/readiness) and should not consume the rate-limit bucket.
@@ -19,7 +20,10 @@ export class HealthController {
     summary: 'Liveness probe',
     description: 'Returns the running status, version and uptime of the API.',
   })
-  @ApiResponse({ status: 200, description: 'Service is alive.' })
+  // `@ApiResponse({ status: 200, description })` documents THAT a 200 happens
+  // and nothing about its body — a generated client got `unknown`. A
+  // description is not a schema.
+  @ApiOkResponse({ type: HealthStatusDto, description: 'Service is alive.' })
   check(): HealthStatus {
     return this.healthService.check();
   }
@@ -30,8 +34,12 @@ export class HealthController {
     description:
       'Verifies database connectivity and reports storage/mail configuration. Returns 503 when not ready.',
   })
-  @ApiResponse({ status: 200, description: 'Service is ready.' })
-  @ApiResponse({ status: 503, description: 'Service is not ready (e.g. database unreachable).' })
+  @ApiOkResponse({ type: ReadinessStatusDto, description: 'Service is ready.' })
+  @ApiResponse({
+    status: 503,
+    type: ReadinessStatusDto,
+    description: 'Not ready. Same body, with status `degraded` and the failing check.',
+  })
   async ready(): Promise<ReadinessStatus> {
     const status = await this.healthService.ready();
     // Surface a 503 so load balancers / orchestrators stop routing traffic.
