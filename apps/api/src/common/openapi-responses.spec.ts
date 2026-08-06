@@ -669,6 +669,106 @@ describe('OpenAPI response coverage', () => {
     );
   });
 
+  it('the session shape is pinned, because its view is a SPREAD too', () => {
+    // `const { refreshTokenHash, previousRefreshTokenHash, ...view } = session`.
+    // Second spread view found (invitations was the first): a new Session
+    // column joins this response with nothing in the code saying so. Both
+    // removed fields are live credentials — the current refresh-token hash and
+    // the one still accepted inside the rotation grace window.
+    const { components } = loadContract();
+    const model = components.schemas.SessionDto as { properties?: Record<string, unknown> };
+    expect(Object.keys(model?.properties ?? {}).sort()).toEqual([
+      'companyId',
+      'createdAt',
+      // Added by the view, not a column: which row is the caller's own.
+      'current',
+      'expiresAt',
+      'id',
+      'impersonationNote',
+      'impersonatorId',
+      'ip',
+      'lastActiveAt',
+      'mfaSatisfied',
+      'refreshRotatedAt',
+      'revokedAt',
+      'revokedReason',
+      'userAgent',
+      'userId',
+    ]);
+  });
+
+  it('`revoked` is a NUMBER on two session routes and a BOOLEAN on a third', () => {
+    // Same key, two types, on sibling routes of the same controller:
+    //   DELETE /sessions/others            -> { revoked: 3 }
+    //   POST   /sessions/users/{id}/terminate -> { revoked: 3 }
+    //   DELETE /sessions/{id}              -> { revoked: true }
+    // A client reading `res.revoked` for truthiness happens to work; one that
+    // displays it or compares it to a number does not. The contract shows the
+    // collision rather than averaging it away — and this test is what stops
+    // someone "tidying" the two DTOs into one.
+    const { paths, components } = loadContract();
+    const refOf = (method: string, path: string) =>
+      (
+        paths[path]?.[method]?.responses?.['200']?.content?.['application/json']?.schema as
+          | { $ref?: string }
+          | undefined
+      )?.$ref
+        ?.split('/')
+        .pop();
+
+    expect(refOf('delete', '/sessions/others')).toBe('RevokedCountDto');
+    expect(refOf('post', '/sessions/users/{userId}/terminate')).toBe('RevokedCountDto');
+    expect(refOf('delete', '/sessions/{id}')).toBe('RevokedFlagDto');
+
+    const count = components.schemas.RevokedCountDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+    const flag = components.schemas.RevokedFlagDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+    expect(count?.properties?.revoked?.type).toBe('number');
+    expect(flag?.properties?.revoked?.type).toBe('boolean');
+  });
+
+  it('the 2FA enrollment secret is documented as the credential it is', () => {
+    // POST /auth/2fa/setup returns the TOTP secret in PLAINTEXT — it has to,
+    // the user is enrolling an authenticator. But "the setup endpoint returns a
+    // secret" is easy to skim past when reviewing what an endpoint may expose,
+    // so the contract says it out loud. This asserts the warning is actually
+    // published, not just present in a source comment a reader never sees.
+    const { components } = loadContract();
+    const setup = components.schemas.TwoFactorSetupDto as {
+      properties?: Record<string, { description?: string }>;
+    };
+    expect(Object.keys(setup?.properties ?? {}).sort()).toEqual([
+      'otpauthUrl',
+      'qrCodeDataUrl',
+      'secret',
+    ]);
+    expect(setup?.properties?.secret?.description).toMatch(/credential/i);
+    // The QR and the URI carry the same secret; neither may be described as safe.
+    expect(setup?.properties?.otpauthUrl?.description).toMatch(/same secret/i);
+  });
+
+  it('only the token-minting invitation routes document a token', () => {
+    // create and resend mint a raw token and return it; list and revoke must
+    // not be documented as maybe-returning one.
+    const { paths, components } = loadContract();
+    const created = components.schemas.InvitationCreatedDto as {
+      properties?: Record<string, unknown>;
+    };
+    const plain = components.schemas.InvitationDto as { properties?: Record<string, unknown> };
+    expect(Object.keys(created?.properties ?? {})).toContain('token');
+    expect(Object.keys(plain?.properties ?? {})).not.toContain('token');
+
+    const listItems = (
+      paths['/invitations']?.get?.responses?.['200']?.content?.['application/json']?.schema as
+        | { properties?: { items?: { items?: { $ref?: string } } } }
+        | undefined
+    )?.properties?.items?.items?.$ref;
+    expect(listItems).toBe('#/components/schemas/InvitationDto');
+  });
+
   it('coverage is reported against what CAN be annotated', () => {
     // Five controllers carry @ApiExcludeController and never appear in the
     // contract at all — the device-facing routes (the Android player has its
@@ -713,6 +813,9 @@ describe('OpenAPI response coverage', () => {
       'plans',
       'invoices',
       'subscriptions',
+      'sessions',
+      'two-factor',
+      'invitations',
     ]) {
       const seen = perTag[tag];
       // Report the tag AND both numbers in the failure, so a break says
@@ -722,7 +825,7 @@ describe('OpenAPI response coverage', () => {
   });
 
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 161 of the 209 operations in the contract.
+    // A RATCHET, not a target: 173 of the 209 operations in the contract.
     //
     // "172" appeared here one commit ago and was never measured — I carried a
     // number forward instead of counting. The figure below is read off the
@@ -737,7 +840,7 @@ describe('OpenAPI response coverage', () => {
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(161);
+    expect(annotated.length).toBeGreaterThanOrEqual(173);
     // Pinned, not a floor: the comment above quotes this number, and a quoted
     // number that nothing checks is how the wrong one survived.
     expect(total).toBe(209);

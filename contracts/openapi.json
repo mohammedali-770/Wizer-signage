@@ -429,7 +429,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SessionDto"
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -449,7 +459,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedCountDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -478,7 +495,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedFlagDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -507,7 +531,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedCountDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -791,7 +822,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorStatusDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -811,7 +849,14 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorSetupDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -841,7 +886,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorBackupCodesDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -871,7 +923,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisabledResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -901,7 +960,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationCreatedDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -919,7 +985,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InvitationDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -948,7 +1036,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationCreatedDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -977,7 +1072,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7731,6 +7833,110 @@
         "type": "object",
         "properties": {}
       },
+      "SessionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true
+          },
+          "impersonatorId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Set only on a Super Admin impersonation session. The real human at the keyboard; `userId` is the impersonated principal."
+          },
+          "impersonationNote": {
+            "type": "object",
+            "nullable": true,
+            "description": "The reason given when impersonating."
+          },
+          "refreshRotatedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "When the refresh token was last rotated. Bounds the grace window."
+          },
+          "userAgent": {
+            "type": "object",
+            "nullable": true
+          },
+          "ip": {
+            "type": "object",
+            "nullable": true
+          },
+          "mfaSatisfied": {
+            "type": "boolean",
+            "description": "Whether THIS session has satisfied 2FA."
+          },
+          "lastActiveAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Always null here — the endpoint only returns sessions that are still live."
+          },
+          "revokedReason": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "True for the session making the request — added by the view, not a column. This is how a client knows which row NOT to offer a sign-out button for."
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "mfaSatisfied",
+          "lastActiveAt",
+          "expiresAt",
+          "createdAt",
+          "current"
+        ]
+      },
+      "RevokedCountDto": {
+        "type": "object",
+        "properties": {
+          "revoked": {
+            "type": "number",
+            "example": 3,
+            "description": "Number of sessions revoked."
+          }
+        },
+        "required": [
+          "revoked"
+        ]
+      },
+      "RevokedFlagDto": {
+        "type": "object",
+        "properties": {
+          "revoked": {
+            "type": "boolean",
+            "example": true,
+            "description": "Always true. NOT a count, despite the name."
+          }
+        },
+        "required": [
+          "revoked"
+        ]
+      },
       "UserViewDto": {
         "type": "object",
         "properties": {
@@ -7812,17 +8018,247 @@
           "deleted"
         ]
       },
+      "TwoFactorStatusDto": {
+        "type": "object",
+        "properties": {
+          "required": {
+            "type": "boolean",
+            "description": "Whether 2FA is mandatory for this account."
+          },
+          "satisfied": {
+            "type": "boolean",
+            "description": "Whether THIS session has satisfied 2FA."
+          }
+        },
+        "required": [
+          "required",
+          "satisfied"
+        ]
+      },
+      "TwoFactorSetupDto": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string",
+            "description": "Base32 TOTP secret, in plaintext, for manual entry. A credential: anyone holding it can generate valid codes. Returned only during enrollment and never readable afterwards."
+          },
+          "otpauthUrl": {
+            "type": "string",
+            "description": "otpauth:// URI. Contains the same secret — treat it with the same care.",
+            "example": "otpauth://totp/Wizer:user@example.com?secret=...&issuer=Wizer"
+          },
+          "qrCodeDataUrl": {
+            "type": "string",
+            "description": "The otpauth URI rendered as a QR code, inline as a data: URL. Same secret again."
+          }
+        },
+        "required": [
+          "secret",
+          "otpauthUrl",
+          "qrCodeDataUrl"
+        ]
+      },
       "TotpCodeDto": {
         "type": "object",
         "properties": {}
+      },
+      "TwoFactorBackupCodesDto": {
+        "type": "object",
+        "properties": {
+          "backupCodes": {
+            "description": "Single-use recovery codes, shown once and never retrievable. Each is consumed on use.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "backupCodes"
+        ]
       },
       "VerifyTwoFactorCodeDto": {
         "type": "object",
         "properties": {}
       },
+      "DisabledResponseDto": {
+        "type": "object",
+        "properties": {
+          "disabled": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "disabled"
+        ]
+      },
       "CreateInvitationDto": {
         "type": "object",
         "properties": {}
+      },
+      "InvitationCreatedDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true,
+            "description": "null for a platform-level Super Admin."
+          },
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPER_ADMIN",
+              "COMPANY_ADMIN",
+              "LOCATION_MANAGER",
+              "CONTENT_MANAGER",
+              "VIEWER"
+            ]
+          },
+          "invitedById": {
+            "type": "object",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "REVOKED",
+              "EXPIRED"
+            ]
+          },
+          "locationIds": {
+            "description": "Location scope, for LOCATION_MANAGER invites.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acceptedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "token": {
+            "type": "string",
+            "description": "Single-use acceptance token, returned ONLY here. The database stores a hash, so it cannot be read back later. Treat it as a credential: do not log it, and deliver it over a channel you would send a password reset link over."
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "status",
+          "locationIds",
+          "expiresAt",
+          "createdAt",
+          "updatedAt",
+          "token"
+        ]
+      },
+      "InvitationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true,
+            "description": "null for a platform-level Super Admin."
+          },
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPER_ADMIN",
+              "COMPANY_ADMIN",
+              "LOCATION_MANAGER",
+              "CONTENT_MANAGER",
+              "VIEWER"
+            ]
+          },
+          "invitedById": {
+            "type": "object",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "REVOKED",
+              "EXPIRED"
+            ]
+          },
+          "locationIds": {
+            "description": "Location scope, for LOCATION_MANAGER invites.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acceptedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "status",
+          "locationIds",
+          "expiresAt",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "AuthTokensDto": {
         "type": "object",
@@ -8733,90 +9169,6 @@
       "InviteSuperAdminDto": {
         "type": "object",
         "properties": {}
-      },
-      "InvitationCreatedDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "companyId": {
-            "type": "object",
-            "nullable": true,
-            "description": "null for a platform-level Super Admin."
-          },
-          "email": {
-            "type": "string",
-            "example": "user@example.com"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "SUPER_ADMIN",
-              "COMPANY_ADMIN",
-              "LOCATION_MANAGER",
-              "CONTENT_MANAGER",
-              "VIEWER"
-            ]
-          },
-          "invitedById": {
-            "type": "object",
-            "nullable": true
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "PENDING",
-              "ACCEPTED",
-              "REVOKED",
-              "EXPIRED"
-            ]
-          },
-          "locationIds": {
-            "description": "Location scope, for LOCATION_MANAGER invites.",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "acceptedAt": {
-            "type": "object",
-            "nullable": true,
-            "format": "date-time"
-          },
-          "revokedAt": {
-            "type": "object",
-            "nullable": true,
-            "format": "date-time"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "token": {
-            "type": "string",
-            "description": "Single-use acceptance token, returned ONLY here. The database stores a hash, so it cannot be read back later. Treat it as a credential: do not log it, and deliver it over a channel you would send a password reset link over."
-          }
-        },
-        "required": [
-          "id",
-          "email",
-          "role",
-          "status",
-          "locationIds",
-          "expiresAt",
-          "createdAt",
-          "updatedAt",
-          "token"
-        ]
       },
       "UpdateDemoRequestDto": {
         "type": "object",
