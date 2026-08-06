@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -7,6 +7,7 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { Permission } from '../../common/rbac/permissions';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { DeviceService } from './device.service';
+import { PairingStatusDto } from './dto/pairing-response.dto';
 import { PairScreenDto } from './dto/device.dto';
 
 /**
@@ -23,6 +24,9 @@ export class ScreenPairingController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Pair a screen by entering the code shown on the TV.' })
+  // Re-reads the status rather than reporting what it did, so all three
+  // pairing routes share one response shape.
+  @ApiOkResponse({ type: PairingStatusDto })
   pair(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -36,6 +40,7 @@ export class ScreenPairingController {
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
   @ApiOperation({ summary: 'Unpair a screen (revokes the device token).' })
+  @ApiOkResponse({ type: PairingStatusDto })
   unpair(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -47,6 +52,7 @@ export class ScreenPairingController {
   @Get(':id/pairing-status')
   @RequirePermissions(Permission.ScreenRead)
   @ApiOperation({ summary: 'Pairing + device status for a screen.' })
+  @ApiOkResponse({ type: PairingStatusDto })
   status(@CurrentCompany() companyId: string, @Param('id') id: string) {
     return this.device.getPairingStatus(companyId, id);
   }

@@ -7,7 +7,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
+import { ApiPaginatedResponse, DeletedResponseDto } from '../../common/dto/api-response.dto';
 import { ScreenGroupDto } from '../../common/dto/entity-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
@@ -59,6 +59,8 @@ export class ScreenGroupsController {
 
   @Patch(':id')
   @RequirePermissions(Permission.ScreenManage)
+  @ApiOperation({ summary: 'Rename or re-describe a screen group.' })
+  @ApiOkResponse({ type: ScreenGroupDto })
   update(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -99,6 +101,8 @@ export class ScreenGroupsController {
   @Delete(':id')
   @HttpCode(200)
   @RequirePermissions(Permission.ScreenManage)
+  @ApiOperation({ summary: 'Delete a screen group and detach it from every screen.' })
+  @ApiOkResponse({ type: DeletedResponseDto })
   async remove(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

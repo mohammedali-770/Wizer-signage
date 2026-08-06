@@ -22,6 +22,7 @@ import {
 import {
   AffectedResponseDto,
   ApiPaginatedResponse,
+  DeletedResponseDto,
   ResetResponseDto,
   UpdatedResponseDto,
 } from '../../common/dto/api-response.dto';
@@ -186,6 +187,8 @@ export class ScreensController {
 
   @Post(':id/archive')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Archive a screen.' })
+  @ApiOkResponse({ type: ScreenDto })
   @RequirePermissions(Permission.ScreenManage)
   archive(
     @CurrentCompany() companyId: string,
@@ -197,6 +200,8 @@ export class ScreensController {
 
   @Post(':id/disable')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Disable a screen (stops playback, keeps the pairing).' })
+  @ApiOkResponse({ type: ScreenDto })
   @RequirePermissions(Permission.ScreenManage)
   disable(
     @CurrentCompany() companyId: string,
@@ -208,6 +213,8 @@ export class ScreensController {
 
   @Post(':id/reactivate')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Return an archived or disabled screen to UNPAIRED.' })
+  @ApiOkResponse({ type: ScreenDto })
   @RequirePermissions(Permission.ScreenManage)
   reactivate(
     @CurrentCompany() companyId: string,
@@ -219,6 +226,8 @@ export class ScreensController {
 
   @Delete(':id')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Delete (soft) a screen.' })
+  @ApiOkResponse({ type: DeletedResponseDto })
   @RequirePermissions(Permission.ScreenManage)
   async remove(
     @CurrentCompany() companyId: string,
