@@ -1260,7 +1260,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1278,7 +1285,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlanDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1307,7 +1336,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1344,7 +1380,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1373,7 +1416,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1402,7 +1452,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1432,7 +1489,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1450,7 +1514,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SubscriptionWithCompanyDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1479,7 +1565,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionWithCompanyDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1516,7 +1609,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionWithCompanyDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1545,7 +1645,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityLogDto"
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1574,7 +1684,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionWithCompanyDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1604,7 +1721,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1622,7 +1746,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InvoiceDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1651,7 +1797,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1690,7 +1843,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7792,6 +7952,90 @@
         "type": "object",
         "properties": {}
       },
+      "PlanDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable machine-readable key. Unique.",
+            "example": "pro"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "priceMonthly": {
+            "type": "string",
+            "description": "Decimal(12,2) — a STRING on the wire. Trailing zeros are not preserved.",
+            "example": "49.9"
+          },
+          "priceYearly": {
+            "type": "string",
+            "nullable": true,
+            "description": "Decimal(12,2) as a string. null when the plan is not sold yearly."
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "billingInterval": {
+            "type": "string",
+            "enum": [
+              "MONTHLY",
+              "QUARTERLY",
+              "YEARLY"
+            ]
+          },
+          "trialDays": {
+            "type": "number",
+            "description": "Length of the trial a new subscription gets. 0 for none."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "An inactive plan is hidden but keeps its subscriptions."
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether the plan is offered publicly."
+          },
+          "limits": {
+            "description": "The same limit block GET /companies/{id}/usage evaluates against. Absent or null on a field means UNLIMITED, not zero.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanLimitsDto"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code",
+          "priceMonthly",
+          "currency",
+          "billingInterval",
+          "trialDays",
+          "isActive",
+          "isPublic",
+          "limits",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "UpdatePlanDto": {
         "type": "object",
         "properties": {}
@@ -7800,6 +8044,251 @@
         "type": "object",
         "properties": {}
       },
+      "SubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "TRIALING",
+              "EXPIRED",
+              "SUSPENDED",
+              "CANCELLED"
+            ]
+          },
+          "trialEndsAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "currentPeriodStart": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "currentPeriodEnd": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "gracePeriodEndsAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Set when an over-limit account is given time to come back under."
+          },
+          "cancelAtPeriodEnd": {
+            "type": "boolean",
+            "description": "Cancel at the end of the paid period rather than immediately."
+          },
+          "canceledAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanDto"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "planId",
+          "status",
+          "cancelAtPeriodEnd",
+          "plan",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "SubscriptionCompanyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "PENDING",
+              "CANCELLED"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "status"
+        ]
+      },
+      "SubscriptionWithCompanyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "TRIALING",
+              "EXPIRED",
+              "SUSPENDED",
+              "CANCELLED"
+            ]
+          },
+          "trialEndsAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "currentPeriodStart": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "currentPeriodEnd": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "gracePeriodEndsAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Set when an over-limit account is given time to come back under."
+          },
+          "cancelAtPeriodEnd": {
+            "type": "boolean",
+            "description": "Cancel at the end of the paid period rather than immediately."
+          },
+          "canceledAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanDto"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "company": {
+            "$ref": "#/components/schemas/SubscriptionCompanyDto"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "planId",
+          "status",
+          "cancelAtPeriodEnd",
+          "plan",
+          "createdAt",
+          "updatedAt",
+          "company"
+        ]
+      },
+      "ActivityLogDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true
+          },
+          "actorId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Nulled if the actor is deleted."
+          },
+          "action": {
+            "type": "string",
+            "description": "Dotted event name.",
+            "example": "subscription.updated"
+          },
+          "category": {
+            "type": "string",
+            "description": "A plain String column, not an enum.",
+            "example": "SUBSCRIPTION"
+          },
+          "targetType": {
+            "type": "object",
+            "nullable": true
+          },
+          "targetId": {
+            "type": "object",
+            "nullable": true
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "ip": {
+            "type": "object",
+            "nullable": true
+          },
+          "userAgent": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "category",
+          "metadata",
+          "createdAt"
+        ]
+      },
       "UpdateSubscriptionDto": {
         "type": "object",
         "properties": {}
@@ -7807,6 +8296,98 @@
       "CreateInvoiceDto": {
         "type": "object",
         "properties": {}
+      },
+      "InvoiceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "subscriptionId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Nulled rather than cascaded if the subscription goes away."
+          },
+          "number": {
+            "type": "string",
+            "description": "Human-facing invoice number. Unique."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "UNPAID",
+              "PAID",
+              "OVERDUE",
+              "CANCELLED"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "subtotal": {
+            "type": "string",
+            "description": "Decimal(12,2) as a string.",
+            "example": "100"
+          },
+          "tax": {
+            "type": "string",
+            "nullable": true,
+            "description": "Decimal(12,2) as a string. null when no tax applies."
+          },
+          "total": {
+            "type": "string",
+            "description": "Decimal(12,2) as a string.",
+            "example": "115"
+          },
+          "lineItems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Free-form JSON line items; nothing in the schema constrains their shape."
+          },
+          "issuedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "paidAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "number",
+          "status",
+          "currency",
+          "subtotal",
+          "total",
+          "lineItems",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "UpdateInvoiceStatusDto": {
         "type": "object",

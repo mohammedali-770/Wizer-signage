@@ -3,7 +3,9 @@ import { join } from 'node:path';
 
 import {
   AlertStatus,
+  BillingInterval,
   CompanyStatus,
+  InvoiceStatus,
   ScreenStatus,
   DemoRequestStatus,
   ReportDeliveryStatus,
@@ -405,6 +407,7 @@ describe('OpenAPI response coverage', () => {
     ['RecentCompanySubscriptionDto', SubscriptionStatus],
     ['ReportDeliveryDto', ReportDeliveryStatus],
     ['AlertDto', AlertStatus],
+    ['InvoiceDto', InvoiceStatus],
   ])('%s documents the real enum members', (schema, prismaEnum) => {
     // Hand-listing these got three of four wrong on the first pass, inventing
     // `PAST_DUE` and `QUALIFIED` alongside real members. Every mistake compiled
@@ -599,6 +602,73 @@ describe('OpenAPI response coverage', () => {
     ]);
   });
 
+  it.each([
+    ['PlanDto', 'priceMonthly'],
+    ['PlanDto', 'priceYearly'],
+    ['InvoiceDto', 'subtotal'],
+    ['InvoiceDto', 'tax'],
+    ['InvoiceDto', 'total'],
+  ])('%s.%s is documented as a STRING, because Decimal serialises as one', (schema, field) => {
+    // Verified against Prisma rather than assumed:
+    //   JSON.stringify({ p: new Prisma.Decimal('49.90') })  ->  {"p":"49.9"}
+    // Two things follow. Money is a string, and `49.90` comes back as "49.9" —
+    // a client cannot rely on two decimal places and must format for display.
+    //
+    // Documenting these as `number` would tell a generated client to hand back
+    // a value that arrives quoted, and every arithmetic call on it would be on
+    // a string.
+    const { components } = loadContract();
+    const model = components.schemas[schema] as {
+      properties?: Record<string, { type?: string }>;
+    };
+    expect(model?.properties?.[field]?.type).toBe('string');
+  });
+
+  it('the money strings and the money numbers stay distinguishable', () => {
+    // `InvoiceDto.total` is a Decimal column and is a string.
+    // `PlatformOverviewDto.invoices.unpaidTotal` is a _sum already passed
+    // through Number() and is a JSON number. Same currency, two encodings —
+    // the same split as ContentDto.fileSize (string) vs usedBytes (number).
+    // Collapsing either pair to one type would be wrong at the other end.
+    const { components } = loadContract();
+    const invoice = components.schemas.InvoiceDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+    const unpaid = components.schemas.UnpaidInvoicesDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+    expect(invoice?.properties?.total?.type).toBe('string');
+    expect(unpaid?.properties?.unpaidTotal?.type).toBe('number');
+  });
+
+  it('POST /subscriptions is the one route whose response has no company', () => {
+    // `create` includes only { plan: true }; every read, update and cancel also
+    // includes the company summary. One shared class would tell a client that
+    // `company` is always present — on the create response it never is.
+    const { components } = loadContract();
+    const created = components.schemas.SubscriptionDto as {
+      properties?: Record<string, unknown>;
+    };
+    const read = components.schemas.SubscriptionWithCompanyDto as {
+      properties?: Record<string, unknown>;
+    };
+
+    expect(Object.keys(created?.properties ?? {})).not.toContain('company');
+    expect(Object.keys(read?.properties ?? {})).toContain('company');
+    // Both carry the plan — create includes it too.
+    expect(Object.keys(created?.properties ?? {})).toContain('plan');
+  });
+
+  it('the plan billing interval is the real enum', () => {
+    const { components } = loadContract();
+    const model = components.schemas.PlanDto as {
+      properties?: Record<string, { enum?: string[] }>;
+    };
+    expect(model?.properties?.billingInterval?.enum?.slice().sort()).toEqual(
+      Object.values(BillingInterval).slice().sort(),
+    );
+  });
+
   it('coverage is reported against what CAN be annotated', () => {
     // Five controllers carry @ApiExcludeController and never appear in the
     // contract at all — the device-facing routes (the Android player has its
@@ -640,6 +710,9 @@ describe('OpenAPI response coverage', () => {
       'screens',
       'screen-groups',
       'companies',
+      'plans',
+      'invoices',
+      'subscriptions',
     ]) {
       const seen = perTag[tag];
       // Report the tag AND both numbers in the failure, so a break says
@@ -649,7 +722,7 @@ describe('OpenAPI response coverage', () => {
   });
 
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 145 of the 209 operations in the contract.
+    // A RATCHET, not a target: 161 of the 209 operations in the contract.
     //
     // "172" appeared here one commit ago and was never measured — I carried a
     // number forward instead of counting. The figure below is read off the
@@ -664,7 +737,7 @@ describe('OpenAPI response coverage', () => {
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(145);
+    expect(annotated.length).toBeGreaterThanOrEqual(161);
     // Pinned, not a floor: the comment above quotes this number, and a quoted
     // number that nothing checks is how the wrong one survived.
     expect(total).toBe(209);
