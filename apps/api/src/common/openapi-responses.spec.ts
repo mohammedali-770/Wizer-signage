@@ -769,6 +769,54 @@ describe('OpenAPI response coverage', () => {
     expect(listItems).toBe('#/components/schemas/InvitationDto');
   });
 
+  it('the three `validate` endpoints agree on almost nothing', () => {
+    // Three endpoints with the same name and three different shapes:
+    //
+    //   schedules  -> schedulable, playlist, targetCount, orientationWarnings,
+    //                 conflicts, warnings          (no `valid`, no `errors`)
+    //   playlists  -> valid, schedulable, itemCount, ..., issues, warnings
+    //   emergency  -> valid, canActivate, errors, warnings, affectedScreens
+    //
+    // The ONLY field all three share is `warnings`. A single shared
+    // ValidationResultDto is the obvious tidy-up and would be wrong for all
+    // three — this is the test that makes it fail rather than quietly ship.
+    const { components } = loadContract();
+    const props = (name: string) =>
+      Object.keys(
+        (components.schemas[name] as { properties?: Record<string, unknown> })?.properties ?? {},
+      );
+
+    const schedule = props('ScheduleValidationDto');
+    const playlist = props('PlaylistValidationDto');
+    const emergency = props('EmergencyValidationDto');
+
+    const shared = schedule.filter((f) => playlist.includes(f) && emergency.includes(f));
+    expect(shared).toEqual(['warnings']);
+
+    // Only the schedule one lacks `valid`; only emergency has `errors` and
+    // `canActivate`. Each asserted so a drift in either direction fails.
+    expect(schedule).not.toContain('valid');
+    expect(playlist).toContain('valid');
+    expect(emergency).toContain('valid');
+    expect(emergency).toContain('canActivate');
+    expect(schedule).not.toContain('errors');
+    expect(playlist).not.toContain('errors');
+    expect(emergency).toContain('errors');
+  });
+
+  it('GET /schedules/conflicts is an object, not the array its name suggests', () => {
+    // The endpoint is `conflicts` and the field inside is `conflicts`. That is
+    // exactly how it gets documented as a bare array by someone reading the
+    // route name and not the return statement.
+    const { paths } = loadContract();
+    const schema = paths['/schedules/conflicts']?.get?.responses?.['200']?.content?.[
+      'application/json'
+    ]?.schema as { $ref?: string; type?: string } | undefined;
+
+    expect(schema?.type).not.toBe('array');
+    expect(schema?.$ref).toBe('#/components/schemas/ScheduleConflictsDto');
+  });
+
   it('coverage is reported against what CAN be annotated', () => {
     // Five controllers carry @ApiExcludeController and never appear in the
     // contract at all — the device-facing routes (the Android player has its
@@ -816,6 +864,9 @@ describe('OpenAPI response coverage', () => {
       'sessions',
       'two-factor',
       'invitations',
+      'schedules',
+      'playlists',
+      'emergency-broadcasts',
     ]) {
       const seen = perTag[tag];
       // Report the tag AND both numbers in the failure, so a break says
@@ -825,7 +876,7 @@ describe('OpenAPI response coverage', () => {
   });
 
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 173 of the 209 operations in the contract.
+    // A RATCHET, not a target: 184 of the 209 operations in the contract.
     //
     // "172" appeared here one commit ago and was never measured — I carried a
     // number forward instead of counting. The figure below is read off the
@@ -840,7 +891,7 @@ describe('OpenAPI response coverage', () => {
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(173);
+    expect(annotated.length).toBeGreaterThanOrEqual(184);
     // Pinned, not a floor: the comment above quotes this number, and a quoted
     // number that nothing checks is how the wrong one survived.
     expect(total).toBe(209);

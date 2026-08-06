@@ -4675,7 +4675,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistValidationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4704,7 +4711,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4712,6 +4726,7 @@
             "bearer": []
           }
         ],
+        "summary": "Archive a playlist.",
         "tags": [
           "playlists"
         ]
@@ -4732,7 +4747,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4740,6 +4762,7 @@
             "bearer": []
           }
         ],
+        "summary": "Restore an archived playlist.",
         "tags": [
           "playlists"
         ]
@@ -5062,7 +5085,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleConflictsDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5205,7 +5235,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleValidationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5234,7 +5271,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5242,6 +5286,7 @@
             "bearer": []
           }
         ],
+        "summary": "Pause a schedule.",
         "tags": [
           "schedules"
         ]
@@ -5262,7 +5307,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5270,6 +5322,7 @@
             "bearer": []
           }
         ],
+        "summary": "Resume a paused schedule.",
         "tags": [
           "schedules"
         ]
@@ -5290,7 +5343,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5298,6 +5358,7 @@
             "bearer": []
           }
         ],
+        "summary": "Archive a schedule.",
         "tags": [
           "schedules"
         ]
@@ -6638,7 +6699,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyValidationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6817,7 +6885,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6825,6 +6900,7 @@
             "bearer": []
           }
         ],
+        "summary": "Add a target to a broadcast.",
         "tags": [
           "emergency-broadcasts"
         ]
@@ -6853,7 +6929,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6861,6 +6944,7 @@
             "bearer": []
           }
         ],
+        "summary": "Remove a target from a broadcast.",
         "tags": [
           "emergency-broadcasts"
         ]
@@ -10260,6 +10344,84 @@
           "warnings"
         ]
       },
+      "PlaylistItemIssueDto": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          },
+          "contentTitle": {
+            "type": "object",
+            "nullable": true,
+            "description": "null if the content row is gone."
+          },
+          "issue": {
+            "type": "object",
+            "nullable": true,
+            "description": "Expired, archived, trashed or deleted content."
+          }
+        },
+        "required": [
+          "itemId"
+        ]
+      },
+      "PlaylistValidationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "valid": {
+            "type": "boolean",
+            "description": "An ALIAS of `schedulable` — the service assigns both from the same value. Two names for one field, kept because clients read each of them."
+          },
+          "schedulable": {
+            "type": "boolean",
+            "description": "The same boolean as `valid`."
+          },
+          "itemCount": {
+            "type": "number"
+          },
+          "validItemCount": {
+            "type": "number"
+          },
+          "invalidItemCount": {
+            "type": "number"
+          },
+          "orientationProfile": {
+            "type": "object",
+            "nullable": true,
+            "description": "The orientation every item shares, or null when they disagree."
+          },
+          "totalDurationSeconds": {
+            "type": "number"
+          },
+          "issues": {
+            "description": "One entry per INVALID item only.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlaylistItemIssueDto"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "valid",
+          "schedulable",
+          "itemCount",
+          "validItemCount",
+          "invalidItemCount",
+          "totalDurationSeconds",
+          "issues",
+          "warnings"
+        ]
+      },
       "UpdatePlaylistDto": {
         "type": "object",
         "properties": {}
@@ -10471,6 +10633,178 @@
       "CreateScheduleDto": {
         "type": "object",
         "properties": {}
+      },
+      "ConflictScheduleSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "number",
+            "description": "Higher wins."
+          },
+          "scheduleType": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "CAMPAIGN"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "priority",
+          "scheduleType"
+        ]
+      },
+      "SchedulePairConflictDto": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/ConflictScheduleSummaryDto"
+          },
+          "b": {
+            "$ref": "#/components/schemas/ConflictScheduleSummaryDto"
+          },
+          "sharedScreenIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "winnerId": {
+            "type": "object",
+            "nullable": true,
+            "description": "null when priority and type tie."
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "sharedScreenIds"
+        ]
+      },
+      "ScheduleConflictsDto": {
+        "type": "object",
+        "properties": {
+          "conflicts": {
+            "description": "Every overlapping ACTIVE pair.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulePairConflictDto"
+            }
+          }
+        },
+        "required": [
+          "conflicts"
+        ]
+      },
+      "SchedulePlaylistValidityDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "schedulable": {
+            "type": "boolean"
+          },
+          "validItemCount": {
+            "type": "number",
+            "description": "Items that would actually play. Zero means nothing would."
+          }
+        },
+        "required": [
+          "id",
+          "schedulable",
+          "validItemCount"
+        ]
+      },
+      "ScheduleConflictDto": {
+        "type": "object",
+        "properties": {
+          "scheduleId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sharedScreenIds": {
+            "description": "The screens both schedules target. Never empty — that is what makes it a clash.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "winnerId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Which of the two the resolver would play, by priority then type. null when the rules cannot separate them, which is the case a human has to settle."
+          }
+        },
+        "required": [
+          "scheduleId",
+          "name",
+          "sharedScreenIds"
+        ]
+      },
+      "ScheduleValidationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "schedulable": {
+            "type": "boolean",
+            "description": "Whether this schedule would actually put something on screen. Note there is no `valid` here — the playlist endpoint has both, this one only has `schedulable`."
+          },
+          "playlist": {
+            "nullable": true,
+            "description": "null when the schedule has no playlist attached.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SchedulePlaylistValidityDto"
+              }
+            ]
+          },
+          "targetCount": {
+            "type": "number",
+            "description": "How many screens/groups/locations the schedule targets."
+          },
+          "orientationWarnings": {
+            "description": "Content whose orientation does not match the screens it would play on.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleConflictDto"
+            }
+          },
+          "warnings": {
+            "description": "Timing warnings PLUS every orientationWarning — the orientation ones appear twice, once in their own field and again here. Concatenating the two lists double-counts them.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "schedulable",
+          "targetCount",
+          "orientationWarnings",
+          "conflicts",
+          "warnings"
+        ]
       },
       "UpdateScheduleDto": {
         "type": "object",
@@ -11558,6 +11892,43 @@
       "QuickTextBroadcastDto": {
         "type": "object",
         "properties": {}
+      },
+      "EmergencyValidationDto": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "description": "No errors AND at least one affected screen. An override reaching nobody is not valid."
+          },
+          "canActivate": {
+            "type": "boolean",
+            "description": "`valid` AND the broadcast is not already ENDED or ARCHIVED. The two differ for a finished broadcast: still well-formed, no longer activatable."
+          },
+          "errors": {
+            "description": "Hard failures. The only one of the three validate endpoints that has these.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "affectedScreens": {
+            "type": "number",
+            "description": "A COUNT, not the ids — the service returns `affectedScreenIds.length`."
+          }
+        },
+        "required": [
+          "valid",
+          "canActivate",
+          "errors",
+          "warnings",
+          "affectedScreens"
+        ]
       },
       "UpdateEmergencyBroadcastDto": {
         "type": "object",
