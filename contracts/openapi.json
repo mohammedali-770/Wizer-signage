@@ -6493,7 +6493,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ScheduledReportDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6501,6 +6523,7 @@
             "bearer": []
           }
         ],
+        "summary": "List scheduled reports, newest first.",
         "tags": [
           "scheduled-reports"
         ]
@@ -6520,7 +6543,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledReportDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6549,7 +6579,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledReportDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6557,6 +6594,7 @@
             "bearer": []
           }
         ],
+        "summary": "Get a scheduled report with its recent delivery history.",
         "tags": [
           "scheduled-reports"
         ]
@@ -6585,7 +6623,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledReportDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6593,6 +6638,7 @@
             "bearer": []
           }
         ],
+        "summary": "Update a scheduled report.",
         "tags": [
           "scheduled-reports"
         ]
@@ -6611,7 +6657,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6619,6 +6672,7 @@
             "bearer": []
           }
         ],
+        "summary": "Delete a scheduled report and its delivery history.",
         "tags": [
           "scheduled-reports"
         ]
@@ -6639,7 +6693,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledReportDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6647,6 +6708,7 @@
             "bearer": []
           }
         ],
+        "summary": "Enable a scheduled report.",
         "tags": [
           "scheduled-reports"
         ]
@@ -6667,7 +6729,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledReportDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6675,6 +6744,7 @@
             "bearer": []
           }
         ],
+        "summary": "Disable a scheduled report (keeps its schedule, never runs).",
         "tags": [
           "scheduled-reports"
         ]
@@ -6695,7 +6765,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDeliveryDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -9526,13 +9603,258 @@
         "type": "object",
         "properties": {}
       },
+      "ScheduledReportDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "reportType": {
+            "type": "string",
+            "enum": [
+              "PROOF_OF_PLAY",
+              "SCREEN_HEALTH",
+              "ALERTS",
+              "ACTIVITY_LOGS",
+              "BILLING"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "CSV",
+              "XLSX",
+              "PDF"
+            ],
+            "description": "PDF renders as print HTML."
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY"
+            ]
+          },
+          "recipients": {
+            "description": "Recipient email addresses. Stored as a JSON array on the row.",
+            "example": [
+              "ops@example.com"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filters": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Report-type-specific filters, stored as free-form JSON. `{}` when unset."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "A disabled report keeps its schedule but is never run."
+          },
+          "lastRunAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "nextRunAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "When the maintenance sweep will next pick this up."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "reportType",
+          "format",
+          "frequency",
+          "recipients",
+          "filters",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "CreateScheduledReportDto": {
         "type": "object",
         "properties": {}
       },
+      "ReportDeliveryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SENT",
+              "FAILED"
+            ]
+          },
+          "recipientEmails": {
+            "description": "The addresses this attempt was sent to, as resolved at run time.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fileStorageKey": {
+            "type": "object",
+            "nullable": true,
+            "description": "Object-storage key of the rendered file. Internal path — recipients receive a signed URL by email (valid 7 days); there is no endpoint that turns this key into one."
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "description": "Why the delivery failed. Set when every recipient email failed to send."
+          },
+          "sentAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "null when the status is FAILED — the file rendered but reached nobody."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "recipientEmails",
+          "createdAt"
+        ]
+      },
+      "ScheduledReportDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "reportType": {
+            "type": "string",
+            "enum": [
+              "PROOF_OF_PLAY",
+              "SCREEN_HEALTH",
+              "ALERTS",
+              "ACTIVITY_LOGS",
+              "BILLING"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "CSV",
+              "XLSX",
+              "PDF"
+            ],
+            "description": "PDF renders as print HTML."
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY"
+            ]
+          },
+          "recipients": {
+            "description": "Recipient email addresses. Stored as a JSON array on the row.",
+            "example": [
+              "ops@example.com"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filters": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Report-type-specific filters, stored as free-form JSON. `{}` when unset."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "A disabled report keeps its schedule but is never run."
+          },
+          "lastRunAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "nextRunAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "When the maintenance sweep will next pick this up."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deliveries": {
+            "description": "The 20 most recent attempts, newest first. Not paginated and not configurable.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportDeliveryDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "reportType",
+          "format",
+          "frequency",
+          "recipients",
+          "filters",
+          "enabled",
+          "createdAt",
+          "updatedAt",
+          "deliveries"
+        ]
+      },
       "UpdateScheduledReportDto": {
         "type": "object",
         "properties": {}
+      },
+      "OkResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "ok"
+        ]
       },
       "RecordBackupDto": {
         "type": "object",

@@ -1,7 +1,13 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { CompanyStatus, DemoRequestStatus, SubscriptionStatus } from '@prisma/client';
+import {
+  CompanyStatus,
+  DemoRequestStatus,
+  ReportDeliveryStatus,
+  ReportType,
+  SubscriptionStatus,
+} from '@prisma/client';
 
 /**
  * Response coverage in the committed OpenAPI contract.
@@ -308,6 +314,11 @@ describe('OpenAPI response coverage', () => {
     ['put', '/screens/{id}/kiosk-pin', 'updated'],
     ['delete', '/screens/{id}/kiosk-pin', 'reset'],
     ['post', '/content/trash/purge', 'purged'],
+    // A SIXTH spelling of "done", found in the next module read after the
+    // other five were catalogued. The list was never going to be complete
+    // until every controller had been looked at, which is exactly why these
+    // are documented as they are rather than unified on sight.
+    ['delete', '/scheduled-reports/{id}', 'ok'],
   ])('%s %s acknowledges with `%s`', (method, path, field) => {
     // These thirteen endpoints all "return nothing useful", and the first pass
     // pointed every one of them at SuccessResponseDto. Nine were wrong: they
@@ -389,6 +400,7 @@ describe('OpenAPI response coverage', () => {
     ['DemoRequestDto', DemoRequestStatus],
     ['RecentCompanyDto', CompanyStatus],
     ['RecentCompanySubscriptionDto', SubscriptionStatus],
+    ['ReportDeliveryDto', ReportDeliveryStatus],
   ])('%s documents the real enum members', (schema, prismaEnum) => {
     // Hand-listing these got three of four wrong on the first pass, inventing
     // `PAST_DUE` and `QUALIFIED` alongside real members. Every mistake compiled
@@ -403,18 +415,49 @@ describe('OpenAPI response coverage', () => {
     );
   });
 
+  it('the scheduled-report LIST row does not promise the delivery history', () => {
+    // GET /scheduled-reports loads no deliveries; only GET /{id} does, and it
+    // takes 20. One shared schema would tell a client the list carries a
+    // history it never sends — the same split the playlist rows needed.
+    const { components } = loadContract();
+    const summary = components.schemas.ScheduledReportDto as {
+      properties?: Record<string, unknown>;
+    };
+    const detail = components.schemas.ScheduledReportDetailDto as {
+      properties?: Record<string, unknown>;
+    };
+
+    expect(Object.keys(summary?.properties ?? {})).not.toContain('deliveries');
+    expect(Object.keys(detail?.properties ?? {})).toContain('deliveries');
+  });
+
+  it('the report DTO documents the real reportType members', () => {
+    // Same reason as the status enums: a generated client builds a union from
+    // this list, so an invented member is a value it accepts and the API
+    // rejects. reportType is checked separately because the shared enum test
+    // keys on a property named `status`.
+    const { components } = loadContract();
+    const model = components.schemas.ScheduledReportDto as {
+      properties?: Record<string, { enum?: string[] }>;
+    };
+    expect(model?.properties?.reportType?.enum?.slice().sort()).toEqual(
+      Object.values(ReportType).slice().sort(),
+    );
+  });
+
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 106 of ~180 operations (auth, users, tags,
+    // A RATCHET, not a target: 114 of ~180 operations (auth, users, tags,
     // screen-groups, locations, screens, content, schedules, playlists,
-    // companies, emergency, monitoring, super-admin). Raise it as controllers
-    // are annotated; it fails the moment a route loses its response type. 24 of
-    // 38 controllers are still unannotated — that is the remaining work, and
-    // this number is how it stays visible rather than forgotten.
+    // companies, emergency, monitoring, super-admin, scheduled-reports). Raise
+    // it as controllers are annotated; it fails the moment a route loses its
+    // response type. 23 of 38 controllers are still unannotated — that is the
+    // remaining work, and this number is how it stays visible rather than
+    // forgotten.
     //
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(106);
+    expect(annotated.length).toBeGreaterThanOrEqual(114);
     expect(total).toBeGreaterThan(100);
   });
 });

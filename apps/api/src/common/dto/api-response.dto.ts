@@ -43,12 +43,16 @@ export class PageMetaDto {
 /**
  * The acknowledgement shapes.
  *
- * There are five of them, and that is the point. Every one of these endpoints
+ * There are six of them, and that is the point. Every one of these endpoints
  * "returns nothing useful", so the first pass pointed all of them at
  * `SuccessResponseDto` — which made the contract claim a `success` field on
  * nine routes that have never sent one, while hiding the field they do send.
  * A client checking `res.success` reads `undefined` and treats a successful
  * delete as a failure.
+ *
+ * The sixth (`ok`) turned up later, in scheduled-reports, which is the argument
+ * against tidying these up as they are found: the list was "five" until the
+ * next module was read.
  *
  * Reaching for one shared shape is the same mistake as deriving a DTO from the
  * Prisma model: it documents what the shape ought to be rather than what it is.
@@ -85,6 +89,12 @@ export class ResetResponseDto {
 export class AffectedResponseDto {
   @ApiProperty({ example: 12, description: 'How many screens the operation touched.' })
   affected!: number;
+}
+
+/** `{ ok: true }` — DELETE /scheduled-reports/{id}. A sixth spelling of "done". */
+export class OkResponseDto {
+  @ApiProperty({ example: true })
+  ok!: boolean;
 }
 
 /** `{ purged: n }` — POST /content/trash/purge. A COUNT, not a boolean. */
