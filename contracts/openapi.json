@@ -5578,7 +5578,34 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta",
+                    "unreadCount"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/NotificationDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    },
+                    "unreadCount": {
+                      "type": "number",
+                      "description": "The caller's total unread count, IGNORING ?unreadOnly and the page."
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5598,7 +5625,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5606,6 +5640,7 @@
             "bearer": []
           }
         ],
+        "summary": "Unread count for the bell badge.",
         "tags": [
           "notifications"
         ]
@@ -5617,7 +5652,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationPreferenceDto"
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5625,6 +5670,7 @@
             "bearer": []
           }
         ],
+        "summary": "The caller's notification preferences.",
         "tags": [
           "notifications"
         ]
@@ -5644,7 +5690,17 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationPreferenceDto"
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5673,7 +5729,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5681,6 +5744,7 @@
             "bearer": []
           }
         ],
+        "summary": "Mark one notification read.",
         "tags": [
           "notifications"
         ]
@@ -5692,7 +5756,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkUpdatedResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5700,6 +5771,7 @@
             "bearer": []
           }
         ],
+        "summary": "Mark all of the caller's notifications read.",
         "tags": [
           "notifications"
         ]
@@ -5711,7 +5783,34 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta",
+                    "openCount"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AlertDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    },
+                    "openCount": {
+                      "type": "number",
+                      "description": "Alerts still OPEN in the caller’s scope, ignoring the filters and the page."
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5740,7 +5839,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5748,6 +5854,7 @@
             "bearer": []
           }
         ],
+        "summary": "Acknowledge an alert (records who, and when).",
         "tags": [
           "alerts"
         ]
@@ -5768,7 +5875,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5776,6 +5890,7 @@
             "bearer": []
           }
         ],
+        "summary": "Resolve an alert.",
         "tags": [
           "alerts"
         ]
@@ -5796,7 +5911,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5804,6 +5926,7 @@
             "bearer": []
           }
         ],
+        "summary": "Dismiss an alert without resolving the underlying condition.",
         "tags": [
           "alerts"
         ]
@@ -9455,9 +9578,237 @@
           "screens"
         ]
       },
+      "NotificationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "description": "Dotted event name. Free-form: a new event type needs no schema change.",
+            "example": "screen.offline"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "INFO",
+              "WARNING",
+              "CRITICAL"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "object",
+            "nullable": true
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Event-specific payload, e.g. the screen id to deep-link to. `{}` when unset."
+          },
+          "readAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "null means unread — there is no separate boolean."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "severity",
+          "title",
+          "data",
+          "createdAt"
+        ]
+      },
+      "UnreadCountDto": {
+        "type": "object",
+        "properties": {
+          "unreadCount": {
+            "type": "number",
+            "example": 3
+          }
+        },
+        "required": [
+          "unreadCount"
+        ]
+      },
+      "NotificationPreferenceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "DASHBOARD",
+              "EMAIL"
+            ]
+          },
+          "eventType": {
+            "type": "string",
+            "description": "The dotted event name this preference applies to."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "channel",
+          "eventType",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "UpdateNotificationPreferencesDto": {
         "type": "object",
         "properties": {}
+      },
+      "OkResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "OkUpdatedResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "updated": {
+            "type": "number",
+            "example": 4,
+            "description": "How many notifications were still unread."
+          }
+        },
+        "required": [
+          "ok",
+          "updated"
+        ]
+      },
+      "AlertDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true,
+            "description": "null for a platform/system alert, which only a Super Admin sees."
+          },
+          "screenId": {
+            "type": "object",
+            "nullable": true
+          },
+          "deviceId": {
+            "type": "object",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "description": "Dotted event name. Free-form, same as a notification type.",
+            "example": "sync.failed"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "INFO",
+              "WARNING",
+              "CRITICAL"
+            ],
+            "description": "Shares NotificationSeverity — there is no separate alert-severity enum."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "ACKNOWLEDGED",
+              "RESOLVED",
+              "DISMISSED"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Alert-specific context. `{}` when unset."
+          },
+          "triggeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the condition was first detected."
+          },
+          "acknowledgedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "acknowledgedById": {
+            "type": "object",
+            "nullable": true
+          },
+          "resolvedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "severity",
+          "status",
+          "title",
+          "metadata",
+          "triggeredAt",
+          "createdAt"
+        ]
       },
       "BroadcastTargetDto": {
         "type": "object",
@@ -9843,18 +10194,6 @@
       "UpdateScheduledReportDto": {
         "type": "object",
         "properties": {}
-      },
-      "OkResponseDto": {
-        "type": "object",
-        "properties": {
-          "ok": {
-            "type": "boolean",
-            "example": true
-          }
-        },
-        "required": [
-          "ok"
-        ]
       },
       "RecordBackupDto": {
         "type": "object",

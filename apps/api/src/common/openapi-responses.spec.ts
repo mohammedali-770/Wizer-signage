@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
+  AlertStatus,
   CompanyStatus,
   DemoRequestStatus,
   ReportDeliveryStatus,
@@ -319,6 +320,7 @@ describe('OpenAPI response coverage', () => {
     // until every controller had been looked at, which is exactly why these
     // are documented as they are rather than unified on sight.
     ['delete', '/scheduled-reports/{id}', 'ok'],
+    ['post', '/notifications/{id}/read', 'ok'],
   ])('%s %s acknowledges with `%s`', (method, path, field) => {
     // These thirteen endpoints all "return nothing useful", and the first pass
     // pointed every one of them at SuccessResponseDto. Nine were wrong: they
@@ -401,6 +403,7 @@ describe('OpenAPI response coverage', () => {
     ['RecentCompanyDto', CompanyStatus],
     ['RecentCompanySubscriptionDto', SubscriptionStatus],
     ['ReportDeliveryDto', ReportDeliveryStatus],
+    ['AlertDto', AlertStatus],
   ])('%s documents the real enum members', (schema, prismaEnum) => {
     // Hand-listing these got three of four wrong on the first pass, inventing
     // `PAST_DUE` and `QUALIFIED` alongside real members. Every mistake compiled
@@ -445,19 +448,116 @@ describe('OpenAPI response coverage', () => {
     );
   });
 
+  it('the SEVENTH acknowledgement shape is two of the others at once', () => {
+    // POST /notifications/read-all returns `{ ok, updated }`. It is not in the
+    // table above because that table asserts a SINGLE key — and this shape is
+    // exactly why the table's rule (one endpoint, one spelling) does not hold
+    // across the whole API. A client that special-cased `ok`, and one that
+    // special-cased `updated`, would each be half right.
+    const { paths, components } = loadContract();
+    const ref = (
+      paths['/notifications/read-all']?.post?.responses?.['200']?.content?.['application/json']
+        ?.schema as { $ref?: string } | undefined
+    )?.$ref;
+    expect(ref).toBe('#/components/schemas/OkUpdatedResponseDto');
+
+    const model = components.schemas.OkUpdatedResponseDto as {
+      properties?: Record<string, unknown>;
+    };
+    expect(Object.keys(model?.properties ?? {}).sort()).toEqual(['ok', 'updated']);
+  });
+
+  it.each([
+    ['/notifications', 'unreadCount'],
+    ['/alerts', 'openCount'],
+  ])('%s returns MORE than the pagination envelope', (path, extra) => {
+    // Two lists return a count alongside { items, meta }. Applied bare,
+    // ApiPaginatedResponse would have documented a two-key object for a
+    // three-key response — and the missing key is the one the bell badge and
+    // the alert banner actually read. A helper is only safe where it is true;
+    // this pins the seam where it stops being true.
+    const { paths } = loadContract();
+    const schema = paths[path]?.get?.responses?.['200']?.content?.['application/json']?.schema as
+      | { properties?: Record<string, unknown>; required?: string[] }
+      | undefined;
+
+    expect(Object.keys(schema?.properties ?? {}).sort()).toEqual(['items', 'meta', extra].sort());
+    expect(schema?.required).toContain(extra);
+  });
+
+  it('the alert shape never publishes the de-duplication state', () => {
+    // `dedupeKey` is what stops an unresolved alert re-firing and
+    // `lastNotifiedAt` drives the CRITICAL re-notification cadence. Both are
+    // server-owned scheduling state; publishing them would invite a client to
+    // reason about de-duplication it does not control.
+    const { components } = loadContract();
+    const alert = components.schemas.AlertDto as { properties?: Record<string, unknown> };
+    const props = Object.keys(alert?.properties ?? {});
+
+    for (const internal of ['dedupeKey', 'lastNotifiedAt']) {
+      expect(props).not.toContain(internal);
+    }
+    expect(props).toContain('triggeredAt');
+  });
+
+  it('coverage is reported against what CAN be annotated', () => {
+    // Five controllers carry @ApiExcludeController and never appear in the
+    // contract at all — the device-facing routes (the Android player has its
+    // own hand-written client and the golden manifest fixtures), the raw file
+    // and download streams. Counting them as "remaining work" overstates what
+    // is left and never reaches zero.
+    //
+    // Measured from the contract rather than narrated in a comment, because
+    // the narrated version was wrong twice: it counted excluded controllers as
+    // outstanding, and it called modules "done" that had unannotated routes.
+    const { paths } = loadContract();
+    const perTag: Record<string, { annotated: number; total: number }> = {};
+    for (const methods of Object.values(paths)) {
+      for (const op of Object.values(methods)) {
+        const tag = (op as { tags?: string[] }).tags?.[0] ?? '?';
+        const success = op.responses?.['200'] ?? op.responses?.['201'];
+        const schema = success?.content?.['application/json']?.schema;
+        perTag[tag] ??= { annotated: 0, total: 0 };
+        perTag[tag].total += 1;
+        if (schema && Object.keys(schema as object).length > 0) perTag[tag].annotated += 1;
+      }
+    }
+
+    // Tags that are FULLY annotated. A tag listed here that grows a new
+    // unannotated route fails immediately — which is the case a plain
+    // whole-API floor cannot catch, because one new route among ~180 does not
+    // move the total below the ratchet.
+    for (const tag of [
+      'auth',
+      'users',
+      'tags',
+      'locations',
+      'monitoring',
+      'super-admin',
+      'scheduled-reports',
+      'notifications',
+      'alerts',
+    ]) {
+      const seen = perTag[tag];
+      // Report the tag AND both numbers in the failure, so a break says
+      // "screens 22/29" rather than "expected 29, received 22".
+      expect({ tag, ...seen }).toEqual({ tag, annotated: seen?.total, total: seen?.total });
+    }
+  });
+
   it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 114 of ~180 operations (auth, users, tags,
-    // screen-groups, locations, screens, content, schedules, playlists,
-    // companies, emergency, monitoring, super-admin, scheduled-reports). Raise
-    // it as controllers are annotated; it fails the moment a route loses its
-    // response type. 23 of 38 controllers are still unannotated — that is the
-    // remaining work, and this number is how it stays visible rather than
-    // forgotten.
+    // A RATCHET, not a target: 124 of the 172 operations the contract can
+    // describe. Raise it as controllers are annotated; it fails the moment a
+    // route loses its response type.
+    //
+    // The per-tag test above is the sharper one — this floor cannot notice a
+    // single new unannotated route among ~180, and it is why nine tags are
+    // pinned at full coverage by name.
     //
     // Measured, never estimated: an earlier version guessed the count and failed
     // on its first run.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(114);
+    expect(annotated.length).toBeGreaterThanOrEqual(124);
     expect(total).toBeGreaterThan(100);
   });
 });
