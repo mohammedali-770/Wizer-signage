@@ -6,6 +6,7 @@ import {
   ApiPropertyOptional,
   getSchemaPath,
 } from '@nestjs/swagger';
+import type { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 
 /**
  * Response shapes for the OpenAPI contract.
@@ -43,16 +44,19 @@ export class PageMetaDto {
 /**
  * The acknowledgement shapes.
  *
- * There are six of them, and that is the point. Every one of these endpoints
+ * There are seven of them, and that is the point. Every one of these endpoints
  * "returns nothing useful", so the first pass pointed all of them at
  * `SuccessResponseDto` — which made the contract claim a `success` field on
  * nine routes that have never sent one, while hiding the field they do send.
  * A client checking `res.success` reads `undefined` and treats a successful
  * delete as a failure.
  *
- * The sixth (`ok`) turned up later, in scheduled-reports, which is the argument
- * against tidying these up as they are found: the list was "five" until the
- * next module was read.
+ * The sixth (`ok`) turned up in scheduled-reports and the seventh
+ * (`{ ok, updated }`) in notifications, which is the argument against tidying
+ * these up as they are found: the list was "five" until the next module was
+ * read, then "six" until the one after that. The seventh is two of the others
+ * at once — a client that special-cased `ok` and a client that special-cased
+ * `updated` would both be half right.
  *
  * Reaching for one shared shape is the same mistake as deriving a DTO from the
  * Prisma model: it documents what the shape ought to be rather than what it is.
@@ -95,6 +99,21 @@ export class AffectedResponseDto {
 export class OkResponseDto {
   @ApiProperty({ example: true })
   ok!: boolean;
+}
+
+/**
+ * `{ ok: true, updated: n }` — POST /notifications/read-all.
+ *
+ * The seventh, and the one that shows why these are not being unified on sight:
+ * it is two of the other shapes at once. A client that special-cased `ok` and a
+ * client that special-cased `updated` would both be half right.
+ */
+export class OkUpdatedResponseDto {
+  @ApiProperty({ example: true })
+  ok!: boolean;
+
+  @ApiProperty({ example: 4, description: 'How many notifications were still unread.' })
+  updated!: number;
 }
 
 /** `{ purged: n }` — POST /content/trash/purge. A COUNT, not a boolean. */
@@ -148,14 +167,24 @@ export class UserViewDto {
 /**
  * `@ApiPaginatedResponse(Dto)` — a 200 whose body is `{ items: Dto[], meta }`.
  *
- * Every list endpoint on the platform returns that envelope, and Swagger has no
- * way to express a generic: `@ApiOkResponse({ type: Paginated<UserViewDto> })`
+ * Nearly every list endpoint on the platform returns that envelope, and Swagger
+ * has no way to express a generic: `@ApiOkResponse({ type: Paginated<UserViewDto> })`
  * compiles and emits nothing useful, because the generic is erased before the
  * decorator ever sees it. Written out per endpoint it is eight lines of
  * boilerplate each, across ~40 list routes, which is how a contract ends up with
  * the envelope described inconsistently or not at all.
+ *
+ * `extra` is for the lists that return MORE than the envelope — notifications
+ * adds `unreadCount`, alerts adds `openCount`. Those are the reason the helper
+ * takes a parameter at all: applied bare, it would have documented a two-key
+ * object for a response that has three, and the field a client actually wants
+ * (the unread badge count) would have been the one missing. A helper is only
+ * safe where it is TRUE, and this is the seam where it stops being true.
  */
-export function ApiPaginatedResponse<T extends Type<unknown>>(model: T) {
+export function ApiPaginatedResponse<T extends Type<unknown>>(
+  model: T,
+  extra?: Record<string, SchemaObject>,
+) {
   return applyDecorators(
     // The item model is referenced only from inside the inline schema below, so
     // Swagger would not otherwise emit it into components.schemas.
@@ -163,10 +192,11 @@ export function ApiPaginatedResponse<T extends Type<unknown>>(model: T) {
     ApiOkResponse({
       schema: {
         type: 'object',
-        required: ['items', 'meta'],
+        required: ['items', 'meta', ...Object.keys(extra ?? {})],
         properties: {
           items: { type: 'array', items: { $ref: getSchemaPath(model) } },
           meta: { $ref: getSchemaPath(PageMetaDto) },
+          ...extra,
         },
       },
     }),
