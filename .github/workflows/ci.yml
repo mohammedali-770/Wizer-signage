@@ -11,6 +11,14 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# WHY THERE ARE NO `paths:` FILTERS HERE
+#
+# All four jobs below are REQUIRED status checks in branch protection. A
+# workflow skipped by a path filter never reports its check at all — GitHub
+# does not synthesise a passing result — so the PR would sit "Expected —
+# Waiting for status to be reported" forever. Path-filtering a required check
+# does not save minutes, it blocks the merge queue. Filter inside a job if this
+# is ever revisited, so the job still runs and still reports.
 jobs:
   quality:
     name: Lint · Typecheck · Test · Build
@@ -184,8 +192,22 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://api.ci.invalid/api
 
+  # The three jobs below run on PULL REQUESTS ONLY.
+  #
+  # Every merge to main re-ran the whole matrix on a commit whose content had
+  # just been tested green on the PR, costing ~10 minutes of the ~14 each time.
+  # Branch protection evaluates required checks against the PULL REQUEST's head
+  # commit, so not running these on main cannot affect whether anything merges —
+  # on a PR they still always run, unconditionally.
+  #
+  # `quality` deliberately still runs on main. It is the one job that can catch
+  # a SEMANTIC merge conflict — two individually-green PRs that break when
+  # combined — which no PR run can see. Docker, Android and the scanners cannot
+  # realistically fail from a merge alone once both parents built, and the
+  # deploy has its own smoke-test gate and rollback behind them.
   docker:
     name: Docker image builds
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Build images on the same context the production compose uses (repo root).
@@ -231,6 +253,7 @@ jobs:
 
   android:
     name: Android player (tests · lint · debug build)
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     # The player drives physical screens and a bad build strands the fleet (there
@@ -269,6 +292,7 @@ jobs:
 
   security:
     name: Dependency + secret scanning
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
