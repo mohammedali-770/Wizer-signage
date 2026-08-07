@@ -195,16 +195,28 @@ jobs:
   # The three jobs below run on PULL REQUESTS ONLY.
   #
   # Every merge to main re-ran the whole matrix on a commit whose content had
-  # just been tested green on the PR, costing ~10 minutes of the ~14 each time.
+  # just been tested green on the PR, costing ~11 minutes of the ~15 each time.
   # Branch protection evaluates required checks against the PULL REQUEST's head
   # commit, so not running these on main cannot affect whether anything merges —
   # on a PR they still always run, unconditionally.
   #
-  # `quality` deliberately still runs on main. It is the one job that can catch
-  # a SEMANTIC merge conflict — two individually-green PRs that break when
-  # combined — which no PR run can see. Docker, Android and the scanners cannot
-  # realistically fail from a merge alone once both parents built, and the
-  # deploy has its own smoke-test gate and rollback behind them.
+  # THIS DEPENDS ON A BRANCH-PROTECTION SETTING. "Require branches to be up to
+  # date before merging" must stay enabled on main. It forces a PR branch to
+  # contain main's tip before it can merge, which makes the PR's run a test of
+  # exactly the tree that lands. Turn it off and these three jobs stop covering
+  # the merge result at all — see the failure below. If it is ever disabled,
+  # restore `docker` (at least) to the push trigger.
+  #
+  # The specific failure: one PR adds a path to .dockerignore, another adds a
+  # Dockerfile COPY of that path. Both are green alone; combined, the image no
+  # longer builds. `quality` runs `pnpm build`, never `docker build`, so it
+  # cannot see this. `scripts/deploy.sh` builds the images ON THE PRODUCTION
+  # HOST, and its smoke-test gate and rollback both run AFTER that build — so
+  # neither covers a build failure. The deploy simply aborts at step 2 with the
+  # old stack still serving: recoverable, but a failed release on prod.
+  #
+  # `quality` still runs on main regardless, as a cheap backstop for a semantic
+  # merge conflict in application code.
   docker:
     name: Docker image builds
     if: github.event_name == 'pull_request'
