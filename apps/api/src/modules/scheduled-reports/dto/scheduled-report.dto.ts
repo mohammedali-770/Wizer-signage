@@ -102,13 +102,16 @@ export class UpdateScheduledReportDto {
 
   @ApiPropertyOptional({
     type: [String],
+    minItems: 1,
     maxItems: 50,
     description:
-      'REPLACES the recipient list. Note there is NO ArrayMinSize here, unlike create — so an ' +
-      'update may set it to `[]`, leaving a report enabled with nobody to deliver it to.',
+      'REPLACES the recipient list. At least one address, matching create: an update used to be ' +
+      'able to send `[]` and leave the report ENABLED with nobody to deliver it to, which then ' +
+      'failed silently every cycle. Disable the report instead of emptying its recipients.',
   })
   @IsOptional()
   @IsArray()
+  @ArrayMinSize(1)
   @ArrayMaxSize(50)
   @IsEmail({}, { each: true })
   recipients?: string[];
