@@ -2332,7 +2332,7 @@
                     "items": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/DemoRequestDto"
+                        "$ref": "#/components/schemas/AdminDemoRequestDto"
                       }
                     },
                     "meta": {
@@ -2384,7 +2384,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DemoRequestDto"
+                  "$ref": "#/components/schemas/AdminDemoRequestDto"
                 }
               }
             }
@@ -6568,7 +6568,7 @@
                     "items": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/ProofOfPlayEventDto"
+                        "$ref": "#/components/schemas/ProofOfPlayRecordDto"
                       }
                     },
                     "meta": {
@@ -7367,7 +7367,23 @@
     "/scheduled-reports": {
       "get": {
         "operationId": "ScheduledReportsController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "reportType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PROOF_OF_PLAY",
+                "SCREEN_HEALTH",
+                "ALERTS",
+                "ACTIVITY_LOGS",
+                "BILLING"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -7874,7 +7890,77 @@
       },
       "TrialSignupDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "companyName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120,
+            "description": "The tenant slug is derived from this; the allocated slug may differ if it collides."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 160,
+            "description": "Becomes the owner account."
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "businessType": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Free-form, not an enum."
+          },
+          "branches": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "screens": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ar"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "description": "The owner account password. `PasswordService.evaluate()` runs on it in public.service.ts, so the full policy applies — upper, lower, digit, symbol, and no common/breached password — not merely the 10-character minimum this validator states.",
+            "minLength": 10,
+            "maxLength": 200
+          },
+          "captchaToken": {
+            "type": "string",
+            "description": "ACCEPTED AND IGNORED — no provider is wired up and nothing in the codebase reads this field, so a token buys no bot protection. The actual protection on this route is the rate limit (5/hour per IP).",
+            "maxLength": 4000,
+            "deprecated": true
+          }
+        },
+        "required": [
+          "fullName",
+          "companyName",
+          "email",
+          "password"
+        ]
       },
       "TrialSignupResultDto": {
         "type": "object",
@@ -7910,73 +7996,52 @@
       "DemoRequestDto": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string"
-          },
           "name": {
-            "type": "string"
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
           },
-          "companyName": {
-            "type": "object",
-            "nullable": true
+          "company": {
+            "type": "string",
+            "maxLength": 120
           },
           "email": {
             "type": "string",
-            "example": "lead@example.com"
+            "format": "email",
+            "maxLength": 160
           },
           "phone": {
-            "type": "object",
-            "nullable": true
+            "type": "string",
+            "maxLength": 40,
+            "description": "Free-form; no format check."
           },
           "screens": {
-            "type": "object",
-            "nullable": true,
-            "description": "Fleet size the lead reported."
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000000,
+            "description": "Fleet size they expect."
           },
           "message": {
-            "type": "object",
-            "nullable": true
+            "type": "string",
+            "maxLength": 4000
           },
           "locale": {
-            "type": "object",
-            "nullable": true,
-            "description": "The marketing site's locale, e.g. 'ar'."
-          },
-          "status": {
             "type": "string",
             "enum": [
-              "NEW",
-              "CONTACTED",
-              "SCHEDULED",
-              "CLOSED"
+              "en",
+              "ar"
             ]
           },
-          "ip": {
-            "type": "object",
-            "nullable": true,
-            "description": "Captured for abuse triage."
-          },
-          "userAgent": {
-            "type": "object",
-            "nullable": true,
-            "description": "Captured for abuse triage."
-          },
-          "createdAt": {
+          "captchaToken": {
             "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
+            "description": "ACCEPTED AND IGNORED. Nothing in the codebase reads this field — it is a placeholder for a captcha that is not wired up, so sending a token buys no bot protection and omitting one costs nothing. Documented rather than hidden, because a field named captchaToken otherwise implies a verification step that does not happen. Rate limiting (5/hour per IP) is the actual protection on this route.",
+            "maxLength": 4000,
+            "deprecated": true
           }
         },
         "required": [
-          "id",
           "name",
-          "email",
-          "status",
-          "createdAt",
-          "updatedAt"
+          "email"
         ]
       },
       "DemoRequestResultDto": {
@@ -7998,7 +8063,7 @@
           "status"
         ]
       },
-      "PlanLimitsDto": {
+      "PlanLimitsViewDto": {
         "type": "object",
         "properties": {
           "maxCompanies": {
@@ -8086,7 +8151,7 @@
             "description": "`{}` when the plan sets no limits.",
             "allOf": [
               {
-                "$ref": "#/components/schemas/PlanLimitsDto"
+                "$ref": "#/components/schemas/PlanLimitsViewDto"
               }
             ]
           }
@@ -8281,7 +8346,55 @@
       },
       "CreateCompanyDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Acme Retail"
+          },
+          "slug": {
+            "type": "string",
+            "description": "The tenant identifier used in URLs. Lowercase letters, digits and hyphens only. Derived from the name when omitted, and the allocated value may differ from what was asked for if it collides. CREATE-ONLY — there is no field for it on update.",
+            "maxLength": 60,
+            "pattern": "^[a-z0-9-]+$",
+            "example": "acme-retail"
+          },
+          "defaultLocale": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 10,
+            "example": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone name. Length-checked only, not validated against the tz database.",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "planId": {
+            "type": "string",
+            "description": "Starts a TRIALING subscription on this plan. CREATE-ONLY: changing plan later goes through the subscriptions endpoints, not through a company update."
+          },
+          "logoUrl": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "primaryColor": {
+            "type": "string",
+            "description": "Free-form, capped at 20 characters and NOT pattern-checked — unlike `CreateTagDto.color`, which demands a hex value. Same kind of field, two different rules; anything short enough is accepted here.",
+            "maxLength": 20,
+            "example": "#2563eb"
+          },
+          "defaultKioskPin": {
+            "type": "string",
+            "description": "Plaintext 4-8 digit PIN. Hashed on receipt and never returned — responses expose only `hasDefaultKioskPin`, so this cannot be read back.",
+            "pattern": "^\\d{4,8}$",
+            "example": "4821"
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "UsageCountsDto": {
         "type": "object",
@@ -8409,7 +8522,7 @@
             "description": "Copied through as a plain string, not the SubscriptionStatus enum."
           },
           "limits": {
-            "$ref": "#/components/schemas/PlanLimitsDto"
+            "$ref": "#/components/schemas/PlanLimitsViewDto"
           }
         },
         "required": [
@@ -8423,11 +8536,58 @@
       },
       "UpdateCompanyDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "defaultLocale": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 10,
+            "example": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "logoUrl": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "primaryColor": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "Not pattern-checked — see the create DTO."
+          },
+          "brandedEmailFrom": {
+            "type": "string",
+            "description": "UPDATE-ONLY — cannot be supplied at creation.",
+            "maxLength": 200
+          },
+          "customDomain": {
+            "type": "string",
+            "description": "UPDATE-ONLY — cannot be supplied at creation.",
+            "maxLength": 255
+          },
+          "defaultKioskPin": {
+            "type": "string",
+            "description": "Plaintext 4-8 digit PIN. Hashed on receipt and never returned — responses expose only `hasDefaultKioskPin`, so this cannot be read back.",
+            "pattern": "^\\d{4,8}$",
+            "example": "4821"
+          }
+        }
       },
       "SuspendCompanyDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Recorded on the company and in the activity log. Optional — a suspension with no stated reason is accepted, so the body itself may be empty.",
+            "maxLength": 300
+          }
+        }
       },
       "SessionDto": {
         "type": "object",
@@ -8600,7 +8760,49 @@
       },
       "UpdateUserDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "locale": {
+            "type": "string",
+            "maxLength": 10,
+            "example": "en"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPER_ADMIN",
+              "COMPANY_ADMIN",
+              "LOCATION_MANAGER",
+              "CONTENT_MANAGER",
+              "VIEWER"
+            ],
+            "description": "Granting or removing SUPER_ADMIN requires the caller to BE a Super Admin, and demoting the last active one is refused outright — both enforced in the service, not here."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INVITED",
+              "DISABLED",
+              "LOCKED"
+            ],
+            "description": "Setting a status other than ACTIVE goes through the same authority check as a role change, so this is not a back door to disabling an account you could not demote."
+          },
+          "twoFactorEnforced": {
+            "type": "boolean",
+            "description": "Makes 2FA mandatory for this user, as it always is for a Super Admin."
+          },
+          "locationIds": {
+            "description": "REPLACES the assigned set — it does not add to it. Sending one id leaves the user with exactly that location, and `[]` removes every assignment. Omit the field to leave the current set alone; the two are NOT the same thing.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "DeletedResponseDto": {
         "type": "object",
@@ -8743,7 +8945,43 @@
       },
       "CreateInvitationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "new.user@example.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPER_ADMIN",
+              "COMPANY_ADMIN",
+              "LOCATION_MANAGER",
+              "CONTENT_MANAGER",
+              "VIEWER"
+            ],
+            "description": "Required — an invitation always carries a role. As on user update, the enum is wider than any one caller may use: inviting a SUPER_ADMIN requires being one."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "companyId": {
+            "type": "string",
+            "description": "SUPER ADMIN ONLY, and the one field here that crosses a tenant boundary. For everyone else the company comes from the token and this is ignored — it is never trusted as the caller-supplied tenant (see docs/multi-tenancy.md)."
+          },
+          "locationIds": {
+            "description": "Scopes a LOCATION_MANAGER to these locations. Meaningless for other roles, and not rejected for them — it is simply unused.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ]
       },
       "InvitationCreatedDto": {
         "type": "object",
@@ -8952,15 +9190,54 @@
       },
       "LoginDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "owner@example.com"
+          },
+          "password": {
+            "type": "string",
+            "description": "Deliberately carries NO minimum length and NO policy. Sign-in must be able to ATTEMPT any password, including one set before the policy existed; imposing the rule here would lock those accounts out of their own account, surfacing as \"invalid credentials\" for a password that is correct. The cap is a DoS bound — Argon2 verification is expensive.",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
       },
       "TwoFactorLoginDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "challengeToken": {
+            "type": "string",
+            "description": "The short-lived token returned by POST /auth/login when the account has 2FA. It is NOT an access token and carries no authority of its own; it is single-use and tied to a server-side challenge record."
+          },
+          "code": {
+            "type": "string",
+            "description": "A 6-digit TOTP code OR a formatted backup code (e.g. ABCD-EFGH) — hence the 6..12 range rather than a 6-digit pattern.",
+            "minLength": 6,
+            "maxLength": 12,
+            "example": "123456"
+          }
+        },
+        "required": [
+          "challengeToken",
+          "code"
+        ]
       },
       "RefreshTokenDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "The refresh token from the last token pair. Rotated on every use: the one sent here is invalidated, and presenting it a second time is treated as theft and revokes the session."
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
       },
       "SuccessResponseDto": {
         "type": "object",
@@ -8976,15 +9253,61 @@
       },
       "ForgotPasswordDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The response is identical whether or not this address exists, so it cannot be used to enumerate accounts. A 200 here does not mean an email was sent.",
+            "example": "owner@example.com"
+          }
+        },
+        "required": [
+          "email"
+        ]
       },
       "ResetPasswordDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The single-use token from the reset email. Expires one hour after issue."
+          },
+          "password": {
+            "type": "string",
+            "description": "At least 10 characters, including an uppercase letter, a lowercase letter, a number, and a symbol. Also rejected: passwords on the common/breached list, and reusing your current password. Enforced server-side by PasswordService, so the length below is the floor, not the whole rule.",
+            "minLength": 10,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ]
       },
       "AcceptInvitationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The single-use token from the invitation email. Expires three days after issue."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Alex Morgan"
+          },
+          "password": {
+            "type": "string",
+            "description": "At least 10 characters, including an uppercase letter, a lowercase letter, a number, and a symbol. Also rejected: passwords on the common/breached list, and reusing your current password. Enforced server-side by PasswordService, so the length below is the floor, not the whole rule.",
+            "minLength": 10,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "token",
+          "name",
+          "password"
+        ]
       },
       "AcceptInvitationResponseDto": {
         "type": "object",
@@ -9032,9 +9355,83 @@
           "twoFactorRequired"
         ]
       },
-      "CreatePlanDto": {
+      "PlanLimitsDto": {
         "type": "object",
         "properties": {}
+      },
+      "CreatePlanDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable machine code, unique across plans. Lowercase letters, digits, hyphens.",
+            "maxLength": 50,
+            "pattern": "^[a-z0-9-]+$",
+            "example": "pro"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "price": {
+            "type": "number",
+            "description": "SENT AS `price`, STORED AND RETURNED AS `priceMonthly` — the request and response use different names for the same value, so a client cannot round-trip a plan by copying fields. And the response type differs by audience: a NUMBER on the public pricing endpoint, a STRING (raw Prisma Decimal) for Super Admins. One value, three shapes.",
+            "minimum": 0,
+            "maximum": 1000000,
+            "example": 49.9
+          },
+          "priceYearly": {
+            "type": "number",
+            "description": "Named consistently with the response, unlike `price`.",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "currency": {
+            "type": "string",
+            "description": "Exactly three characters. Not checked against ISO 4217 — \"XXX\" is accepted.",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "USD"
+          },
+          "billingInterval": {
+            "type": "string",
+            "enum": [
+              "MONTHLY",
+              "QUARTERLY",
+              "YEARLY"
+            ]
+          },
+          "trialDays": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 365,
+            "description": "0 means no trial."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Inactive plans cannot take new subscriptions."
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether it appears on the public pricing endpoint."
+          },
+          "limits": {
+            "description": "Per-plan quotas. `{}` means the plan sets no limits, which reads as UNLIMITED rather than zero.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanLimitsDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ]
       },
       "PlanDto": {
         "type": "object",
@@ -9092,7 +9489,7 @@
             "description": "The same limit block GET /companies/{id}/usage evaluates against. Absent or null on a field means UNLIMITED, not zero.",
             "allOf": [
               {
-                "$ref": "#/components/schemas/PlanLimitsDto"
+                "$ref": "#/components/schemas/PlanLimitsViewDto"
               }
             ]
           },
@@ -9122,11 +9519,106 @@
       },
       "UpdatePlanDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "price": {
+            "type": "number",
+            "description": "SENT AS `price`, STORED AND RETURNED AS `priceMonthly` — the request and response use different names for the same value, so a client cannot round-trip a plan by copying fields. And the response type differs by audience: a NUMBER on the public pricing endpoint, a STRING (raw Prisma Decimal) for Super Admins. One value, three shapes.",
+            "minimum": 0,
+            "maximum": 1000000,
+            "example": 49.9
+          },
+          "priceYearly": {
+            "type": "number",
+            "description": "Named consistently with the response, unlike `price`.",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "currency": {
+            "type": "string",
+            "description": "Exactly three characters. Not checked against ISO 4217 — \"XXX\" is accepted.",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "USD"
+          },
+          "billingInterval": {
+            "type": "string",
+            "enum": [
+              "MONTHLY",
+              "QUARTERLY",
+              "YEARLY"
+            ]
+          },
+          "trialDays": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 365,
+            "description": "0 means no trial."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Inactive plans cannot take new subscriptions."
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether it appears on the public pricing endpoint."
+          },
+          "limits": {
+            "description": "Per-plan quotas. `{}` means the plan sets no limits, which reads as UNLIMITED rather than zero.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanLimitsDto"
+              }
+            ]
+          }
+        }
       },
       "CreateSubscriptionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "The tenant this subscription is for. A Super Admin route, so the company is named in the body rather than taken from the token — one of the few places that is legitimate."
+          },
+          "planId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "TRIALING",
+              "EXPIRED",
+              "SUSPENDED",
+              "CANCELLED"
+            ]
+          },
+          "trialDays": {
+            "type": "number",
+            "description": "Converted to a trialEndsAt date, and ONLY when status is TRIALING — sending it with any other status has no effect and is not rejected.",
+            "minimum": 0,
+            "maximum": 365
+          },
+          "currentPeriodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currentPeriodEnd": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "companyId",
+          "planId"
+        ]
       },
       "SubscriptionDto": {
         "type": "object",
@@ -9313,11 +9805,119 @@
       },
       "UpdateSubscriptionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "planId": {
+            "type": "string",
+            "description": "Moves the tenant to another plan."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "TRIALING",
+              "EXPIRED",
+              "SUSPENDED",
+              "CANCELLED"
+            ]
+          },
+          "trialEndsAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A DATE here, where create takes `trialDays`, a count."
+          },
+          "currentPeriodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currentPeriodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cancelAtPeriodEnd": {
+            "type": "boolean",
+            "description": "Ends the subscription at period end rather than now."
+          }
+        }
+      },
+      "InvoiceLineItemDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Whole units only."
+          },
+          "unitPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Two decimal places. Sent as a NUMBER; invoice money comes BACK as a string, because responses carry the raw Prisma Decimal.",
+            "example": 49.9
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unitPrice"
+        ]
       },
       "CreateInvoiceDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "The tenant billed. A Super Admin route, so it is named in the body."
+          },
+          "subscriptionId": {
+            "type": "string",
+            "description": "Links the invoice to a subscription, if it belongs to one."
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "USD"
+          },
+          "lineItems": {
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "At least one line — an empty invoice is refused. Totals are computed server-side.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLineItemDto"
+            }
+          },
+          "tax": {
+            "type": "number",
+            "minimum": 0,
+            "description": "An absolute AMOUNT, not a percentage or rate."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "UNPAID",
+              "PAID",
+              "OVERDUE",
+              "CANCELLED"
+            ]
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "companyId",
+          "lineItems"
+        ]
       },
       "InvoiceDto": {
         "type": "object",
@@ -9413,11 +10013,49 @@
       },
       "UpdateInvoiceStatusDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "UNPAID",
+              "PAID",
+              "OVERDUE",
+              "CANCELLED"
+            ],
+            "description": "Status is the ONLY mutable field — line items and amounts cannot be edited after issue, and financial records are never deleted by the retention sweep."
+          }
+        },
+        "required": [
+          "status"
+        ]
       },
       "StartImpersonationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The tenant to act inside."
+          },
+          "twoFactorCode": {
+            "type": "string",
+            "description": "A current TOTP or single-use backup code. Impersonation is re-authenticated even though the caller already holds a Super Admin session — entering a tenant is not something a stolen token should be able to do.",
+            "minLength": 6,
+            "maxLength": 32
+          },
+          "reason": {
+            "type": "string",
+            "description": "REQUIRED, minimum 10 characters — deliberately long enough to be a sentence. \"test\" is not a reason, and a field that accepts it produces an audit trail nobody trusts. Written to the activity log alongside the impersonation.",
+            "minLength": 10,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "companyId",
+          "twoFactorCode",
+          "reason"
+        ]
       },
       "ImpersonationCompanyDto": {
         "type": "object",
@@ -9754,15 +10392,192 @@
       },
       "InviteSuperAdminDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Invites a PLATFORM administrator with cross-tenant access, not a company user. 2FA is mandatory for the resulting account and cannot be turned off."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "AdminDemoRequestDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "object",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "example": "lead@example.com"
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true
+          },
+          "screens": {
+            "type": "object",
+            "nullable": true,
+            "description": "Fleet size the lead reported."
+          },
+          "message": {
+            "type": "object",
+            "nullable": true
+          },
+          "locale": {
+            "type": "object",
+            "nullable": true,
+            "description": "The marketing site's locale, e.g. 'ar'."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "CONTACTED",
+              "SCHEDULED",
+              "CLOSED"
+            ]
+          },
+          "ip": {
+            "type": "object",
+            "nullable": true,
+            "description": "Captured for abuse triage."
+          },
+          "userAgent": {
+            "type": "object",
+            "nullable": true,
+            "description": "Captured for abuse triage."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "UpdateDemoRequestDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "CONTACTED",
+              "SCHEDULED",
+              "CLOSED"
+            ],
+            "description": "The only field — a demo request is a pipeline record, and status is all that moves."
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "WorkingHoursDto": {
         "type": "object",
         "properties": {}
       },
       "CreateLocationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Downtown Branch"
+          },
+          "code": {
+            "type": "string",
+            "description": "Your own reference for the branch. Letters, digits, hyphens and underscores only — no spaces and no dots, which rules out most codes copied out of a spreadsheet.",
+            "maxLength": 40,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "example": "DT-01"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "latitude": {
+            "type": "number",
+            "description": "Decimal degrees. Independent of longitude — neither requires the other.",
+            "minimum": -90,
+            "maximum": 90,
+            "example": 25.2048
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180,
+            "example": 55.2708
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone name. Only length-checked here, NOT validated against the tz database — an unrecognised value is stored and surfaces later as wrong scheduling times, not as a 400.",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ],
+            "description": "A NARROWER set than the LocationStatus enum the API returns: ARCHIVED cannot be set here, because archived locations are exempt from the plan quota and creating one already archived would mint free capacity. Settable only at creation — it is omitted from the update body entirely, so this field cannot be used to archive later either."
+          },
+          "workingHours": {
+            "$ref": "#/components/schemas/WorkingHoursDto"
+          },
+          "fallbackContentId": {
+            "type": "string",
+            "description": "Content shown when nothing is scheduled. Only checked for being a string here; whether the id exists and belongs to your company is resolved server-side."
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "LocationDto": {
         "type": "object",
@@ -9852,11 +10667,190 @@
       },
       "UpdateLocationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Downtown Branch"
+          },
+          "code": {
+            "type": "string",
+            "description": "Your own reference for the branch. Letters, digits, hyphens and underscores only — no spaces and no dots, which rules out most codes copied out of a spreadsheet.",
+            "maxLength": 40,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "example": "DT-01"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "latitude": {
+            "type": "number",
+            "description": "Decimal degrees. Independent of longitude — neither requires the other.",
+            "minimum": -90,
+            "maximum": 90,
+            "example": 25.2048
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180,
+            "example": 55.2708
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone name. Only length-checked here, NOT validated against the tz database — an unrecognised value is stored and surfaces later as wrong scheduling times, not as a 400.",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "workingHours": {
+            "$ref": "#/components/schemas/WorkingHoursDto"
+          },
+          "fallbackContentId": {
+            "type": "string",
+            "description": "Content shown when nothing is scheduled. Only checked for being a string here; whether the id exists and belongs to your company is resolved server-side."
+          }
+        }
       },
       "CreateScreenDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Lobby left"
+          },
+          "code": {
+            "type": "string",
+            "description": "Your own reference. Unlike a location code this is NOT pattern-checked.",
+            "maxLength": 60
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "locationId": {
+            "type": "string",
+            "description": "Optional at creation — a screen may exist with no location. Moving it later goes through POST /screens/{id}/move, not through an update."
+          },
+          "use": {
+            "type": "string",
+            "enum": [
+              "MENU_LANDSCAPE",
+              "OFFERS_PORTRAIT",
+              "WAITING_AREA",
+              "CASHIER_DISPLAY",
+              "ENTRANCE",
+              "INDOOR",
+              "OUTDOOR",
+              "GENERIC"
+            ]
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "UNKNOWN"
+            ],
+            "description": "Content whose orientation does not match is not rejected — it plays, and the mismatch surfaces as an orientationWarning on schedule validation."
+          },
+          "tagIds": {
+            "maxItems": 50,
+            "description": "Accepted only at CREATION. Omitted from the update body — tags are changed through PUT /screens/{id}/tags, which REPLACES the set.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groupIds": {
+            "maxItems": 50,
+            "description": "Creation only, like tagIds — see PUT /screens/{id}/groups.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "audioEnabled": {
+            "type": "boolean"
+          },
+          "volume": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 50
+          },
+          "muted": {
+            "type": "boolean"
+          },
+          "muteSchedule": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "OPAQUE. Validated as \"is an object\" and nothing more — no key, type or shape is checked, so a malformed schedule is stored without complaint and simply never mutes anything."
+          },
+          "workingHours": {
+            "description": "Overrides the location default, which overrides the company default.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkingHoursDto"
+              }
+            ]
+          },
+          "kioskEnabled": {
+            "type": "boolean"
+          },
+          "kioskPin": {
+            "type": "string",
+            "description": "Plaintext 4-8 digit PIN, hashed on receipt and never returned (responses carry `hasKioskPin`). Accepted only at CREATION — omitted from the update body; changing it later goes through PUT /screens/{id}/kiosk-pin.",
+            "pattern": "^\\d{4,8}$",
+            "example": "4821"
+          },
+          "autoStartEnabled": {
+            "type": "boolean"
+          },
+          "powerControlMode": {
+            "type": "string",
+            "description": "A free-form string, NOT an enum — any value up to 40 characters is accepted and stored, including one no player understands.",
+            "maxLength": 40
+          },
+          "heartbeatIntervalSeconds": {
+            "type": "number",
+            "description": "Overrides the company default. Read back as 60 when unset.",
+            "minimum": 10,
+            "maximum": 3600
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "fallbackContentId": {
+            "type": "string",
+            "description": "Shown when nothing is scheduled. Ownership resolved server-side."
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "NestedRefDto": {
         "type": "object",
@@ -10093,7 +11087,33 @@
       },
       "BulkScreenTagDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "screenIds": {
+            "maxItems": 500,
+            "description": "Screens to change. Cap is 500.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tagId": {
+            "type": "string",
+            "description": "One tag per call — this is not an array."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "remove"
+            ],
+            "description": "Adds to or removes from each screen's existing tags; it does not replace them."
+          }
+        },
+        "required": [
+          "screenIds",
+          "tagId",
+          "action"
+        ]
       },
       "AffectedResponseDto": {
         "type": "object",
@@ -10110,27 +11130,182 @@
       },
       "BulkScreenGroupDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "screenIds": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groupId": {
+            "type": "string",
+            "description": "One group per call."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "remove"
+            ]
+          }
+        },
+        "required": [
+          "screenIds",
+          "groupId",
+          "action"
+        ]
       },
       "UpdateScreenDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Lobby left"
+          },
+          "code": {
+            "type": "string",
+            "description": "Your own reference. Unlike a location code this is NOT pattern-checked.",
+            "maxLength": 60
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "locationId": {
+            "type": "string",
+            "description": "Optional at creation — a screen may exist with no location. Moving it later goes through POST /screens/{id}/move, not through an update."
+          },
+          "use": {
+            "type": "string",
+            "enum": [
+              "MENU_LANDSCAPE",
+              "OFFERS_PORTRAIT",
+              "WAITING_AREA",
+              "CASHIER_DISPLAY",
+              "ENTRANCE",
+              "INDOOR",
+              "OUTDOOR",
+              "GENERIC"
+            ]
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "UNKNOWN"
+            ],
+            "description": "Content whose orientation does not match is not rejected — it plays, and the mismatch surfaces as an orientationWarning on schedule validation."
+          },
+          "audioEnabled": {
+            "type": "boolean"
+          },
+          "volume": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 50
+          },
+          "muted": {
+            "type": "boolean"
+          },
+          "muteSchedule": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "OPAQUE. Validated as \"is an object\" and nothing more — no key, type or shape is checked, so a malformed schedule is stored without complaint and simply never mutes anything."
+          },
+          "workingHours": {
+            "description": "Overrides the location default, which overrides the company default.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkingHoursDto"
+              }
+            ]
+          },
+          "kioskEnabled": {
+            "type": "boolean"
+          },
+          "autoStartEnabled": {
+            "type": "boolean"
+          },
+          "powerControlMode": {
+            "type": "string",
+            "description": "A free-form string, NOT an enum — any value up to 40 characters is accepted and stored, including one no player understands.",
+            "maxLength": 40
+          },
+          "heartbeatIntervalSeconds": {
+            "type": "number",
+            "description": "Overrides the company default. Read back as 60 when unset.",
+            "minimum": 10,
+            "maximum": 3600
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "fallbackContentId": {
+            "type": "string",
+            "description": "Shown when nothing is scheduled. Ownership resolved server-side."
+          }
+        }
       },
       "MoveScreenDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "locationId": {
+            "type": "string",
+            "nullable": true,
+            "description": "MUST BE PRESENT despite being optional in the schema: omitting it is a 400. Send an id to move, or null (or an empty string) to unassign."
+          }
+        }
       },
       "AssignTagsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "tagIds": {
+            "maxItems": 50,
+            "description": "REPLACES the screen's tags — `[]` clears them. Capped at 50, where the BULK endpoints allow 500 screens; the two limits count different things and are not comparable.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "tagIds"
+        ]
       },
       "AssignGroupsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "groupIds": {
+            "maxItems": 50,
+            "description": "REPLACES the screen's groups — `[]` clears them.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "groupIds"
+        ]
       },
       "SetKioskPinDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "pin": {
+            "type": "string",
+            "description": "Plaintext 4-8 digit PIN, hashed on receipt and never returned.",
+            "pattern": "^\\d{4,8}$",
+            "example": "4821"
+          }
+        },
+        "required": [
+          "pin"
+        ]
       },
       "UpdatedResponseDto": {
         "type": "object",
@@ -10158,7 +11333,25 @@
       },
       "CreateScreenGroupDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Checkout displays"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "category": {
+            "type": "string",
+            "description": "Free-form label, not an enum — any string up to 60 characters.",
+            "maxLength": 60
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "ScreenGroupDto": {
         "type": "object",
@@ -10204,19 +11397,99 @@
       },
       "UpdateScreenGroupDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Checkout displays"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "category": {
+            "type": "string",
+            "description": "Free-form label, not an enum — any string up to 60 characters.",
+            "maxLength": 60
+          }
+        }
       },
       "GroupScreensDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "screenIds": {
+            "maxItems": 500,
+            "description": "Screen ids to add to or remove from the group. Capped at 500 per call — a larger fleet has to be sent in batches, and exceeding the cap is a 400, not a silent truncation.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "screenIds"
+        ]
       },
       "CreateTagDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Lobby"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "CONTENT",
+              "BOTH"
+            ],
+            "description": "What the tag may be attached to. Omitted means the schema default, so a client that wants a content-only tag must say so explicitly."
+          },
+          "color": {
+            "type": "string",
+            "description": "Hex colour. The leading # is OPTIONAL and is NOT normalised — `#2563eb` and `2563eb` are both accepted and both stored verbatim, so a client comparing colours must handle either. 3 to 8 digits, which admits the 4- and 8-digit forms carrying alpha.",
+            "pattern": "^#?[0-9A-Fa-f]{3,8}$",
+            "example": "#2563eb"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "UpdateTagDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Lobby"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "CONTENT",
+              "BOTH"
+            ],
+            "description": "What the tag may be attached to. Omitted means the schema default, so a client that wants a content-only tag must say so explicitly."
+          },
+          "color": {
+            "type": "string",
+            "description": "Hex colour. The leading # is OPTIONAL and is NOT normalised — `#2563eb` and `2563eb` are both accepted and both stored verbatim, so a client comparing colours must handle either. 3 to 8 digits, which admits the 4- and 8-digit forms carrying alpha.",
+            "pattern": "^#?[0-9A-Fa-f]{3,8}$",
+            "example": "#2563eb"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300
+          }
+        }
       },
       "CompanyPlanSummaryDto": {
         "type": "object",
@@ -10239,7 +11512,7 @@
             ]
           },
           "limits": {
-            "$ref": "#/components/schemas/PlanLimitsDto"
+            "$ref": "#/components/schemas/PlanLimitsViewDto"
           }
         },
         "required": [
@@ -10330,11 +11603,64 @@
       },
       "UpdateCompanySettingsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "defaultLocale": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 10,
+            "example": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "defaultWorkingHours": {
+            "description": "The company-wide default. A location or screen may override it.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkingHoursDto"
+              }
+            ]
+          },
+          "defaultHeartbeatIntervalSeconds": {
+            "type": "number",
+            "description": "How often a screen reports in. Read back as 60 when never set, so the response never shows null even though nothing was written — do not infer \"unset\" from the GET.",
+            "minimum": 10,
+            "maximum": 3600,
+            "example": 60
+          },
+          "notificationEmails": {
+            "maxItems": 10,
+            "description": "REPLACES the list — send the full set, not an addition. Every entry must be a valid address; one bad entry rejects the whole array. Read back as [] when never set.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fallbackContentId": {
+            "type": "string",
+            "description": "Company-wide fallback content. Existence and ownership are checked server-side."
+          }
+        }
       },
       "SetDefaultKioskPinDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "pin": {
+            "type": "string",
+            "description": "Plaintext 4-8 digit PIN, hashed on receipt. Never returned: the settings response exposes only `hasDefaultKioskPin`, so this cannot be read back to check it.",
+            "pattern": "^\\d{4,8}$",
+            "example": "4821"
+          }
+        },
+        "required": [
+          "pin"
+        ]
       },
       "UrlPreviewDto": {
         "type": "object",
@@ -10406,7 +11732,43 @@
       },
       "UploadContentDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "UNKNOWN"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationSeconds": {
+            "type": "number",
+            "description": "Sent as a form field, so it arrives as text and is coerced to a number here. The JSON creators take a real number.",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "tags": {
+            "type": "string",
+            "description": "A COMMA-SEPARATED STRING, not an array — and note the field is called `tags`, where the URL and TEXT creators take a `tagIds` array. Same concept, three creation endpoints, two names and two encodings; multipart cannot carry a JSON array, and the API does not hide that. A client sharing one tag-picker across the three must special-case this one.",
+            "maxLength": 2000,
+            "example": "tag_a1b2,tag_c3d4"
+          }
+        },
+        "required": [
+          "title"
+        ]
       },
       "ContentDto": {
         "type": "object",
@@ -10545,11 +11907,103 @@
       },
       "CreateUrlContentDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "An absolute http(s) URL — the protocol is REQUIRED, so `example.com` is rejected. Note the player skips URL content entirely when offline, since there is nothing to cache.",
+            "example": "https://example.com/dashboard"
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "UNKNOWN"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationSeconds": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "tagIds": {
+            "maxItems": 50,
+            "description": "An ARRAY here — the multipart upload takes a comma-separated `tags` string.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "url"
+        ]
       },
       "CreateTextContentDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "textBody": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "The announcement body."
+          },
+          "textStyle": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "OPAQUE styling hints. Checked only for being an object — no key is validated, so an unrecognised style is stored and ignored by the player rather than rejected here."
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "UNKNOWN"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationSeconds": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "tagIds": {
+            "maxItems": 50,
+            "description": "An ARRAY here — the multipart upload takes a comma-separated `tags` string.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "textBody"
+        ]
       },
       "ContentStorageUsageDto": {
         "type": "object",
@@ -10652,11 +12106,47 @@
       },
       "BulkContentDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "contentIds": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "contentIds"
+        ]
       },
       "BulkContentTagDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "contentIds": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tagId": {
+            "type": "string",
+            "description": "One tag per call — not an array."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "remove"
+            ],
+            "description": "Adds to or removes from each item's existing tags; does not replace them."
+          }
+        },
+        "required": [
+          "contentIds",
+          "tagId",
+          "action"
+        ]
       },
       "PurgedResponseDto": {
         "type": "object",
@@ -10673,7 +12163,58 @@
       },
       "UpdateContentDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "UNKNOWN"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Explicit `null` CLEARS the expiry; omitting the field leaves it untouched. The two are different, and only null un-expires content."
+          },
+          "durationSeconds": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL content only. Absolute http(s), protocol required."
+          },
+          "textBody": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "TEXT content only."
+          },
+          "textStyle": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "TEXT content only, and opaque — see the create DTO."
+          },
+          "tagIds": {
+            "maxItems": 50,
+            "description": "REPLACES the tags — `[]` clears them. An ARRAY here, unlike the comma-separated `tags` string the multipart upload takes.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "PlaylistSummaryDto": {
         "type": "object",
@@ -10736,9 +12277,75 @@
           "itemCount"
         ]
       },
+      "PlaylistItemInputDto": {
+        "type": "object",
+        "properties": {
+          "contentId": {
+            "type": "string",
+            "description": "Library content id. Ownership is resolved server-side."
+          },
+          "durationSeconds": {
+            "type": "number",
+            "description": "How long this item shows, in seconds. Falls back to the content's own duration when omitted — so leaving it out is not the same as sending a value.",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "playFullVideo": {
+            "type": "boolean",
+            "description": "Play the whole video rather than cutting at durationSeconds. When true, durationSeconds stops governing this item."
+          },
+          "pdfPageDurationSeconds": {
+            "type": "number",
+            "description": "Per-page dwell for PDFs. Meaningless for other types, and not rejected there.",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "transitionType": {
+            "type": "string",
+            "description": "Free-form string, NOT an enum — an unknown transition is stored and ignored.",
+            "maxLength": 40
+          },
+          "settings": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "OPAQUE. Checked only for being an object; no key is validated."
+          }
+        },
+        "required": [
+          "contentId"
+        ]
+      },
       "CreatePlaylistDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DRAFT"
+            ],
+            "description": "A NARROWER set than the PlaylistStatus enum responses carry: ARCHIVED cannot be set here, and archiving goes through its own endpoint."
+          },
+          "items": {
+            "maxItems": 500,
+            "description": "Optional initial items, in playback order. A playlist may be created empty — and an empty one is not schedulable, which validation reports rather than refusing here.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlaylistItemInputDto"
+            }
+          }
+        },
+        "required": [
+          "title"
+        ]
       },
       "PlaylistItemContentDto": {
         "type": "object",
@@ -11036,23 +12643,123 @@
       },
       "UpdatePlaylistDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DRAFT"
+            ],
+            "description": "ARCHIVED is not settable here — see the archive endpoint."
+          }
+        }
       },
       "DuplicatePlaylistDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Title for the copy. A default derived from the original is used when omitted.",
+            "maxLength": 200
+          }
+        }
       },
       "AddPlaylistItemDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "contentId": {
+            "type": "string",
+            "description": "Library content id. Ownership is resolved server-side."
+          },
+          "durationSeconds": {
+            "type": "number",
+            "description": "How long this item shows, in seconds. Falls back to the content's own duration when omitted — so leaving it out is not the same as sending a value.",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "playFullVideo": {
+            "type": "boolean",
+            "description": "Play the whole video rather than cutting at durationSeconds. When true, durationSeconds stops governing this item."
+          },
+          "pdfPageDurationSeconds": {
+            "type": "number",
+            "description": "Per-page dwell for PDFs. Meaningless for other types, and not rejected there.",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "transitionType": {
+            "type": "string",
+            "description": "Free-form string, NOT an enum — an unknown transition is stored and ignored.",
+            "maxLength": 40
+          },
+          "settings": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "OPAQUE. Checked only for being an object; no key is validated."
+          },
+          "position": {
+            "type": "number",
+            "description": "0-based insert index. Appended when omitted, and an index past the end CLAMPS rather than erroring — so a stale index silently appends instead of failing.",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "contentId"
+        ]
       },
       "ReorderPlaylistItemsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "itemIds": {
+            "minItems": 1,
+            "maxItems": 500,
+            "description": "The COMPLETE ordered list of the playlist's item ids — this defines the new order, it is not a partial move. Note these are ITEM ids, not content ids: the same content can appear twice in a playlist, so content ids would be ambiguous.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "itemIds"
+        ]
       },
       "UpdatePlaylistItemDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "durationSeconds": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "playFullVideo": {
+            "type": "boolean"
+          },
+          "pdfPageDurationSeconds": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 86400,
+            "description": "PDFs only."
+          },
+          "transitionType": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "Free-form, not an enum."
+          },
+          "settings": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Opaque."
+          }
+        }
       },
       "PlaylistRefDto": {
         "type": "object",
@@ -11242,9 +12949,129 @@
           "targetCount"
         ]
       },
+      "ScheduleTargetInputDto": {
+        "type": "object",
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "SCREEN_GROUP",
+              "LOCATION",
+              "COMPANY"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "description": "CONDITIONALLY REQUIRED — needed for SCREEN, SCREEN_GROUP and LOCATION, and ignored for COMPANY (which targets your own tenant). Optional in the schema because the requirement depends on targetType, which JSON Schema cannot express here."
+          }
+        },
+        "required": [
+          "targetType"
+        ]
+      },
       "CreateScheduleDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "playlistId": {
+            "type": "string",
+            "description": "Optional — a schedule may exist with no playlist, and validation reports it as not schedulable rather than refusing to create it."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "PAUSED"
+            ],
+            "description": "NARROWER than the ScheduleStatus responses carry — ARCHIVED has its own route."
+          },
+          "scheduleType": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "CAMPAIGN"
+            ]
+          },
+          "priority": {
+            "type": "number",
+            "description": "Higher wins. At EQUAL priority a CAMPAIGN beats a NORMAL schedule, so priority alone does not decide the winner — and when the rules cannot separate two schedules, conflict validation reports a null winnerId for a human to settle.",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "REQUIRED — the only mandatory date. endDate omitted means it never expires."
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startTime": {
+            "type": "string",
+            "description": "HH:mm, 24-hour, in the schedule timezone.",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "09:00"
+          },
+          "endTime": {
+            "type": "string",
+            "description": "HH:mm, 24-hour. An endTime EARLIER than startTime is not an error — it means an OVERNIGHT window that crosses midnight (22:00 to 02:00 runs four hours, not twenty).",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "17:00"
+          },
+          "isAllDay": {
+            "type": "boolean",
+            "description": "Ignores startTime/endTime when true."
+          },
+          "daysOfWeek": {
+            "maxItems": 7,
+            "description": "0 = SUNDAY through 6 = Saturday (see common/scheduling/schedule-time.util.ts). Evaluated in the schedule timezone, not UTC. Omitted means every day. An off-by-one here plays content on the wrong day without any error.",
+            "example": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "type": "array",
+            "items": {
+              "type": "number",
+              "maximum": 6,
+              "minimum": 0
+            }
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone the window is evaluated in. Falls back to the screen timezone when omitted. Length-checked only, not validated against the tz database.",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "recurrence": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "STORED AND ECHOED BACK, but never acted on: the resolver does not consult it, so a recurrence rule here changes nothing about what plays. Reserved for a future release."
+          },
+          "targets": {
+            "maxItems": 200,
+            "description": "Where this schedule applies. A schedule with NO targets reaches no screens — validation reports targetCount 0 rather than refusing it.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleTargetInputDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "startDate"
+        ]
       },
       "ConflictScheduleSummaryDto": {
         "type": "object",
@@ -11420,11 +13247,111 @@
       },
       "UpdateScheduleDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "playlistId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Explicit null DETACHES the playlist; omitting the field leaves it as it is."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "PAUSED"
+            ]
+          },
+          "scheduleType": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "CAMPAIGN"
+            ]
+          },
+          "priority": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "null CLEARS the end date, making the schedule open-ended."
+          },
+          "startTime": {
+            "type": "string",
+            "nullable": true,
+            "description": "null clears it."
+          },
+          "endTime": {
+            "type": "string",
+            "nullable": true,
+            "description": "null clears it. Earlier than startTime still means an overnight window."
+          },
+          "isAllDay": {
+            "type": "boolean"
+          },
+          "daysOfWeek": {
+            "maxItems": 7,
+            "description": "0 = SUNDAY through 6 = Saturday (see common/scheduling/schedule-time.util.ts). Evaluated in the schedule timezone, not UTC. Omitted means every day. An off-by-one here plays content on the wrong day without any error.",
+            "example": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "type": "array",
+            "items": {
+              "type": "number",
+              "maximum": 6,
+              "minimum": 0
+            }
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "recurrence": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "STORED AND ECHOED BACK, but never acted on: the resolver does not consult it, so a recurrence rule here changes nothing about what plays. Reserved for a future release."
+          }
+        }
       },
       "AddScheduleTargetDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "SCREEN_GROUP",
+              "LOCATION",
+              "COMPANY"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "description": "CONDITIONALLY REQUIRED — needed for SCREEN, SCREEN_GROUP and LOCATION, and ignored for COMPANY (which targets your own tenant). Optional in the schema because the requirement depends on targetType, which JSON Schema cannot express here."
+          }
+        },
+        "required": [
+          "targetType"
+        ]
       },
       "ManifestItemDto": {
         "type": "object",
@@ -11614,7 +13541,17 @@
       },
       "PairScreenDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "pairingCode": {
+            "type": "string",
+            "description": "The code shown on the screen. Short-lived and single-use: it is consumed on success, so pairing the same code twice fails even though the first call worked.",
+            "maxLength": 32,
+            "example": "K7Q2-9XTM"
+          }
+        },
+        "required": [
+          "pairingCode"
+        ]
       },
       "PairedDeviceDto": {
         "type": "object",
@@ -12138,7 +14075,30 @@
       },
       "IssueCommandDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "commandType": {
+            "type": "string",
+            "enum": [
+              "FORCE_SYNC",
+              "REFRESH_MANIFEST",
+              "RESTART_PLAYBACK",
+              "CLEAR_CACHE",
+              "TAKE_SCREENSHOT",
+              "REBOOT_DEVICE",
+              "UNPAIR_DEVICE",
+              "RELOAD_CONFIG"
+            ],
+            "description": "Queued for POLLING pickup, not pushed — the screen collects it on its next heartbeat, so a 2xx here means \"accepted\", never \"done\". REBOOT is accepted and then reported unsupported by most consumer TVs."
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "OPAQUE and command-specific. Checked only for being an object — no key is required or validated against commandType, so a payload the command does not understand is queued and ignored rather than rejected."
+          }
+        },
+        "required": [
+          "commandType"
+        ]
       },
       "FleetTotalsDto": {
         "type": "object",
@@ -12432,9 +14392,47 @@
           "updatedAt"
         ]
       },
+      "NotificationPreferenceItemDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "DASHBOARD",
+              "EMAIL"
+            ]
+          },
+          "eventType": {
+            "type": "string",
+            "description": "A free-form event key, NOT an enum — any string up to 80 characters is accepted, including one that matches no event the platform emits. Such a row is stored and simply never consulted, so a typo here fails silently rather than as a 400.",
+            "maxLength": 80,
+            "example": "screen.offline"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "channel",
+          "eventType",
+          "enabled"
+        ]
+      },
       "UpdateNotificationPreferencesDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "preferences": {
+            "maxItems": 200,
+            "description": "Entries to upsert. Only the caller's own preferences can be changed.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationPreferenceItemDto"
+            }
+          }
+        },
+        "required": [
+          "preferences"
+        ]
       },
       "OkResponseDto": {
         "type": "object",
@@ -12555,7 +14553,7 @@
           "createdAt"
         ]
       },
-      "ProofOfPlayEventDto": {
+      "ProofOfPlayRecordDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -12901,13 +14899,137 @@
           "updatedAt"
         ]
       },
+      "EmergencyTargetDto": {
+        "type": "object",
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "SCREEN_GROUP",
+              "LOCATION",
+              "COMPANY"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "description": "REQUIRED here, including for COMPANY targets — unlike the schedule equivalent, where it is optional and defaults to your own company.",
+            "maxLength": 60
+          }
+        },
+        "required": [
+          "targetType",
+          "targetId"
+        ]
+      },
       "CreateEmergencyBroadcastDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "broadcastType": {
+            "type": "string",
+            "enum": [
+              "CONTENT",
+              "PLAYLIST",
+              "TEXT",
+              "URL"
+            ],
+            "description": "Decides which of message / url / contentId / playlistId is required."
+          },
+          "message": {
+            "type": "string",
+            "description": "Required when broadcastType is TEXT; ignored otherwise.",
+            "maxLength": 2000
+          },
+          "url": {
+            "type": "string",
+            "description": "Required when broadcastType is URL. Validated only as a STRING — unlike `CreateUrlContentDto.url`, which demands an absolute http(s) URL, so a value with no protocol is accepted here and fails on the screen instead.",
+            "maxLength": 2000
+          },
+          "contentId": {
+            "type": "string",
+            "description": "Required when broadcastType is CONTENT.",
+            "maxLength": 60
+          },
+          "playlistId": {
+            "type": "string",
+            "description": "Required when broadcastType is PLAYLIST.",
+            "maxLength": 60
+          },
+          "priority": {
+            "type": "number",
+            "description": "Ranks this against OTHER emergency broadcasts only — every emergency already outranks every schedule. Note the cap is 100000 here, where schedules allow 1000000.",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The maintenance sweep auto-ENDs a broadcast once this passes."
+          },
+          "targets": {
+            "maxItems": 200,
+            "description": "A broadcast reaching no screens is reported invalid by validation.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmergencyTargetDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "broadcastType"
+        ]
       },
       "QuickTextBroadcastDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "The text shown on every targeted screen."
+          },
+          "priority": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Auto-ENDed by the maintenance sweep once passed. With no endAt it runs until ended by hand."
+          },
+          "targets": {
+            "description": "REQUIRED here — an instant broadcast with no audience is refused.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmergencyTargetDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "message",
+          "targets"
+        ]
       },
       "EmergencyValidationDto": {
         "type": "object",
@@ -12948,11 +15070,60 @@
       },
       "UpdateEmergencyBroadcastDto": {
         "type": "object",
-        "properties": {}
-      },
-      "EmergencyTargetDto": {
-        "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "broadcastType": {
+            "type": "string",
+            "enum": [
+              "CONTENT",
+              "PLAYLIST",
+              "TEXT",
+              "URL"
+            ],
+            "description": "Changing it changes which payload field is required."
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "For TEXT broadcasts."
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "For URL broadcasts. String-checked only — no protocol requirement."
+          },
+          "contentId": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "For CONTENT broadcasts."
+          },
+          "playlistId": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "For PLAYLIST broadcasts."
+          },
+          "priority": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "ImportJobDto": {
         "type": "object",
@@ -13309,7 +15480,60 @@
       },
       "CreateScheduledReportDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "reportType": {
+            "type": "string",
+            "enum": [
+              "PROOF_OF_PLAY",
+              "SCREEN_HEALTH",
+              "ALERTS",
+              "ACTIVITY_LOGS",
+              "BILLING"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "CSV",
+              "XLSX",
+              "PDF"
+            ]
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY"
+            ],
+            "description": "Delivery cadence. Runs are driven by the maintenance cron, not an in-process timer."
+          },
+          "recipients": {
+            "minItems": 1,
+            "maxItems": 50,
+            "description": "At least one address — a report with no recipients is refused rather than created and silently undelivered. REPLACES the list on update. One invalid address rejects the array.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filters": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "OPAQUE and report-type specific. Checked only for being an object, so a filter key the report does not understand is stored and ignored rather than rejected."
+          }
+        },
+        "required": [
+          "name",
+          "reportType",
+          "frequency",
+          "recipients"
+        ]
       },
       "ReportDeliveryDto": {
         "type": "object",
@@ -13458,7 +15682,56 @@
       },
       "UpdateScheduledReportDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "reportType": {
+            "type": "string",
+            "enum": [
+              "PROOF_OF_PLAY",
+              "SCREEN_HEALTH",
+              "ALERTS",
+              "ACTIVITY_LOGS",
+              "BILLING"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "CSV",
+              "XLSX",
+              "PDF"
+            ]
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY"
+            ]
+          },
+          "recipients": {
+            "maxItems": 50,
+            "description": "REPLACES the recipient list. Note there is NO ArrayMinSize here, unlike create — so an update may set it to `[]`, leaving a report enabled with nobody to deliver it to.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filters": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Opaque — see create."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Disabled reports keep their config and stop being delivered."
+          }
+        }
       },
       "BackupRunDto": {
         "type": "object",
@@ -13545,11 +15818,59 @@
       },
       "RecordBackupDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "DATABASE",
+              "STORAGE",
+              "FULL"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "SUCCESS",
+              "FAILED"
+            ],
+            "description": "A FAILED record is the point of the endpoint — it is what raises the alert."
+          },
+          "location": {
+            "type": "string",
+            "description": "Where the dump was written. Free-form and unvalidated; nothing checks the file exists."
+          },
+          "sizeBytes": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Size of the dump in bytes."
+          },
+          "error": {
+            "type": "string",
+            "description": "Failure detail. Meaningful only when status is FAILED."
+          }
+        },
+        "required": [
+          "type",
+          "status"
+        ]
       },
       "RunMaintenanceDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "job": {
+            "type": "string",
+            "enum": [
+              "all",
+              "sweep",
+              "retention",
+              "reports",
+              "emergencies",
+              "backup-check"
+            ],
+            "description": "Which sweep to run. Omitted runs them ALL — so an empty body is not a no-op, it is the most expensive call this endpoint offers."
+          }
+        }
       },
       "MaintenanceRunResultDto": {
         "type": "object",

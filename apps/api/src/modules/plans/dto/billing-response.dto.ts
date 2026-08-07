@@ -1,7 +1,7 @@
 import { BillingInterval, CompanyStatus, InvoiceStatus, SubscriptionStatus } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-import { PlanLimitsDto } from '../../usage-limits/dto/usage-response.dto';
+import { PlanLimitsViewDto } from '../../usage-limits/dto/usage-response.dto';
 
 /**
  * Billing response shapes — plans, subscriptions and invoices.
@@ -72,12 +72,12 @@ export class PlanDto {
   isPublic!: boolean;
 
   @ApiProperty({
-    type: PlanLimitsDto,
+    type: PlanLimitsViewDto,
     description:
       'The same limit block GET /companies/{id}/usage evaluates against. Absent or null on a ' +
       'field means UNLIMITED, not zero.',
   })
-  limits!: PlanLimitsDto;
+  limits!: PlanLimitsViewDto;
 
   @ApiProperty({ format: 'date-time' })
   createdAt!: string;

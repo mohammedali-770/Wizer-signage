@@ -49,7 +49,7 @@ export class UsageCountsDto {
  * yet enforced at all, so a client must not infer that a limit here is being
  * measured.
  */
-export class PlanLimitsDto {
+export class PlanLimitsViewDto {
   @ApiPropertyOptional({ nullable: true })
   maxCompanies?: number | null;
 
@@ -152,6 +152,6 @@ export class UsageEvaluationDto {
   // service returns the object WHOLE. Transcribing an interface has the same
   // hazard as transcribing a spread view — a field added to the interface is a
   // field the endpoint starts returning, silently.
-  @ApiProperty({ type: PlanLimitsDto })
-  limits!: PlanLimitsDto;
+  @ApiProperty({ type: PlanLimitsViewDto })
+  limits!: PlanLimitsViewDto;
 }

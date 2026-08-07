@@ -1,7 +1,7 @@
 import { CompanyStatus, SubscriptionStatus } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-import { PlanLimitsDto } from '../../usage-limits/dto/usage-response.dto';
+import { PlanLimitsViewDto } from '../../usage-limits/dto/usage-response.dto';
 
 /** The read-only billing summary a company admin can see about their own plan. */
 export class CompanyPlanSummaryDto {
@@ -14,8 +14,8 @@ export class CompanyPlanSummaryDto {
   @ApiProperty({ enum: Object.values(SubscriptionStatus) })
   status!: string;
 
-  @ApiProperty({ type: PlanLimitsDto })
-  limits!: PlanLimitsDto;
+  @ApiProperty({ type: PlanLimitsViewDto })
+  limits!: PlanLimitsViewDto;
 }
 
 /**

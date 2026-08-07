@@ -232,7 +232,7 @@ export class ImpersonationStartedDto {
  * endpoint really does send them. They are anti-abuse metadata on an
  * unauthenticated public form, readable only by a Super Admin.
  */
-export class DemoRequestDto {
+export class AdminDemoRequestDto {
   @ApiProperty()
   id!: string;
 
