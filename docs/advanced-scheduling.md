@@ -76,10 +76,17 @@ configured `outsideHoursBehavior`:
 | `FALLBACK`       | resolves the fallback hierarchy; `sourceType: FALLBACK` |
 | `BLACK_SCREEN`   | `sourceType: NONE`, no items                            |
 | `CUSTOM_MESSAGE` | `sourceType: NONE`, `message` populated                 |
-| `SLEEP`          | `sourceType: NONE`, no items                            |
+| `BLANK_SCREEN`   | `sourceType: NONE`, no items                            |
 
-A screen with no working-hours config plays 24/7. Phase 5 implements the resolver
-logic and config; actual device behavior arrives with the player.
+A screen with no working-hours config plays 24/7. The resolver evaluates this and
+the Android player acts on the result — it is enforced end to end, not just stored.
+
+`BLANK_SCREEN` and `BLACK_SCREEN` do the same thing; both exist because both are
+already present in stored configuration. Neither powers the display off, and
+neither ever did: `BLANK_SCREEN` was called `SLEEP` until the name was corrected,
+since nothing in the player calls `PowerManager` and soft kiosk holds the screen
+awake. The API still ACCEPTS `"SLEEP"` on read and treats it as `BLANK_SCREEN`,
+because working hours are stored as JSON and no migration rewrote existing rows.
 
 ## Orientation warnings
 
@@ -120,7 +127,8 @@ defaults to now — useful for "what will play now" previews in the dashboard.
   "playlistTitle": "Lobby loop",
   "priority": 10,
   "outsideHours": false,
-  "outsideHoursBehavior": null, // FALLBACK | BLACK_SCREEN | CUSTOM_MESSAGE | SLEEP
+  "outsideHoursBehavior": null, // FALLBACK | BLACK_SCREEN | CUSTOM_MESSAGE | BLANK_SCREEN
+  //   (legacy "SLEEP" is still accepted on read)
   "message": null,
   "items": [
     {

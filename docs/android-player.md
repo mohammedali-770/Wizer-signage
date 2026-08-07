@@ -68,24 +68,25 @@ All commands below assume your working directory is
 
 ## Gradle wrapper
 
-The wrapper scripts (`gradlew`, `gradlew.bat`) and `gradle/wrapper/gradle-wrapper.properties`
-(pinned to **Gradle 8.7**) **are committed**, so developers do **not** need a
-globally installed Gradle — with one exception: the small binary
-`gradle/wrapper/gradle-wrapper.jar` is **not** committed (it is a binary the
-bootstrap script loads). Provision it once, either way:
+The whole wrapper is committed — the scripts (`gradlew`, `gradlew.bat`),
+`gradle/wrapper/gradle-wrapper.properties` (pinned to **Gradle 8.7**) **and**
+the `gradle/wrapper/gradle-wrapper.jar` binary. **A fresh clone builds with no
+bootstrap step**: no globally installed Gradle, no `gradle wrapper` run, no
+Android Studio sync first.
 
-- **Android Studio** — open `apps/android-tv-player`; on first sync Studio
-  generates `gradle-wrapper.jar` automatically. Nothing else to do.
-- **CLI (one-time)** — with any locally installed Gradle:
+```bash
+cd apps/android-tv-player
+./gradlew :app:assembleDebug        # gradlew.bat on Windows
+```
 
-  ```bash
-  cd apps/android-tv-player
-  gradle wrapper --gradle-version 8.7
-  ```
+The wrapper downloads and uses the pinned Gradle 8.7 on first invocation.
 
-After the jar exists, always invoke the wrapper (`./gradlew` / `gradlew.bat`) —
-it downloads and uses the pinned Gradle 8.7, so no global Gradle is required for
-subsequent builds.
+CI is the proof: the `android` job in `.github/workflows/ci.yml` checks out and
+runs `./gradlew` directly, with no provisioning step between.
+
+> This section used to say the jar was **not** committed and walked you through
+> generating it. That stopped being true, and the instruction cost a pointless
+> step; it is recorded here only so a reader who remembers it knows it changed.
 
 ---
 
@@ -319,20 +320,23 @@ device-authenticated download endpoint, persists a last-good manifest, pre-loads
 upcoming scheduled content (~1h), keeps playing from cache when offline, and
 reports sync/cache status to the dashboard.
 
-### Known limitations (Phase 6/7)
+### Limitations specific to the Phase 6/7 runtime
 
-- No real heartbeat, screenshots, proof-of-play, remote actions, or
-  emergency-broadcast runtime (Phase 8+).
-- No full kiosk mode (auto-start on boot has since been implemented — see
-  "Auto-start on boot" below).
-- No in-app APK auto-update.
-- **URL (WebView) content is not cached** — it is skipped when offline.
-- PDF shows the **first page only** (no multi-page rotation yet).
+Two constraints belong to this layer and appear nowhere else:
+
+- PDF shows the **first page only** (no multi-page rotation yet) —
+  `PdfRendering.kt` opens page 0 and stops.
 - Secrets are encrypted on API 23+; **API 21–22 falls back to plaintext** storage
   (see "Token storage" above).
-- The Gradle **wrapper jar** (binary) is not committed; Android Studio generates
-  it on first sync, or run `gradle wrapper` once (scripts + properties are
-  committed).
+
+**Everything else is listed once, under
+[Known limitations](#known-limitations-unchanged--by-design) at the end of this
+document.** This section used to carry its own near-duplicate list, and the two
+drifted: it went on claiming there was no heartbeat, no screenshots, no
+proof-of-play, no remote actions, no emergency broadcast and no kiosk mode long
+after all six shipped, and that the Gradle wrapper jar was uncommitted when it
+is tracked. A second copy of a list is a second thing to forget to update, so
+there is now one copy.
 
 ### Handoff notes for Phase 7 (offline cache & smart sync)
 
@@ -636,10 +640,12 @@ reachable from the TV's network, with a valid TLS certificate.
 
 ### Build, sign & install a release APK
 
-1. **Toolchain (required):** **JDK 17** + the **Android SDK** + a generated
-   `gradle-wrapper.jar` (Android Studio sync or `gradle wrapper`). _This cannot
-   be built in the CI sandbox used for this repo (JDK 8 / no SDK) — build on a
-   real machine or Android Studio._
+1. **Toolchain (required):** **JDK 17** + the **Android SDK**. The Gradle
+   wrapper is committed in full, so there is nothing to generate — see
+   "Gradle wrapper" above. _GitHub Actions builds the debug variant on every PR
+   (the `android` job). It is the agent/dev sandbox used for this repo that
+   cannot — JDK 8, no SDK — so build releases on a real machine or in Android
+   Studio._
 2. **Release keystore:** generate once and keep it **out of source control**.
    Signing credentials are supplied **only** via environment variables
    (`WIZER_ANDROID_KEYSTORE_PATH`, `WIZER_ANDROID_KEYSTORE_PASSWORD`,
@@ -664,14 +670,19 @@ reachable from the TV's network, with a valid TLS certificate.
 
 ### Known limitations (unchanged — by design)
 
-- **Build requires JDK 17 + Android SDK** (not buildable in this repo's sandbox).
+- **Build requires JDK 17 + Android SDK** — GitHub Actions has both and builds
+  the debug variant on every PR; this repo's agent/dev sandbox has neither.
 - **URL content is not reliably cached** → skipped when offline (Phase 7).
 - **Screenshots** capture the app's own window only (video on a secure surface
   may be black; API < 26 unsupported) — never fabricated (Phase 8).
-- **No kiosk mode, no in-app APK auto-update** — intentionally out of scope;
-  pin the app via the launcher / an MDM if needed. **Auto-start on boot IS
-  implemented** (best-effort, see "Auto-start on boot"); guaranteed relaunch
-  still requires device-owner / MDM / default-launcher provisioning.
+- **No in-app APK auto-update** — intentionally out of scope; update the fleet
+  by sideloading or through an MDM (see
+  [android-distribution.md](./android-distribution.md)).
+- **Kiosk mode is soft by default** — immersive, keep-awake and Back-suppression
+  on any TV (see "Kiosk mode"); a true locked task needs an external MDM/DPC to
+  allowlist the app. Nothing here provisions device-owner on its own.
+- **Auto-start on boot is best-effort** (see "Auto-start on boot"); guaranteed
+  relaunch still requires device-owner / MDM / default-launcher provisioning.
 - **No payment / WhatsApp / external API portal** in the platform.
 
 ---

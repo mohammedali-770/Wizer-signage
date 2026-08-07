@@ -359,8 +359,9 @@ curl -fsS -H "X-Device-Token: <DEVICE_TOKEN>" "https://$APP_DOMAIN/api/device/ma
 
 ## 10. Android TV test
 
-> The Android build is **not** runnable in CI (needs **JDK 17 + Android SDK** + a
-> generated `gradle-wrapper.jar`). Build on a real machine / Android Studio.
+> The Android build needs **JDK 17 + the Android SDK**, so build it on a real
+> machine or in Android Studio rather than in this repo's sandbox. The Gradle
+> wrapper is committed in full — there is nothing to generate first.
 
 ```bash
 # Configure the production API base URL (build-time) in the release buildType:

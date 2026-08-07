@@ -45,8 +45,9 @@ export class PublicController {
   @Get('plans')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @ApiOperation({ summary: 'List active public plans for the marketing pricing page.' })
-  // PublicPlanDto, NOT PlanDto: narrower, and the prices are NUMBERS here
-  // where the admin endpoint returns the same column as a string.
+  // PublicPlanDto, NOT PlanDto: a much narrower row — only what a pricing page
+  // renders, with no isActive/isPublic/billingInterval and no timestamps. The
+  // prices are strings, as they are on GET /plans and every other money field.
   @ApiOkResponse({ type: [PublicPlanDto] })
   plans() {
     return this.publicSvc.listPublicPlans();

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { API_VERSION } from '../../common/version';
 import type { AppConfig } from '../../config/configuration';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -32,8 +33,15 @@ const SERVICE_NAME = 'wizer-signage-api';
 
 @Injectable()
 export class HealthService {
-  /** Service version, sourced from npm_package_version with a sane fallback. */
-  private readonly version: string = process.env.npm_package_version ?? '0.0.0';
+  /**
+   * Service version, read from `apps/api/package.json` — the same manifest that
+   * stamps `info.version` into the committed contract.
+   *
+   * This used to read `npm_package_version`, which the production image never
+   * sets (it starts with a bare `node dist/main.js`), so the endpoint an
+   * operator checks after a deploy answered `0.0.0` for every release ever cut.
+   */
+  private readonly version: string = API_VERSION;
 
   constructor(
     private readonly prisma: PrismaService,

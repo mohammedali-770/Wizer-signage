@@ -117,7 +117,8 @@ type ContentRow = Prisma.ContentGetPayload<{ select: typeof CONTENT_FIELDS }>;
 
 /**
  * Resolves what a screen should play at a given instant and returns a playback
- * manifest for the future Android player (Phase 6/7). Honors: company/screen
+ * manifest for the Android TV player, which consumes it today over
+ * `GET /device/manifest`. Honors: company/screen
  * status, working hours + outside-hours behavior, schedule date/day/time
  * targeting, priority/conflict rules, content validity, and the screen →
  * location → company fallback hierarchy. Read-only; produces no side effects.

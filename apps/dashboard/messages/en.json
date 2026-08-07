@@ -1969,7 +1969,8 @@
       "FALLBACK": "Show fallback content",
       "BLACK_SCREEN": "Black screen",
       "CUSTOM_MESSAGE": "Custom message",
-      "SLEEP": "Attempt sleep / power saving"
+      "BLANK_SCREEN": "Blank screen",
+      "SLEEP": "Blank screen (legacy name)"
     },
     "importType": {
       "LOCATION": "Location",

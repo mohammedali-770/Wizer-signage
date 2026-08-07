@@ -133,10 +133,17 @@ and a one-click CSV export. Viewers can read it.
 Playback events are **not** written to Activity Logs (they live only in
 `ProofOfPlay`). Activity Logs remain for administrative actions.
 
-## Handoff to Phase 10
+## Delivered in Phase 10
 
-- **Excel / PDF export** and **scheduled report emails** are deferred to Phase 10.
-  CSV export ships now.
-- **Retention**: `ProofOfPlay` is append-heavy; the cleanup/retention job (e.g.
-  keep N months) is a Phase 10 foundation. Indexes on `(companyId, startedAt)` and
-  `(screenId, startedAt)` already support time-bounded queries and pruning.
+Everything this page once listed as deferred has shipped:
+
+- **Export formats**: CSV, **XLSX** and a **print-ready HTML** view (not a
+  server-side PDF renderer — that remains a future enhancement). See
+  [exports-reports.md](./exports-reports.md).
+- **Scheduled report emails**: daily / weekly / monthly, with delivery logs and
+  enable / disable / run-now. See [exports-reports.md](./exports-reports.md).
+- **Retention**: `ProofOfPlay` is append-heavy, so the nightly retention job
+  prunes it in batches against a configurable cutoff. See
+  [data-retention.md](./data-retention.md). The indexes on
+  `(companyId, startedAt)` and `(screenId, startedAt)` are what make both the
+  time-bounded queries and that pruning cheap.
