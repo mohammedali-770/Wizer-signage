@@ -1,10 +1,11 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
 import { ManifestQueryDto } from './dto/schedule.dto';
+import { PlaybackManifestDto } from './dto/playback-manifest-response.dto';
 import { ScheduleResolverService } from './schedule-resolver.service';
 
 /**
@@ -21,6 +22,8 @@ export class PlaybackManifestController {
   @Get(':id/playback-manifest')
   @RequirePermissions(Permission.ScreenRead)
   @ApiOperation({ summary: 'Resolve what a screen should play now (or at ?at=ISO).' })
+  // The shape the golden fixtures in contracts/ already pin for the player.
+  @ApiOkResponse({ type: PlaybackManifestDto })
   manifest(
     @CurrentCompany() companyId: string,
     @Param('id') id: string,

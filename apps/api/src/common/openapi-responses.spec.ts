@@ -27,9 +27,15 @@ import {
  * and pointing `@ApiOkResponse` at it. That is mechanical but not free, and it
  * lands controller by controller.
  *
- * This spec exists so that lands in one direction. The floor below is a ratchet:
- * raise it as controllers are annotated, and a route that LOSES its response
- * type fails immediately.
+ * That work is now DONE: all 209 operations declare a response, across 31 tags.
+ * The floor that used to be a ratchet is a completeness assertion, so this spec
+ * has changed job — from "make sure it keeps going up" to "make sure it never
+ * comes back down". A route added without a response type fails immediately,
+ * and there is no longer a number to raise instead of fixing it.
+ *
+ * Everything else here pins a specific truth the shapes would otherwise lose:
+ * which fields a view strips, which endpoints disagree about the type of the
+ * same value, and which similar-looking responses must NOT be unified.
  */
 
 const CONTRACT = join(__dirname, '..', '..', '..', '..', 'contracts', 'openapi.json');
@@ -62,7 +68,17 @@ function controllerFiles(root = join(__dirname, '..', 'modules')): string[] {
   return found;
 }
 
-/** Operations that declare a success response with an actual schema. */
+/**
+ * Operations that declare a success response with an actual schema, in ANY
+ * media type.
+ *
+ * It used to look only at `application/json`, which quietly made three routes
+ * uncountable: GET /exports/{type} streams CSV/XLSX/PDF, and the import
+ * template and proof-of-play export stream CSV. They have no JSON body and
+ * never will, so a JSON-only measure had a ceiling it could not reach and
+ * reported them forever as outstanding work. They are now documented with
+ * their real content types and counted like everything else.
+ */
 function operationsWithResponseSchema(): { annotated: string[]; total: number } {
   const { paths } = loadContract();
   const annotated: string[] = [];
@@ -72,10 +88,10 @@ function operationsWithResponseSchema(): { annotated: string[]; total: number } 
     for (const [method, op] of Object.entries(methods)) {
       total += 1;
       const success = op.responses?.['200'] ?? op.responses?.['201'];
-      const schema = success?.content?.['application/json']?.schema;
-      if (schema && Object.keys(schema as object).length > 0) {
-        annotated.push(`${method.toUpperCase()} ${path}`);
-      }
+      const described = Object.values(success?.content ?? {}).some(
+        (media) => media.schema && Object.keys(media.schema as object).length > 0,
+      );
+      if (described) annotated.push(`${method.toUpperCase()} ${path}`);
     }
   }
   return { annotated, total };
@@ -769,80 +785,165 @@ describe('OpenAPI response coverage', () => {
     expect(listItems).toBe('#/components/schemas/InvitationDto');
   });
 
-  it('coverage is reported against what CAN be annotated', () => {
-    // Five controllers carry @ApiExcludeController and never appear in the
-    // contract at all — the device-facing routes (the Android player has its
-    // own hand-written client and the golden manifest fixtures), the raw file
-    // and download streams. Counting them as "remaining work" overstates what
-    // is left and never reaches zero.
+  it('the three `validate` endpoints agree on almost nothing', () => {
+    // Three endpoints with the same name and three different shapes:
     //
-    // Measured from the contract rather than narrated in a comment, because
-    // the narrated version was wrong twice: it counted excluded controllers as
-    // outstanding, and it called modules "done" that had unannotated routes.
+    //   schedules  -> schedulable, playlist, targetCount, orientationWarnings,
+    //                 conflicts, warnings          (no `valid`, no `errors`)
+    //   playlists  -> valid, schedulable, itemCount, ..., issues, warnings
+    //   emergency  -> valid, canActivate, errors, warnings, affectedScreens
+    //
+    // The ONLY field all three share is `warnings`. A single shared
+    // ValidationResultDto is the obvious tidy-up and would be wrong for all
+    // three — this is the test that makes it fail rather than quietly ship.
+    const { components } = loadContract();
+    const props = (name: string) =>
+      Object.keys(
+        (components.schemas[name] as { properties?: Record<string, unknown> })?.properties ?? {},
+      );
+
+    const schedule = props('ScheduleValidationDto');
+    const playlist = props('PlaylistValidationDto');
+    const emergency = props('EmergencyValidationDto');
+
+    const shared = schedule.filter((f) => playlist.includes(f) && emergency.includes(f));
+    expect(shared).toEqual(['warnings']);
+
+    // Only the schedule one lacks `valid`; only emergency has `errors` and
+    // `canActivate`. Each asserted so a drift in either direction fails.
+    expect(schedule).not.toContain('valid');
+    expect(playlist).toContain('valid');
+    expect(emergency).toContain('valid');
+    expect(emergency).toContain('canActivate');
+    expect(schedule).not.toContain('errors');
+    expect(playlist).not.toContain('errors');
+    expect(emergency).toContain('errors');
+  });
+
+  it('GET /schedules/conflicts is an object, not the array its name suggests', () => {
+    // The endpoint is `conflicts` and the field inside is `conflicts`. That is
+    // exactly how it gets documented as a bare array by someone reading the
+    // route name and not the return statement.
     const { paths } = loadContract();
+    const schema = paths['/schedules/conflicts']?.get?.responses?.['200']?.content?.[
+      'application/json'
+    ]?.schema as { $ref?: string; type?: string } | undefined;
+
+    expect(schema?.type).not.toBe('array');
+    expect(schema?.$ref).toBe('#/components/schemas/ScheduleConflictsDto');
+  });
+
+  it('the SAME plan column is a number publicly and a string for admins', () => {
+    // GET /public/plans maps each row through Number(p.priceMonthly).
+    // GET /plans returns the raw Prisma Decimal, which serialises as a string.
+    // Same table, same field name, two endpoints, two types — a client sharing
+    // one Plan type between the marketing site and the admin dashboard is
+    // wrong on one of them. Third instance of this split in the API, after
+    // fileSize/usedBytes and total/unpaidTotal.
+    const { components } = loadContract();
+    const pub = components.schemas.PublicPlanDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+    const admin = components.schemas.PlanDto as {
+      properties?: Record<string, { type?: string }>;
+    };
+
+    expect(pub?.properties?.priceMonthly?.type).toBe('number');
+    expect(admin?.properties?.priceMonthly?.type).toBe('string');
+
+    // And the public row is genuinely narrower — not the admin one renamed.
+    for (const adminOnly of ['isActive', 'isPublic', 'billingInterval', 'createdAt']) {
+      expect(Object.keys(pub?.properties ?? {})).not.toContain(adminOnly);
+    }
+  });
+
+  it('a health probe documents its BODY, not just that a 200 happens', () => {
+    // Both routes already carried `@ApiResponse({ status: 200, description })`,
+    // which says a 200 occurs and nothing about what is in it — a generated
+    // client got `unknown`, and the routes still counted as unannotated. A
+    // description is not a schema.
+    const { paths } = loadContract();
+    const ok = paths['/health']?.get?.responses?.['200']?.content?.['application/json']?.schema;
+    expect(ok).toBeDefined();
+
+    // The 503 carries the same shape, with status `degraded` — a caller that
+    // only reads the 200 will never see that value.
+    const notReady =
+      paths['/health/ready']?.get?.responses?.['503']?.content?.['application/json']?.schema;
+    expect(notReady).toBeDefined();
+  });
+
+  it('the playback manifest agrees with the golden fixtures', () => {
+    // This is the one response shape that already had an independent guard:
+    // contracts/device-manifest.*.golden.json are parsed by BOTH the API spec
+    // and the player's ManifestContractTest, so a renamed field fails the
+    // Kotlin build rather than blanking a fleet quietly. The DTO must not
+    // drift from those files — this checks the item keys line up.
+    const { components } = loadContract();
+    const item = components.schemas.ManifestItemDto as {
+      properties?: Record<string, unknown>;
+    };
+    const golden = JSON.parse(
+      readFileSync(
+        join(
+          __dirname,
+          '..',
+          '..',
+          '..',
+          '..',
+          'contracts',
+          'device-manifest.schedule.golden.json',
+        ),
+        'utf8',
+      ),
+    ) as { items: Record<string, unknown>[] };
+
+    expect(Object.keys(item?.properties ?? {}).sort()).toEqual(
+      Object.keys(golden.items[0] ?? {}).sort(),
+    );
+  });
+
+  it('EVERY operation in the contract declares what it returns', () => {
+    // This started as a ratchet — 8 of ~180, raise it as you go. It is now a
+    // completeness assertion: all 209 operations declare a response schema.
+    //
+    // The floor stayed useful the whole way up, but it could never have
+    // finished the job on its own. It cannot notice one new unannotated route
+    // among 209, which is why the per-tag test above exists and why two
+    // modules sat at 8/19 and 22/29 while being reported as done. Now that the
+    // number is total, the strict equality is the guard: a route added without
+    // a response type fails here immediately, and there is no "raise the
+    // number" escape.
+    const { annotated, total } = operationsWithResponseSchema();
+    expect(total).toBe(209);
+    expect(annotated.length).toBe(total);
+  });
+
+  it('the per-tag view is complete too, so no tag can regress quietly', () => {
+    // Guards the same property from the other direction: `annotated === total`
+    // overall would still hold if one tag lost a route and another gained one.
+    const { paths } = loadContract();
+    const incomplete: string[] = [];
     const perTag: Record<string, { annotated: number; total: number }> = {};
+
     for (const methods of Object.values(paths)) {
       for (const op of Object.values(methods)) {
         const tag = (op as { tags?: string[] }).tags?.[0] ?? '?';
         const success = op.responses?.['200'] ?? op.responses?.['201'];
-        const schema = success?.content?.['application/json']?.schema;
+        const described = Object.values(success?.content ?? {}).some(
+          (media) => media.schema && Object.keys(media.schema as object).length > 0,
+        );
         perTag[tag] ??= { annotated: 0, total: 0 };
         perTag[tag].total += 1;
-        if (schema && Object.keys(schema as object).length > 0) perTag[tag].annotated += 1;
+        if (described) perTag[tag].annotated += 1;
       }
     }
-
-    // Tags that are FULLY annotated. A tag listed here that grows a new
-    // unannotated route fails immediately — which is the case a plain
-    // whole-API floor cannot catch, because one new route among ~180 does not
-    // move the total below the ratchet.
-    for (const tag of [
-      'auth',
-      'users',
-      'tags',
-      'locations',
-      'monitoring',
-      'super-admin',
-      'scheduled-reports',
-      'notifications',
-      'alerts',
-      'content',
-      'screens',
-      'screen-groups',
-      'companies',
-      'plans',
-      'invoices',
-      'subscriptions',
-      'sessions',
-      'two-factor',
-      'invitations',
-    ]) {
-      const seen = perTag[tag];
-      // Report the tag AND both numbers in the failure, so a break says
-      // "screens 22/29" rather than "expected 29, received 22".
-      expect({ tag, ...seen }).toEqual({ tag, annotated: seen?.total, total: seen?.total });
+    for (const [tag, v] of Object.entries(perTag)) {
+      if (v.annotated < v.total) incomplete.push(`${tag} ${v.annotated}/${v.total}`);
     }
-  });
-
-  it('response coverage does not regress', () => {
-    // A RATCHET, not a target: 173 of the 209 operations in the contract.
-    //
-    // "172" appeared here one commit ago and was never measured — I carried a
-    // number forward instead of counting. The figure below is read off the
-    // emitted document, and the assertion under it now pins the denominator so
-    // a stale count fails rather than being quoted again. Raise it as controllers are annotated; it fails the moment a
-    // route loses its response type.
-    //
-    // The per-tag test above is the sharper one — this floor cannot notice a
-    // single new unannotated route among ~180, and it is why nine tags are
-    // pinned at full coverage by name.
-    //
-    // Measured, never estimated: an earlier version guessed the count and failed
-    // on its first run.
-    const { annotated, total } = operationsWithResponseSchema();
-    expect(annotated.length).toBeGreaterThanOrEqual(173);
-    // Pinned, not a floor: the comment above quotes this number, and a quoted
-    // number that nothing checks is how the wrong one survived.
-    expect(total).toBe(209);
+    expect(incomplete).toEqual([]);
+    // 31 tags. Pinned so a whole tag vanishing (a controller excluded by
+    // mistake) is a failure rather than a silently smaller, still-green set.
+    expect(Object.keys(perTag).length).toBe(31);
   });
 });

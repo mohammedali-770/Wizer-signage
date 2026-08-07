@@ -20,6 +20,7 @@ import {
 
 import { ApiPaginatedResponse, DeletedResponseDto } from '../../common/dto/api-response.dto';
 import { PlaylistDetailDto, PlaylistSummaryDto } from '../../common/dto/entity-response.dto';
+import { PlaylistValidationDto } from '../schedules/dto/validation-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -74,6 +75,7 @@ export class PlaylistsController {
   }
 
   @Get(':id/validate')
+  @ApiOkResponse({ type: PlaylistValidationDto })
   @RequirePermissions(Permission.PlaylistRead)
   @ApiOperation({
     summary: 'Validation summary (schedulable, invalid items, orientation, duration).',
@@ -97,6 +99,8 @@ export class PlaylistsController {
 
   @Post(':id/archive')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Archive a playlist.' })
+  @ApiOkResponse({ type: PlaylistDetailDto })
   @RequirePermissions(Permission.PlaylistManage)
   archive(
     @CurrentCompany() companyId: string,
@@ -108,6 +112,8 @@ export class PlaylistsController {
 
   @Post(':id/unarchive')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Restore an archived playlist.' })
+  @ApiOkResponse({ type: PlaylistDetailDto })
   @RequirePermissions(Permission.PlaylistManage)
   unarchive(
     @CurrentCompany() companyId: string,

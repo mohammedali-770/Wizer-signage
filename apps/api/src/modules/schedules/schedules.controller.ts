@@ -20,6 +20,7 @@ import {
 
 import { ApiPaginatedResponse, DeletedResponseDto } from '../../common/dto/api-response.dto';
 import { ScheduleDto } from '../../common/dto/entity-response.dto';
+import { ScheduleConflictsDto, ScheduleValidationDto } from './dto/validation-response.dto';
 import { ScheduleStatus } from '@prisma/client';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
@@ -66,6 +67,9 @@ export class SchedulesController {
   @Get('conflicts')
   @RequirePermissions(Permission.ScheduleRead)
   @ApiOperation({ summary: 'All overlapping ACTIVE schedule pairs (shared screens + winner).' })
+  // A one-key OBJECT, not a bare array — the field and the endpoint share a
+  // name, which is how it gets documented as an array.
+  @ApiOkResponse({ type: ScheduleConflictsDto })
   conflicts(@CurrentCompany() companyId: string) {
     return this.schedules.conflicts(companyId);
   }
@@ -80,6 +84,7 @@ export class SchedulesController {
 
   @Get(':id/validate')
   @RequirePermissions(Permission.ScheduleRead)
+  @ApiOkResponse({ type: ScheduleValidationDto })
   @ApiOperation({
     summary: 'Validation summary (playlist/targets, orientation + conflict warnings).',
   })
@@ -103,6 +108,8 @@ export class SchedulesController {
   @Post(':id/pause')
   @HttpCode(200)
   @RequirePermissions(Permission.ScheduleManage)
+  @ApiOperation({ summary: 'Pause a schedule.' })
+  @ApiOkResponse({ type: ScheduleDto })
   pause(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -114,6 +121,8 @@ export class SchedulesController {
   @Post(':id/resume')
   @HttpCode(200)
   @RequirePermissions(Permission.ScheduleManage)
+  @ApiOperation({ summary: 'Resume a paused schedule.' })
+  @ApiOkResponse({ type: ScheduleDto })
   resume(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -125,6 +134,8 @@ export class SchedulesController {
   @Post(':id/archive')
   @HttpCode(200)
   @RequirePermissions(Permission.ScheduleManage)
+  @ApiOperation({ summary: 'Archive a schedule.' })
+  @ApiOkResponse({ type: ScheduleDto })
   archive(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

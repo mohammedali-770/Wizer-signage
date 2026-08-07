@@ -9,6 +9,7 @@ import {
 
 import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
 import { EmergencyBroadcastDto } from '../../common/dto/entity-response.dto';
+import { EmergencyValidationDto } from '../schedules/dto/validation-response.dto';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -78,6 +79,7 @@ export class EmergencyBroadcastController {
   @Get(':id/validate')
   @RequirePermissions(Permission.ScreenRead)
   @ApiOperation({ summary: 'Validation report (errors, warnings, affected screen count).' })
+  @ApiOkResponse({ type: EmergencyValidationDto })
   validate(@CurrentCompany() companyId: string, @Param('id') id: string) {
     return this.emergency.validate(companyId, id);
   }
@@ -145,6 +147,9 @@ export class EmergencyBroadcastController {
 
   @Post(':id/targets')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Add a target to a broadcast.' })
+  // Returns the whole broadcast, not the target that was added.
+  @ApiOkResponse({ type: EmergencyBroadcastDto })
   @RequirePermissions(Permission.EmergencySend)
   addTarget(
     @CurrentCompany() companyId: string,
@@ -157,6 +162,8 @@ export class EmergencyBroadcastController {
 
   @Delete(':id/targets/:targetId')
   @RequirePermissions(Permission.EmergencySend)
+  @ApiOperation({ summary: 'Remove a target from a broadcast.' })
+  @ApiOkResponse({ type: EmergencyBroadcastDto })
   removeTarget(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,

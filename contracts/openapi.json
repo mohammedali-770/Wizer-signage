@@ -8,7 +8,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Service is alive."
+            "description": "Service is alive.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatusDto"
+                }
+              }
+            }
           }
         },
         "summary": "Liveness probe",
@@ -24,10 +31,24 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Service is ready."
+            "description": "Service is ready.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessStatusDto"
+                }
+              }
+            }
           },
           "503": {
-            "description": "Service is not ready (e.g. database unreachable)."
+            "description": "Not ready. Same body, with status `degraded` and the failing check.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessStatusDto"
+                }
+              }
+            }
           }
         },
         "summary": "Readiness probe",
@@ -52,7 +73,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrialSignupResultDto"
+                }
+              }
+            }
           }
         },
         "summary": "Create a trial tenant (company + owner + trial subscription).",
@@ -77,7 +105,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoRequestResultDto"
+                }
+              }
+            }
           }
         },
         "summary": "Submit a \"Book a Demo\" / contact-sales request.",
@@ -92,7 +127,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicPlanDto"
+                  }
+                }
+              }
+            }
           }
         },
         "summary": "List active public plans for the marketing pricing page.",
@@ -107,7 +152,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ActivityLogDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3658,7 +3725,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySettingsDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3686,7 +3760,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySettingsDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3706,7 +3787,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageEvaluationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3736,7 +3824,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3754,7 +3849,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4675,7 +4777,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistValidationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4704,7 +4813,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4712,6 +4828,7 @@
             "bearer": []
           }
         ],
+        "summary": "Archive a playlist.",
         "tags": [
           "playlists"
         ]
@@ -4732,7 +4849,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4740,6 +4864,7 @@
             "bearer": []
           }
         ],
+        "summary": "Restore an archived playlist.",
         "tags": [
           "playlists"
         ]
@@ -5062,7 +5187,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleConflictsDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5205,7 +5337,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleValidationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5234,7 +5373,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5242,6 +5388,7 @@
             "bearer": []
           }
         ],
+        "summary": "Pause a schedule.",
         "tags": [
           "schedules"
         ]
@@ -5262,7 +5409,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5270,6 +5424,7 @@
             "bearer": []
           }
         ],
+        "summary": "Resume a paused schedule.",
         "tags": [
           "schedules"
         ]
@@ -5290,7 +5445,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -5298,6 +5460,7 @@
             "bearer": []
           }
         ],
+        "summary": "Archive a schedule.",
         "tags": [
           "schedules"
         ]
@@ -5408,7 +5571,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackManifestDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6375,7 +6545,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProofOfPlayEventDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6395,7 +6587,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProofOfPlaySummaryDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6415,7 +6614,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "The filtered events as CSV.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6638,7 +6844,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyValidationDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6817,7 +7030,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6825,6 +7045,7 @@
             "bearer": []
           }
         ],
+        "summary": "Add a target to a broadcast.",
         "tags": [
           "emergency-broadcasts"
         ]
@@ -6853,7 +7074,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyBroadcastDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6861,6 +7089,7 @@
             "bearer": []
           }
         ],
+        "summary": "Remove a target from a broadcast.",
         "tags": [
           "emergency-broadcasts"
         ]
@@ -6872,7 +7101,26 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "The rendered export. Content-Type follows ?format.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6901,7 +7149,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "A CSV template with the expected header row.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6930,7 +7185,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6948,7 +7210,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ImportJobDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMetaDto"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6977,7 +7261,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDetailDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6985,6 +7276,7 @@
             "bearer": []
           }
         ],
+        "summary": "One import job, including the rows awaiting commit.",
         "tags": [
           "imports"
         ]
@@ -7005,7 +7297,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportCommitResultDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7034,7 +7333,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7042,6 +7348,7 @@
             "bearer": []
           }
         ],
+        "summary": "Cancel an uncommitted import.",
         "tags": [
           "imports"
         ]
@@ -7352,7 +7659,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupStatusDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7380,7 +7694,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupRunDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7410,7 +7731,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceRunResultDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7442,9 +7770,132 @@
       }
     },
     "schemas": {
+      "HealthStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ],
+            "description": "Always `ok`; the process answering at all IS the check."
+          },
+          "service": {
+            "type": "string",
+            "example": "wizer-signage-api"
+          },
+          "version": {
+            "type": "string",
+            "description": "The API version, read from package.json at startup."
+          },
+          "uptime": {
+            "type": "number",
+            "description": "Process uptime in seconds, fractional.",
+            "example": 1234.56
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "version",
+          "uptime",
+          "timestamp"
+        ]
+      },
+      "ReadinessChecksDto": {
+        "type": "object",
+        "properties": {
+          "database": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ],
+            "description": "A lightweight `SELECT 1`."
+          },
+          "storageConfigured": {
+            "type": "boolean",
+            "description": "An object-storage driver is configured."
+          },
+          "mailConfigured": {
+            "type": "boolean",
+            "description": "An SMTP transport is configured; otherwise mail is log-only."
+          }
+        },
+        "required": [
+          "database",
+          "storageConfigured",
+          "mailConfigured"
+        ]
+      },
+      "ReadinessStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "description": "Under a 200 this is always `ok`; `degraded` arrives with a 503."
+          },
+          "service": {
+            "type": "string",
+            "example": "wizer-signage-api"
+          },
+          "checks": {
+            "$ref": "#/components/schemas/ReadinessChecksDto"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "checks",
+          "timestamp"
+        ]
+      },
       "TrialSignupDto": {
         "type": "object",
         "properties": {}
+      },
+      "TrialSignupResultDto": {
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "description": "The tenant slug, as allocated — may differ from what was asked for."
+          },
+          "email": {
+            "type": "string",
+            "example": "owner@example.com"
+          },
+          "trialEndsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "redirectUrl": {
+            "type": "string",
+            "description": "Where to send the browser next. NO tokens are issued here — the owner signs in normally, so an unauthenticated endpoint never mints a session."
+          }
+        },
+        "required": [
+          "companyId",
+          "slug",
+          "email",
+          "trialEndsAt",
+          "redirectUrl"
+        ]
       },
       "DemoRequestDto": {
         "type": "object",
@@ -7516,6 +7967,218 @@
           "status",
           "createdAt",
           "updatedAt"
+        ]
+      },
+      "DemoRequestResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "received"
+            ],
+            "example": "received"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      },
+      "PlanLimitsDto": {
+        "type": "object",
+        "properties": {
+          "maxCompanies": {
+            "type": "object",
+            "nullable": true
+          },
+          "maxLocations": {
+            "type": "object",
+            "nullable": true
+          },
+          "maxScreens": {
+            "type": "object",
+            "nullable": true
+          },
+          "maxUsers": {
+            "type": "object",
+            "nullable": true
+          },
+          "storageGb": {
+            "type": "object",
+            "nullable": true
+          },
+          "maxFileSizeMb": {
+            "type": "object",
+            "nullable": true
+          },
+          "autoScreenshotsPerDay": {
+            "type": "object",
+            "nullable": true
+          },
+          "scheduledReports": {
+            "type": "object",
+            "nullable": true
+          },
+          "dataRetentionDays": {
+            "type": "object",
+            "nullable": true
+          },
+          "apiRequestsPerDay": {
+            "type": "object",
+            "nullable": true
+          },
+          "webhooks": {
+            "type": "object",
+            "nullable": true
+          }
+        }
+      },
+      "PublicPlanDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "example": "pro"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "priceMonthly": {
+            "type": "number",
+            "description": "A NUMBER here — passed through Number(). GET /plans returns the same column as a string.",
+            "example": 49.9
+          },
+          "priceYearly": {
+            "type": "object",
+            "nullable": true,
+            "description": "A number, or null when the plan is not sold yearly.",
+            "example": 499
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "trialDays": {
+            "type": "number"
+          },
+          "limits": {
+            "description": "`{}` when the plan sets no limits.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanLimitsDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code",
+          "priceMonthly",
+          "currency",
+          "trialDays",
+          "limits"
+        ]
+      },
+      "ActivityLogDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "object",
+            "nullable": true
+          },
+          "actorId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Nulled if the actor is deleted."
+          },
+          "action": {
+            "type": "string",
+            "description": "Dotted event name.",
+            "example": "subscription.updated"
+          },
+          "category": {
+            "type": "string",
+            "description": "A plain String column, not an enum.",
+            "example": "SUBSCRIPTION"
+          },
+          "targetType": {
+            "type": "object",
+            "nullable": true
+          },
+          "targetId": {
+            "type": "object",
+            "nullable": true
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "ip": {
+            "type": "object",
+            "nullable": true
+          },
+          "userAgent": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "category",
+          "metadata",
+          "createdAt"
+        ]
+      },
+      "PageMetaDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "number",
+            "example": 25
+          },
+          "total": {
+            "type": "number",
+            "example": 137,
+            "description": "Total matching rows, ignoring pagination."
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 6
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "totalPages"
         ]
       },
       "CompanyDto": {
@@ -7610,34 +8273,6 @@
         "type": "object",
         "properties": {}
       },
-      "PageMetaDto": {
-        "type": "object",
-        "properties": {
-          "page": {
-            "type": "number",
-            "example": 1
-          },
-          "pageSize": {
-            "type": "number",
-            "example": 25
-          },
-          "total": {
-            "type": "number",
-            "example": 137,
-            "description": "Total matching rows, ignoring pagination."
-          },
-          "totalPages": {
-            "type": "number",
-            "example": 6
-          }
-        },
-        "required": [
-          "page",
-          "pageSize",
-          "total",
-          "totalPages"
-        ]
-      },
       "UsageCountsDto": {
         "type": "object",
         "properties": {
@@ -7714,55 +8349,6 @@
           "exceeded",
           "approaching"
         ]
-      },
-      "PlanLimitsDto": {
-        "type": "object",
-        "properties": {
-          "maxCompanies": {
-            "type": "object",
-            "nullable": true
-          },
-          "maxLocations": {
-            "type": "object",
-            "nullable": true
-          },
-          "maxScreens": {
-            "type": "object",
-            "nullable": true
-          },
-          "maxUsers": {
-            "type": "object",
-            "nullable": true
-          },
-          "storageGb": {
-            "type": "object",
-            "nullable": true
-          },
-          "maxFileSizeMb": {
-            "type": "object",
-            "nullable": true
-          },
-          "autoScreenshotsPerDay": {
-            "type": "object",
-            "nullable": true
-          },
-          "scheduledReports": {
-            "type": "object",
-            "nullable": true
-          },
-          "dataRetentionDays": {
-            "type": "object",
-            "nullable": true
-          },
-          "apiRequestsPerDay": {
-            "type": "object",
-            "nullable": true
-          },
-          "webhooks": {
-            "type": "object",
-            "nullable": true
-          }
-        }
       },
       "UsageEvaluationDto": {
         "type": "object",
@@ -8661,68 +9247,6 @@
           "createdAt",
           "updatedAt",
           "company"
-        ]
-      },
-      "ActivityLogDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "companyId": {
-            "type": "object",
-            "nullable": true
-          },
-          "actorId": {
-            "type": "object",
-            "nullable": true,
-            "description": "Nulled if the actor is deleted."
-          },
-          "action": {
-            "type": "string",
-            "description": "Dotted event name.",
-            "example": "subscription.updated"
-          },
-          "category": {
-            "type": "string",
-            "description": "A plain String column, not an enum.",
-            "example": "SUBSCRIPTION"
-          },
-          "targetType": {
-            "type": "object",
-            "nullable": true
-          },
-          "targetId": {
-            "type": "object",
-            "nullable": true
-          },
-          "description": {
-            "type": "object",
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "ip": {
-            "type": "object",
-            "nullable": true
-          },
-          "userAgent": {
-            "type": "object",
-            "nullable": true
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "action",
-          "category",
-          "metadata",
-          "createdAt"
         ]
       },
       "UpdateSubscriptionDto": {
@@ -9632,6 +10156,116 @@
         "type": "object",
         "properties": {}
       },
+      "CompanyPlanSummaryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "example": "pro"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "TRIALING",
+              "EXPIRED",
+              "SUSPENDED",
+              "CANCELLED"
+            ]
+          },
+          "limits": {
+            "$ref": "#/components/schemas/PlanLimitsDto"
+          }
+        },
+        "required": [
+          "name",
+          "code",
+          "status",
+          "limits"
+        ]
+      },
+      "CompanySettingsDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "PENDING",
+              "CANCELLED"
+            ]
+          },
+          "defaultLocale": {
+            "type": "string",
+            "example": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA timezone. Schedules resolve in it.",
+            "example": "Asia/Riyadh"
+          },
+          "defaultWorkingHours": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true,
+            "description": "Per-weekday open/close used as the default for new schedules."
+          },
+          "defaultHeartbeatIntervalSeconds": {
+            "type": "number",
+            "description": "Defaulted to 60 at read time when unset — never null."
+          },
+          "notificationEmails": {
+            "description": "Defaulted to [] at read time — never null.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fallbackContentId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Content played when nothing is scheduled."
+          },
+          "hasDefaultKioskPin": {
+            "type": "boolean",
+            "description": "Whether a default kiosk PIN is set. The HASH is never returned — same substitution ScreenDto.hasKioskPin makes."
+          },
+          "plan": {
+            "nullable": true,
+            "description": "Read-only; a Super Admin manages the subscription. null when there is none.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CompanyPlanSummaryDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "status",
+          "defaultLocale",
+          "timezone",
+          "defaultHeartbeatIntervalSeconds",
+          "notificationEmails",
+          "hasDefaultKioskPin"
+        ]
+      },
       "UpdateCompanySettingsDto": {
         "type": "object",
         "properties": {}
@@ -10260,6 +10894,84 @@
           "warnings"
         ]
       },
+      "PlaylistItemIssueDto": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          },
+          "contentTitle": {
+            "type": "object",
+            "nullable": true,
+            "description": "null if the content row is gone."
+          },
+          "issue": {
+            "type": "object",
+            "nullable": true,
+            "description": "Expired, archived, trashed or deleted content."
+          }
+        },
+        "required": [
+          "itemId"
+        ]
+      },
+      "PlaylistValidationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "valid": {
+            "type": "boolean",
+            "description": "An ALIAS of `schedulable` — the service assigns both from the same value. Two names for one field, kept because clients read each of them."
+          },
+          "schedulable": {
+            "type": "boolean",
+            "description": "The same boolean as `valid`."
+          },
+          "itemCount": {
+            "type": "number"
+          },
+          "validItemCount": {
+            "type": "number"
+          },
+          "invalidItemCount": {
+            "type": "number"
+          },
+          "orientationProfile": {
+            "type": "object",
+            "nullable": true,
+            "description": "The orientation every item shares, or null when they disagree."
+          },
+          "totalDurationSeconds": {
+            "type": "number"
+          },
+          "issues": {
+            "description": "One entry per INVALID item only.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlaylistItemIssueDto"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "valid",
+          "schedulable",
+          "itemCount",
+          "validItemCount",
+          "invalidItemCount",
+          "totalDurationSeconds",
+          "issues",
+          "warnings"
+        ]
+      },
       "UpdatePlaylistDto": {
         "type": "object",
         "properties": {}
@@ -10472,6 +11184,178 @@
         "type": "object",
         "properties": {}
       },
+      "ConflictScheduleSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "number",
+            "description": "Higher wins."
+          },
+          "scheduleType": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "CAMPAIGN"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "priority",
+          "scheduleType"
+        ]
+      },
+      "SchedulePairConflictDto": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/ConflictScheduleSummaryDto"
+          },
+          "b": {
+            "$ref": "#/components/schemas/ConflictScheduleSummaryDto"
+          },
+          "sharedScreenIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "winnerId": {
+            "type": "object",
+            "nullable": true,
+            "description": "null when priority and type tie."
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "sharedScreenIds"
+        ]
+      },
+      "ScheduleConflictsDto": {
+        "type": "object",
+        "properties": {
+          "conflicts": {
+            "description": "Every overlapping ACTIVE pair.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulePairConflictDto"
+            }
+          }
+        },
+        "required": [
+          "conflicts"
+        ]
+      },
+      "SchedulePlaylistValidityDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "schedulable": {
+            "type": "boolean"
+          },
+          "validItemCount": {
+            "type": "number",
+            "description": "Items that would actually play. Zero means nothing would."
+          }
+        },
+        "required": [
+          "id",
+          "schedulable",
+          "validItemCount"
+        ]
+      },
+      "ScheduleConflictDto": {
+        "type": "object",
+        "properties": {
+          "scheduleId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sharedScreenIds": {
+            "description": "The screens both schedules target. Never empty — that is what makes it a clash.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "winnerId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Which of the two the resolver would play, by priority then type. null when the rules cannot separate them, which is the case a human has to settle."
+          }
+        },
+        "required": [
+          "scheduleId",
+          "name",
+          "sharedScreenIds"
+        ]
+      },
+      "ScheduleValidationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "schedulable": {
+            "type": "boolean",
+            "description": "Whether this schedule would actually put something on screen. Note there is no `valid` here — the playlist endpoint has both, this one only has `schedulable`."
+          },
+          "playlist": {
+            "nullable": true,
+            "description": "null when the schedule has no playlist attached.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SchedulePlaylistValidityDto"
+              }
+            ]
+          },
+          "targetCount": {
+            "type": "number",
+            "description": "How many screens/groups/locations the schedule targets."
+          },
+          "orientationWarnings": {
+            "description": "Content whose orientation does not match the screens it would play on.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleConflictDto"
+            }
+          },
+          "warnings": {
+            "description": "Timing warnings PLUS every orientationWarning — the orientation ones appear twice, once in their own field and again here. Concatenating the two lists double-counts them.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "schedulable",
+          "targetCount",
+          "orientationWarnings",
+          "conflicts",
+          "warnings"
+        ]
+      },
       "UpdateScheduleDto": {
         "type": "object",
         "properties": {}
@@ -10479,6 +11363,192 @@
       "AddScheduleTargetDto": {
         "type": "object",
         "properties": {}
+      },
+      "ManifestItemDto": {
+        "type": "object",
+        "properties": {
+          "contentId": {
+            "type": "string",
+            "description": "Library content id, or a synthetic `emg:` id for a direct TEXT/URL emergency item that no Content row backs. The player keys on the prefix and reports proof-of-play with a null contentId for those, because there is no FK to satisfy."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "PDF",
+              "URL",
+              "TEXT"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "durationSeconds": {
+            "type": "number"
+          },
+          "playFullVideo": {
+            "type": "boolean",
+            "description": "Play the whole video rather than cutting at durationSeconds."
+          },
+          "pdfPageDurationSeconds": {
+            "type": "object",
+            "nullable": true,
+            "description": "Per-page dwell for PDFs; null otherwise."
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "LANDSCAPE",
+              "PORTRAIT",
+              "UNKNOWN"
+            ]
+          },
+          "fileSizeBytes": {
+            "type": "object",
+            "nullable": true,
+            "description": "Serialised as a string — a 64-bit column, not a JSON number."
+          },
+          "checksum": {
+            "type": "object",
+            "nullable": true,
+            "description": "For cache validation after download."
+          },
+          "mimeType": {
+            "type": "object",
+            "nullable": true
+          },
+          "signedUrl": {
+            "type": "object",
+            "nullable": true,
+            "description": "Short-lived signed URL for ONLINE playback of a stored file; null for URL/TEXT items. Excluded from manifestHash, because it rotates on every read."
+          },
+          "downloadPath": {
+            "type": "object",
+            "nullable": true,
+            "description": "Device-authenticated path for OFFLINE caching, relative to /api — e.g. `/device/content/{id}/download`. null for URL/TEXT."
+          },
+          "version": {
+            "type": "string",
+            "description": "Content version marker (the row's updatedAt) so a cache can detect changes."
+          },
+          "url": {
+            "type": "object",
+            "nullable": true,
+            "description": "External URL for URL content."
+          },
+          "textBody": {
+            "type": "object",
+            "nullable": true,
+            "description": "Body for TEXT content."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "contentId",
+          "type",
+          "title",
+          "durationSeconds",
+          "playFullVideo",
+          "orientation",
+          "version",
+          "metadata"
+        ]
+      },
+      "PlaybackManifestDto": {
+        "type": "object",
+        "properties": {
+          "screenId": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Excluded from manifestHash — it always changes."
+          },
+          "manifestHash": {
+            "type": "string",
+            "description": "SHA-256 of WHAT plays — items, schedule/playlist/emergency identity, priority, message — and deliberately NOT of generatedAt or the rotating signed URLs. So it changes only when the effective configuration changes, which is what makes \"out of date\" cheap to detect. The player reports this back as its synced manifest version."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "The screen's IANA timezone, which the resolution was made in."
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "SCHEDULE",
+              "FALLBACK",
+              "EMERGENCY",
+              "NONE"
+            ],
+            "description": "Why these items were chosen. NONE means nothing applies and items is empty."
+          },
+          "scheduleId": {
+            "type": "object",
+            "nullable": true
+          },
+          "scheduleName": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlistId": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlistTitle": {
+            "type": "object",
+            "nullable": true
+          },
+          "emergencyBroadcastId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Set only when sourceType is EMERGENCY."
+          },
+          "priority": {
+            "type": "object",
+            "nullable": true
+          },
+          "outsideHours": {
+            "type": "boolean",
+            "description": "True when the resolution time falls outside the schedule window."
+          },
+          "outsideHoursBehavior": {
+            "type": "object",
+            "nullable": true
+          },
+          "message": {
+            "type": "object",
+            "nullable": true,
+            "description": "Emergency message text, when present."
+          },
+          "items": {
+            "description": "Empty when sourceType is NONE.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManifestItemDto"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "screenId",
+          "generatedAt",
+          "manifestHash",
+          "timezone",
+          "sourceType",
+          "outsideHours",
+          "items",
+          "warnings"
+        ]
       },
       "PairScreenDto": {
         "type": "object",
@@ -11423,6 +12493,224 @@
           "createdAt"
         ]
       },
+      "ProofOfPlayEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "screenId": {
+            "type": "string"
+          },
+          "screenName": {
+            "type": "object",
+            "nullable": true,
+            "description": "null if the screen row is gone."
+          },
+          "locationId": {
+            "type": "object",
+            "nullable": true
+          },
+          "locationName": {
+            "type": "object",
+            "nullable": true
+          },
+          "contentId": {
+            "type": "object",
+            "nullable": true,
+            "description": "null for a synthetic `emg:` emergency item — there is no Content row to reference."
+          },
+          "contentTitle": {
+            "type": "object",
+            "nullable": true
+          },
+          "contentType": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlistId": {
+            "type": "object",
+            "nullable": true
+          },
+          "playlistTitle": {
+            "type": "object",
+            "nullable": true
+          },
+          "scheduleId": {
+            "type": "object",
+            "nullable": true
+          },
+          "scheduleName": {
+            "type": "object",
+            "nullable": true
+          },
+          "emergencyBroadcastId": {
+            "type": "object",
+            "nullable": true
+          },
+          "emergencyBroadcastTitle": {
+            "type": "object",
+            "nullable": true
+          },
+          "sourceType": {
+            "type": "object",
+            "nullable": true,
+            "description": "Why it played: SCHEDULE/FALLBACK/EMERGENCY."
+          },
+          "playbackSource": {
+            "type": "object",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "STARTED",
+              "COMPLETED",
+              "FAILED",
+              "SKIPPED",
+              "INTERRUPTED"
+            ]
+          },
+          "durationMs": {
+            "type": "object",
+            "nullable": true,
+            "description": "How long it actually played."
+          },
+          "expectedDurationMs": {
+            "type": "object",
+            "nullable": true,
+            "description": "How long it was supposed to play."
+          },
+          "offlinePlayback": {
+            "type": "object",
+            "nullable": true,
+            "description": "Played from cache with no network."
+          },
+          "failureReason": {
+            "type": "object",
+            "nullable": true
+          },
+          "manifestVersion": {
+            "type": "object",
+            "nullable": true
+          },
+          "itemSequence": {
+            "type": "object",
+            "nullable": true,
+            "description": "Position within the playlist for this play."
+          },
+          "playbackSessionId": {
+            "type": "object",
+            "nullable": true,
+            "description": "Groups the plays of one playlist pass."
+          }
+        },
+        "required": [
+          "id",
+          "startedAt",
+          "screenId",
+          "status"
+        ]
+      },
+      "TopContentDto": {
+        "type": "object",
+        "properties": {
+          "contentId": {
+            "type": "object",
+            "nullable": true
+          },
+          "title": {
+            "type": "object",
+            "nullable": true
+          },
+          "plays": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "plays"
+        ]
+      },
+      "FailingScreenDto": {
+        "type": "object",
+        "properties": {
+          "screenId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "object",
+            "nullable": true
+          },
+          "failures": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "screenId",
+          "failures"
+        ]
+      },
+      "ProofOfPlaySummaryDto": {
+        "type": "object",
+        "properties": {
+          "totalPlays": {
+            "type": "number",
+            "description": "Every event in the window, whatever its status."
+          },
+          "completedPlays": {
+            "type": "number"
+          },
+          "failedPlays": {
+            "type": "number"
+          },
+          "skippedPlays": {
+            "type": "number"
+          },
+          "interruptedPlays": {
+            "type": "number"
+          },
+          "startedPlays": {
+            "type": "number",
+            "description": "Started and not yet resolved — these are still counted in totalPlays."
+          },
+          "totalDurationMs": {
+            "type": "number",
+            "description": "Summed actual playback time. 0 when nothing reported a duration."
+          },
+          "mostPlayedContent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopContentDto"
+            }
+          },
+          "screensWithFailures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FailingScreenDto"
+            }
+          }
+        },
+        "required": [
+          "totalPlays",
+          "completedPlays",
+          "failedPlays",
+          "skippedPlays",
+          "interruptedPlays",
+          "startedPlays",
+          "totalDurationMs",
+          "mostPlayedContent",
+          "screensWithFailures"
+        ]
+      },
       "BroadcastTargetDto": {
         "type": "object",
         "properties": {
@@ -11559,6 +12847,43 @@
         "type": "object",
         "properties": {}
       },
+      "EmergencyValidationDto": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "description": "No errors AND at least one affected screen. An override reaching nobody is not valid."
+          },
+          "canActivate": {
+            "type": "boolean",
+            "description": "`valid` AND the broadcast is not already ENDED or ARCHIVED. The two differ for a finished broadcast: still well-formed, no longer activatable."
+          },
+          "errors": {
+            "description": "Hard failures. The only one of the three validate endpoints that has these.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "affectedScreens": {
+            "type": "number",
+            "description": "A COUNT, not the ids — the service returns `affectedScreenIds.length`."
+          }
+        },
+        "required": [
+          "valid",
+          "canActivate",
+          "errors",
+          "warnings",
+          "affectedScreens"
+        ]
+      },
       "UpdateEmergencyBroadcastDto": {
         "type": "object",
         "properties": {}
@@ -11566,6 +12891,271 @@
       "EmergencyTargetDto": {
         "type": "object",
         "properties": {}
+      },
+      "ImportJobDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "COMPANY",
+              "LOCATION",
+              "SCREEN",
+              "USER",
+              "SCREEN_GROUP",
+              "TAG"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "UPLOADED",
+              "VALIDATED",
+              "COMMITTED",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "description": "The uploaded filename, as given."
+          },
+          "totalRows": {
+            "type": "number"
+          },
+          "validRows": {
+            "type": "number"
+          },
+          "invalidRows": {
+            "type": "number"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Per-row validation errors found during upload. `[]` when the file was clean."
+          },
+          "committedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "type",
+          "status",
+          "fileName",
+          "totalRows",
+          "validRows",
+          "invalidRows",
+          "errors",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ImportJobDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "COMPANY",
+              "LOCATION",
+              "SCREEN",
+              "USER",
+              "SCREEN_GROUP",
+              "TAG"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "UPLOADED",
+              "VALIDATED",
+              "COMMITTED",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "description": "The uploaded filename, as given."
+          },
+          "totalRows": {
+            "type": "number"
+          },
+          "validRows": {
+            "type": "number"
+          },
+          "invalidRows": {
+            "type": "number"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Per-row validation errors found during upload. `[]` when the file was clean."
+          },
+          "committedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "preview": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "nullable": true,
+            "description": "The parsed rows awaiting commit. Only the DETAIL route loads this — the list never carries it, which is why these are separate classes."
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "type",
+          "status",
+          "fileName",
+          "totalRows",
+          "validRows",
+          "invalidRows",
+          "errors",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ImportCommitResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "COMPANY",
+              "LOCATION",
+              "SCREEN",
+              "USER",
+              "SCREEN_GROUP",
+              "TAG"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "UPLOADED",
+              "VALIDATED",
+              "COMMITTED",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "description": "The uploaded filename, as given."
+          },
+          "totalRows": {
+            "type": "number"
+          },
+          "validRows": {
+            "type": "number"
+          },
+          "invalidRows": {
+            "type": "number"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Per-row validation errors found during upload. `[]` when the file was clean."
+          },
+          "committedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "committed": {
+            "type": "number",
+            "description": "Rows successfully created."
+          },
+          "failed": {
+            "type": "number",
+            "description": "Rows that failed AT COMMIT time — distinct from `invalidRows`, which counts what upload validation rejected. A row can pass upload and still fail here, on a plan limit or a uniqueness clash created since."
+          },
+          "rowErrors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "The commit-time failures, one entry each."
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "type",
+          "status",
+          "fileName",
+          "totalRows",
+          "validRows",
+          "invalidRows",
+          "errors",
+          "createdAt",
+          "updatedAt",
+          "committed",
+          "failed",
+          "rowErrors"
+        ]
       },
       "ScheduledReportDto": {
         "type": "object",
@@ -11808,6 +13398,89 @@
         "type": "object",
         "properties": {}
       },
+      "BackupRunDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "description": "What was backed up, e.g. DATABASE."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "FAILED"
+            ]
+          },
+          "location": {
+            "type": "object",
+            "nullable": true,
+            "description": "Where it was written. A path or bucket key, not a credential."
+          },
+          "sizeBytes": {
+            "type": "object",
+            "nullable": true,
+            "description": "Serialised as a string — a 64-bit column, not a JSON number."
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "status",
+          "startedAt",
+          "createdAt"
+        ]
+      },
+      "BackupStatusDto": {
+        "type": "object",
+        "properties": {
+          "lastSuccessfulDatabaseBackupAt": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time",
+            "description": "null means NO successful database backup has ever been recorded."
+          },
+          "stale": {
+            "type": "boolean",
+            "description": "True when the last success is older than the threshold — OR when there has never been one. Both are the same alert, and a client reading only the timestamp misses the second."
+          },
+          "staleThresholdDays": {
+            "type": "number"
+          },
+          "recent": {
+            "description": "Recent runs, newest first.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupRunDto"
+            }
+          }
+        },
+        "required": [
+          "stale",
+          "staleThresholdDays",
+          "recent"
+        ]
+      },
       "RecordBackupDto": {
         "type": "object",
         "properties": {}
@@ -11815,6 +13488,36 @@
       "RunMaintenanceDto": {
         "type": "object",
         "properties": {}
+      },
+      "MaintenanceRunResultDto": {
+        "type": "object",
+        "properties": {
+          "sweep": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "retention": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "autoEndedEmergencies": {
+            "type": "object",
+            "nullable": true,
+            "description": "How many broadcasts were auto-ended."
+          },
+          "scheduledReports": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "backupStale": {
+            "type": "object",
+            "nullable": true,
+            "description": "Whether the backup recency check failed."
+          }
+        }
       }
     }
   }

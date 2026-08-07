@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -8,6 +8,11 @@ import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { BackupService } from './backup.service';
 import { RecordBackupDto, RunMaintenanceDto } from './dto/maintenance.dto';
+import {
+  BackupRunDto,
+  BackupStatusDto,
+  MaintenanceRunResultDto,
+} from './dto/maintenance-response.dto';
 import { MaintenanceService } from './maintenance.service';
 
 /**
@@ -30,6 +35,7 @@ export class MaintenanceController {
   @ApiOperation({
     summary: 'Backup health: last successful database backup, staleness, recent runs.',
   })
+  @ApiOkResponse({ type: BackupStatusDto })
   backups() {
     return this.backup.status();
   }
@@ -39,6 +45,7 @@ export class MaintenanceController {
   @ApiOperation({
     summary: 'Record a backup run result (used by the backup script / integrations).',
   })
+  @ApiOkResponse({ type: BackupRunDto })
   async recordBackup(@CurrentUser() user: AuthenticatedUser, @Body() dto: RecordBackupDto) {
     const run = await this.backup.record(dto);
     await this.activityLog.log({
@@ -59,6 +66,7 @@ export class MaintenanceController {
     summary:
       'Run a maintenance job now (all | sweep | retention | reports | emergencies | backup-check).',
   })
+  @ApiOkResponse({ type: MaintenanceRunResultDto })
   async run(@CurrentUser() user: AuthenticatedUser, @Body() dto: RunMaintenanceDto) {
     const job = dto.job ?? 'all';
     const result = await this.maintenance.run(job);

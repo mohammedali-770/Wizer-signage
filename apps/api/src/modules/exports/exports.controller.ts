@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, Res } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 
@@ -34,6 +34,19 @@ export class ExportsController {
   @Throttle({ default: { limit: 5, ttl: 300_000 } })
   @ApiOperation({
     summary: 'Export a dataset as CSV/XLSX/PDF (?format, ?from, ?to, ?screenId, ?status).',
+  })
+  // A FILE, not JSON: the body is the rendered export and Content-Type is set
+  // from ?format. There is no JSON schema to document, and pretending there is
+  // one would have a generated client try to parse a PDF.
+  @ApiOkResponse({
+    description: 'The rendered export. Content-Type follows ?format.',
+    content: {
+      'text/csv': { schema: { type: 'string' } },
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+        schema: { type: 'string', format: 'binary' },
+      },
+      'application/pdf': { schema: { type: 'string', format: 'binary' } },
+    },
   })
   async export(
     @CurrentUser() user: AuthenticatedUser,
