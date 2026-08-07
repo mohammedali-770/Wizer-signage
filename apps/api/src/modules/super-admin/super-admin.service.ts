@@ -124,7 +124,9 @@ export class SuperAdminService {
       plans: { active: activePlans },
       invoices: {
         unpaid: unpaidInvoices._count._all,
-        unpaidTotal: Number(unpaidInvoices._sum.total ?? 0),
+        // A string, like the per-invoice `total` it sums. Number() here made the
+        // aggregate the one money value in the API that was a JSON number.
+        unpaidTotal: (unpaidInvoices._sum.total ?? 0).toString(),
       },
       users: { total: totalUsers },
       superAdmins: { active: activeSuperAdmins },

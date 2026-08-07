@@ -25,7 +25,7 @@ export interface UsageCounts {
   users: number;
   /** Outstanding (non-expired) PENDING invitations — each reserves a user seat. */
   pendingInvitations: number;
-  storageBytes: number;
+  storageBytes: string;
   storageGb: number;
 }
 
@@ -90,14 +90,17 @@ export class UsageLimitsService {
           _sum: { fileSize: true },
         }),
       ]);
-    const storageBytes = Number(storageAgg._sum.fileSize ?? 0);
+    // BigInt sum. Kept as a number for the storageGb arithmetic below, then
+    // published as a STRING to match the per-row `fileSize` — which is already a
+    // string because it is a 64-bit column, not a JSON number.
+    const storageBytesNum = Number(storageAgg._sum.fileSize ?? 0);
     return {
       locations,
       screens,
       users,
       pendingInvitations,
-      storageBytes,
-      storageGb: storageBytes / 1_000_000_000,
+      storageBytes: storageBytesNum.toString(),
+      storageGb: storageBytesNum / 1_000_000_000,
     };
   }
 

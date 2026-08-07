@@ -171,7 +171,8 @@ export default function PlansPage() {
       const base = {
         name: form.name.trim(),
         description: form.description.trim() || null,
-        price: form.price.trim() === '' ? 0 : Number(form.price),
+        // The API field is priceMonthly; `form.price` is local UI state.
+        priceMonthly: form.price.trim() === '' ? 0 : Number(form.price),
         currency: form.currency.trim() || 'USD',
         billingInterval: form.billingInterval,
         trialDays: form.trialDays.trim() === '' ? 0 : Number(form.trialDays),

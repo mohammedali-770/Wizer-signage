@@ -155,7 +155,7 @@ export interface UsageEvaluation {
     locations: number;
     screens: number;
     users: number;
-    storageBytes: number;
+    storageBytes: string;
     storageGb: number;
   };
   resources: ResourceUsage[];
@@ -409,7 +409,7 @@ export interface ContentPreviewData {
 
 export interface ContentUsage {
   storage: {
-    usedBytes: number;
+    usedBytes: string;
     usedGb: number;
     limitGb: number | null;
     unlimited: boolean;
@@ -456,7 +456,7 @@ export interface Overview {
   companies: { total: number; byStatus: Record<CompanyStatus, number> };
   subscriptions: { total: number; byStatus: Record<SubscriptionStatus, number> };
   plans: { active: number };
-  invoices: { unpaid: number; unpaidTotal: number };
+  invoices: { unpaid: number; unpaidTotal: string };
   users: { total: number };
   superAdmins: { active: number };
   trials: { active: number; expired: number };

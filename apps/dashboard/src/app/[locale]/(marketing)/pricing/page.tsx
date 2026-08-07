@@ -15,8 +15,9 @@ type Plan = {
   name: string;
   code: string;
   description: string | null;
-  priceMonthly: number;
-  priceYearly: number | null;
+  // Strings: the API returns the raw Decimal, so parse before any arithmetic.
+  priceMonthly: string;
+  priceYearly: string | null;
   currency: string;
   trialDays: number;
   limits: Record<string, number | null>;
@@ -59,7 +60,7 @@ export default function PricingPage() {
       ? t(`marketing.pricing.plans.${plan.code}.tagline`)
       : (plan.description ?? '');
 
-  const isCustom = (plan: Plan) => plan.code === 'enterprise' || plan.priceMonthly === 0;
+  const isCustom = (plan: Plan) => plan.code === 'enterprise' || Number(plan.priceMonthly) === 0;
 
   const planFeatures = (plan: Plan): string[] => {
     const lim = plan.limits ?? {};
@@ -187,7 +188,12 @@ export default function PricingPage() {
               {plans.map((plan, i) => {
                 const popular = plan.code === 'business';
                 const custom = isCustom(plan);
-                const yearlyPrice = plan.priceYearly ?? plan.priceMonthly * 12;
+                // Parsed ONCE, here. `plan.priceMonthly * 12` on a string works by
+                // JS coercion, which is exactly the kind of accident that survives
+                // review and then breaks on a value like '1,200'.
+                const monthlyPrice = Number(plan.priceMonthly);
+                const yearlyPrice =
+                  plan.priceYearly === null ? monthlyPrice * 12 : Number(plan.priceYearly);
 
                 return (
                   <Reveal key={plan.id} delay={i * 60} className="h-full">
@@ -227,7 +233,7 @@ export default function PricingPage() {
                             <div className="flex flex-col gap-1">
                               <div className="flex items-baseline gap-1.5">
                                 <span className="font-display text-4xl font-bold tracking-tight">
-                                  {plan.priceMonthly}
+                                  {monthlyPrice}
                                 </span>
                                 <span className="text-sm font-medium text-[#64748B]">
                                   {plan.currency}

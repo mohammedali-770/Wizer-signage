@@ -64,20 +64,18 @@ describe('NotificationService', () => {
         create: jest.fn(({ data }: any) =>
           Promise.resolve({ id: 'n1', ...data, createdAt: new Date(), readAt: null }),
         ),
-        findMany: jest
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'n1',
-              type: 'x',
-              severity: 'INFO',
-              title: 'T',
-              body: null,
-              data: {},
-              readAt: null,
-              createdAt: new Date(),
-            },
-          ]),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'n1',
+            type: 'x',
+            severity: 'INFO',
+            title: 'T',
+            body: null,
+            data: {},
+            readAt: null,
+            createdAt: new Date(),
+          },
+        ]),
         count: jest.fn().mockResolvedValue(3),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },

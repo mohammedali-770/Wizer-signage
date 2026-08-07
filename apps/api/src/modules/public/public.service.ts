@@ -32,8 +32,8 @@ export interface PublicPlanView {
   name: string;
   code: string;
   description: string | null;
-  priceMonthly: number;
-  priceYearly: number | null;
+  priceMonthly: string;
+  priceYearly: string | null;
   currency: string;
   trialDays: number;
   limits: Record<string, unknown>;
@@ -222,8 +222,11 @@ export class PublicService {
       name: p.name,
       code: p.code,
       description: p.description,
-      priceMonthly: Number(p.priceMonthly),
-      priceYearly: p.priceYearly === null ? null : Number(p.priceYearly),
+      // The raw Decimal as a STRING, matching every other money field. It used
+      // to go through Number() here and nowhere else, so the same column was a
+      // JSON number publicly and a string for Super Admins.
+      priceMonthly: p.priceMonthly.toString(),
+      priceYearly: p.priceYearly === null ? null : p.priceYearly.toString(),
       currency: p.currency,
       trialDays: p.trialDays,
       limits: (p.limits as Record<string, unknown>) ?? {},

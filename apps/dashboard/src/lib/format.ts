@@ -81,10 +81,13 @@ export function formatDuration(totalSeconds: number, locale = 'en'): string {
 }
 
 /** Human-readable byte size (e.g. "1.5 GB") with Latin digits. */
-export function formatBytes(bytes: number, locale = 'en'): string {
-  if (!bytes || bytes < 1) return '0 B';
+export function formatBytes(value: number | string, locale = 'en'): string {
+  // Accepts a string because byte counts come off 64-bit columns and are
+  // serialised as strings — the same reason formatCurrency does.
+  const bytes = typeof value === 'string' ? Number(value) : value;
+  if (!Number.isFinite(bytes) || bytes < 1) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1000)), units.length - 1);
-  const value = bytes / 1000 ** exponent;
-  return `${formatNumber(value, locale, { maximumFractionDigits: 1 })} ${units[exponent]}`;
+  const scaled = bytes / 1000 ** exponent;
+  return `${formatNumber(scaled, locale, { maximumFractionDigits: 1 })} ${units[exponent]}`;
 }
