@@ -31,10 +31,12 @@ export class UsageCountsDto {
 
   @ApiProperty({
     description:
-      'A SUM passed through Number(), so a JSON number — unlike the per-row `fileSize`, which ' +
-      'is a BigInt column and serialises as a string.',
+      'A string, matching the per-row `fileSize` it sums — that field is a 64-bit column and ' +
+      'has always serialised as a string. This aggregate used to go through Number(), making ' +
+      'the same quantity two types depending on which endpoint you asked.',
+    example: '10737418240',
   })
-  storageBytes!: number;
+  storageBytes!: string;
 
   @ApiProperty()
   storageGb!: number;

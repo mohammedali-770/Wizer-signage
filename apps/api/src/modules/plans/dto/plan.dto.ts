@@ -42,13 +42,13 @@ export class CreatePlanDto {
   @MaxLength(500)
   description?: string;
 
-  /** Price amount for the billing interval (stored as priceMonthly). */
+  /** Monthly price. Named to match the response — it used to be sent as `price`. */
   @ApiPropertyOptional({
     description:
-      'SENT AS `price`, STORED AND RETURNED AS `priceMonthly` — the request and response use ' +
-      'different names for the same value, so a client cannot round-trip a plan by copying ' +
-      'fields. And the response type differs by audience: a NUMBER on the public pricing ' +
-      'endpoint, a STRING (raw Prisma Decimal) for Super Admins. One value, three shapes.',
+      'RENAMED from `price`, which is what the response has always called it — a plan could not ' +
+      'be round-tripped by copying fields. Sent as a NUMBER (two decimal places) and returned ' +
+      'as a string, because the column is a Decimal: that asymmetry is deliberate, since a JSON ' +
+      'request body has no decimal type to send.',
     minimum: 0,
     maximum: 1000000,
     example: 49.9,
@@ -57,10 +57,10 @@ export class CreatePlanDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(1_000_000)
-  price?: number;
+  priceMonthly?: number;
 
   @ApiPropertyOptional({
-    description: 'Named consistently with the response, unlike `price`.',
+    description: 'A number in, a string out — same reason as priceMonthly.',
     minimum: 0,
     maximum: 1000000,
   })

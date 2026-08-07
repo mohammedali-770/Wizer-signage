@@ -87,10 +87,11 @@ export class UnpaidInvoicesDto {
 
   @ApiProperty({
     description:
-      'Summed with Number(), so it is a JSON number rather than the string a Decimal column ' +
-      'would otherwise serialise to.',
+      'A string, like the per-invoice `total` it sums. It used to be summed with Number(), ' +
+      'making this the one money value in the API that was a JSON number.',
+    example: '1250.00',
   })
-  unpaidTotal!: number;
+  unpaidTotal!: string;
 }
 
 export class TotalUsersDto {

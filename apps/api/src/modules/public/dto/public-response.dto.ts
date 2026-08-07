@@ -14,13 +14,14 @@ import { PlanLimitsViewDto } from '../../usage-limits/dto/usage-response.dto';
 /**
  * A public plan for the pricing page.
  *
- * MONEY IS A NUMBER HERE, and a string on GET /plans.
+ * MONEY IS A STRING HERE, as it is everywhere else.
  *
- * `listPublicPlans` maps each row through `Number(p.priceMonthly)`; the Super
- * Admin endpoint returns the raw Prisma Decimal, which serialises as a string.
- * Same column, same field name, two encodings, two endpoints — a client that
- * shares a Plan type between the marketing site and the admin dashboard will
- * be wrong on one of them.
+ * It used to be a number: `listPublicPlans` mapped each row through
+ * `Number(p.priceMonthly)` while the Super Admin endpoint returned the raw
+ * Prisma Decimal, so the same column was a JSON number on one endpoint and a
+ * string on the other. A client sharing a Plan type between the marketing site
+ * and the admin dashboard was wrong on one of them. A Decimal round-tripped
+ * through a JS float can also lose precision, and this is billing data.
  *
  * It is also a much narrower row: no `isActive`, no `isPublic`, no
  * `billingInterval`, no timestamps. Only what a pricing page renders.
@@ -40,17 +41,18 @@ export class PublicPlanDto {
 
   @ApiProperty({
     description:
-      'A NUMBER here — passed through Number(). GET /plans returns the same column as a string.',
-    example: 49.9,
+      'The raw Decimal as a string, matching GET /plans and every other money field. Parse it ' +
+      'before doing arithmetic; do not assume a JS number round-trips it exactly.',
+    example: '49.90',
   })
-  priceMonthly!: number;
+  priceMonthly!: string;
 
   @ApiPropertyOptional({
     nullable: true,
-    description: 'A number, or null when the plan is not sold yearly.',
-    example: 499,
+    description: 'A string, or null when the plan is not sold yearly.',
+    example: '499.00',
   })
-  priceYearly?: number | null;
+  priceYearly?: string | null;
 
   @ApiProperty({ example: 'USD' })
   currency!: string;

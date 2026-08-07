@@ -550,22 +550,44 @@ describe('OpenAPI response coverage', () => {
     expect(Object.keys(text?.properties ?? {})).not.toContain('url');
   });
 
-  it('the two byte figures disagree on type, on purpose', () => {
-    // `ContentDto.fileSize` is the raw BigInt column and serialises as a
-    // STRING. `ContentUsage.storage.usedBytes` is a SUM already passed through
-    // Number(), so it is a JSON number. Documenting both as one type would be
-    // wrong whichever was chosen, and a client adding them together is the bug
-    // this pins — it is the same quantity in two different encodings.
+  /**
+   * Byte counts agree on type, like money does.
+   *
+   * This test used to assert the OPPOSITE — that `ContentDto.fileSize` was a
+   * string and `usedBytes` a number, "on purpose". It was not on purpose: the
+   * sum went through `Number()` and the per-row column did not, so the same
+   * quantity had two encodings and a client adding them together was wrong.
+   *
+   * It was also actively dangerous while it stood. When `storageBytes` became a
+   * string, `ContentService.usageSummary` copied that value straight into
+   * `usedBytes` — so the API returned a string while the contract still said
+   * number, and THIS TEST kept passing because it was pinning the stale type.
+   * A guard that asserts the wrong invariant protects the bug.
+   *
+   * Stated positively now, over every byte total rather than one pair.
+   */
+  it('every byte figure is a string, everywhere', () => {
     const { components } = loadContract();
-    const content = components.schemas.ContentDto as {
-      properties?: Record<string, { type?: string }>;
-    };
+    const BYTES = /^(fileSize|fileSizeBytes|usedBytes|storageBytes|sizeBytes)$/;
+    const numeric: string[] = [];
+
+    for (const [name, schema] of Object.entries(components.schemas)) {
+      // Request shapes may take a number — a caller sends a plain integer.
+      if (/^(Create|Update|Record)/.test(name)) continue;
+      const props = (schema as { properties?: Record<string, { type?: string }> }).properties ?? {};
+      for (const [field, prop] of Object.entries(props)) {
+        if (BYTES.test(field) && prop.type === 'number') numeric.push(`${name}.${field}`);
+      }
+    }
+
+    expect(numeric).toEqual([]);
+
+    // `usedGb` stays a NUMBER: it is a derived display figure, not an exact
+    // quantity, and nothing sums it against a 64-bit column.
     const usage = components.schemas.ContentStorageUsageDto as {
       properties?: Record<string, { type?: string }>;
     };
-
-    expect(content?.properties?.fileSize?.type).toBe('string');
-    expect(usage?.properties?.usedBytes?.type).toBe('number');
+    expect(usage?.properties?.usedGb?.type).toBe('number');
   });
 
   it('a pairing response never carries the device credential', () => {
@@ -645,13 +667,46 @@ describe('OpenAPI response coverage', () => {
     expect(model?.properties?.[field]?.type).toBe('string');
   });
 
-  it('the money strings and the money numbers stay distinguishable', () => {
-    // `InvoiceDto.total` is a Decimal column and is a string.
-    // `PlatformOverviewDto.invoices.unpaidTotal` is a _sum already passed
-    // through Number() and is a JSON number. Same currency, two encodings —
-    // the same split as ContentDto.fileSize (string) vs usedBytes (number).
-    // Collapsing either pair to one type would be wrong at the other end.
+  /**
+   * EVERY money field is a string, on every endpoint.
+   *
+   * This test used to assert the opposite — that `InvoiceDto.total` was a string
+   * while `unpaidTotal` was a number, and that the split was deliberate. It was
+   * not deliberate, it was an accident of one `_sum` being passed through
+   * `Number()`; the same accident made the public plan price a number while the
+   * admin one was a string. A Decimal cannot round-trip through a JS float
+   * exactly, and this is billing data.
+   *
+   * The invariant is now stated positively, over the whole contract rather than
+   * a hand-picked pair, so a fourth encoding cannot be introduced anywhere
+   * without failing here.
+   */
+  it('every money field is a string, everywhere', () => {
     const { components } = loadContract();
+
+    // Currency fields only. `total` is deliberately NOT in this list: it names
+    // a page count on PageMetaDto and a headcount on four others, so matching
+    // it by name alone would flag six integers that are not money. Invoice
+    // totals are covered explicitly below.
+    const MONEY = /^(price|priceMonthly|priceYearly|unpaidTotal|subtotal|tax|unitPrice)$/;
+
+    // Request shapes legitimately take a NUMBER: a JSON body has no decimal
+    // type, so a client sends 49.9 and reads back "49.90". InvoiceLineItemDto is
+    // nested inside CreateInvoiceDto and is a request shape despite the name.
+    const isRequest = (name: string) =>
+      /^(Create|Update)/.test(name) || name === 'InvoiceLineItemDto';
+
+    const numeric: string[] = [];
+    for (const [name, schema] of Object.entries(components.schemas)) {
+      if (isRequest(name)) continue;
+      const props = (schema as { properties?: Record<string, { type?: string }> }).properties ?? {};
+      for (const [field, prop] of Object.entries(props)) {
+        if (MONEY.test(field) && prop.type === 'number') numeric.push(`${name}.${field}`);
+      }
+    }
+    expect(numeric).toEqual([]);
+
+    // The invoice money that `total` would have covered, named directly.
     const invoice = components.schemas.InvoiceDto as {
       properties?: Record<string, { type?: string }>;
     };
@@ -659,7 +714,7 @@ describe('OpenAPI response coverage', () => {
       properties?: Record<string, { type?: string }>;
     };
     expect(invoice?.properties?.total?.type).toBe('string');
-    expect(unpaid?.properties?.unpaidTotal?.type).toBe('number');
+    expect(unpaid?.properties?.unpaidTotal?.type).toBe('string');
   });
 
   it('POST /subscriptions is the one route whose response has no company', () => {
@@ -845,13 +900,19 @@ describe('OpenAPI response coverage', () => {
     expect(schema?.$ref).toBe('#/components/schemas/ScheduleConflictsDto');
   });
 
-  it('the SAME plan column is a number publicly and a string for admins', () => {
-    // GET /public/plans maps each row through Number(p.priceMonthly).
-    // GET /plans returns the raw Prisma Decimal, which serialises as a string.
-    // Same table, same field name, two endpoints, two types — a client sharing
-    // one Plan type between the marketing site and the admin dashboard is
-    // wrong on one of them. Third instance of this split in the API, after
-    // fileSize/usedBytes and total/unpaidTotal.
+  /**
+   * The public plan row and the admin one now AGREE on money, and still differ
+   * on everything else.
+   *
+   * They used to disagree: `GET /public/plans` mapped each row through
+   * `Number(p.priceMonthly)` while `GET /plans` returned the raw Decimal. Same
+   * table, same field name, two types — a client sharing one Plan type across
+   * the marketing site and the admin dashboard was wrong on one of them.
+   *
+   * The narrowness of the public row is a SEPARATE and deliberate thing, and is
+   * still pinned: it is not the admin row with a different price type.
+   */
+  it('the public plan row agrees on money and stays narrower', () => {
     const { components } = loadContract();
     const pub = components.schemas.PublicPlanDto as {
       properties?: Record<string, { type?: string }>;
@@ -860,10 +921,9 @@ describe('OpenAPI response coverage', () => {
       properties?: Record<string, { type?: string }>;
     };
 
-    expect(pub?.properties?.priceMonthly?.type).toBe('number');
+    expect(pub?.properties?.priceMonthly?.type).toBe('string');
     expect(admin?.properties?.priceMonthly?.type).toBe('string');
 
-    // And the public row is genuinely narrower — not the admin one renamed.
     for (const adminOnly of ['isActive', 'isPublic', 'billingInterval', 'createdAt']) {
       expect(Object.keys(pub?.properties ?? {})).not.toContain(adminOnly);
     }

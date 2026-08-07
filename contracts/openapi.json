@@ -8130,15 +8130,15 @@
             "nullable": true
           },
           "priceMonthly": {
-            "type": "number",
-            "description": "A NUMBER here — passed through Number(). GET /plans returns the same column as a string.",
-            "example": 49.9
+            "type": "string",
+            "description": "The raw Decimal as a string, matching GET /plans and every other money field. Parse it before doing arithmetic; do not assume a JS number round-trips it exactly.",
+            "example": "49.90"
           },
           "priceYearly": {
             "type": "object",
             "nullable": true,
-            "description": "A number, or null when the plan is not sold yearly.",
-            "example": 499
+            "description": "A string, or null when the plan is not sold yearly.",
+            "example": "499.00"
           },
           "currency": {
             "type": "string",
@@ -8413,8 +8413,9 @@
             "description": "Non-expired PENDING invitations. Counted because each one RESERVES a user seat — a company at its user limit with outstanding invitations is already full."
           },
           "storageBytes": {
-            "type": "number",
-            "description": "A SUM passed through Number(), so a JSON number — unlike the per-row `fileSize`, which is a BigInt column and serialises as a string."
+            "type": "string",
+            "description": "A string, matching the per-row `fileSize` it sums — that field is a 64-bit column and has always serialised as a string. This aggregate used to go through Number(), making the same quantity two types depending on which endpoint you asked.",
+            "example": "10737418240"
           },
           "storageGb": {
             "type": "number"
@@ -9377,16 +9378,16 @@
             "type": "string",
             "maxLength": 500
           },
-          "price": {
+          "priceMonthly": {
             "type": "number",
-            "description": "SENT AS `price`, STORED AND RETURNED AS `priceMonthly` — the request and response use different names for the same value, so a client cannot round-trip a plan by copying fields. And the response type differs by audience: a NUMBER on the public pricing endpoint, a STRING (raw Prisma Decimal) for Super Admins. One value, three shapes.",
+            "description": "RENAMED from `price`, which is what the response has always called it — a plan could not be round-tripped by copying fields. Sent as a NUMBER (two decimal places) and returned as a string, because the column is a Decimal: that asymmetry is deliberate, since a JSON request body has no decimal type to send.",
             "minimum": 0,
             "maximum": 1000000,
             "example": 49.9
           },
           "priceYearly": {
             "type": "number",
-            "description": "Named consistently with the response, unlike `price`.",
+            "description": "A number in, a string out — same reason as priceMonthly.",
             "minimum": 0,
             "maximum": 1000000
           },
@@ -9528,16 +9529,16 @@
             "type": "string",
             "maxLength": 500
           },
-          "price": {
+          "priceMonthly": {
             "type": "number",
-            "description": "SENT AS `price`, STORED AND RETURNED AS `priceMonthly` — the request and response use different names for the same value, so a client cannot round-trip a plan by copying fields. And the response type differs by audience: a NUMBER on the public pricing endpoint, a STRING (raw Prisma Decimal) for Super Admins. One value, three shapes.",
+            "description": "RENAMED from `price`, which is what the response has always called it — a plan could not be round-tripped by copying fields. Sent as a NUMBER (two decimal places) and returned as a string, because the column is a Decimal: that asymmetry is deliberate, since a JSON request body has no decimal type to send.",
             "minimum": 0,
             "maximum": 1000000,
             "example": 49.9
           },
           "priceYearly": {
             "type": "number",
-            "description": "Named consistently with the response, unlike `price`.",
+            "description": "A number in, a string out — same reason as priceMonthly.",
             "minimum": 0,
             "maximum": 1000000
           },
@@ -10184,8 +10185,9 @@
             "type": "number"
           },
           "unpaidTotal": {
-            "type": "number",
-            "description": "Summed with Number(), so it is a JSON number rather than the string a Decimal column would otherwise serialise to."
+            "type": "string",
+            "description": "A string, like the per-invoice `total` it sums. It used to be summed with Number(), making this the one money value in the API that was a JSON number.",
+            "example": "1250.00"
           }
         },
         "required": [
@@ -12009,8 +12011,9 @@
         "type": "object",
         "properties": {
           "usedBytes": {
-            "type": "number",
-            "description": "Summed with Number(), so a JSON number rather than the string a BigInt column would serialise to. `ContentDto.fileSize` is the raw column and IS a string — the two disagree on purpose, and a client adding them together would be wrong."
+            "type": "string",
+            "description": "A string, matching `ContentDto.fileSize` — the raw BigInt column it sums. The two used to disagree: this was passed through Number() and documented as a deliberate split, which meant the same quantity had two encodings and adding them together was wrong.",
+            "example": "10737418240"
           },
           "usedGb": {
             "type": "number",

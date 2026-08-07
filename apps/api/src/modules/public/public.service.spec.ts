@@ -124,7 +124,19 @@ describe('PublicService.demoRequest', () => {
 });
 
 describe('PublicService.listPublicPlans', () => {
-  it('maps Decimal prices to numbers and keeps a null yearly price', async () => {
+  /**
+   * Prices come back as STRINGS, and a null yearly price stays null.
+   *
+   * This used to assert numbers — `listPublicPlans` passed each Decimal through
+   * `Number()` while every other money field in the API was a string, so the
+   * same column had two encodings depending on the endpoint. A JS float also
+   * cannot round-trip a Decimal exactly, and this is billing data.
+   *
+   * `'0'` rather than `0` matters for a second reason: the pricing page treats
+   * a zero price as "contact us", and `'0' === 0` is false. The test pins the
+   * string so that comparison cannot silently start failing.
+   */
+  it('returns Decimal prices as strings and keeps a null yearly price', async () => {
     const { service, prisma } = build();
     prisma.plan.findMany.mockResolvedValueOnce([
       {
@@ -151,7 +163,15 @@ describe('PublicService.listPublicPlans', () => {
       },
     ]);
     const plans = await service.listPublicPlans();
-    expect(plans[0]).toMatchObject({ code: 'starter', priceMonthly: 199, priceYearly: 1990 });
-    expect(plans[1]).toMatchObject({ code: 'enterprise', priceMonthly: 0, priceYearly: null });
+    expect(plans[0]).toMatchObject({
+      code: 'starter',
+      priceMonthly: '199',
+      priceYearly: '1990',
+    });
+    expect(plans[1]).toMatchObject({ code: 'enterprise', priceMonthly: '0', priceYearly: null });
+
+    // Types, not just values — toMatchObject would pass on a number 199 too.
+    expect(typeof plans[0]?.priceMonthly).toBe('string');
+    expect(typeof plans[0]?.priceYearly).toBe('string');
   });
 });

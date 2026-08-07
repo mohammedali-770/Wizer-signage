@@ -20,7 +20,7 @@ export class PlansService {
         name: dto.name,
         code: dto.code,
         description: dto.description,
-        priceMonthly: dto.price ?? 0,
+        priceMonthly: dto.priceMonthly ?? 0,
         priceYearly: dto.priceYearly ?? null,
         currency: dto.currency ?? 'USD',
         billingInterval: dto.billingInterval ?? 'MONTHLY',
@@ -71,7 +71,7 @@ export class PlansService {
     const data: Prisma.PlanUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.description !== undefined) data.description = dto.description;
-    if (dto.price !== undefined) data.priceMonthly = dto.price;
+    if (dto.priceMonthly !== undefined) data.priceMonthly = dto.priceMonthly;
     if (dto.priceYearly !== undefined) data.priceYearly = dto.priceYearly;
     if (dto.currency !== undefined) data.currency = dto.currency;
     if (dto.billingInterval !== undefined) data.billingInterval = dto.billingInterval;
