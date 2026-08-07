@@ -121,7 +121,7 @@ describe('OpenAPI request-body coverage', () => {
    */
   it('never documents fewer bodies than it did before', () => {
     const documented = requestBodies().filter((o) => o.documented);
-    expect(documented.length).toBeGreaterThanOrEqual(10);
+    expect(documented.length).toBeGreaterThanOrEqual(26);
   });
 
   /**
@@ -147,7 +147,18 @@ describe('OpenAPI request-body coverage', () => {
 
     // Tags finished so far. Listed explicitly so a REGRESSION in a completed
     // module fails, instead of being hidden by progress somewhere else.
-    expect(complete).toEqual(['auth', 'two-factor']);
+    expect(complete).toEqual([
+      'auth',
+      'companies',
+      'company-settings',
+      'invitations',
+      'locations',
+      'notifications',
+      'screen-groups',
+      'tags',
+      'two-factor',
+      'users',
+    ]);
   });
 });
 
@@ -207,6 +218,44 @@ describe('documented constraints match the ones actually enforced', () => {
    * DTO treats as optional publishes it as required, and a generated client then
    * refuses to send a legal request.
    */
+  /**
+   * Two fields that mean "colour", with two different rules.
+   *
+   * `CreateTagDto.color` is pattern-checked as hex; `CreateCompanyDto
+   * .primaryColor` accepts any string up to 20 characters. A client that shares
+   * one colour-input component across both screens will validate one of them
+   * wrongly. Documented as it is rather than harmonised — changing either is a
+   * behaviour change — and pinned so the difference cannot be "tidied" in a
+   * later documentation pass without someone deciding to.
+   */
+  it('keeps the two colour fields honest about disagreeing', () => {
+    const tag = schema('CreateTagDto').properties?.color as { pattern?: string };
+    const company = schema('CreateCompanyDto').properties?.primaryColor as {
+      pattern?: string;
+      maxLength?: number;
+    };
+    expect(tag.pattern).toBe('^#?[0-9A-Fa-f]{3,8}$');
+    expect(company.pattern).toBeUndefined();
+    expect(company.maxLength).toBe(20);
+  });
+
+  /**
+   * Array fields that REPLACE rather than append.
+   *
+   * Sending one id leaves exactly that one, and `[]` clears the set — which is
+   * not what "update" suggests, and is destructive if a client read the field
+   * as additive. Omitting the field entirely is the no-op; `[]` is not.
+   */
+  it.each([
+    ['UpdateUserDto', 'locationIds'],
+    ['UpdateCompanySettingsDto', 'notificationEmails'],
+  ])('%s.%s says it replaces the set', (dto, field) => {
+    const desc = String(
+      (schema(dto).properties?.[field] as { description?: string })?.description ?? '',
+    );
+    expect(desc).toMatch(/replaces/i);
+  });
+
   it('marks exactly the fields the validators require', () => {
     expect(schema('LoginDto').required?.sort()).toEqual(['email', 'password']);
     expect(schema('AcceptInvitationDto').required?.sort()).toEqual(['name', 'password', 'token']);

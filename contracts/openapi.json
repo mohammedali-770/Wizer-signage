@@ -8281,7 +8281,55 @@
       },
       "CreateCompanyDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Acme Retail"
+          },
+          "slug": {
+            "type": "string",
+            "description": "The tenant identifier used in URLs. Lowercase letters, digits and hyphens only. Derived from the name when omitted, and the allocated value may differ from what was asked for if it collides. CREATE-ONLY — there is no field for it on update.",
+            "maxLength": 60,
+            "pattern": "^[a-z0-9-]+$",
+            "example": "acme-retail"
+          },
+          "defaultLocale": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 10,
+            "example": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone name. Length-checked only, not validated against the tz database.",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "planId": {
+            "type": "string",
+            "description": "Starts a TRIALING subscription on this plan. CREATE-ONLY: changing plan later goes through the subscriptions endpoints, not through a company update."
+          },
+          "logoUrl": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "primaryColor": {
+            "type": "string",
+            "description": "Free-form, capped at 20 characters and NOT pattern-checked — unlike `CreateTagDto.color`, which demands a hex value. Same kind of field, two different rules; anything short enough is accepted here.",
+            "maxLength": 20,
+            "example": "#2563eb"
+          },
+          "defaultKioskPin": {
+            "type": "string",
+            "description": "Plaintext 4-8 digit PIN. Hashed on receipt and never returned — responses expose only `hasDefaultKioskPin`, so this cannot be read back.",
+            "pattern": "^\\d{4,8}$",
+            "example": "4821"
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "UsageCountsDto": {
         "type": "object",
@@ -8423,11 +8471,58 @@
       },
       "UpdateCompanyDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "defaultLocale": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 10,
+            "example": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "logoUrl": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "primaryColor": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "Not pattern-checked — see the create DTO."
+          },
+          "brandedEmailFrom": {
+            "type": "string",
+            "description": "UPDATE-ONLY — cannot be supplied at creation.",
+            "maxLength": 200
+          },
+          "customDomain": {
+            "type": "string",
+            "description": "UPDATE-ONLY — cannot be supplied at creation.",
+            "maxLength": 255
+          },
+          "defaultKioskPin": {
+            "type": "string",
+            "description": "Plaintext 4-8 digit PIN. Hashed on receipt and never returned — responses expose only `hasDefaultKioskPin`, so this cannot be read back.",
+            "pattern": "^\\d{4,8}$",
+            "example": "4821"
+          }
+        }
       },
       "SuspendCompanyDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Recorded on the company and in the activity log. Optional — a suspension with no stated reason is accepted, so the body itself may be empty.",
+            "maxLength": 300
+          }
+        }
       },
       "SessionDto": {
         "type": "object",
@@ -8600,7 +8695,49 @@
       },
       "UpdateUserDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "locale": {
+            "type": "string",
+            "maxLength": 10,
+            "example": "en"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPER_ADMIN",
+              "COMPANY_ADMIN",
+              "LOCATION_MANAGER",
+              "CONTENT_MANAGER",
+              "VIEWER"
+            ],
+            "description": "Granting or removing SUPER_ADMIN requires the caller to BE a Super Admin, and demoting the last active one is refused outright — both enforced in the service, not here."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INVITED",
+              "DISABLED",
+              "LOCKED"
+            ],
+            "description": "Setting a status other than ACTIVE goes through the same authority check as a role change, so this is not a back door to disabling an account you could not demote."
+          },
+          "twoFactorEnforced": {
+            "type": "boolean",
+            "description": "Makes 2FA mandatory for this user, as it always is for a Super Admin."
+          },
+          "locationIds": {
+            "description": "REPLACES the assigned set — it does not add to it. Sending one id leaves the user with exactly that location, and `[]` removes every assignment. Omit the field to leave the current set alone; the two are NOT the same thing.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "DeletedResponseDto": {
         "type": "object",
@@ -8743,7 +8880,43 @@
       },
       "CreateInvitationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "new.user@example.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPER_ADMIN",
+              "COMPANY_ADMIN",
+              "LOCATION_MANAGER",
+              "CONTENT_MANAGER",
+              "VIEWER"
+            ],
+            "description": "Required — an invitation always carries a role. As on user update, the enum is wider than any one caller may use: inviting a SUPER_ADMIN requires being one."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "companyId": {
+            "type": "string",
+            "description": "SUPER ADMIN ONLY, and the one field here that crosses a tenant boundary. For everyone else the company comes from the token and this is ignored — it is never trusted as the caller-supplied tenant (see docs/multi-tenancy.md)."
+          },
+          "locationIds": {
+            "description": "Scopes a LOCATION_MANAGER to these locations. Meaningless for other roles, and not rejected for them — it is simply unused.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ]
       },
       "InvitationCreatedDto": {
         "type": "object",
@@ -9845,9 +10018,87 @@
         "type": "object",
         "properties": {}
       },
-      "CreateLocationDto": {
+      "WorkingHoursDto": {
         "type": "object",
         "properties": {}
+      },
+      "CreateLocationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Downtown Branch"
+          },
+          "code": {
+            "type": "string",
+            "description": "Your own reference for the branch. Letters, digits, hyphens and underscores only — no spaces and no dots, which rules out most codes copied out of a spreadsheet.",
+            "maxLength": 40,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "example": "DT-01"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "latitude": {
+            "type": "number",
+            "description": "Decimal degrees. Independent of longitude — neither requires the other.",
+            "minimum": -90,
+            "maximum": 90,
+            "example": 25.2048
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180,
+            "example": 55.2708
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone name. Only length-checked here, NOT validated against the tz database — an unrecognised value is stored and surfaces later as wrong scheduling times, not as a 400.",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ],
+            "description": "A NARROWER set than the LocationStatus enum the API returns: ARCHIVED cannot be set here, because archived locations are exempt from the plan quota and creating one already archived would mint free capacity. Settable only at creation — it is omitted from the update body entirely, so this field cannot be used to archive later either."
+          },
+          "workingHours": {
+            "$ref": "#/components/schemas/WorkingHoursDto"
+          },
+          "fallbackContentId": {
+            "type": "string",
+            "description": "Content shown when nothing is scheduled. Only checked for being a string here; whether the id exists and belongs to your company is resolved server-side."
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "LocationDto": {
         "type": "object",
@@ -9937,7 +10188,70 @@
       },
       "UpdateLocationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Downtown Branch"
+          },
+          "code": {
+            "type": "string",
+            "description": "Your own reference for the branch. Letters, digits, hyphens and underscores only — no spaces and no dots, which rules out most codes copied out of a spreadsheet.",
+            "maxLength": 40,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "example": "DT-01"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "latitude": {
+            "type": "number",
+            "description": "Decimal degrees. Independent of longitude — neither requires the other.",
+            "minimum": -90,
+            "maximum": 90,
+            "example": 25.2048
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180,
+            "example": 55.2708
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone name. Only length-checked here, NOT validated against the tz database — an unrecognised value is stored and surfaces later as wrong scheduling times, not as a 400.",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "workingHours": {
+            "$ref": "#/components/schemas/WorkingHoursDto"
+          },
+          "fallbackContentId": {
+            "type": "string",
+            "description": "Content shown when nothing is scheduled. Only checked for being a string here; whether the id exists and belongs to your company is resolved server-side."
+          }
+        }
       },
       "CreateScreenDto": {
         "type": "object",
@@ -10243,7 +10557,25 @@
       },
       "CreateScreenGroupDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Checkout displays"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "category": {
+            "type": "string",
+            "description": "Free-form label, not an enum — any string up to 60 characters.",
+            "maxLength": 60
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "ScreenGroupDto": {
         "type": "object",
@@ -10289,19 +10621,99 @@
       },
       "UpdateScreenGroupDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Checkout displays"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "category": {
+            "type": "string",
+            "description": "Free-form label, not an enum — any string up to 60 characters.",
+            "maxLength": 60
+          }
+        }
       },
       "GroupScreensDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "screenIds": {
+            "maxItems": 500,
+            "description": "Screen ids to add to or remove from the group. Capped at 500 per call — a larger fleet has to be sent in batches, and exceeding the cap is a 400, not a silent truncation.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "screenIds"
+        ]
       },
       "CreateTagDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Lobby"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "CONTENT",
+              "BOTH"
+            ],
+            "description": "What the tag may be attached to. Omitted means the schema default, so a client that wants a content-only tag must say so explicitly."
+          },
+          "color": {
+            "type": "string",
+            "description": "Hex colour. The leading # is OPTIONAL and is NOT normalised — `#2563eb` and `2563eb` are both accepted and both stored verbatim, so a client comparing colours must handle either. 3 to 8 digits, which admits the 4- and 8-digit forms carrying alpha.",
+            "pattern": "^#?[0-9A-Fa-f]{3,8}$",
+            "example": "#2563eb"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "UpdateTagDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Lobby"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "CONTENT",
+              "BOTH"
+            ],
+            "description": "What the tag may be attached to. Omitted means the schema default, so a client that wants a content-only tag must say so explicitly."
+          },
+          "color": {
+            "type": "string",
+            "description": "Hex colour. The leading # is OPTIONAL and is NOT normalised — `#2563eb` and `2563eb` are both accepted and both stored verbatim, so a client comparing colours must handle either. 3 to 8 digits, which admits the 4- and 8-digit forms carrying alpha.",
+            "pattern": "^#?[0-9A-Fa-f]{3,8}$",
+            "example": "#2563eb"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300
+          }
+        }
       },
       "CompanyPlanSummaryDto": {
         "type": "object",
@@ -10415,11 +10827,64 @@
       },
       "UpdateCompanySettingsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "defaultLocale": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 10,
+            "example": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "defaultWorkingHours": {
+            "description": "The company-wide default. A location or screen may override it.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkingHoursDto"
+              }
+            ]
+          },
+          "defaultHeartbeatIntervalSeconds": {
+            "type": "number",
+            "description": "How often a screen reports in. Read back as 60 when never set, so the response never shows null even though nothing was written — do not infer \"unset\" from the GET.",
+            "minimum": 10,
+            "maximum": 3600,
+            "example": 60
+          },
+          "notificationEmails": {
+            "maxItems": 10,
+            "description": "REPLACES the list — send the full set, not an addition. Every entry must be a valid address; one bad entry rejects the whole array. Read back as [] when never set.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fallbackContentId": {
+            "type": "string",
+            "description": "Company-wide fallback content. Existence and ownership are checked server-side."
+          }
+        }
       },
       "SetDefaultKioskPinDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "pin": {
+            "type": "string",
+            "description": "Plaintext 4-8 digit PIN, hashed on receipt. Never returned: the settings response exposes only `hasDefaultKioskPin`, so this cannot be read back to check it.",
+            "pattern": "^\\d{4,8}$",
+            "example": "4821"
+          }
+        },
+        "required": [
+          "pin"
+        ]
       },
       "UrlPreviewDto": {
         "type": "object",
@@ -12517,9 +12982,47 @@
           "updatedAt"
         ]
       },
+      "NotificationPreferenceItemDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "DASHBOARD",
+              "EMAIL"
+            ]
+          },
+          "eventType": {
+            "type": "string",
+            "description": "A free-form event key, NOT an enum — any string up to 80 characters is accepted, including one that matches no event the platform emits. Such a row is stored and simply never consulted, so a typo here fails silently rather than as a 400.",
+            "maxLength": 80,
+            "example": "screen.offline"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "channel",
+          "eventType",
+          "enabled"
+        ]
+      },
       "UpdateNotificationPreferencesDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "preferences": {
+            "maxItems": 200,
+            "description": "Entries to upsert. Only the caller's own preferences can be changed.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationPreferenceItemDto"
+            }
+          }
+        },
+        "required": [
+          "preferences"
+        ]
       },
       "OkResponseDto": {
         "type": "object",
