@@ -105,11 +105,9 @@ describe('2FA re-authentication (e2e)', () => {
    * every one of them now runs an Argon2 verification and is therefore a
    * password oracle for anyone holding a token). Splitting the flow into a test
    * per assertion spent that budget and the later ones came back 429 — so the
-   * sequence lives in one test, and the throttle gets an assertion of its own
-   * at the end rather than being worked around.
+   * sequence lives in one test rather than the throttle being worked around.
    *
-   * Re-enrolment over EXISTING 2FA needs calls this budget cannot afford; it is
-   * covered by the unit suite, which watches it fail under mutation.
+   * The budget is exactly 5, and the test below spends the last one.
    */
   it('will not enrol an authenticator on a valid session without the password', async () => {
     // 1. No password at all — the DTO gate. This body used to be accepted.
