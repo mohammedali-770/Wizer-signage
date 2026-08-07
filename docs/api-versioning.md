@@ -55,6 +55,20 @@ so **the Android player was unaffected** by every one of them.
 | `POST /plans`, `PATCH /plans/{id}`  | `price` renamed to `priceMonthly`                                  | #65 |
 | `PATCH /scheduled-reports/{id}`     | `recipients` may no longer be `[]`                                 | #64 |
 | `POST`/`PATCH` emergency broadcasts | `url` must now be an absolute `http(s)` URL                        | #64 |
+| Anything sending `workingHours`     | `outsideHoursBehavior: "SLEEP"` renamed to `"BLANK_SCREEN"`        | #66 |
+
+`SLEEP` is the one rename on this page that did **not** break callers, and it is
+worth saying why rather than leaving it looking inconsistent. Working hours are
+stored as JSON, not in an enum column, so no migration rewrote existing rows and
+every screen configured before the rename still has the old string on disk.
+`normalizeBehavior` therefore still accepts `"SLEEP"` and maps it to
+`BLANK_SCREEN`. Dropping it instead would have sent those rows through the
+`FALLBACK` default, and screens that went dark outside opening hours would have
+started showing fallback content with nothing logged to explain it.
+
+The name was wrong: it never slept the display and could not. Renaming rather
+than deleting means the operator-facing choice tells the truth while the stored
+data keeps working — the deprecation window this page argues for, applied once.
 
 The 2FA routes are a security fix: a bearer token alone could previously enrol an
 authenticator, which turns a stolen session into access that outlives a password

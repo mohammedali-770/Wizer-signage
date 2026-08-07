@@ -219,6 +219,28 @@ fun PlaybackItem(
     }
 }
 
+/**
+ * Outside-hours behaviours that render nothing at all.
+ *
+ * BLANK_SCREEN and BLACK_SCREEN are identical in effect; both are accepted
+ * because both exist in stored customer configuration.
+ *
+ * SLEEP is the old name for BLANK_SCREEN. The current API normalises it away
+ * before emitting a manifest, so it should never arrive — it is listed purely
+ * for version skew, since a player updates independently of the server and may
+ * for a while be talking to an API released before the rename. Getting this
+ * wrong fails silently and visibly: the screen would show the neutral "no
+ * content" panel in a dark venue instead of going black.
+ *
+ * Note that none of these power the panel down — this composable only draws
+ * black, and the app holds FLAG_KEEP_SCREEN_ON while soft kiosk is active.
+ */
+// Typed Set<String?> deliberately: outsideHoursBehavior is nullable, and leaving
+// the element type as String would make `in` depend on Kotlin picking the
+// covariant Iterable.contains extension over the member. Being explicit costs
+// nothing and cannot be resolved the wrong way.
+private val BLANKING_BEHAVIORS: Set<String?> = setOf("BLANK_SCREEN", "BLACK_SCREEN", "SLEEP")
+
 /** Neutral screen when nothing is scheduled (sourceType NONE / empty), online. */
 @Composable
 fun NoContentScreen(manifest: PlaybackManifest) {
@@ -226,7 +248,7 @@ fun NoContentScreen(manifest: PlaybackManifest) {
         manifest.outsideHours && manifest.outsideHoursBehavior == "CUSTOM_MESSAGE" && it.isNotBlank()
     }
     val blank = manifest.outsideHours &&
-        (manifest.outsideHoursBehavior == "BLACK_SCREEN" || manifest.outsideHoursBehavior == "SLEEP")
+        manifest.outsideHoursBehavior in BLANKING_BEHAVIORS
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color.Black).padding(48.dp),

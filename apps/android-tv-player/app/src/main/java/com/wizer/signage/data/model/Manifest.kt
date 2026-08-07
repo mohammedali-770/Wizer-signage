@@ -30,7 +30,10 @@ data class PlaybackManifest(
     val emergencyBroadcastId: String? = null,
     val priority: Int? = null,
     val outsideHours: Boolean = false,
-    val outsideHoursBehavior: String? = null, // FALLBACK | BLACK_SCREEN | CUSTOM_MESSAGE | SLEEP
+    // FALLBACK | BLACK_SCREEN | CUSTOM_MESSAGE | BLANK_SCREEN. The API normalises
+    // before it emits, so the legacy SLEEP should never arrive on the wire — the
+    // player still tolerates it, see BLANKING_BEHAVIORS in PlayerScreen.kt.
+    val outsideHoursBehavior: String? = null,
     val message: String? = null,
     val items: List<ManifestItem> = emptyList(),
     val warnings: List<String> = emptyList(),

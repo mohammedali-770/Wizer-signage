@@ -1969,7 +1969,8 @@
       "FALLBACK": "عرض المحتوى الاحتياطي",
       "BLACK_SCREEN": "شاشة سوداء",
       "CUSTOM_MESSAGE": "رسالة مخصصة",
-      "SLEEP": "محاولة السكون / توفير الطاقة"
+      "BLANK_SCREEN": "شاشة فارغة",
+      "SLEEP": "شاشة فارغة (اسم قديم)"
     },
     "importType": {
       "LOCATION": "موقع",

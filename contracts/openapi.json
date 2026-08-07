@@ -10499,9 +10499,71 @@
           "status"
         ]
       },
+      "DayHoursDto": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 6,
+            "description": "0 = Sunday … 6 = Saturday.",
+            "example": 1
+          },
+          "closed": {
+            "type": "boolean",
+            "description": "When true, open/close are ignored and the day is outside hours."
+          },
+          "open": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "24h HH:mm. Omitted together with `close` means all-day open.",
+            "example": "09:00"
+          },
+          "close": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "24h HH:mm. OVERNIGHT IS ALLOWED — a close earlier than open crosses midnight.",
+            "example": "21:00"
+          }
+        },
+        "required": [
+          "day",
+          "closed"
+        ]
+      },
       "WorkingHoursDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "IANA zone. Defaults to the entity's own timezone when omitted.",
+            "example": "Asia/Riyadh"
+          },
+          "days": {
+            "maxItems": 7,
+            "description": "At most one entry per weekday. An ABSENT day counts as outside hours, so a partial array is not the same as an unset one: omitting `days` entirely means always on (24/7).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayHoursDto"
+            }
+          },
+          "outsideHoursBehavior": {
+            "type": "string",
+            "enum": [
+              "FALLBACK",
+              "BLACK_SCREEN",
+              "CUSTOM_MESSAGE",
+              "BLANK_SCREEN"
+            ],
+            "description": "Defaults to FALLBACK when omitted or unrecognised. The legacy value \"SLEEP\" is still ACCEPTED and treated as BLANK_SCREEN, but is not listed here because it should not be sent by new callers — it never slept the display."
+          },
+          "outsideHoursMessage": {
+            "type": "string",
+            "maxLength": 280,
+            "description": "Shown on the screen only when outsideHoursBehavior is CUSTOM_MESSAGE."
+          }
+        }
       },
       "CreateLocationDto": {
         "type": "object",

@@ -245,7 +245,15 @@ export type ScreenUse =
   | 'GENERIC';
 export type Orientation = 'LANDSCAPE' | 'PORTRAIT' | 'UNKNOWN';
 export type TagType = 'SCREEN' | 'CONTENT' | 'BOTH';
-export type OutsideHoursBehavior = 'FALLBACK' | 'BLACK_SCREEN' | 'CUSTOM_MESSAGE' | 'SLEEP';
+// 'SLEEP' is the legacy name for 'BLANK_SCREEN' (it never slept the display).
+// The API still accepts it on read, so a screen configured before the rename
+// can still send it back to us; it is not offered as a choice.
+export type OutsideHoursBehavior =
+  | 'FALLBACK'
+  | 'BLACK_SCREEN'
+  | 'CUSTOM_MESSAGE'
+  | 'BLANK_SCREEN'
+  | 'SLEEP';
 
 export interface DayHours {
   day: number;

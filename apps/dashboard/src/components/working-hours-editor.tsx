@@ -5,11 +5,13 @@ import { useTranslations } from 'next-intl';
 import type { DayHours, OutsideHoursBehavior, WorkingHours } from '@/lib/types';
 import { Input, Label, Select } from '@/components/ui';
 
+// Selectable options. 'SLEEP' is deliberately absent: it is the legacy name for
+// 'BLANK_SCREEN' and is accepted on read only, so it is never offered anew.
 const BEHAVIOR_VALUES: OutsideHoursBehavior[] = [
   'FALLBACK',
   'BLACK_SCREEN',
   'CUSTOM_MESSAGE',
-  'SLEEP',
+  'BLANK_SCREEN',
 ];
 
 function defaultDays(): DayHours[] {
@@ -22,8 +24,9 @@ function defaultDays(): DayHours[] {
 }
 
 /**
- * Controlled weekly working-hours editor (configuration only — Android playback
- * execution comes in a later phase). Overnight ranges (close < open) are allowed.
+ * Controlled weekly working-hours editor. What is set here is enforced end to
+ * end: the schedule resolver evaluates it and the Android player acts on the
+ * resulting manifest. Overnight ranges (close < open) are allowed.
  */
 export function WorkingHoursEditor({
   value,

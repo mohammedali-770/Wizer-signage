@@ -55,11 +55,27 @@ export function evaluateWorkingHours(
   return { withinHours: within, behavior, message };
 }
 
+/**
+ * The legacy name for {@link OutsideHoursBehavior.BLANK_SCREEN}, renamed because
+ * it never slept the display.
+ *
+ * This is not cosmetic. Working hours are stored as JSON on Location, Screen and
+ * Company rows, so there is no enum column and no migration ran — every screen
+ * configured before the rename still has the literal `"SLEEP"` on disk. Dropping
+ * it from the accepted set would send those through the fallback branch below,
+ * and a venue that had gone dark outside opening hours would silently start
+ * showing fallback content instead.
+ */
+const LEGACY_SLEEP = 'SLEEP';
+
 function normalizeBehavior(value: unknown): OutsideHoursBehavior {
+  if (value === LEGACY_SLEEP) {
+    return OutsideHoursBehavior.BLANK_SCREEN;
+  }
   if (
     value === OutsideHoursBehavior.BLACK_SCREEN ||
     value === OutsideHoursBehavior.CUSTOM_MESSAGE ||
-    value === OutsideHoursBehavior.SLEEP ||
+    value === OutsideHoursBehavior.BLANK_SCREEN ||
     value === OutsideHoursBehavior.FALLBACK
   ) {
     return value;
