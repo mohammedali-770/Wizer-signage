@@ -80,22 +80,25 @@ export class SessionDto {
 }
 
 /**
- * `{ revoked: n }` — how many sessions were ended.
+ * `{ revokedCount: n }` — how many sessions were ended.
  *
- * The field name collides with `RevokedFlagDto.revoked`, which is a BOOLEAN on
- * `DELETE /sessions/{id}`. Same key, two types, on sibling routes of the same
- * controller. A client that reads `res.revoked` and branches on truthiness
- * happens to work; one that displays it, or compares it to a number, does not.
- * Documented as two classes so the contract shows the collision instead of
- * averaging it away.
+ * The field was called `revoked`, colliding with `RevokedFlagDto.revoked` — a
+ * BOOLEAN on `DELETE /sessions/{id}`, a sibling route of the same controller.
+ * Same key, two types: a client reading `res.revoked` and branching on
+ * truthiness happened to work, while one displaying it or comparing it to a
+ * number did not, and nothing told it which route it was on.
+ *
+ * BREAKING, deliberately and loudly: a client still reading `revoked` here now
+ * gets `undefined` immediately, rather than silently truthy-testing a count.
+ * The name now means one thing across both routes.
  */
 export class RevokedCountDto {
-  @ApiProperty({ example: 3, description: 'Number of sessions revoked.' })
-  revoked!: number;
+  @ApiProperty({ example: 3, description: 'Number of sessions revoked. Renamed from `revoked`.' })
+  revokedCount!: number;
 }
 
-/** `{ revoked: true }` — DELETE /sessions/{id}. See the note above. */
+/** `{ revoked: true }` — DELETE /sessions/{id}. A boolean, and now unambiguous. */
 export class RevokedFlagDto {
-  @ApiProperty({ example: true, description: 'Always true. NOT a count, despite the name.' })
+  @ApiProperty({ example: true, description: 'Always true. The bulk routes return revokedCount.' })
   revoked!: boolean;
 }

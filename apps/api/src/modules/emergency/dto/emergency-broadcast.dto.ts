@@ -13,6 +13,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUrl,
   Max,
   MaxLength,
   Min,
@@ -84,13 +85,15 @@ export class CreateEmergencyBroadcastDto {
   /** External URL when broadcastType = URL. */
   @ApiPropertyOptional({
     description:
-      'Required when broadcastType is URL. Validated only as a STRING — unlike ' +
-      '`CreateUrlContentDto.url`, which demands an absolute http(s) URL, so a value with no ' +
-      'protocol is accepted here and fails on the screen instead.',
+      'Required when broadcastType is URL. An absolute http(s) URL — the protocol is REQUIRED, ' +
+      'matching `CreateUrlContentDto.url`. Previously any string was accepted here, so a ' +
+      'protocol-less value passed validation and then failed on every screen mid-emergency.',
+    format: 'uri',
     maxLength: 2000,
+    example: 'https://example.com/alert',
   })
   @IsOptional()
-  @IsString()
+  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
   @MaxLength(2000)
   url?: string;
 
@@ -185,10 +188,11 @@ export class UpdateEmergencyBroadcastDto {
 
   @ApiPropertyOptional({
     maxLength: 2000,
-    description: 'For URL broadcasts. String-checked only — no protocol requirement.',
+    format: 'uri',
+    description: 'For URL broadcasts. Absolute http(s), protocol required — as on create.',
   })
   @IsOptional()
-  @IsString()
+  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
   @MaxLength(2000)
   url?: string;
 

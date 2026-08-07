@@ -8670,14 +8670,14 @@
       "RevokedCountDto": {
         "type": "object",
         "properties": {
-          "revoked": {
+          "revokedCount": {
             "type": "number",
             "example": 3,
-            "description": "Number of sessions revoked."
+            "description": "Number of sessions revoked. Renamed from `revoked`."
           }
         },
         "required": [
-          "revoked"
+          "revokedCount"
         ]
       },
       "RevokedFlagDto": {
@@ -8686,7 +8686,7 @@
           "revoked": {
             "type": "boolean",
             "example": true,
-            "description": "Always true. NOT a count, despite the name."
+            "description": "Always true. The bulk routes return revokedCount."
           }
         },
         "required": [
@@ -13057,7 +13057,8 @@
           "recurrence": {
             "type": "object",
             "additionalProperties": true,
-            "description": "STORED AND ECHOED BACK, but never acted on: the resolver does not consult it, so a recurrence rule here changes nothing about what plays. Reserved for a future release."
+            "description": "STORED AND ECHOED BACK, but never acted on: the resolver does not consult it, so a recurrence rule here changes nothing about what plays. Marked deprecated so generated clients flag it — it is still accepted (removing it would 400 anyone already sending one, since the API forbids unknown properties) but it should not be relied on.",
+            "deprecated": true
           },
           "targets": {
             "maxItems": 200,
@@ -13328,7 +13329,8 @@
           "recurrence": {
             "type": "object",
             "additionalProperties": true,
-            "description": "STORED AND ECHOED BACK, but never acted on: the resolver does not consult it, so a recurrence rule here changes nothing about what plays. Reserved for a future release."
+            "description": "STORED AND ECHOED BACK, but never acted on: the resolver does not consult it, so a recurrence rule here changes nothing about what plays. Marked deprecated so generated clients flag it — it is still accepted (removing it would 400 anyone already sending one, since the API forbids unknown properties) but it should not be relied on.",
+            "deprecated": true
           }
         }
       },
@@ -14951,8 +14953,10 @@
           },
           "url": {
             "type": "string",
-            "description": "Required when broadcastType is URL. Validated only as a STRING — unlike `CreateUrlContentDto.url`, which demands an absolute http(s) URL, so a value with no protocol is accepted here and fails on the screen instead.",
-            "maxLength": 2000
+            "description": "Required when broadcastType is URL. An absolute http(s) URL — the protocol is REQUIRED, matching `CreateUrlContentDto.url`. Previously any string was accepted here, so a protocol-less value passed validation and then failed on every screen mid-emergency.",
+            "format": "uri",
+            "maxLength": 2000,
+            "example": "https://example.com/alert"
           },
           "contentId": {
             "type": "string",
@@ -15098,7 +15102,8 @@
           "url": {
             "type": "string",
             "maxLength": 2000,
-            "description": "For URL broadcasts. String-checked only — no protocol requirement."
+            "format": "uri",
+            "description": "For URL broadcasts. Absolute http(s), protocol required — as on create."
           },
           "contentId": {
             "type": "string",
@@ -15556,11 +15561,6 @@
               "type": "string"
             }
           },
-          "fileStorageKey": {
-            "type": "object",
-            "nullable": true,
-            "description": "Object-storage key of the rendered file. Internal path — recipients receive a signed URL by email (valid 7 days); there is no endpoint that turns this key into one."
-          },
           "error": {
             "type": "object",
             "nullable": true,
@@ -15715,8 +15715,9 @@
             ]
           },
           "recipients": {
+            "minItems": 1,
             "maxItems": 50,
-            "description": "REPLACES the recipient list. Note there is NO ArrayMinSize here, unlike create — so an update may set it to `[]`, leaving a report enabled with nobody to deliver it to.",
+            "description": "REPLACES the recipient list. At least one address, matching create: an update used to be able to send `[]` and leave the report ENABLED with nobody to deliver it to, which then failed silently every cycle. Disable the report instead of emptying its recipients.",
             "type": "array",
             "items": {
               "type": "string"

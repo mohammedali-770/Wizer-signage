@@ -163,7 +163,10 @@ export class CreateScheduleDto {
     additionalProperties: true,
     description:
       'STORED AND ECHOED BACK, but never acted on: the resolver does not consult it, so a ' +
-      'recurrence rule here changes nothing about what plays. Reserved for a future release.',
+      'recurrence rule here changes nothing about what plays. Marked deprecated so generated ' +
+      'clients flag it — it is still accepted (removing it would 400 anyone already sending ' +
+      'one, since the API forbids unknown properties) but it should not be relied on.',
+    deprecated: true,
   })
   @IsOptional()
   @IsObject()
@@ -294,7 +297,10 @@ export class UpdateScheduleDto {
     additionalProperties: true,
     description:
       'STORED AND ECHOED BACK, but never acted on: the resolver does not consult it, so a ' +
-      'recurrence rule here changes nothing about what plays. Reserved for a future release.',
+      'recurrence rule here changes nothing about what plays. Marked deprecated so generated ' +
+      'clients flag it — it is still accepted (removing it would 400 anyone already sending ' +
+      'one, since the API forbids unknown properties) but it should not be relied on.',
+    deprecated: true,
   })
   @IsOptional()
   @IsObject()

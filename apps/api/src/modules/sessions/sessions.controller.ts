@@ -34,15 +34,16 @@ export class SessionsController {
       'user_revoked_others',
       user.sessionId,
     );
-    return { revoked: count };
+    return { revokedCount: count };
   }
 
   @Delete(':id')
   @HttpCode(200)
   @RequirePermissions(Permission.SessionTerminateOwn)
   @ApiOperation({ summary: 'Revoke one of the current user’s sessions.' })
-  // RevokedFlagDto, not RevokedCountDto: this one returns `revoked: true`,
-  // a BOOLEAN under the same key its two siblings use for a count.
+  // RevokedFlagDto, not RevokedCountDto. The two now differ by NAME as well as
+  // type — `revokedCount` for the bulk routes, `revoked` for this one — so a
+  // client cannot read one as the other and be quietly wrong.
   @ApiOkResponse({ type: RevokedFlagDto })
   async revokeOwn(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     await this.sessions.revokeOwn(user.userId, id);
@@ -59,6 +60,6 @@ export class SessionsController {
       { companyId: user.companyId, isSuperAdmin: user.isSuperAdmin },
       userId,
     );
-    return { revoked: count };
+    return { revokedCount: count };
   }
 }
