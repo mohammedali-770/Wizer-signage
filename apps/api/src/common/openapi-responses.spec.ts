@@ -718,7 +718,7 @@ describe('OpenAPI response coverage', () => {
     ]);
   });
 
-  it('`revoked` is a NUMBER on two session routes and a BOOLEAN on a third', () => {
+  it('`revoked` never means two things — the count is revokedCount', () => {
     // Same key, two types, on sibling routes of the same controller:
     //   DELETE /sessions/others            -> { revoked: 3 }
     //   POST   /sessions/users/{id}/terminate -> { revoked: 3 }
@@ -747,8 +747,15 @@ describe('OpenAPI response coverage', () => {
     const flag = components.schemas.RevokedFlagDto as {
       properties?: Record<string, { type?: string }>;
     };
-    expect(count?.properties?.revoked?.type).toBe('number');
+
+    // The collision is FIXED: the count is `revokedCount`, the flag is
+    // `revoked`. This used to assert the two types under one key, which was the
+    // honest thing to pin while the collision stood. Now it pins the opposite —
+    // that no key carries both meanings — so re-introducing the clash fails.
+    expect(count?.properties?.revokedCount?.type).toBe('number');
+    expect(count?.properties?.revoked).toBeUndefined();
     expect(flag?.properties?.revoked?.type).toBe('boolean');
+    expect(flag?.properties?.revokedCount).toBeUndefined();
   });
 
   it('the 2FA enrollment secret is documented as the credential it is', () => {

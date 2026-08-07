@@ -8670,14 +8670,14 @@
       "RevokedCountDto": {
         "type": "object",
         "properties": {
-          "revoked": {
+          "revokedCount": {
             "type": "number",
             "example": 3,
-            "description": "Number of sessions revoked."
+            "description": "Number of sessions revoked. Renamed from `revoked`."
           }
         },
         "required": [
-          "revoked"
+          "revokedCount"
         ]
       },
       "RevokedFlagDto": {
@@ -8686,7 +8686,7 @@
           "revoked": {
             "type": "boolean",
             "example": true,
-            "description": "Always true. NOT a count, despite the name."
+            "description": "Always true. The bulk routes return revokedCount."
           }
         },
         "required": [
@@ -15560,11 +15560,6 @@
             "items": {
               "type": "string"
             }
-          },
-          "fileStorageKey": {
-            "type": "object",
-            "nullable": true,
-            "description": "Object-storage key of the rendered file. Internal path — recipients receive a signed URL by email (valid 7 days); there is no endpoint that turns this key into one."
           },
           "error": {
             "type": "object",

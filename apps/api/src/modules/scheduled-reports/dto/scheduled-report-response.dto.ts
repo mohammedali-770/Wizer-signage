@@ -17,16 +17,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  * Transcribed from `ScheduledReportService.deliveryView`, which is an
  * allow-list — it drops `companyId` and `scheduledReportId`.
  *
- * It does NOT drop `fileStorageKey`, and that is worth stating plainly:
- * `ContentService.toView` and `ScreenshotService.list` both strip their storage
- * key and hand back a short-lived signed URL instead, on the rule that the
- * bucket layout is internal. This view returns the raw key. It is not directly
- * exploitable — no endpoint signs a caller-supplied key, every signing call
- * passes a key read from a row the caller already owns — but it is the one
- * place the rule is not applied, and a client cannot do anything with the value
- * either. Documented as it is rather than quietly omitted: the contract's job
- * is to describe the response, and removing the field is an API change that
- * belongs in its own commit.
+ * It also drops `fileStorageKey`, which it used to return. `ContentService
+ * .toView` and `ScreenshotService.list` both strip their storage key and hand
+ * back a short-lived signed URL instead, on the rule that the bucket layout is
+ * internal; this view was the one place that rule was not applied. It was never
+ * directly exploitable — no endpoint signs a caller-supplied key, every signing
+ * call passes a key read from a row the caller already owns — and a client
+ * could do nothing with the value, which is exactly why removing it costs
+ * nothing. Recipients get a signed URL by email; the key itself was only ever
+ * a description of where the bucket puts things.
  */
 export class ReportDeliveryDto {
   @ApiProperty()
@@ -40,14 +39,6 @@ export class ReportDeliveryDto {
     description: 'The addresses this attempt was sent to, as resolved at run time.',
   })
   recipientEmails!: string[];
-
-  @ApiPropertyOptional({
-    nullable: true,
-    description:
-      'Object-storage key of the rendered file. Internal path — recipients receive a signed ' +
-      'URL by email (valid 7 days); there is no endpoint that turns this key into one.',
-  })
-  fileStorageKey?: string | null;
 
   @ApiPropertyOptional({
     nullable: true,

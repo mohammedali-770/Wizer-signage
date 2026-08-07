@@ -421,7 +421,6 @@ export class ScheduledReportService {
       id: d.id,
       status: d.status,
       recipientEmails: d.recipientEmails,
-      fileStorageKey: d.fileStorageKey,
       error: d.error,
       sentAt: d.sentAt ? d.sentAt.toISOString() : null,
       createdAt: d.createdAt.toISOString(),
