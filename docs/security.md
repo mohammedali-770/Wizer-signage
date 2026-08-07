@@ -49,6 +49,15 @@ the tenant scope — a Company Admin can only ever act within their own `company
 - **Two-Factor Authentication (2FA)** — TOTP **authenticator app** plus one-time
   **backup codes** issued at enrollment. **2FA is REQUIRED for every Super Admin** and
   optional (admin-enforceable) for other roles. _(Phase: Auth/2FA)_
+- **Changing the second factor re-authenticates.** `POST /auth/2fa/setup`,
+  `/enable` and `/disable` each require the user's **password** in the request
+  body, and — when the account already has 2FA on — a **current TOTP or backup
+  code** as well. A bearer token proves a session exists, not that the person
+  holding it is the account owner: without this, a stolen token could enroll an
+  attacker's authenticator, which survives the victim's password reset, or
+  silently replace an existing one and destroy its backup codes. Failed attempts
+  count toward the same lockout threshold as a failed login, so the endpoints
+  cannot be used as an unlimited password oracle. _(Phase: Auth/2FA)_
 - Email delivery uses the `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`,
   `SMTP_FROM` environment variables (see [environment-variables.md](./environment-variables.md)).
 

@@ -3,18 +3,33 @@ import { ConfigService } from '@nestjs/config';
 import { UserRole } from '@prisma/client';
 
 import { CryptoService } from '../../common/crypto/crypto.service';
+import { PasswordService } from '../../common/crypto/password.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { UsersService } from '../users/users.service';
 import { TwoFactorService, requiresTwoFactor } from './two-factor.service';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const VALID_CODE = '123456';
+const PASSWORD = 'correct-horse-battery-staple';
+/** The proof a caller must now supply; `currentCode` matters only when 2FA is on. */
+const PROOF = { password: PASSWORD, currentCode: VALID_CODE };
 
-function build(overrides: { user?: any; crypto?: Partial<CryptoService> } = {}) {
+function build(
+  overrides: {
+    user?: any;
+    crypto?: Partial<CryptoService>;
+    passwordValid?: boolean;
+    blocked?: boolean;
+  } = {},
+) {
   const user = {
     id: 'u1',
     email: 'admin@example.com',
     role: UserRole.SUPER_ADMIN,
+    passwordHash: 'argon:hash',
+    failedLoginCount: 0,
+    lockedUntil: null,
     twoFactorEnabled: true,
     twoFactorSecret: 'enc:secret',
     twoFactorPendingSecret: null,
@@ -52,7 +67,23 @@ function build(overrides: { user?: any; crypto?: Partial<CryptoService> } = {}) 
     get: jest.fn().mockReturnValue({ issuer: 'Wizer Signage' }),
   } as unknown as ConfigService;
 
-  return { service: new TwoFactorService(prisma, crypto, config), prisma, crypto, user };
+  const password = {
+    verify: jest.fn().mockResolvedValue(overrides.passwordValid ?? true),
+  } as unknown as PasswordService;
+
+  const users = {
+    isBlocked: jest.fn().mockReturnValue(overrides.blocked ?? false),
+    recordFailedLogin: jest.fn().mockResolvedValue({ locked: false }),
+  } as unknown as UsersService;
+
+  return {
+    service: new TwoFactorService(prisma, crypto, password, users, config),
+    prisma,
+    crypto,
+    password,
+    users,
+    user,
+  };
 }
 
 describe('requiresTwoFactor', () => {
@@ -139,22 +170,242 @@ describe('TwoFactorService.verifyCodeForUser', () => {
 describe('TwoFactorService.enable', () => {
   it('refuses when enrollment was never started', async () => {
     const { service } = build({ user: { twoFactorPendingSecret: null } });
-    await expect(service.enable('u1', VALID_CODE)).rejects.toThrow(/Start 2FA setup/i);
+    jest.spyOn(service as any, 'verifyToken').mockReturnValue(true);
+    await expect(service.enable('u1', VALID_CODE, PROOF)).rejects.toThrow(/Start 2FA setup/i);
   });
 
   it('refuses an invalid confirmation code', async () => {
     const { service } = build({ user: { twoFactorPendingSecret: 'enc:pending' } });
     jest.spyOn(service as any, 'verifyToken').mockReturnValue(false);
-    await expect(service.enable('u1', '000000')).rejects.toThrow(UnauthorizedException);
+    await expect(service.enable('u1', '000000', PROOF)).rejects.toThrow(UnauthorizedException);
   });
 
   it('issues backup codes on success', async () => {
     const { service, crypto } = build({ user: { twoFactorPendingSecret: 'enc:pending' } });
     jest.spyOn(service as any, 'verifyToken').mockReturnValue(true);
 
-    const result = await service.enable('u1', VALID_CODE);
+    const result = await service.enable('u1', VALID_CODE, PROOF);
     expect(result.backupCodes).toHaveLength(10);
     expect(crypto.generateBackupCodes).toHaveBeenCalledWith(10);
+  });
+});
+
+/**
+ * Re-authentication on the 2FA management routes.
+ *
+ * The hole these close: a bearer token proved a session existed and nothing
+ * more, so anyone holding a stolen one could enrol their own authenticator —
+ * turning a borrowed session into access that survives the victim's password
+ * reset — or, on an account that already had 2FA, silently replace the
+ * authenticator and destroy the backup codes.
+ */
+describe('TwoFactorService re-authentication', () => {
+  const noTwoFactor = { twoFactorEnabled: false, twoFactorSecret: null };
+
+  describe('setup', () => {
+    it('rejects a wrong password', async () => {
+      const { service } = build({ user: noTwoFactor, passwordValid: false });
+      await expect(service.setup('u1', { password: 'wrong' })).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('does not write a pending secret when the password is wrong', async () => {
+      // The disclosure half of the hole: a rejected call must not leave a
+      // usable secret behind, nor overwrite an enrolment already in flight.
+      const { service, prisma } = build({ user: noTwoFactor, passwordValid: false });
+      await expect(service.setup('u1', { password: 'wrong' })).rejects.toThrow();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a user with no password set, rather than treating it as no password required', async () => {
+      // passwordHash is nullable — a user is INVITED until they accept. Such a
+      // user should have no session at all, but "no password set" must never
+      // read as "anyone may proceed".
+      const { service, password } = build({
+        user: { ...noTwoFactor, passwordHash: null },
+        passwordValid: true,
+      });
+      await expect(service.setup('u1', { password: 'anything' })).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(password.verify).not.toHaveBeenCalled();
+    });
+
+    it('proceeds with the right password when 2FA is not yet enabled', async () => {
+      const { service, prisma } = build({ user: noTwoFactor });
+      const result = await service.setup('u1', { password: PASSWORD });
+      expect(result.secret).toEqual(expect.any(String));
+      expect(prisma.user.update).toHaveBeenCalled();
+    });
+
+    it('demands a current code as well when 2FA is already enabled', async () => {
+      // Password alone is one factor of two. Accepting it here would let a
+      // leaked password replace the very factor that exists to survive one.
+      const { service } = build();
+      await expect(service.setup('u1', { password: PASSWORD })).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('accepts password + current code when 2FA is already enabled', async () => {
+      const { service } = build();
+      jest.spyOn(service as any, 'verifyToken').mockReturnValue(true);
+      await expect(service.setup('u1', PROOF)).resolves.toEqual(
+        expect.objectContaining({ secret: expect.any(String) }),
+      );
+    });
+
+    it('accepts a backup code as the current code', async () => {
+      const { service, prisma } = build();
+      jest.spyOn(service as any, 'verifyToken').mockReturnValue(false);
+      (prisma.backupCode.findFirst as jest.Mock).mockResolvedValue({ id: 'bc1' });
+      (prisma.backupCode.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await expect(
+        service.setup('u1', { password: PASSWORD, currentCode: 'BACKUP1' }),
+      ).resolves.toBeDefined();
+    });
+
+    it('reaches backup codes even when the stored secret is missing', async () => {
+      // verifyCodeForUser returns early when twoFactorSecret is null, which
+      // would put backup codes out of reach in exactly the state where they are
+      // the only credential left. reauthenticate must not route through it.
+      const { service, prisma } = build({ user: { twoFactorSecret: null } });
+      (prisma.backupCode.findFirst as jest.Mock).mockResolvedValue({ id: 'bc1' });
+      (prisma.backupCode.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await expect(
+        service.setup('u1', { password: PASSWORD, currentCode: 'BACKUP1' }),
+      ).resolves.toBeDefined();
+    });
+  });
+
+  describe('enable', () => {
+    const pending = { twoFactorPendingSecret: 'enc:pending' };
+
+    it('rejects a wrong password even with a valid confirmation code', async () => {
+      const { service } = build({
+        user: { ...noTwoFactor, ...pending },
+        passwordValid: false,
+      });
+      jest.spyOn(service as any, 'verifyToken').mockReturnValue(true);
+      await expect(service.enable('u1', VALID_CODE, { password: 'wrong' })).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('does not promote the secret or reissue backup codes when the password is wrong', async () => {
+      const { service, prisma } = build({
+        user: { ...noTwoFactor, ...pending },
+        passwordValid: false,
+      });
+      jest.spyOn(service as any, 'verifyToken').mockReturnValue(true);
+      await expect(service.enable('u1', VALID_CODE, { password: 'wrong' })).rejects.toThrow();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.backupCode.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('demands the current code when re-enrolling over existing 2FA', async () => {
+      // Re-enrolment destroys the live authenticator and every backup code. It
+      // must cost more than the password.
+      const { service } = build({ user: pending });
+      jest.spyOn(service as any, 'verifyToken').mockReturnValue(true);
+      await expect(service.enable('u1', VALID_CODE, { password: PASSWORD })).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('refuses before re-auth when no enrolment is pending, so no backup code is burned', async () => {
+      const { service, prisma, password } = build({ user: { twoFactorPendingSecret: null } });
+      await expect(service.enable('u1', VALID_CODE, PROOF)).rejects.toThrow(/Start 2FA setup/i);
+      expect(prisma.backupCode.updateMany).not.toHaveBeenCalled();
+      expect(password.verify).not.toHaveBeenCalled();
+    });
+
+    it('stands on its own proof rather than assuming setup was gated', async () => {
+      // A pending secret is not evidence that this caller created it.
+      const { service, users } = build({ user: pending, passwordValid: false });
+      jest.spyOn(service as any, 'verifyToken').mockReturnValue(true);
+      await expect(service.enable('u1', VALID_CODE, PROOF)).rejects.toThrow();
+      expect(users.recordFailedLogin).toHaveBeenCalled();
+    });
+  });
+
+  describe('disable', () => {
+    const removable = { role: UserRole.VIEWER, twoFactorEnforced: false };
+
+    it('now requires the password, not just a code', async () => {
+      const { service } = build({ user: removable, passwordValid: false });
+      jest.spyOn(service as any, 'verifyToken').mockReturnValue(true);
+      await expect(service.disable('u1', VALID_CODE, 'wrong')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('succeeds with both factors', async () => {
+      const { service, prisma } = build({ user: removable });
+      jest.spyOn(service as any, 'verifyToken').mockReturnValue(true);
+      await service.disable('u1', VALID_CODE, PASSWORD);
+      expect(prisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('refuses before re-auth when 2FA is mandatory, so no backup code is burned', async () => {
+      const { service, prisma, password } = build({ user: { role: UserRole.SUPER_ADMIN } });
+      await expect(service.disable('u1', 'BACKUP1', PASSWORD)).rejects.toThrow(/mandatory/i);
+      expect(prisma.backupCode.updateMany).not.toHaveBeenCalled();
+      expect(password.verify).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('attempt accounting', () => {
+    it('counts a failed attempt toward the account lockout', async () => {
+      // The per-IP throttle resets every minute; without this an attacker with
+      // a stolen token has an unlimited password oracle.
+      const { service, users } = build({ user: noTwoFactor, passwordValid: false });
+      await expect(service.setup('u1', { password: 'wrong' })).rejects.toThrow();
+      expect(users.recordFailedLogin).toHaveBeenCalledWith(expect.objectContaining({ id: 'u1' }));
+    });
+
+    it('reports a lock once the attempt crosses the threshold', async () => {
+      const { service, users } = build({ user: noTwoFactor, passwordValid: false });
+      (users.recordFailedLogin as jest.Mock).mockResolvedValue({ locked: true });
+      await expect(service.setup('u1', { password: 'wrong' })).rejects.toThrow(/locked/i);
+    });
+
+    it('turns an already-locked account away before doing any password work', async () => {
+      const { service, password, users } = build({ user: noTwoFactor, blocked: true });
+      await expect(service.setup('u1', { password: PASSWORD })).rejects.toThrow(/locked/i);
+      expect(password.verify).not.toHaveBeenCalled();
+      expect(users.recordFailedLogin).not.toHaveBeenCalled();
+    });
+
+    it('does not consume a backup code when the password was wrong', async () => {
+      // Checking the second factor first would let an attacker burn a victim's
+      // single-use codes without knowing the password at all.
+      const { service, prisma } = build({ passwordValid: false });
+      (prisma.backupCode.findFirst as jest.Mock).mockResolvedValue({ id: 'bc1' });
+      (prisma.backupCode.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await expect(
+        service.setup('u1', { password: 'wrong', currentCode: 'BACKUP1' }),
+      ).rejects.toThrow();
+      expect(prisma.backupCode.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('gives the same message whichever half of the proof was wrong', async () => {
+      // Distinct messages would tell an attacker when a guessed password was
+      // right, reducing a two-factor guess to two independent one-factor ones.
+      const bad = build({ passwordValid: false });
+      jest.spyOn(bad.service as any, 'verifyToken').mockReturnValue(true);
+      const badPassword = await bad.service.setup('u1', PROOF).catch((e: Error) => e.message);
+
+      const good = build({ passwordValid: true });
+      jest.spyOn(good.service as any, 'verifyToken').mockReturnValue(false);
+      const badCode = await good.service.setup('u1', PROOF).catch((e: Error) => e.message);
+
+      expect(badPassword).toBe(badCode);
+    });
   });
 });
 

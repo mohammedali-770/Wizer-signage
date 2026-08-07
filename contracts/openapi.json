@@ -914,6 +914,16 @@
       "post": {
         "operationId": "TwoFactorController_setup",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BeginTwoFactorSetupDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "",
@@ -931,7 +941,7 @@
             "bearer": []
           }
         ],
-        "summary": "Begin 2FA enrollment (returns secret + QR code).",
+        "summary": "Begin 2FA enrollment (returns secret + QR code). Requires the password.",
         "tags": [
           "two-factor"
         ]
@@ -946,7 +956,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TotpCodeDto"
+                "$ref": "#/components/schemas/EnableTwoFactorDto"
               }
             }
           }
@@ -968,7 +978,7 @@
             "bearer": []
           }
         ],
-        "summary": "Verify a code and enable 2FA (returns backup codes once).",
+        "summary": "Verify a code and enable 2FA (returns backup codes once). Requires the password.",
         "tags": [
           "two-factor"
         ]
@@ -1005,7 +1015,7 @@
             "bearer": []
           }
         ],
-        "summary": "Disable 2FA (not permitted when 2FA is mandatory).",
+        "summary": "Disable 2FA (not permitted when 2FA is mandatory). Requires the password and a code.",
         "tags": [
           "two-factor"
         ]
@@ -8621,6 +8631,22 @@
           "satisfied"
         ]
       },
+      "BeginTwoFactorSetupDto": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "description": "The signed-in user's own password. Required on every route in this module — a bearer token alone no longer authorises changing the second factor."
+          },
+          "currentCode": {
+            "type": "string",
+            "description": "A TOTP or backup code from the authenticator currently enrolled. REQUIRED when the account already has 2FA on, and rejected as missing if omitted then; ignored otherwise. Optional in the schema because whether it is needed depends on account state, not shape."
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
       "TwoFactorSetupDto": {
         "type": "object",
         "properties": {
@@ -8644,9 +8670,27 @@
           "qrCodeDataUrl"
         ]
       },
-      "TotpCodeDto": {
+      "EnableTwoFactorDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "password": {
+            "type": "string",
+            "description": "The signed-in user's own password. Required on every route in this module — a bearer token alone no longer authorises changing the second factor."
+          },
+          "currentCode": {
+            "type": "string",
+            "description": "A TOTP or backup code from the authenticator currently enrolled. REQUIRED when the account already has 2FA on, and rejected as missing if omitted then; ignored otherwise. Optional in the schema because whether it is needed depends on account state, not shape."
+          },
+          "code": {
+            "type": "string",
+            "description": "A 6-digit code from the NEW authenticator, checked against the pending secret. Distinct from `currentCode`, which comes from the old one.",
+            "example": "123456"
+          }
+        },
+        "required": [
+          "password",
+          "code"
+        ]
       },
       "TwoFactorBackupCodesDto": {
         "type": "object",
@@ -8665,7 +8709,25 @@
       },
       "VerifyTwoFactorCodeDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "password": {
+            "type": "string",
+            "description": "The signed-in user's own password. Required on every route in this module — a bearer token alone no longer authorises changing the second factor."
+          },
+          "currentCode": {
+            "type": "string",
+            "description": "A TOTP or backup code from the authenticator currently enrolled. REQUIRED when the account already has 2FA on, and rejected as missing if omitted then; ignored otherwise. Optional in the schema because whether it is needed depends on account state, not shape."
+          },
+          "code": {
+            "type": "string",
+            "description": "A 6-digit TOTP code or a formatted backup code (e.g. ABCD-EFGH), proving possession of the factor being removed. Send `password` as well; `currentCode` is not needed here because this field already is the current code.",
+            "example": "123456"
+          }
+        },
+        "required": [
+          "password",
+          "code"
+        ]
       },
       "DisabledResponseDto": {
         "type": "object",

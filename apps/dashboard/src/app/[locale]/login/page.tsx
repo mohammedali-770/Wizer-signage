@@ -35,6 +35,9 @@ export default function LoginPage() {
   const [step, setStep] = useState<Step>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Separate box for the re-auth prompt, so it never writes into the sign-in
+  // field mid-flow.
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [code, setCode] = useState('');
   const [challengeToken, setChallengeToken] = useState('');
   const [setup, setSetup] = useState<TwoFactorSetup | null>(null);
@@ -54,13 +57,23 @@ export default function LoginPage() {
   }, [status, needsTwoFactorSetup, step, router]);
 
   // Lazily fetch the TOTP secret/QR when entering the enrolment step.
+  //
+  // Gated on holding the password, because /auth/2fa/setup now re-authenticates.
+  // Arriving here straight from the login form we already have it and the fetch
+  // is invisible; arriving on a reload of an authenticated-but-unenrolled
+  // session we do not, and the password form below runs first. On failure the
+  // password is dropped so that form comes back — otherwise a wrong password
+  // (or a throttled attempt) would leave the step with no way forward.
   useEffect(() => {
-    if (step === 'enroll' && !setup) {
-      beginEnrollment()
+    if (step === 'enroll' && !setup && password) {
+      beginEnrollment(password)
         .then(setSetup)
-        .catch((e) => toast(errorMessage(e), 'error'));
+        .catch((e) => {
+          setPassword('');
+          toast(errorMessage(e), 'error');
+        });
     }
-  }, [step, setup, beginEnrollment, toast]);
+  }, [step, setup, password, beginEnrollment, toast]);
 
   async function onLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -96,11 +109,20 @@ export default function LoginPage() {
     }
   }
 
+  // Confirms the password when we arrived at enrolment without one (a reload of
+  // an authenticated session that still owes its 2FA setup). Setting it is all
+  // this does — the effect above sees the change and fetches the QR.
+  function onConfirmPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPassword(passwordConfirm);
+    setPasswordConfirm('');
+  }
+
   async function onEnable(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
-      const codes = await completeEnrollment(code.trim());
+      const codes = await completeEnrollment(code.trim(), password);
       setBackupCodes(codes);
       setStep('backup');
     } catch (e) {
@@ -175,7 +197,34 @@ export default function LoginPage() {
           </form>
         )}
 
-        {step === 'enroll' && (
+        {/* Re-auth prompt: only when we reached enrolment without the password
+            (a reload of a session that still owes its 2FA setup). */}
+        {step === 'enroll' && !setup && !password && (
+          <form onSubmit={onConfirmPassword} className="space-y-4">
+            <div>
+              <h1 className="text-xl font-semibold">Confirm your password</h1>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Enrolling an authenticator changes how you sign in, so it needs your password — not
+                just an open session.
+              </p>
+            </div>
+            <Field label={t('password')}>
+              <Input
+                type="password"
+                autoComplete="current-password"
+                autoFocus
+                required
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+              />
+            </Field>
+            <Button type="submit" className="w-full">
+              Continue
+            </Button>
+          </form>
+        )}
+
+        {step === 'enroll' && (!!setup || !!password) && (
           <form onSubmit={onEnable} className="space-y-4">
             <div>
               <h1 className="text-xl font-semibold">Set up two-factor authentication</h1>
