@@ -1,4 +1,5 @@
 import { SyncStatus } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
   IsArray,
@@ -47,6 +48,13 @@ export class PairingStatusQueryDto {
 
 /** Dashboard → backend: bind a pairing code to this screen. */
 export class PairScreenDto {
+  @ApiProperty({
+    description:
+      'The code shown on the screen. Short-lived and single-use: it is consumed on success, so ' +
+      'pairing the same code twice fails even though the first call worked.',
+    maxLength: 32,
+    example: 'K7Q2-9XTM',
+  })
   @IsString()
   @MaxLength(32)
   pairingCode!: string;

@@ -418,7 +418,12 @@ describe('OpenAPI response coverage', () => {
   });
 
   it.each([
-    ['DemoRequestDto', DemoRequestStatus],
+    // Renamed from DemoRequestDto: that name collided with the PUBLIC request
+    // body of the same name, and since OpenAPI schema names are global one
+    // silently overwrote the other. This response model won, so
+    // POST /public/demo-request was publishing an admin record — id, status,
+    // ip, userAgent — as the body a caller should SEND.
+    ['AdminDemoRequestDto', DemoRequestStatus],
     ['RecentCompanyDto', CompanyStatus],
     ['RecentCompanySubscriptionDto', SubscriptionStatus],
     ['ReportDeliveryDto', ReportDeliveryStatus],

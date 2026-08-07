@@ -29,7 +29,7 @@ import {
 } from './dto/super-admin.dto';
 import {
   ActiveImpersonationDto,
-  DemoRequestDto,
+  AdminDemoRequestDto,
   ImpersonationStartedDto,
   PlatformOverviewDto,
 } from './dto/super-admin-response.dto';
@@ -120,14 +120,14 @@ export class SuperAdminController {
 
   @Get('demo-requests')
   @ApiOperation({ summary: 'List marketing-site demo requests.' })
-  @ApiPaginatedResponse(DemoRequestDto)
+  @ApiPaginatedResponse(AdminDemoRequestDto)
   listDemoRequests(@Query() query: ListDemoRequestsQueryDto) {
     return this.superAdmin.listDemoRequests(query);
   }
 
   @Patch('demo-requests/:id')
   @ApiOperation({ summary: 'Update a demo request status.' })
-  @ApiOkResponse({ type: DemoRequestDto })
+  @ApiOkResponse({ type: AdminDemoRequestDto })
   updateDemoRequest(
     @Param('id') id: string,
     @Body() dto: UpdateDemoRequestDto,

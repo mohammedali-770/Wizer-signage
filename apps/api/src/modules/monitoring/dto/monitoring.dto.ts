@@ -1,4 +1,5 @@
 import { DeviceCommandStatus, DeviceCommandType, SyncStatus } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
   IsEnum,
@@ -113,9 +114,24 @@ export class HeartbeatDto {
 
 /** Dashboard → backend: issue a remote command. */
 export class IssueCommandDto {
+  @ApiProperty({
+    enum: Object.values(DeviceCommandType),
+    description:
+      'Queued for POLLING pickup, not pushed — the screen collects it on its next heartbeat, so ' +
+      'a 2xx here means "accepted", never "done". REBOOT is accepted and then reported ' +
+      'unsupported by most consumer TVs.',
+  })
   @IsEnum(DeviceCommandType)
   commandType!: DeviceCommandType;
 
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    description:
+      'OPAQUE and command-specific. Checked only for being an object — no key is required or ' +
+      'validated against commandType, so a payload the command does not understand is queued ' +
+      'and ignored rather than rejected.',
+  })
   @IsOptional()
   @IsObject()
   payload?: Record<string, unknown>;

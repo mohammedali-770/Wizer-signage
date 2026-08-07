@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-import { PlanLimitsDto } from '../../usage-limits/dto/usage-response.dto';
+import { PlanLimitsViewDto } from '../../usage-limits/dto/usage-response.dto';
 
 /**
  * Responses for the unauthenticated marketing-site endpoints.
@@ -58,8 +58,8 @@ export class PublicPlanDto {
   @ApiProperty()
   trialDays!: number;
 
-  @ApiProperty({ type: PlanLimitsDto, description: '`{}` when the plan sets no limits.' })
-  limits!: PlanLimitsDto;
+  @ApiProperty({ type: PlanLimitsViewDto, description: '`{}` when the plan sets no limits.' })
+  limits!: PlanLimitsViewDto;
 }
 
 /** POST /public/trial-signup. */

@@ -9,7 +9,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  * has since been deleted keeps the id and loses the title. A client must not
  * assume a non-null id implies a non-null label.
  */
-export class ProofOfPlayEventDto {
+export class ProofOfPlayRecordDto {
   @ApiProperty()
   id!: string;
 

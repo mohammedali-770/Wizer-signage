@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -121,7 +121,7 @@ describe('OpenAPI request-body coverage', () => {
    */
   it('never documents fewer bodies than it did before', () => {
     const documented = requestBodies().filter((o) => o.documented);
-    expect(documented.length).toBeGreaterThanOrEqual(26);
+    expect(documented.length).toBeGreaterThanOrEqual(51);
   });
 
   /**
@@ -151,14 +151,122 @@ describe('OpenAPI request-body coverage', () => {
       'auth',
       'companies',
       'company-settings',
+      'content',
       'invitations',
       'locations',
       'notifications',
+      'playlists',
       'screen-groups',
+      'screens',
       'tags',
       'two-factor',
       'users',
     ]);
+  });
+});
+
+/**
+ * Partial annotation is invisible to a coverage count.
+ *
+ * A DTO with ONE annotated field emits a schema with one property, which the
+ * measure above reads as "documented" — so a class can be half-done and still
+ * count. That is exactly what happened to `CreateUrlContentDto` while this file
+ * was being written: `tagIds` and three other fields were silently missing from
+ * the contract, and every test passed.
+ *
+ * A schema cannot reveal a field that is not in it, so this compares against
+ * the SOURCE: every property declared on the class must appear in the emitted
+ * schema. Crude regex parsing is fine here — these DTOs are flat classes of
+ * `name?: type;` declarations, and a false positive fails loudly rather than
+ * passing quietly.
+ */
+describe('annotated DTOs are annotated COMPLETELY', () => {
+  const SRC = join(__dirname, '..', 'modules');
+
+  /** Field names declared on a class in a DTO source file. */
+  function declaredFields(source: string, className: string): string[] {
+    const start = source.indexOf(`export class ${className}`);
+    if (start === -1) return [];
+    const open = source.indexOf('{', start);
+    let depth = 0;
+    let end = open;
+    for (let i = open; i < source.length; i += 1) {
+      if (source[i] === '{') depth += 1;
+      else if (source[i] === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    const body = source.slice(open, end);
+    // `  name!: string;` / `  name?: string[];` at one level of indentation.
+    return [...body.matchAll(/^ {2}(\w+)[!?]:/gm)].map((m) => m[1] ?? '').filter(Boolean);
+  }
+
+  function dtoSources(): Map<string, string> {
+    const out = new Map<string, string>();
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith('.dto.ts')) out.set(full, readFileSync(full, 'utf8'));
+      }
+    };
+    walk(SRC);
+    return out;
+  }
+
+  /**
+   * OpenAPI schema names are GLOBAL, so two classes with the same name collide
+   * and one silently overwrites the other.
+   *
+   * That had already happened: a request body in `public/` and a response model
+   * in `super-admin/` were both called `DemoRequestDto`. The response won, so
+   * POST /public/demo-request published an admin record — `id`, `status`, `ip`,
+   * `userAgent`, `createdAt` — as the body a caller should SEND. Not a missing
+   * description: an actively wrong one, and a generated client would be broken
+   * by it. Nothing in the emitted document reveals a collision, because by then
+   * only the winner is there; the duplicate is only visible in the source.
+   */
+  it('never declares two DTO classes with the same name', () => {
+    const seen = new Map<string, string[]>();
+    for (const [file, source] of dtoSources()) {
+      for (const m of source.matchAll(/^export class (\w+)/gm)) {
+        const name = m[1] ?? '';
+        seen.set(name, [...(seen.get(name) ?? []), file]);
+      }
+    }
+    const collisions = [...seen.entries()]
+      .filter(([, files]) => files.length > 1)
+      .map(([name, files]) => `${name} declared in ${files.length} files`);
+
+    expect(collisions).toEqual([]);
+  });
+
+  it('emits every declared field of every documented request DTO', () => {
+    const { components } = loadContract();
+    const sources = [...dtoSources().values()];
+    const incomplete: string[] = [];
+
+    for (const [name, schema] of Object.entries(components.schemas)) {
+      const emitted = Object.keys(schema.properties ?? {});
+      // Only DTOs that have STARTED being annotated; untouched ones are the
+      // outstanding work the ratchet already tracks.
+      if (emitted.length === 0) continue;
+
+      const source = sources.find((f) => f.includes(`export class ${name}`));
+      if (!source) continue;
+
+      const declared = declaredFields(source, name);
+      if (declared.length === 0) continue;
+
+      const missing = declared.filter((f) => !emitted.includes(f));
+      if (missing.length > 0) incomplete.push(`${name}: missing ${missing.join(', ')}`);
+    }
+
+    expect(incomplete).toEqual([]);
   });
 });
 
@@ -254,6 +362,44 @@ describe('documented constraints match the ones actually enforced', () => {
       (schema(dto).properties?.[field] as { description?: string })?.description ?? '',
     );
     expect(desc).toMatch(/replaces/i);
+  });
+
+  /**
+   * Required-but-nullable, which a JSON Schema cannot say.
+   *
+   * `MoveScreenDto.locationId` is `@IsOptional()`, so the schema publishes it as
+   * optional — but `screens.service.ts` rejects an ABSENT value with a 400
+   * ("locationId is required (use null to unassign)"), because unassigning a
+   * screen on an empty body would be a destructive default. `null` and `''`
+   * unassign. The only place that truth can live is the description.
+   */
+  it('warns that MoveScreenDto.locationId must be present despite being optional', () => {
+    const prop = schema('MoveScreenDto').properties?.locationId as {
+      nullable?: boolean;
+      description?: string;
+    };
+    expect(prop.nullable).toBe(true);
+    expect(String(prop.description)).toMatch(/must be present/i);
+    expect(schema('MoveScreenDto').required).toBeUndefined();
+  });
+
+  /**
+   * The same concept, three creation endpoints, two encodings.
+   *
+   * Multipart cannot carry a JSON array, so the upload takes a COMMA-SEPARATED
+   * STRING called `tags` while the URL and TEXT creators take a `tagIds` array.
+   * A client sharing one tag-picker across the three has to special-case the
+   * upload, and nothing but the contract will tell it so.
+   */
+  it('keeps the two tag encodings visible', () => {
+    const upload = schema('UploadContentDto').properties?.tags as {
+      type?: string;
+      description?: string;
+    };
+    const url = schema('CreateUrlContentDto').properties?.tagIds as { type?: string };
+    expect(upload.type).toBe('string');
+    expect(url.type).toBe('array');
+    expect(String(upload.description)).toMatch(/comma-separated/i);
   });
 
   it('marks exactly the fields the validators require', () => {

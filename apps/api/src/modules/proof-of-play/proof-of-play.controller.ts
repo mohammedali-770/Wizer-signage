@@ -6,7 +6,7 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { Permission } from '../../common/rbac/permissions';
 import { ProofOfPlayQueryDto } from './dto/proof-of-play.dto';
 import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
-import { ProofOfPlayEventDto, ProofOfPlaySummaryDto } from './dto/proof-of-play-response.dto';
+import { ProofOfPlayRecordDto, ProofOfPlaySummaryDto } from './dto/proof-of-play-response.dto';
 import { ProofOfPlayService } from './proof-of-play.service';
 
 /**
@@ -23,7 +23,7 @@ export class ProofOfPlayController {
   @Get()
   @RequirePermissions(Permission.ReportRead)
   @ApiOperation({ summary: 'Proof-of-play events (paginated, filterable).' })
-  @ApiPaginatedResponse(ProofOfPlayEventDto)
+  @ApiPaginatedResponse(ProofOfPlayRecordDto)
   report(@CurrentCompany() companyId: string, @Query() query: ProofOfPlayQueryDto) {
     return this.proofOfPlay.report(companyId, query);
   }
