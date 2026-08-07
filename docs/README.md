@@ -34,6 +34,7 @@ This directory is the canonical documentation set for the platform.
 
 ### Reference & guides
 
+- [api-versioning.md](./api-versioning.md) — **No API version exists**: what that means, every breaking change shipped so far, and the policy proposed before a third-party client arrives.
 - [api-future.md](./api-future.md) — Planned public/partner API surface (post-v1).
 - [android-player.md](./android-player.md) — Android TV player architecture, build, and behavior.
 - [android-signing.md](./android-signing.md) — Release APK signing: secure keystore workflow, key protection, update test.
