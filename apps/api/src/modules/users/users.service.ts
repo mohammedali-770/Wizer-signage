@@ -111,6 +111,21 @@ export class UsersService {
     return rows.map((r) => r.id);
   }
 
+  /**
+   * Reset the failed-attempt counter after a successful re-authentication that
+   * is NOT a login (e.g. proving identity before changing the second factor).
+   *
+   * Only `failedLoginCount`, deliberately. `lockedUntil` and `status` are left
+   * alone: callers reach this point only after `isBlocked()` said no, so any
+   * `lockedUntil` present has already elapsed and is harmless, while clearing
+   * it without also resetting `status` would leave LOCKED with no expiry —
+   * which `isBlocked()` reads as an indefinite administrative lock, turning a
+   * 15-minute lockout into a permanent one (see `updatePassword`).
+   */
+  async clearFailedAttempts(userId: string): Promise<void> {
+    await this.prisma.user.update({ where: { id: userId }, data: { failedLoginCount: 0 } });
+  }
+
   /** Clear failures and stamp last login on a successful authentication. */
   async recordSuccessfulLogin(userId: string): Promise<void> {
     await this.prisma.user.update({

@@ -34,8 +34,13 @@ interface AuthContextValue {
   needsTwoFactorSetup: boolean;
   login: (email: string, password: string) => Promise<LoginResult>;
   verifyTwoFactor: (challengeToken: string, code: string) => Promise<void>;
-  beginEnrollment: () => Promise<TwoFactorSetup>;
-  completeEnrollment: (code: string) => Promise<string[]>;
+  /**
+   * Both enrolment calls re-authenticate: a session token alone no longer
+   * authorises changing the second factor. `currentCode` is needed only when
+   * 2FA is already on (re-enrolling onto a new phone).
+   */
+  beginEnrollment: (password: string, currentCode?: string) => Promise<TwoFactorSetup>;
+  completeEnrollment: (code: string, password: string, currentCode?: string) => Promise<string[]>;
   logout: () => Promise<void>;
   reload: () => Promise<void>;
 }
@@ -122,11 +127,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [reload],
   );
 
-  const beginEnrollment = useCallback(() => api.post<TwoFactorSetup>('/auth/2fa/setup', {}), []);
+  const beginEnrollment = useCallback(
+    (password: string, currentCode?: string) =>
+      api.post<TwoFactorSetup>('/auth/2fa/setup', { password, currentCode }),
+    [],
+  );
 
   const completeEnrollment = useCallback(
-    async (code: string) => {
-      const res = await api.post<{ backupCodes: string[] }>('/auth/2fa/enable', { code });
+    async (code: string, password: string, currentCode?: string) => {
+      const res = await api.post<{ backupCodes: string[] }>('/auth/2fa/enable', {
+        code,
+        password,
+        currentCode,
+      });
       await reload();
       return res.backupCodes;
     },
