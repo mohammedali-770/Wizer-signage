@@ -4,9 +4,19 @@ import { UserRole } from '@prisma/client';
  * Granular permission catalog (resource:action).
  *
  * Enforced server-side by the PermissionsGuard. Roles map to a fixed set of
- * permissions below. This catalog is forward-looking: it includes permissions
- * for resources whose feature modules arrive in later phases so guards can be
- * declared once and remain stable.
+ * permissions below.
+ *
+ * SIX OF THESE GUARD NOTHING. They are declared and mapped to roles but are
+ * referenced by no `@RequirePermissions` anywhere: `CompanyUpdate`,
+ * `BillingManage`, `ApiKeyManage`, `WebhookManage`, `PlatformManage`,
+ * `ApkManage`. Three correspond to features deliberately out of scope (the
+ * external API portal, webhook delivery, in-app APK update); the rest are
+ * covered in practice by adjacent permissions such as `CompanyManage`.
+ *
+ * Granting one therefore grants nothing today, which matters when reasoning
+ * about what a role can actually do — read the guards, not this list. This note
+ * used to say the catalog covered "resources whose feature modules arrive in
+ * later phases"; every phase is complete, so that is no longer the reason.
  *
  * SUPER_ADMIN is a platform role and implicitly holds every permission (see
  * {@link hasPermission}); it is not listed in the per-role map.

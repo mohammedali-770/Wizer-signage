@@ -9,9 +9,16 @@ import { PlaybackManifestDto } from './dto/playback-manifest-response.dto';
 import { ScheduleResolverService } from './schedule-resolver.service';
 
 /**
- * The forward-looking playback manifest a screen (Android player, Phase 6/7)
- * will consume. Exposed under the screen resource. Read-only; uses signed URLs
- * for stored files (no public URLs).
+ * The playback manifest a screen is playing from, as an OPERATOR sees it.
+ *
+ * This is the dashboard-facing view of the same resolution the Android player
+ * consumes over its own device-authenticated route, `GET /device/manifest` —
+ * both call `ScheduleResolverService`, so what is previewed here is what a
+ * screen plays. The two differ only in authentication and audience, which is
+ * why this one sits under the screen resource behind a bearer token and a
+ * ScreenRead permission.
+ *
+ * Read-only; uses signed URLs for stored files (no public URLs).
  */
 @ApiTags('playback')
 @ApiBearerAuth()

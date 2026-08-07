@@ -14,11 +14,27 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-/** Behaviour when a screen is outside its active hours (executed device-side later). */
+/**
+ * Behaviour when a screen is outside its active hours.
+ *
+ * Split across two places, which is worth knowing before changing either:
+ * FALLBACK is resolved SERVER-side — the resolver swaps in fallback content and
+ * the manifest looks like an ordinary playing manifest. The other three are
+ * carried on the manifest as `outsideHours` + `outsideHoursBehavior` and
+ * executed DEVICE-side by `NoContentScreen` in the player.
+ *
+ * `SLEEP` does NOT power the panel down. The player renders it exactly like
+ * BLACK_SCREEN — a black composable at full backlight — because nothing calls
+ * `PowerManager`, and soft kiosk actively holds `FLAG_KEEP_SCREEN_ON` while it
+ * is on. Real display sleep needs device-owner/MDM control the app does not
+ * have. The value is kept because the API accepts and stores it, but an
+ * operator choosing it should not expect the screen to switch off.
+ */
 export enum OutsideHoursBehavior {
   FALLBACK = 'FALLBACK',
   BLACK_SCREEN = 'BLACK_SCREEN',
   CUSTOM_MESSAGE = 'CUSTOM_MESSAGE',
+  /** Renders black; does not power off the display. See the note above. */
   SLEEP = 'SLEEP',
 }
 
@@ -46,7 +62,11 @@ export class DayHoursDto {
 /**
  * Working / active hours configuration. Persisted as JSON on Location, Screen,
  * and Company.settings. Timezone defaults to the entity's own timezone.
- * Configuration only in Phase 3 — Android playback execution comes later.
+ *
+ * This is enforced end to end, not just stored: `schedule-resolver.service.ts`
+ * evaluates it ahead of schedule targeting and stamps `outsideHours` /
+ * `outsideHoursBehavior` onto the manifest, and the player acts on them. The
+ * most specific configuration wins — screen, then location, then company.
  */
 export class WorkingHoursDto {
   @IsOptional()
