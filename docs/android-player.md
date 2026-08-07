@@ -68,24 +68,25 @@ All commands below assume your working directory is
 
 ## Gradle wrapper
 
-The wrapper scripts (`gradlew`, `gradlew.bat`) and `gradle/wrapper/gradle-wrapper.properties`
-(pinned to **Gradle 8.7**) **are committed**, so developers do **not** need a
-globally installed Gradle — with one exception: the small binary
-`gradle/wrapper/gradle-wrapper.jar` is **not** committed (it is a binary the
-bootstrap script loads). Provision it once, either way:
+The whole wrapper is committed — the scripts (`gradlew`, `gradlew.bat`),
+`gradle/wrapper/gradle-wrapper.properties` (pinned to **Gradle 8.7**) **and**
+the `gradle/wrapper/gradle-wrapper.jar` binary. **A fresh clone builds with no
+bootstrap step**: no globally installed Gradle, no `gradle wrapper` run, no
+Android Studio sync first.
 
-- **Android Studio** — open `apps/android-tv-player`; on first sync Studio
-  generates `gradle-wrapper.jar` automatically. Nothing else to do.
-- **CLI (one-time)** — with any locally installed Gradle:
+```bash
+cd apps/android-tv-player
+./gradlew :app:assembleDebug        # gradlew.bat on Windows
+```
 
-  ```bash
-  cd apps/android-tv-player
-  gradle wrapper --gradle-version 8.7
-  ```
+The wrapper downloads and uses the pinned Gradle 8.7 on first invocation.
 
-After the jar exists, always invoke the wrapper (`./gradlew` / `gradlew.bat`) —
-it downloads and uses the pinned Gradle 8.7, so no global Gradle is required for
-subsequent builds.
+CI is the proof: the `android` job in `.github/workflows/ci.yml` checks out and
+runs `./gradlew` directly, with no provisioning step between.
+
+> This section used to say the jar was **not** committed and walked you through
+> generating it. That stopped being true, and the instruction cost a pointless
+> step; it is recorded here only so a reader who remembers it knows it changed.
 
 ---
 
@@ -639,10 +640,12 @@ reachable from the TV's network, with a valid TLS certificate.
 
 ### Build, sign & install a release APK
 
-1. **Toolchain (required):** **JDK 17** + the **Android SDK** + a generated
-   `gradle-wrapper.jar` (Android Studio sync or `gradle wrapper`). _This cannot
-   be built in the CI sandbox used for this repo (JDK 8 / no SDK) — build on a
-   real machine or Android Studio._
+1. **Toolchain (required):** **JDK 17** + the **Android SDK**. The Gradle
+   wrapper is committed in full, so there is nothing to generate — see
+   "Gradle wrapper" above. _GitHub Actions builds the debug variant on every PR
+   (the `android` job). It is the agent/dev sandbox used for this repo that
+   cannot — JDK 8, no SDK — so build releases on a real machine or in Android
+   Studio._
 2. **Release keystore:** generate once and keep it **out of source control**.
    Signing credentials are supplied **only** via environment variables
    (`WIZER_ANDROID_KEYSTORE_PATH`, `WIZER_ANDROID_KEYSTORE_PASSWORD`,
@@ -667,7 +670,8 @@ reachable from the TV's network, with a valid TLS certificate.
 
 ### Known limitations (unchanged — by design)
 
-- **Build requires JDK 17 + Android SDK** (not buildable in this repo's sandbox).
+- **Build requires JDK 17 + Android SDK** — GitHub Actions has both and builds
+  the debug variant on every PR; this repo's agent/dev sandbox has neither.
 - **URL content is not reliably cached** → skipped when offline (Phase 7).
 - **Screenshots** capture the app's own window only (video on a secure surface
   may be black; API < 26 unsupported) — never fabricated (Phase 8).
