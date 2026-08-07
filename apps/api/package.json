@@ -1,6 +1,6 @@
 {
   "name": "@wizer/api",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Wizer Signage API — multi-tenant digital signage SaaS backend (NestJS).",
   "private": true,
   "license": "UNLICENSED",

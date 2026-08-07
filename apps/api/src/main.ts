@@ -12,6 +12,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { PerfLoggingInterceptor } from './common/interceptors/perf-logging.interceptor';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
+import { API_VERSION } from './common/version';
 import type { AppConfig } from './config/configuration';
 
 /**
@@ -124,7 +125,7 @@ async function bootstrap(): Promise<void> {
   if (swaggerEnabled) {
     // Shared with scripts/emit-openapi.ts so the committed contract in
     // contracts/openapi.json describes the same surface these docs serve.
-    const swaggerConfig = buildOpenApiConfig(process.env.npm_package_version ?? '0.0.0');
+    const swaggerConfig = buildOpenApiConfig(API_VERSION);
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('api/docs', app, document, {
       swaggerOptions: { persistAuthorization: true },

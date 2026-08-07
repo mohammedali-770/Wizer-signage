@@ -7782,7 +7782,7 @@
   "info": {
     "title": "Wizer Signage API",
     "description": "Wizer Signage — multi-tenant digital signage SaaS platform REST API.",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "contact": {}
   },
   "tags": [],

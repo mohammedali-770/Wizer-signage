@@ -22,10 +22,16 @@ import { PlanLimitsViewDto } from '../../usage-limits/dto/usage-response.dto';
  * Note the second half of that: `49.90` comes back as `"49.9"`. A client
  * cannot rely on two decimal places and must format for display itself.
  *
- * And these strings do NOT agree with the Super Admin overview, where
- * `invoices.unpaidTotal` is a `_sum` already passed through `Number()` and is
- * therefore a JSON number. Same currency, two encodings, on purpose — the same
- * split as `ContentDto.fileSize` (string) versus `usedBytes` (number).
+ * These strings agree with every other money field in the API, including the
+ * Super Admin overview's `invoices.unpaidTotal` and the public pricing page.
+ *
+ * That agreement is recent. This comment used to record the opposite — that
+ * `unpaidTotal` was a `_sum` passed through `Number()` and therefore a JSON
+ * number, "same currency, two encodings, on purpose" — and cited the
+ * `fileSize` (string) versus `usedBytes` (number) split as the precedent.
+ * Neither split was on purpose; both were accidents that a comment had talked
+ * itself into. Both are gone, and `openapi-responses.spec.ts` now walks the
+ * whole contract and fails on any money field typed as a number.
  */
 
 /** A billing plan. Super Admin only. */

@@ -2,10 +2,13 @@
 
 ## Where things actually stand
 
-**There is no API version.** Routes are served under a bare `/api` prefix with
-no version segment — `/api/auth/login`, not `/api/v1/auth/login`. Nothing in
-the contract carries a version either: `info.version` is `0.0.0` (it is pinned
-from `package.json`, which has never been bumped), and `servers` is empty.
+**There is no API version _in the routes_.** They are served under a bare `/api`
+prefix with no version segment — `/api/auth/login`, not `/api/v1/auth/login`.
+`servers` in the contract is still empty.
+
+The contract does now carry a release number: `info.version` is **`1.0.0`**,
+pinned from `apps/api/package.json`. That is a release marker, not a negotiable
+API version — a client cannot ask for `1.0.0` and keep getting it.
 
 The practical consequence: **a breaking change reaches every caller the moment
 it deploys.** There is no older version still being served, no deprecation
@@ -128,16 +131,27 @@ Adopt one of these before granting the first API key, not after:
 - **Header versioning** (`Accept-Version`) — no path churn, but harder to test
   by hand and easy for a client to omit.
 
-Whichever is chosen, two things must come with it: `info.version` in the contract
-must stop being `0.0.0`, and a deprecation window must be written down — a field
-cannot be removed in the same release it is marked deprecated.
+Whichever is chosen, a deprecation window must be written down alongside it — a
+field cannot be removed in the same release it is marked deprecated.
 
-### What to do about `info.version` now
+### `info.version` — done
 
-It advertises `0.0.0`, which tells a reader nothing and would be actively
-misleading once versioning exists. It is pinned from `package.json` in
-`apps/api/scripts/emit-openapi.ts`, so bumping that one value fixes the contract
-too. Worth doing whether or not versioning is adopted.
+It used to advertise `0.0.0`, which told a reader nothing and would have been
+actively misleading once versioning existed. Every workspace manifest is now
+`1.0.0`, and `apps/api/package.json` is the single source: it feeds
+`info.version` through `apps/api/scripts/emit-openapi.ts`, the Swagger docs, and
+`GET /api/health`.
+
+That last one was quietly broken. `HealthService` read `npm_package_version`,
+which is set only when npm or pnpm starts the process — and the production image
+runs `CMD ["node", "dist/main.js"]`, so the endpoint an operator checks after a
+deploy answered `0.0.0` for every release ever cut, while the contract carried
+the real number. Both now read the same manifest via `apps/api/src/common/version.ts`,
+and `version.spec.ts` pins the wiring, including the Dockerfile `COPY` the path
+depends on.
+
+Bumping the number is not on its own a promise of stability; the policy below is
+what would be.
 
 ## Related
 
