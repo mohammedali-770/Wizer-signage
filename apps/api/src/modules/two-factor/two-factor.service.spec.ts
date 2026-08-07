@@ -74,6 +74,7 @@ function build(
   const users = {
     isBlocked: jest.fn().mockReturnValue(overrides.blocked ?? false),
     recordFailedLogin: jest.fn().mockResolvedValue({ locked: false }),
+    clearFailedAttempts: jest.fn().mockResolvedValue(undefined),
   } as unknown as UsersService;
 
   return {
@@ -316,6 +317,40 @@ describe('TwoFactorService re-authentication', () => {
       );
     });
 
+    it('does not spend a recovery code when the NEW authenticator code is wrong', async () => {
+      // The lost-phone path: `currentCode` is a backup code, and the six digits
+      // from the new authenticator are mistyped. Consuming the recovery code
+      // before validating the new one meant each retry cost a code, so ten
+      // typos left the user with no way back into the account.
+      const { service, prisma } = build({ user: pending });
+      jest.spyOn(service as any, 'verifyToken').mockReturnValue(false);
+      (prisma.backupCode.findFirst as jest.Mock).mockResolvedValue({ id: 'bc1' });
+      (prisma.backupCode.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await expect(
+        service.enable('u1', '000000', { password: PASSWORD, currentCode: 'BACKUP1' }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(prisma.backupCode.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('does spend the recovery code once enrolment actually succeeds', async () => {
+      // The other half of the claim: the code IS single-use, and a completed
+      // re-enrolment must still consume it.
+      const { service, prisma } = build({ user: pending });
+      // Per-argument, not a blanket true: verifyToken serves BOTH the new
+      // authenticator's code and the current factor. A blanket mock makes
+      // 'BACKUP1' look like a valid TOTP, so the backup-code path is never
+      // reached and the test proves nothing.
+      jest
+        .spyOn(service as any, 'verifyToken')
+        .mockImplementation((_secret: unknown, c: unknown) => c === VALID_CODE);
+      (prisma.backupCode.findFirst as jest.Mock).mockResolvedValue({ id: 'bc1' });
+      (prisma.backupCode.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await service.enable('u1', VALID_CODE, { password: PASSWORD, currentCode: 'BACKUP1' });
+      expect(prisma.backupCode.updateMany).toHaveBeenCalled();
+    });
+
     it('refuses before re-auth when no enrolment is pending, so no backup code is burned', async () => {
       const { service, prisma, password } = build({ user: { twoFactorPendingSecret: null } });
       await expect(service.enable('u1', VALID_CODE, PROOF)).rejects.toThrow(/Start 2FA setup/i);
@@ -391,6 +426,27 @@ describe('TwoFactorService re-authentication', () => {
         service.setup('u1', { password: 'wrong', currentCode: 'BACKUP1' }),
       ).rejects.toThrow();
       expect(prisma.backupCode.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('clears the counter once identity is proved, so the threshold means CONSECUTIVE failures', async () => {
+      const { service, users } = build({ user: { ...noTwoFactor, failedLoginCount: 6 } });
+      await service.setup('u1', { password: PASSWORD });
+      expect(users.clearFailedAttempts).toHaveBeenCalledWith('u1');
+    });
+
+    it('does not write on success when there is nothing to clear', async () => {
+      const { service, users } = build({ user: noTwoFactor });
+      await service.setup('u1', { password: PASSWORD });
+      expect(users.clearFailedAttempts).not.toHaveBeenCalled();
+    });
+
+    it('leaves the counter alone when the proof was rejected', async () => {
+      const { service, users } = build({
+        user: { ...noTwoFactor, failedLoginCount: 6 },
+        passwordValid: false,
+      });
+      await expect(service.setup('u1', { password: 'wrong' })).rejects.toThrow();
+      expect(users.clearFailedAttempts).not.toHaveBeenCalled();
     });
 
     it('gives the same message whichever half of the proof was wrong', async () => {

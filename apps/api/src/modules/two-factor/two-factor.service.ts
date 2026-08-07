@@ -108,6 +108,14 @@ export class TwoFactorService {
           : 'Password is incorrect.',
       );
     }
+
+    // The threshold counts CONSECUTIVE failures, so proving identity clears it
+    // exactly as a successful login does. Without this a user who mistypes a
+    // few times and then succeeds stays parked near the lockout line, and a
+    // later unrelated typo locks them out early.
+    if (user.failedLoginCount > 0) {
+      await this.users.clearFailedAttempts(user.id);
+    }
   }
 
   /** Begin enrollment: generate + persist (encrypted) a pending TOTP secret. */
@@ -138,19 +146,26 @@ export class TwoFactorService {
     proof: ReauthProof,
   ): Promise<{ backupCodes: string[] }> {
     const user = await this.getUser(userId);
-    // Before re-authentication, as in disable(), so a request that could never
-    // succeed does not consume one of the user's single-use backup codes.
+    // Everything that can reject this request WITHOUT touching stored state runs
+    // first, so a doomed request never consumes a single-use backup code.
+    //
+    // The new authenticator's code is checked here rather than after re-auth for
+    // exactly that reason: re-auth may spend a backup code, and someone
+    // recovering from a lost phone supplies one. Validating the new code second
+    // meant a fat-fingered six digits — or a TOTP window that had just rolled —
+    // burned a recovery code and returned a failure, and ten of those left them
+    // with no way back into the account at all.
     if (!user.twoFactorPendingSecret) {
       throw new BadRequestException('Start 2FA setup before enabling.');
+    }
+    const secret = this.crypto.decrypt(user.twoFactorPendingSecret);
+    if (!this.verifyToken(secret, code)) {
+      throw new UnauthorizedException('Invalid authentication code.');
     }
     // Re-checked here rather than trusted from setup(): this route promotes a
     // secret and destroys the existing backup codes, so it has to stand on its
     // own proof instead of on another request having been gated earlier.
     await this.reauthenticate(user, proof);
-    const secret = this.crypto.decrypt(user.twoFactorPendingSecret);
-    if (!this.verifyToken(secret, code)) {
-      throw new UnauthorizedException('Invalid authentication code.');
-    }
 
     const backupCodes = this.crypto.generateBackupCodes(10);
 
