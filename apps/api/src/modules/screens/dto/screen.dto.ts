@@ -33,6 +33,7 @@ export class CreateScreenDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(60)
   code?: string;
 
   @ApiPropertyOptional({ maxLength: 500 })

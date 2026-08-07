@@ -113,15 +113,19 @@ describe('OpenAPI request-body coverage', () => {
   });
 
   /**
-   * The ratchet. Raise it as modules land; never lower it.
+   * The ratchet is GONE, replaced by completeness — the work is done.
    *
-   * Unlike the response side this is still a floor, because the work is in
-   * progress. It becomes a completeness assertion — `documented === total` —
-   * when the last module lands, and this comment goes with it.
+   * It started as a floor at 4 and was raised as modules landed. A floor was
+   * right while the number was climbing and useless at the end: it structurally
+   * cannot notice one undocumented body among 72, which is exactly how
+   * CreateUrlContentDto stayed half-annotated with every test green. There is no
+   * longer a number to raise instead of fixing something.
    */
-  it('never documents fewer bodies than it did before', () => {
-    const documented = requestBodies().filter((o) => o.documented);
-    expect(documented.length).toBeGreaterThanOrEqual(51);
+  it('documents every request body', () => {
+    const bodies = requestBodies();
+    const undocumented = bodies.filter((o) => !o.documented).map((o) => o.key);
+    expect(undocumented).toEqual([]);
+    expect(bodies).toHaveLength(72);
   });
 
   /**
@@ -145,23 +149,12 @@ describe('OpenAPI request-body coverage', () => {
       .map(([tag]) => tag)
       .sort();
 
-    // Tags finished so far. Listed explicitly so a REGRESSION in a completed
-    // module fails, instead of being hidden by progress somewhere else.
-    expect(complete).toEqual([
-      'auth',
-      'companies',
-      'company-settings',
-      'content',
-      'invitations',
-      'locations',
-      'notifications',
-      'playlists',
-      'screen-groups',
-      'screens',
-      'tags',
-      'two-factor',
-      'users',
-    ]);
+    // Every tag, not a list to extend. A regression anywhere names its tag.
+    const incomplete = [...perTag.entries()]
+      .filter(([, v]) => v.documented !== v.total)
+      .map(([tag, v]) => `${tag} ${v.documented}/${v.total}`);
+    expect(incomplete).toEqual([]);
+    expect(complete).toHaveLength(22);
   });
 });
 
@@ -243,6 +236,47 @@ describe('annotated DTOs are annotated COMPLETELY', () => {
       .map(([name, files]) => `${name} declared in ${files.length} files`);
 
     expect(collisions).toEqual([]);
+  });
+
+  /**
+   * A published constraint the runtime does not enforce.
+   *
+   * This is the failure mode of the whole exercise, inverted. Writing
+   * `maxLength: 60` into `@ApiPropertyOptional` while dropping `@MaxLength(60)`
+   * leaves the contract promising a limit the API happily exceeds — an easy
+   * edit to make, because the two sit next to each other saying the same thing
+   * in different languages. It happened to `CreateScreenDto.code` in this PR and
+   * was caught in review, not by a test.
+   *
+   * `@nestjs/swagger` never checks anything at runtime and `class-validator`
+   * never reaches the document, so only a source scan sees the disagreement.
+   */
+  it('never publishes a string constraint without the validator that enforces it', () => {
+    // The decorator may carry extra arguments — `@MinLength(10, { message })`
+    // is the same constraint as `@MinLength(10)`, so match the number and the
+    // boundary, not the literal string.
+    const PAIRS: [string, (v: string) => RegExp][] = [
+      ['maxLength', (v) => new RegExp(`@MaxLength\\(\\s*${v}\\s*[,)]`)],
+      ['minLength', (v) => new RegExp(`@MinLength\\(\\s*${v}\\s*[,)]`)],
+    ];
+    const unenforced: string[] = [];
+
+    for (const [file, source] of dtoSources()) {
+      const blocks = source.split(/^ {2}(?=@Api(?:Property|PropertyOptional)\()/m).slice(1);
+      for (const block of blocks) {
+        const field = block.match(/^ {2}(\w+)[!?]:/m)?.[1] ?? '(unknown)';
+        for (const [key, decorator] of PAIRS) {
+          const declared = block.match(new RegExp(`${key}:\\s*(\\d+)`))?.[1];
+          if (!declared) continue;
+          const viaLength = /@Length\(\s*\d+\s*,\s*\d+/.test(block);
+          if (!decorator(declared).test(block) && !viaLength) {
+            unenforced.push(`${file.split('/').pop()} ${field}: ${key} ${declared} not enforced`);
+          }
+        }
+      }
+    }
+
+    expect(unenforced).toEqual([]);
   });
 
   it('emits every declared field of every documented request DTO', () => {

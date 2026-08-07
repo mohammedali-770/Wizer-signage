@@ -7367,7 +7367,23 @@
     "/scheduled-reports": {
       "get": {
         "operationId": "ScheduledReportsController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "reportType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PROOF_OF_PLAY",
+                "SCREEN_HEALTH",
+                "ALERTS",
+                "ACTIVITY_LOGS",
+                "BILLING"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -7874,7 +7890,77 @@
       },
       "TrialSignupDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "companyName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120,
+            "description": "The tenant slug is derived from this; the allocated slug may differ if it collides."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 160,
+            "description": "Becomes the owner account."
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "businessType": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Free-form, not an enum."
+          },
+          "branches": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "screens": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ar"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "description": "The owner account password. `PasswordService.evaluate()` runs on it in public.service.ts, so the full policy applies — upper, lower, digit, symbol, and no common/breached password — not merely the 10-character minimum this validator states.",
+            "minLength": 10,
+            "maxLength": 200
+          },
+          "captchaToken": {
+            "type": "string",
+            "description": "ACCEPTED AND IGNORED — no provider is wired up and nothing in the codebase reads this field, so a token buys no bot protection. The actual protection on this route is the rate limit (5/hour per IP).",
+            "maxLength": 4000,
+            "deprecated": true
+          }
+        },
+        "required": [
+          "fullName",
+          "companyName",
+          "email",
+          "password"
+        ]
       },
       "TrialSignupResultDto": {
         "type": "object",
@@ -9269,9 +9355,83 @@
           "twoFactorRequired"
         ]
       },
-      "CreatePlanDto": {
+      "PlanLimitsDto": {
         "type": "object",
         "properties": {}
+      },
+      "CreatePlanDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable machine code, unique across plans. Lowercase letters, digits, hyphens.",
+            "maxLength": 50,
+            "pattern": "^[a-z0-9-]+$",
+            "example": "pro"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "price": {
+            "type": "number",
+            "description": "SENT AS `price`, STORED AND RETURNED AS `priceMonthly` — the request and response use different names for the same value, so a client cannot round-trip a plan by copying fields. And the response type differs by audience: a NUMBER on the public pricing endpoint, a STRING (raw Prisma Decimal) for Super Admins. One value, three shapes.",
+            "minimum": 0,
+            "maximum": 1000000,
+            "example": 49.9
+          },
+          "priceYearly": {
+            "type": "number",
+            "description": "Named consistently with the response, unlike `price`.",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "currency": {
+            "type": "string",
+            "description": "Exactly three characters. Not checked against ISO 4217 — \"XXX\" is accepted.",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "USD"
+          },
+          "billingInterval": {
+            "type": "string",
+            "enum": [
+              "MONTHLY",
+              "QUARTERLY",
+              "YEARLY"
+            ]
+          },
+          "trialDays": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 365,
+            "description": "0 means no trial."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Inactive plans cannot take new subscriptions."
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether it appears on the public pricing endpoint."
+          },
+          "limits": {
+            "description": "Per-plan quotas. `{}` means the plan sets no limits, which reads as UNLIMITED rather than zero.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanLimitsDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ]
       },
       "PlanDto": {
         "type": "object",
@@ -9359,11 +9519,106 @@
       },
       "UpdatePlanDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "price": {
+            "type": "number",
+            "description": "SENT AS `price`, STORED AND RETURNED AS `priceMonthly` — the request and response use different names for the same value, so a client cannot round-trip a plan by copying fields. And the response type differs by audience: a NUMBER on the public pricing endpoint, a STRING (raw Prisma Decimal) for Super Admins. One value, three shapes.",
+            "minimum": 0,
+            "maximum": 1000000,
+            "example": 49.9
+          },
+          "priceYearly": {
+            "type": "number",
+            "description": "Named consistently with the response, unlike `price`.",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "currency": {
+            "type": "string",
+            "description": "Exactly three characters. Not checked against ISO 4217 — \"XXX\" is accepted.",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "USD"
+          },
+          "billingInterval": {
+            "type": "string",
+            "enum": [
+              "MONTHLY",
+              "QUARTERLY",
+              "YEARLY"
+            ]
+          },
+          "trialDays": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 365,
+            "description": "0 means no trial."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Inactive plans cannot take new subscriptions."
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether it appears on the public pricing endpoint."
+          },
+          "limits": {
+            "description": "Per-plan quotas. `{}` means the plan sets no limits, which reads as UNLIMITED rather than zero.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanLimitsDto"
+              }
+            ]
+          }
+        }
       },
       "CreateSubscriptionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "The tenant this subscription is for. A Super Admin route, so the company is named in the body rather than taken from the token — one of the few places that is legitimate."
+          },
+          "planId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "TRIALING",
+              "EXPIRED",
+              "SUSPENDED",
+              "CANCELLED"
+            ]
+          },
+          "trialDays": {
+            "type": "number",
+            "description": "Converted to a trialEndsAt date, and ONLY when status is TRIALING — sending it with any other status has no effect and is not rejected.",
+            "minimum": 0,
+            "maximum": 365
+          },
+          "currentPeriodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currentPeriodEnd": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "companyId",
+          "planId"
+        ]
       },
       "SubscriptionDto": {
         "type": "object",
@@ -9550,11 +9805,119 @@
       },
       "UpdateSubscriptionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "planId": {
+            "type": "string",
+            "description": "Moves the tenant to another plan."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "TRIALING",
+              "EXPIRED",
+              "SUSPENDED",
+              "CANCELLED"
+            ]
+          },
+          "trialEndsAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A DATE here, where create takes `trialDays`, a count."
+          },
+          "currentPeriodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currentPeriodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cancelAtPeriodEnd": {
+            "type": "boolean",
+            "description": "Ends the subscription at period end rather than now."
+          }
+        }
+      },
+      "InvoiceLineItemDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Whole units only."
+          },
+          "unitPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Two decimal places. Sent as a NUMBER; invoice money comes BACK as a string, because responses carry the raw Prisma Decimal.",
+            "example": 49.9
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unitPrice"
+        ]
       },
       "CreateInvoiceDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "The tenant billed. A Super Admin route, so it is named in the body."
+          },
+          "subscriptionId": {
+            "type": "string",
+            "description": "Links the invoice to a subscription, if it belongs to one."
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "USD"
+          },
+          "lineItems": {
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "At least one line — an empty invoice is refused. Totals are computed server-side.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLineItemDto"
+            }
+          },
+          "tax": {
+            "type": "number",
+            "minimum": 0,
+            "description": "An absolute AMOUNT, not a percentage or rate."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "UNPAID",
+              "PAID",
+              "OVERDUE",
+              "CANCELLED"
+            ]
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "companyId",
+          "lineItems"
+        ]
       },
       "InvoiceDto": {
         "type": "object",
@@ -9650,11 +10013,49 @@
       },
       "UpdateInvoiceStatusDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "UNPAID",
+              "PAID",
+              "OVERDUE",
+              "CANCELLED"
+            ],
+            "description": "Status is the ONLY mutable field — line items and amounts cannot be edited after issue, and financial records are never deleted by the retention sweep."
+          }
+        },
+        "required": [
+          "status"
+        ]
       },
       "StartImpersonationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The tenant to act inside."
+          },
+          "twoFactorCode": {
+            "type": "string",
+            "description": "A current TOTP or single-use backup code. Impersonation is re-authenticated even though the caller already holds a Super Admin session — entering a tenant is not something a stolen token should be able to do.",
+            "minLength": 6,
+            "maxLength": 32
+          },
+          "reason": {
+            "type": "string",
+            "description": "REQUIRED, minimum 10 characters — deliberately long enough to be a sentence. \"test\" is not a reason, and a field that accepts it produces an audit trail nobody trusts. Written to the activity log alongside the impersonation.",
+            "minLength": 10,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "companyId",
+          "twoFactorCode",
+          "reason"
+        ]
       },
       "ImpersonationCompanyDto": {
         "type": "object",
@@ -9991,7 +10392,20 @@
       },
       "InviteSuperAdminDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Invites a PLATFORM administrator with cross-tenant access, not a company user. 2FA is mandatory for the resulting account and cannot be turned off."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "email"
+        ]
       },
       "AdminDemoRequestDto": {
         "type": "object",
@@ -10067,7 +10481,21 @@
       },
       "UpdateDemoRequestDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "CONTACTED",
+              "SCHEDULED",
+              "CLOSED"
+            ],
+            "description": "The only field — a demo request is a pipeline record, and status is all that moves."
+          }
+        },
+        "required": [
+          "status"
+        ]
       },
       "WorkingHoursDto": {
         "type": "object",
@@ -12521,9 +12949,129 @@
           "targetCount"
         ]
       },
+      "ScheduleTargetInputDto": {
+        "type": "object",
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "SCREEN_GROUP",
+              "LOCATION",
+              "COMPANY"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "description": "CONDITIONALLY REQUIRED — needed for SCREEN, SCREEN_GROUP and LOCATION, and ignored for COMPANY (which targets your own tenant). Optional in the schema because the requirement depends on targetType, which JSON Schema cannot express here."
+          }
+        },
+        "required": [
+          "targetType"
+        ]
+      },
       "CreateScheduleDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "playlistId": {
+            "type": "string",
+            "description": "Optional — a schedule may exist with no playlist, and validation reports it as not schedulable rather than refusing to create it."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "PAUSED"
+            ],
+            "description": "NARROWER than the ScheduleStatus responses carry — ARCHIVED has its own route."
+          },
+          "scheduleType": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "CAMPAIGN"
+            ]
+          },
+          "priority": {
+            "type": "number",
+            "description": "Higher wins. At EQUAL priority a CAMPAIGN beats a NORMAL schedule, so priority alone does not decide the winner — and when the rules cannot separate two schedules, conflict validation reports a null winnerId for a human to settle.",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "REQUIRED — the only mandatory date. endDate omitted means it never expires."
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startTime": {
+            "type": "string",
+            "description": "HH:mm, 24-hour, in the schedule timezone.",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "09:00"
+          },
+          "endTime": {
+            "type": "string",
+            "description": "HH:mm, 24-hour. An endTime EARLIER than startTime is not an error — it means an OVERNIGHT window that crosses midnight (22:00 to 02:00 runs four hours, not twenty).",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "17:00"
+          },
+          "isAllDay": {
+            "type": "boolean",
+            "description": "Ignores startTime/endTime when true."
+          },
+          "daysOfWeek": {
+            "maxItems": 7,
+            "description": "0 = SUNDAY through 6 = Saturday (see common/scheduling/schedule-time.util.ts). Evaluated in the schedule timezone, not UTC. Omitted means every day. An off-by-one here plays content on the wrong day without any error.",
+            "example": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "type": "array",
+            "items": {
+              "type": "number",
+              "maximum": 6,
+              "minimum": 0
+            }
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone the window is evaluated in. Falls back to the screen timezone when omitted. Length-checked only, not validated against the tz database.",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "recurrence": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "STORED AND ECHOED BACK, but never acted on: the resolver does not consult it, so a recurrence rule here changes nothing about what plays. Reserved for a future release."
+          },
+          "targets": {
+            "maxItems": 200,
+            "description": "Where this schedule applies. A schedule with NO targets reaches no screens — validation reports targetCount 0 rather than refusing it.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleTargetInputDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "startDate"
+        ]
       },
       "ConflictScheduleSummaryDto": {
         "type": "object",
@@ -12699,11 +13247,111 @@
       },
       "UpdateScheduleDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "playlistId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Explicit null DETACHES the playlist; omitting the field leaves it as it is."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "PAUSED"
+            ]
+          },
+          "scheduleType": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "CAMPAIGN"
+            ]
+          },
+          "priority": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "null CLEARS the end date, making the schedule open-ended."
+          },
+          "startTime": {
+            "type": "string",
+            "nullable": true,
+            "description": "null clears it."
+          },
+          "endTime": {
+            "type": "string",
+            "nullable": true,
+            "description": "null clears it. Earlier than startTime still means an overnight window."
+          },
+          "isAllDay": {
+            "type": "boolean"
+          },
+          "daysOfWeek": {
+            "maxItems": 7,
+            "description": "0 = SUNDAY through 6 = Saturday (see common/scheduling/schedule-time.util.ts). Evaluated in the schedule timezone, not UTC. Omitted means every day. An off-by-one here plays content on the wrong day without any error.",
+            "example": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "type": "array",
+            "items": {
+              "type": "number",
+              "maximum": 6,
+              "minimum": 0
+            }
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Asia/Dubai"
+          },
+          "recurrence": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "STORED AND ECHOED BACK, but never acted on: the resolver does not consult it, so a recurrence rule here changes nothing about what plays. Reserved for a future release."
+          }
+        }
       },
       "AddScheduleTargetDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "SCREEN_GROUP",
+              "LOCATION",
+              "COMPANY"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "description": "CONDITIONALLY REQUIRED — needed for SCREEN, SCREEN_GROUP and LOCATION, and ignored for COMPANY (which targets your own tenant). Optional in the schema because the requirement depends on targetType, which JSON Schema cannot express here."
+          }
+        },
+        "required": [
+          "targetType"
+        ]
       },
       "ManifestItemDto": {
         "type": "object",
@@ -14251,13 +14899,137 @@
           "updatedAt"
         ]
       },
+      "EmergencyTargetDto": {
+        "type": "object",
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "SCREEN",
+              "SCREEN_GROUP",
+              "LOCATION",
+              "COMPANY"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "description": "REQUIRED here, including for COMPANY targets — unlike the schedule equivalent, where it is optional and defaults to your own company.",
+            "maxLength": 60
+          }
+        },
+        "required": [
+          "targetType",
+          "targetId"
+        ]
+      },
       "CreateEmergencyBroadcastDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "broadcastType": {
+            "type": "string",
+            "enum": [
+              "CONTENT",
+              "PLAYLIST",
+              "TEXT",
+              "URL"
+            ],
+            "description": "Decides which of message / url / contentId / playlistId is required."
+          },
+          "message": {
+            "type": "string",
+            "description": "Required when broadcastType is TEXT; ignored otherwise.",
+            "maxLength": 2000
+          },
+          "url": {
+            "type": "string",
+            "description": "Required when broadcastType is URL. Validated only as a STRING — unlike `CreateUrlContentDto.url`, which demands an absolute http(s) URL, so a value with no protocol is accepted here and fails on the screen instead.",
+            "maxLength": 2000
+          },
+          "contentId": {
+            "type": "string",
+            "description": "Required when broadcastType is CONTENT.",
+            "maxLength": 60
+          },
+          "playlistId": {
+            "type": "string",
+            "description": "Required when broadcastType is PLAYLIST.",
+            "maxLength": 60
+          },
+          "priority": {
+            "type": "number",
+            "description": "Ranks this against OTHER emergency broadcasts only — every emergency already outranks every schedule. Note the cap is 100000 here, where schedules allow 1000000.",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The maintenance sweep auto-ENDs a broadcast once this passes."
+          },
+          "targets": {
+            "maxItems": 200,
+            "description": "A broadcast reaching no screens is reported invalid by validation.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmergencyTargetDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "broadcastType"
+        ]
       },
       "QuickTextBroadcastDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "The text shown on every targeted screen."
+          },
+          "priority": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Auto-ENDed by the maintenance sweep once passed. With no endAt it runs until ended by hand."
+          },
+          "targets": {
+            "description": "REQUIRED here — an instant broadcast with no audience is refused.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmergencyTargetDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "message",
+          "targets"
+        ]
       },
       "EmergencyValidationDto": {
         "type": "object",
@@ -14298,11 +15070,60 @@
       },
       "UpdateEmergencyBroadcastDto": {
         "type": "object",
-        "properties": {}
-      },
-      "EmergencyTargetDto": {
-        "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "broadcastType": {
+            "type": "string",
+            "enum": [
+              "CONTENT",
+              "PLAYLIST",
+              "TEXT",
+              "URL"
+            ],
+            "description": "Changing it changes which payload field is required."
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "For TEXT broadcasts."
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "For URL broadcasts. String-checked only — no protocol requirement."
+          },
+          "contentId": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "For CONTENT broadcasts."
+          },
+          "playlistId": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "For PLAYLIST broadcasts."
+          },
+          "priority": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "ImportJobDto": {
         "type": "object",
@@ -14659,7 +15480,60 @@
       },
       "CreateScheduledReportDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "reportType": {
+            "type": "string",
+            "enum": [
+              "PROOF_OF_PLAY",
+              "SCREEN_HEALTH",
+              "ALERTS",
+              "ACTIVITY_LOGS",
+              "BILLING"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "CSV",
+              "XLSX",
+              "PDF"
+            ]
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY"
+            ],
+            "description": "Delivery cadence. Runs are driven by the maintenance cron, not an in-process timer."
+          },
+          "recipients": {
+            "minItems": 1,
+            "maxItems": 50,
+            "description": "At least one address — a report with no recipients is refused rather than created and silently undelivered. REPLACES the list on update. One invalid address rejects the array.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filters": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "OPAQUE and report-type specific. Checked only for being an object, so a filter key the report does not understand is stored and ignored rather than rejected."
+          }
+        },
+        "required": [
+          "name",
+          "reportType",
+          "frequency",
+          "recipients"
+        ]
       },
       "ReportDeliveryDto": {
         "type": "object",
@@ -14808,7 +15682,56 @@
       },
       "UpdateScheduledReportDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "reportType": {
+            "type": "string",
+            "enum": [
+              "PROOF_OF_PLAY",
+              "SCREEN_HEALTH",
+              "ALERTS",
+              "ACTIVITY_LOGS",
+              "BILLING"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "CSV",
+              "XLSX",
+              "PDF"
+            ]
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY"
+            ]
+          },
+          "recipients": {
+            "maxItems": 50,
+            "description": "REPLACES the recipient list. Note there is NO ArrayMinSize here, unlike create — so an update may set it to `[]`, leaving a report enabled with nobody to deliver it to.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filters": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Opaque — see create."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Disabled reports keep their config and stop being delivered."
+          }
+        }
       },
       "BackupRunDto": {
         "type": "object",
@@ -14895,11 +15818,59 @@
       },
       "RecordBackupDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "DATABASE",
+              "STORAGE",
+              "FULL"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "SUCCESS",
+              "FAILED"
+            ],
+            "description": "A FAILED record is the point of the endpoint — it is what raises the alert."
+          },
+          "location": {
+            "type": "string",
+            "description": "Where the dump was written. Free-form and unvalidated; nothing checks the file exists."
+          },
+          "sizeBytes": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Size of the dump in bytes."
+          },
+          "error": {
+            "type": "string",
+            "description": "Failure detail. Meaningful only when status is FAILED."
+          }
+        },
+        "required": [
+          "type",
+          "status"
+        ]
       },
       "RunMaintenanceDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "job": {
+            "type": "string",
+            "enum": [
+              "all",
+              "sweep",
+              "retention",
+              "reports",
+              "emergencies",
+              "backup-check"
+            ],
+            "description": "Which sweep to run. Omitted runs them ALL — so an empty body is not a no-op, it is the most expensive call this endpoint offers."
+          }
+        }
       },
       "MaintenanceRunResultDto": {
         "type": "object",
