@@ -66,11 +66,12 @@ export class FilePreviewDto {
 export class ContentStorageUsageDto {
   @ApiProperty({
     description:
-      'Summed with Number(), so a JSON number rather than the string a BigInt column would ' +
-      'serialise to. `ContentDto.fileSize` is the raw column and IS a string — the two ' +
-      'disagree on purpose, and a client adding them together would be wrong.',
+      'A string, matching `ContentDto.fileSize` — the raw BigInt column it sums. The two used ' +
+      'to disagree: this was passed through Number() and documented as a deliberate split, ' +
+      'which meant the same quantity had two encodings and adding them together was wrong.',
+    example: '10737418240',
   })
-  usedBytes!: number;
+  usedBytes!: string;
 
   @ApiProperty({ description: 'The same figure in GB, rounded — what the card displays.' })
   usedGb!: number;

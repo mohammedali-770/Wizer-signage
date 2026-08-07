@@ -550,22 +550,44 @@ describe('OpenAPI response coverage', () => {
     expect(Object.keys(text?.properties ?? {})).not.toContain('url');
   });
 
-  it('the two byte figures disagree on type, on purpose', () => {
-    // `ContentDto.fileSize` is the raw BigInt column and serialises as a
-    // STRING. `ContentUsage.storage.usedBytes` is a SUM already passed through
-    // Number(), so it is a JSON number. Documenting both as one type would be
-    // wrong whichever was chosen, and a client adding them together is the bug
-    // this pins — it is the same quantity in two different encodings.
+  /**
+   * Byte counts agree on type, like money does.
+   *
+   * This test used to assert the OPPOSITE — that `ContentDto.fileSize` was a
+   * string and `usedBytes` a number, "on purpose". It was not on purpose: the
+   * sum went through `Number()` and the per-row column did not, so the same
+   * quantity had two encodings and a client adding them together was wrong.
+   *
+   * It was also actively dangerous while it stood. When `storageBytes` became a
+   * string, `ContentService.usageSummary` copied that value straight into
+   * `usedBytes` — so the API returned a string while the contract still said
+   * number, and THIS TEST kept passing because it was pinning the stale type.
+   * A guard that asserts the wrong invariant protects the bug.
+   *
+   * Stated positively now, over every byte total rather than one pair.
+   */
+  it('every byte figure is a string, everywhere', () => {
     const { components } = loadContract();
-    const content = components.schemas.ContentDto as {
-      properties?: Record<string, { type?: string }>;
-    };
+    const BYTES = /^(fileSize|fileSizeBytes|usedBytes|storageBytes|sizeBytes)$/;
+    const numeric: string[] = [];
+
+    for (const [name, schema] of Object.entries(components.schemas)) {
+      // Request shapes may take a number — a caller sends a plain integer.
+      if (/^(Create|Update|Record)/.test(name)) continue;
+      const props = (schema as { properties?: Record<string, { type?: string }> }).properties ?? {};
+      for (const [field, prop] of Object.entries(props)) {
+        if (BYTES.test(field) && prop.type === 'number') numeric.push(`${name}.${field}`);
+      }
+    }
+
+    expect(numeric).toEqual([]);
+
+    // `usedGb` stays a NUMBER: it is a derived display figure, not an exact
+    // quantity, and nothing sums it against a 64-bit column.
     const usage = components.schemas.ContentStorageUsageDto as {
       properties?: Record<string, { type?: string }>;
     };
-
-    expect(content?.properties?.fileSize?.type).toBe('string');
-    expect(usage?.properties?.usedBytes?.type).toBe('number');
+    expect(usage?.properties?.usedGb?.type).toBe('number');
   });
 
   it('a pairing response never carries the device credential', () => {

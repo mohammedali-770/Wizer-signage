@@ -12011,8 +12011,9 @@
         "type": "object",
         "properties": {
           "usedBytes": {
-            "type": "number",
-            "description": "Summed with Number(), so a JSON number rather than the string a BigInt column would serialise to. `ContentDto.fileSize` is the raw column and IS a string — the two disagree on purpose, and a client adding them together would be wrong."
+            "type": "string",
+            "description": "A string, matching `ContentDto.fileSize` — the raw BigInt column it sums. The two used to disagree: this was passed through Number() and documented as a deliberate split, which meant the same quantity had two encodings and adding them together was wrong.",
+            "example": "10737418240"
           },
           "usedGb": {
             "type": "number",
