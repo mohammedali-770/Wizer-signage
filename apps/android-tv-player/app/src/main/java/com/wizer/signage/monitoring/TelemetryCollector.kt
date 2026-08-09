@@ -5,15 +5,13 @@ import android.os.SystemClock
 import com.wizer.signage.BuildConfig
 import com.wizer.signage.data.ConnectivityObserver
 import com.wizer.signage.data.SyncManager
+import com.wizer.signage.data.model.CrashReportPayload
 import com.wizer.signage.data.model.HeartbeatPayload
 
 /**
- * Builds the heartbeat telemetry payload from current player + cache state
- * (Phase 8). Does NOT report sync status (that is owned by the Phase 7
- * sync-status snapshot, to avoid clobbering it with a guess).
- *
- * Previous-run crash metadata is privacy-bounded by [CrashTelemetryStore]: only
- * timestamp/fingerprint/count are emitted, never the persisted stack trace.
+ * Builds the ordinary heartbeat telemetry payload from current player + cache
+ * state (Phase 8). Previous-run crash metadata uses a separate authenticated
+ * report so a recovered crash does not masquerade as a playback/sync warning.
  */
 class TelemetryCollector(
     private val sync: SyncManager,
@@ -25,7 +23,6 @@ class TelemetryCollector(
         val manifest = sync.activeManifest.value
         val item = sync.currentItem.value
         val (cacheSize, available, cachedCount) = sync.cacheStats()
-        val crash = crashes.snapshot()
 
         return HeartbeatPayload(
             appVersion = BuildConfig.VERSION_NAME,
@@ -42,9 +39,6 @@ class TelemetryCollector(
             cacheSizeBytes = cacheSize,
             availableStorageBytes = available,
             cachedAssets = cachedCount,
-            lastCrashAtMillis = crash.lastCrashAtMillis,
-            lastCrashFingerprint = crash.lastCrashFingerprint,
-            crashCount = crash.crashCount,
             capabilities = mapOf(
                 "screenshot" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O),
                 "reboot" to false,
@@ -55,8 +49,20 @@ class TelemetryCollector(
         )
     }
 
-    /** Clear the previous-run crash only after the server accepted a heartbeat. */
-    fun acknowledgeCrashIfPending() {
+    fun pendingCrashReport(): CrashReportPayload? {
+        val crash = crashes.snapshot()
+        val fingerprint = crash.lastCrashFingerprint ?: return null
+        val at = crash.lastCrashAtMillis ?: return null
+        return CrashReportPayload(
+            crashedAtMillis = at,
+            fingerprint = fingerprint,
+            crashCount = crash.crashCount.coerceAtLeast(1),
+            appVersion = BuildConfig.VERSION_NAME,
+        )
+    }
+
+    /** Clear the previous-run crash only after the dedicated report is accepted. */
+    fun acknowledgeCrashReport() {
         crashes.acknowledgeIfPending()
     }
 
