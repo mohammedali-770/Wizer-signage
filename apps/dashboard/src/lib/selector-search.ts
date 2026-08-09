@@ -7,6 +7,8 @@ export type SearchableSelectorType =
   | 'CONTENT'
   | 'TAG';
 
+export type TagApplicability = 'SCREEN' | 'CONTENT';
+
 const BASE_PATH: Record<SearchableSelectorType, string> = {
   SCREEN: '/screens',
   SCREEN_GROUP: '/screen-groups',
@@ -39,10 +41,17 @@ export interface SelectorEntity {
  * all-pages crawl. Users can reach any entity by refining `search`, so tenant
  * size no longer creates a silent correctness ceiling or a burst of 20 GETs.
  */
-export function selectorSearchPath(type: SearchableSelectorType, search: string): string {
+export function selectorSearchPath(
+  type: SearchableSelectorType,
+  search: string,
+  options?: { tagApplicability?: TagApplicability },
+): string {
   const params = new URLSearchParams({ page: '1', pageSize: String(MAX_RESULTS) });
   const term = search.trim();
   if (term) params.set('search', term);
+  if (type === 'TAG' && options?.tagApplicability) {
+    params.set('applicableTo', options.tagApplicability);
+  }
   return `${BASE_PATH[type]}?${params.toString()}`;
 }
 
