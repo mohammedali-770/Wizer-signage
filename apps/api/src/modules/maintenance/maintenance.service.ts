@@ -15,6 +15,7 @@ import { AlertService } from '../notifications/alert.service';
 import { AlertEvent } from '../notifications/notifications.constants';
 import { ScheduledReportService } from '../scheduled-reports/scheduled-report.service';
 import { UsageLimitsService } from '../usage-limits/usage-limits.service';
+import { AndroidOtaHealthService } from './android-ota-health.service';
 import { BackupService } from './backup.service';
 import { RetentionService } from './retention.service';
 
@@ -41,13 +42,13 @@ const SWEEP_PAGE = 1_000;
 const MAX_PAGES = 500; // 500k rows per sweep target
 
 /**
- * Operational maintenance (Phase 10). Two responsibilities:
+ * Operational maintenance. Two responsibilities:
  *  1. `sweep()` — reconcile time/threshold-based alerts that have no event hook
  *     (offline screens, subscription expiry, grace ending, storage limits,
  *     content expiring). Deduplicated + auto-resolving, so it is safe to run
  *     repeatedly without spamming.
- *  2. `runAll()` — the cron entrypoint: sweep + retention cleanup + emergency
- *     auto-END + due scheduled reports + backup-recency check.
+ *  2. `runAll()` — the cron entrypoint: sweep + Android OTA health gate +
+ *     retention cleanup + emergency auto-END + due reports + backup check.
  *
  * Driven by the maintenance CLI/cron, not an in-process scheduler.
  */
@@ -64,6 +65,9 @@ export class MaintenanceService {
     private readonly emergency: EmergencyBroadcastService,
     private readonly scheduledReports: ScheduledReportService,
     private readonly usageLimits: UsageLimitsService,
+    // Optional only so the older direct unit-test harnesses remain source
+    // compatible. Production Nest wiring always provides this service.
+    private readonly androidOtaHealth?: AndroidOtaHealthService,
   ) {}
 
   private retentionDays(): number {
@@ -95,12 +99,19 @@ export class MaintenanceService {
 
   async runAll(now: Date = new Date()) {
     const sweep = await this.sweep(now);
+    // Run before retention/report work so a failing player rollout is reverted
+    // at the first maintenance opportunity even when a later unrelated job is
+    // slow. A missing optional dependency exists only in legacy unit harnesses.
+    const androidOtaHealth = this.androidOtaHealth
+      ? await this.androidOtaHealth.sweep(now)
+      : null;
     const retention = await this.retention.run({ retentionDays: this.retentionDays(), now });
     const autoEndedEmergencies = await this.emergency.endExpired(now);
     const scheduledReports = await this.scheduledReports.runDue(now);
     const backupStale = await this.backup.checkRecency(now);
     const result = {
       sweep,
+      androidOtaHealth,
       retention,
       autoEndedEmergencies: autoEndedEmergencies.length,
       scheduledReports,
