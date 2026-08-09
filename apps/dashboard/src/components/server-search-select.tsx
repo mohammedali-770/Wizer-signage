@@ -11,6 +11,7 @@ import {
   selectorSearchPath,
   type SearchableSelectorType,
   type SelectorEntity,
+  type TagApplicability,
 } from '@/lib/selector-search';
 import type { Paginated } from '@/lib/types';
 import { useApiResource } from '@/lib/use-api';
@@ -23,6 +24,7 @@ export function ServerSearchSelect({
   searchPlaceholder = 'Search…',
   disabled,
   required,
+  tagApplicability,
 }: {
   type: SearchableSelectorType;
   value: string;
@@ -31,6 +33,7 @@ export function ServerSearchSelect({
   searchPlaceholder?: string;
   disabled?: boolean;
   required?: boolean;
+  tagApplicability?: TagApplicability;
 }) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -42,7 +45,7 @@ export function ServerSearchSelect({
   }, [search]);
 
   const resource = useApiResource<Paginated<Record<string, unknown>>>(
-    selectorSearchPath(type, debouncedSearch),
+    selectorSearchPath(type, debouncedSearch, { tagApplicability }),
   );
   const options = useMemo(
     () =>
