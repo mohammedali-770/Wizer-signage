@@ -311,7 +311,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # gitleaks needs history to scan commits, not just the tree.
+          # gitleaks needs the base/head commits and their ancestry, but should
+          # not scan every unrelated branch fetched into the local repository.
           fetch-depth: 0
 
       - name: Setup pnpm
@@ -338,12 +339,16 @@ jobs:
         if: always()
         run: pnpm audit --prod || true
 
-      # Run the scanner directly rather than via gitleaks-action: the action
-      # calls the PR-commits API, which needs `pull-requests: read` that the
-      # default token does not carry here, and it fails the job on a 403 that
-      # has nothing to do with whether a secret was committed. Scanning the
-      # checked-out history locally is both simpler and stricter.
+      # Scan the commits THIS PR introduces. `gitleaks git` delegates to
+      # `git log -p`; --log-opts is its supported mechanism for selecting a
+      # commit range. The old unbounded `detect --source=/repo` walked every
+      # fetched branch, so a false positive on one open feature branch made
+      # every unrelated PR fail even when that commit was not part of its tree.
+      # .gitleaksignore remains fingerprint-specific for audited false positives.
       - name: Scan for committed secrets
         run: |
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
-            detect --source=/repo --redact --verbose --no-banner
+            git --redact --verbose --no-banner \
+            --gitleaks-ignore-path=/repo/.gitleaksignore \
+            --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" \
+            /repo
