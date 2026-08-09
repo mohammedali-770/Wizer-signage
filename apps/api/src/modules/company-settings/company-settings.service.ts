@@ -48,6 +48,8 @@ export class CompanySettingsService {
       hasDefaultKioskPin: !!company.defaultKioskPinHash,
       androidOta: {
         enabled: androidOta.enabled === true,
+        policyRevision:
+          typeof androidOta.policyRevision === 'string' ? androidOta.policyRevision : null,
         targetVersionName:
           typeof androidOta.targetVersionName === 'string' ? androidOta.targetVersionName : null,
         targetVersionCode:
@@ -118,7 +120,13 @@ export class CompanySettingsService {
     return this.get(companyId);
   }
 
-  /** Replace the complete staged-rollout policy after ownership validation. */
+  /**
+   * Replace the complete staged-rollout policy after ownership validation.
+   * Every explicit save receives a new revision token. Devices use that token
+   * to keep a terminal BLOCKED/FAILED result sticky for the exact policy that
+   * caused it, while letting an operator deliberately save a new revision to
+   * authorize one fresh attempt after remediation.
+   */
   async updateAndroidOta(companyId: string, actor: AuthenticatedUser, dto: AndroidOtaSettingsDto) {
     const targetVersionName = dto.targetVersionName?.trim() || null;
     const targetVersionCode = dto.targetVersionCode ?? null;
@@ -156,6 +164,7 @@ export class CompanySettingsService {
 
     const policy = {
       enabled: dto.enabled,
+      policyRevision: new Date().toISOString(),
       targetVersionName,
       targetVersionCode,
       rolloutPercent: dto.rolloutPercent,
@@ -174,6 +183,7 @@ export class CompanySettingsService {
     });
     await this.log(actor, companyId, 'company.android_ota_policy_changed', {
       enabled: policy.enabled,
+      policyRevision: policy.policyRevision,
       targetVersionName: policy.targetVersionName,
       targetVersionCode: policy.targetVersionCode,
       rolloutPercent: policy.rolloutPercent,
