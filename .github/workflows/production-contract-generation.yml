@@ -1,6 +1,7 @@
 name: Final production contract generation
 
 on:
+  workflow_dispatch:
   push:
     branches: [codex/production-readiness-final]
     paths:
@@ -42,6 +43,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
       - name: Emit final OpenAPI contract
         working-directory: apps/api
         run: pnpm openapi:emit ../../contracts/openapi.json
@@ -51,6 +55,9 @@ jobs:
 
       - name: Verify generated dashboard contract
         run: pnpm --filter @wizer/dashboard contract:check
+
+      - name: Typecheck dashboard contract consumers
+        run: pnpm --filter @wizer/dashboard typecheck
 
       - name: Verify generated files are well formed
         run: git diff --check

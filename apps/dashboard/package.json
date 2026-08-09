@@ -12,7 +12,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "node --test env-validation.test.mjs 'src/**/*.test.ts'",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "contract:generate": "pnpm dlx openapi-typescript@7.13.0 ../../contracts/openapi.json -o src/lib/api-contract.generated.ts --export-type && prettier --write src/lib/api-contract.generated.ts",
+    "contract:check": "rm -f /tmp/wizer-api-contract.generated.ts && pnpm dlx openapi-typescript@7.13.0 ../../contracts/openapi.json -o /tmp/wizer-api-contract.generated.ts --export-type && prettier --write /tmp/wizer-api-contract.generated.ts && cmp /tmp/wizer-api-contract.generated.ts src/lib/api-contract.generated.ts"
   },
   "dependencies": {
     "@wizer/shared": "workspace:*",
