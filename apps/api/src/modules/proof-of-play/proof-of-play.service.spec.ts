@@ -406,6 +406,7 @@ describe('ProofOfPlayService.ingest — batching', () => {
     );
 
     expect(t.prisma.proofOfPlay.findMany.mock.calls[0][0].where).toEqual({
+      companyId: 'comp1',
       playbackSessionId: { in: ['a', 'b'] },
     });
   });

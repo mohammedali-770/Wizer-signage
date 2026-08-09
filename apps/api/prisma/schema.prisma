@@ -1307,13 +1307,14 @@ model ProofOfPlay {
   failureReason        String?
   manifestVersion      String?
   /// Device-generated id, unique per item playback — the idempotency key.
-  playbackSessionId    String             @unique
+  playbackSessionId    String
   itemSequence         Int?
   offlinePlayback      Boolean            @default(false)
   metadata             Json               @default("{}")
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
+  @@unique([companyId, playbackSessionId])
   @@index([companyId, startedAt])
   @@index([screenId, startedAt])
   // Retention: the nightly purge filters on startedAt alone; the composite
