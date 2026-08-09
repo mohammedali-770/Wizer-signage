@@ -534,7 +534,7 @@ export type paths = {
     };
     get?: never;
     put?: never;
-    /** Exchange a refresh token for a new token pair. */
+    /** Rotate the HttpOnly refresh cookie and return a new access token. */
     post: operations['AuthController_refresh'];
     delete?: never;
     options?: never;
@@ -3389,8 +3389,6 @@ export type components = {
     AuthTokensDto: {
       /** @description Short-lived bearer token for the Authorization header. */
       accessToken: string;
-      /** @description Rotated on every use; reuse is treated as theft. */
-      refreshToken: string;
       user: components['schemas']['UserViewDto'];
       /** @description True when the account must enrol in 2FA before it has full access — a Super Admin, or a user whose company enforces it. The session is confined to the enrollment routes until it does. */
       mustEnableTwoFactor?: boolean;
@@ -3418,10 +3416,6 @@ export type components = {
        * @example 123456
        */
       code: string;
-    };
-    RefreshTokenDto: {
-      /** @description The refresh token from the last token pair. Rotated on every use: the one sent here is invalidated, and presenting it a second time is treated as theft and revokes the session. */
-      refreshToken: string;
     };
     SuccessResponseDto: {
       /** @example true */
@@ -6632,11 +6626,7 @@ export interface operations {
       path?: never;
       cookie?: never;
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RefreshTokenDto'];
-      };
-    };
+    requestBody?: never;
     responses: {
       200: {
         headers: {
