@@ -1,12 +1,38 @@
-export type SearchableSelectorType = 'SCREEN' | 'SCREEN_GROUP' | 'LOCATION';
+export type SearchableSelectorType =
+  | 'SCREEN'
+  | 'SCREEN_GROUP'
+  | 'LOCATION'
+  | 'COMPANY'
+  | 'PLAYLIST'
+  | 'CONTENT'
+  | 'TAG';
 
 const BASE_PATH: Record<SearchableSelectorType, string> = {
   SCREEN: '/screens',
   SCREEN_GROUP: '/screen-groups',
   LOCATION: '/locations',
+  COMPANY: '/companies',
+  PLAYLIST: '/playlists',
+  CONTENT: '/content',
+  TAG: '/tags',
+};
+
+const LABEL_FIELD: Record<SearchableSelectorType, 'name' | 'title'> = {
+  SCREEN: 'name',
+  SCREEN_GROUP: 'name',
+  LOCATION: 'name',
+  COMPANY: 'name',
+  PLAYLIST: 'title',
+  CONTENT: 'title',
+  TAG: 'name',
 };
 
 const MAX_RESULTS = 50;
+
+export interface SelectorEntity {
+  id: string;
+  name: string;
+}
 
 /**
  * A selector search is intentionally a single bounded server page, not an
@@ -22,6 +48,27 @@ export function selectorSearchPath(type: SearchableSelectorType, search: string)
 
 export function selectorEntityPath(type: SearchableSelectorType, id: string): string {
   return `${BASE_PATH[type]}/${encodeURIComponent(id)}`;
+}
+
+/**
+ * Normalize the deliberately different API list/detail shapes into one tiny
+ * selector contract. Content/playlists use `title`; most resources use `name`;
+ * company detail wraps the entity under `company`.
+ */
+export function normalizeSelectorEntity(
+  type: SearchableSelectorType,
+  payload: unknown,
+): SelectorEntity | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const root = payload as Record<string, unknown>;
+  const raw =
+    type === 'COMPANY' && root.company && typeof root.company === 'object' && !Array.isArray(root.company)
+      ? (root.company as Record<string, unknown>)
+      : root;
+  const id = typeof raw.id === 'string' ? raw.id : null;
+  const field = LABEL_FIELD[type];
+  const label = typeof raw[field] === 'string' ? raw[field].trim() : '';
+  return id && label ? { id, name: label } : null;
 }
 
 export const SELECTOR_RESULT_LIMIT = MAX_RESULTS;
