@@ -1,4 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+
+import { PrismaClient, ProofOfPlayStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -78,7 +80,67 @@ describe('telemetry partitioning (real PostgreSQL)', () => {
     );
   });
 
-  it('backfill registry and event table counts start in lock-step', async () => {
+  it('surfaces a cross-month duplicate session through Prisma and releases the key on delete', async () => {
+    const suffix = randomUUID().slice(0, 8);
+    const company = await prisma.company.create({
+      data: { name: `Partition test ${suffix}`, slug: `partition-test-${suffix}` },
+      select: { id: true },
+    });
+    const screen = await prisma.screen.create({
+      data: { companyId: company.id, name: `Partition screen ${suffix}` },
+      select: { id: true },
+    });
+    const session = randomUUID();
+    const firstStart = new Date(Date.UTC(2026, 7, 20, 12, 0, 0));
+    const secondStart = new Date(Date.UTC(2026, 8, 2, 12, 0, 0));
+
+    try {
+      const first = await prisma.proofOfPlay.create({
+        data: {
+          companyId: company.id,
+          screenId: screen.id,
+          startedAt: firstStart,
+          status: ProofOfPlayStatus.STARTED,
+          playbackSessionId: session,
+        },
+        select: { id: true },
+      });
+
+      await expect(
+        prisma.proofOfPlay.create({
+          data: {
+            companyId: company.id,
+            screenId: screen.id,
+            startedAt: secondStart,
+            status: ProofOfPlayStatus.STARTED,
+            playbackSessionId: session,
+          },
+        }),
+      ).rejects.toMatchObject({ code: 'P2002' });
+
+      await prisma.proofOfPlay.deleteMany({ where: { id: first.id } });
+
+      // AFTER DELETE releases the global session key. Reusing it after the
+      // retained event is actually gone must succeed (retention semantics).
+      await expect(
+        prisma.proofOfPlay.create({
+          data: {
+            companyId: company.id,
+            screenId: screen.id,
+            startedAt: secondStart,
+            status: ProofOfPlayStatus.STARTED,
+            playbackSessionId: session,
+          },
+        }),
+      ).resolves.toMatchObject({ playbackSessionId: session });
+    } finally {
+      await prisma.proofOfPlay.deleteMany({ where: { companyId: company.id } });
+      await prisma.screen.deleteMany({ where: { id: screen.id } });
+      await prisma.company.deleteMany({ where: { id: company.id } });
+    }
+  });
+
+  it('backfill registry and event table counts stay in lock-step', async () => {
     const [row] = await prisma.$queryRaw<Array<{ events: bigint; keys: bigint }>>`
       SELECT
         (SELECT COUNT(*) FROM public.proof_of_plays) AS events,
