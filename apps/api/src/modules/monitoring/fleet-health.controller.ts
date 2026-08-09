@@ -1,12 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiBearerAuth, ApiExcludeController } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
+import { FleetHealthSummaryDto } from './fleet-health.dto';
 import { FleetHealthService } from './fleet-health.service';
 
-@ApiExcludeController()
+@ApiTags('Monitoring')
 @ApiBearerAuth()
 @Controller('monitoring/fleet-health')
 export class FleetHealthController {
@@ -14,7 +15,9 @@ export class FleetHealthController {
 
   @Get()
   @RequirePermissions(Permission.ScreenRead)
-  summary(@CurrentCompany() companyId: string) {
+  @ApiOperation({ summary: 'Get company player-version distribution and recent crash diagnostics' })
+  @ApiOkResponse({ type: FleetHealthSummaryDto })
+  summary(@CurrentCompany() companyId: string): Promise<FleetHealthSummaryDto> {
     return this.fleet.summary(companyId);
   }
 }
