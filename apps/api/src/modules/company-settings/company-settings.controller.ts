@@ -6,7 +6,11 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
-import { SetDefaultKioskPinDto, UpdateCompanySettingsDto } from './dto/company-settings.dto';
+import {
+  AndroidOtaSettingsDto,
+  SetDefaultKioskPinDto,
+  UpdateCompanySettingsDto,
+} from './dto/company-settings.dto';
 import { ResetResponseDto, UpdatedResponseDto } from '../../common/dto/api-response.dto';
 import { UsageEvaluationDto } from '../usage-limits/dto/usage-response.dto';
 import { CompanySettingsDto } from './dto/company-settings-response.dto';
@@ -29,8 +33,6 @@ export class CompanySettingsController {
   @Get('usage')
   @RequirePermissions(Permission.CompanyRead)
   @ApiOperation({ summary: "The company's usage vs plan limits (with grace status)." })
-  // The same evaluation GET /companies/{id}/usage returns, for the caller's
-  // own company rather than one named by a Super Admin.
   @ApiOkResponse({ type: UsageEvaluationDto })
   usage(@CurrentCompany() companyId: string) {
     return this.settings.usage(companyId);
@@ -39,7 +41,6 @@ export class CompanySettingsController {
   @Patch()
   @RequirePermissions(Permission.CompanyManage)
   @ApiOperation({ summary: 'Update company settings (name/timezone/defaults/working hours).' })
-  // Re-reads: returns the full settings, not just what changed.
   @ApiOkResponse({ type: CompanySettingsDto })
   update(
     @CurrentCompany() companyId: string,
@@ -47,6 +48,20 @@ export class CompanySettingsController {
     @Body() dto: UpdateCompanySettingsDto,
   ) {
     return this.settings.update(companyId, user, dto);
+  }
+
+  @Put('android-ota')
+  @RequirePermissions(Permission.CompanyManage)
+  @ApiOperation({
+    summary: 'Replace the staged Android OTA rollout policy (target/canaries/percentage/halt).',
+  })
+  @ApiOkResponse({ type: CompanySettingsDto })
+  updateAndroidOta(
+    @CurrentCompany() companyId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: AndroidOtaSettingsDto,
+  ) {
+    return this.settings.updateAndroidOta(companyId, user, dto);
   }
 
   @Put('kiosk-pin')
