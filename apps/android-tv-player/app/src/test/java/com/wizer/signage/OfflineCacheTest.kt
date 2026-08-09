@@ -36,6 +36,14 @@ class ManifestStoreTest {
         assertEquals("c1", loaded?.items?.get(0)?.contentId)
         assertEquals("v1", loaded?.items?.get(0)?.version)
     }
+
+    @Test
+    fun corruptLastGoodManifestFailsClosed() {
+        val store = ManifestStore(tmp.root)
+        File(tmp.root, "manifest_last_good.json").writeText("{\"screenId\":")
+
+        assertNull("corrupt state must never be promoted into playback", store.loadLastGood())
+    }
 }
 
 class ChecksumsTest {
