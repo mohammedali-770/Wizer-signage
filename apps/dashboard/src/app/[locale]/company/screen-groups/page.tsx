@@ -5,10 +5,11 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Pencil, Plus, Search, Trash2, Users2 } from 'lucide-react';
 
 import { api, apiFetch, ApiError } from '@/lib/api';
-import { useAllPages, useApiResource } from '@/lib/use-api';
+import { useApiResource } from '@/lib/use-api';
 import { formatNumber } from '@/lib/format';
 import type { Paginated, Screen, ScreenGroup, ScreenGroupDetail } from '@/lib/types';
 import {
+  Badge,
   Button,
   Dialog,
   EmptyState,
@@ -29,6 +30,7 @@ import {
 } from '@/components/ui';
 
 const PAGE_SIZE = 20;
+const MEMBER_SEARCH_SIZE = 50;
 
 interface GroupFormState {
   name: string;
@@ -354,9 +356,9 @@ export default function ScreenGroupsPage() {
 }
 
 /**
- * Manage the screens belonging to a group: load current members, add screens
- * from a multi-select of all company screens, and remove existing members.
- * The detail is reloaded after each mutation so the member list stays in sync.
+ * Manage group membership without a fleet-wide crawl. Searches are bounded to
+ * one 50-row server page; selections accumulate across searches and keep their
+ * labels locally until the operator submits them.
  */
 function ManageScreensDialog({
   group,
@@ -368,44 +370,54 @@ function ManageScreensDialog({
   onChanged: () => void;
 }) {
   const t = useTranslations('pages.screenGroups');
+  const tc = useTranslations('common');
   const { toast } = useToast();
 
   const detail = useApiResource<ScreenGroupDetail>(`/screen-groups/${group.id}`);
-  const allScreens = useAllPages<Screen>('/screens');
+  const [candidateSearch, setCandidateSearch] = useState('');
+  const [candidateSearchInput, setCandidateSearchInput] = useState('');
+  const candidatePath = useMemo(() => {
+    const params = new URLSearchParams({ page: '1', pageSize: String(MEMBER_SEARCH_SIZE) });
+    if (candidateSearch) params.set('search', candidateSearch);
+    return `/screens?${params.toString()}`;
+  }, [candidateSearch]);
+  const candidatesResource = useApiResource<Paginated<Screen>>(candidatePath);
 
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<Array<{ id: string; name: string }>>([]);
   const [adding, setAdding] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   const members = useMemo(() => detail.data?.screens ?? [], [detail.data]);
   const memberIds = useMemo(() => new Set(members.map((s) => s.id)), [members]);
+  const selectedIds = useMemo(() => new Set(selected.map((s) => s.id)), [selected]);
 
-  // Screens that are not already members are eligible to be added.
   const candidates = useMemo(
-    () => (allScreens.data?.items ?? []).filter((s) => !memberIds.has(s.id)),
-    [allScreens.data, memberIds],
+    () => (candidatesResource.data?.items ?? []).filter((screen) => !memberIds.has(screen.id)),
+    [candidatesResource.data, memberIds],
   );
 
-  // Drop any stale selections once the membership/candidate list changes.
-  const candidateIds = useMemo(() => new Set(candidates.map((s) => s.id)), [candidates]);
-  const visibleSelected = selected.filter((id) => candidateIds.has(id));
-
-  const toggleSelect = (id: string) =>
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleSelect = (screen: Screen) =>
+    setSelected((prev) =>
+      prev.some((item) => item.id === screen.id)
+        ? prev.filter((item) => item.id !== screen.id)
+        : [...prev, { id: screen.id, name: screen.name }],
+    );
 
   const handleAdd = async () => {
-    if (visibleSelected.length === 0) return;
+    const screenIds = selected.map((item) => item.id).filter((id) => !memberIds.has(id));
+    if (screenIds.length === 0) return;
     setAdding(true);
     try {
-      await api.post(`/screen-groups/${group.id}/screens`, { screenIds: visibleSelected });
+      await api.post(`/screen-groups/${group.id}/screens`, { screenIds });
       toast(
-        visibleSelected.length === 1
+        screenIds.length === 1
           ? t('toastScreenAdded')
-          : t('toastScreensAdded', { count: visibleSelected.length }),
+          : t('toastScreensAdded', { count: screenIds.length }),
         'success',
       );
       setSelected([]);
       detail.reload();
+      candidatesResource.reload();
       onChanged();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : t('toastError'), 'error');
@@ -423,6 +435,7 @@ function ManageScreensDialog({
       });
       toast(t('toastScreenRemoved'), 'success');
       detail.reload();
+      candidatesResource.reload();
       onChanged();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : t('toastError'), 'error');
@@ -430,9 +443,6 @@ function ManageScreensDialog({
       setRemovingId(null);
     }
   };
-
-  const loading = detail.loading || allScreens.loading;
-  const loadError = detail.error || allScreens.error;
 
   return (
     <Dialog
@@ -442,17 +452,17 @@ function ManageScreensDialog({
       description={t('manageDescription')}
       className="max-h-[90vh] max-w-2xl overflow-y-auto"
     >
-      {loading && (
+      {detail.loading && (
         <div className="flex justify-center py-10">
           <Spinner className="text-primary size-6" />
         </div>
       )}
 
-      {!loading && loadError && (
-        <EmptyState title={t('manageLoadError')} description={loadError ?? undefined} />
+      {!detail.loading && detail.error && (
+        <EmptyState title={t('manageLoadError')} description={detail.error ?? undefined} />
       )}
 
-      {!loading && !loadError && (
+      {!detail.loading && !detail.error && (
         <div className="space-y-6">
           {/* Current members */}
           <section>
@@ -494,27 +504,65 @@ function ManageScreensDialog({
 
           {/* Add screens */}
           <section>
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold">{t('addScreens')}</h3>
-              <Button
-                size="sm"
-                onClick={handleAdd}
-                disabled={adding || visibleSelected.length === 0}
-              >
+              <Button size="sm" onClick={handleAdd} disabled={adding || selected.length === 0}>
                 {adding && <Spinner className="size-3.5" />}
-                {visibleSelected.length > 0
-                  ? t('addCount', { count: visibleSelected.length })
-                  : t('add')}
+                {selected.length > 0 ? t('addCount', { count: selected.length }) : t('add')}
               </Button>
             </div>
-            {candidates.length === 0 ? (
+
+            {selected.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {selected.map((screen) => (
+                  <button
+                    key={screen.id}
+                    type="button"
+                    onClick={() => setSelected((prev) => prev.filter((item) => item.id !== screen.id))}
+                    className="focus-visible:ring-primary/40 rounded-full focus-visible:outline-none focus-visible:ring-2"
+                    title={tc('remove')}
+                  >
+                    <Badge tone="info">{screen.name} ×</Badge>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <form
+              className="mb-3 flex items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setCandidateSearch(candidateSearchInput.trim());
+              }}
+            >
+              <div className="relative flex-1">
+                <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
+                <Input
+                  value={candidateSearchInput}
+                  onChange={(event) => setCandidateSearchInput(event.target.value)}
+                  placeholder={t('searchPlaceholder')}
+                  className="ps-9"
+                />
+              </div>
+              <Button type="submit" variant="outline">
+                {tc('search')}
+              </Button>
+            </form>
+
+            {candidatesResource.loading && candidates.length === 0 ? (
+              <div className="flex justify-center py-6">
+                <Spinner className="text-primary size-5" />
+              </div>
+            ) : candidatesResource.error ? (
+              <EmptyState title={t('manageLoadError')} description={candidatesResource.error} />
+            ) : candidates.length === 0 ? (
               <p className="border-border text-muted-foreground rounded-lg border border-dashed px-4 py-6 text-center text-sm">
                 {t('noCandidates')}
               </p>
             ) : (
               <ul className="divide-border border-border max-h-64 divide-y overflow-y-auto rounded-lg border">
                 {candidates.map((screen) => {
-                  const checked = visibleSelected.includes(screen.id);
+                  const checked = selectedIds.has(screen.id);
                   return (
                     <li key={screen.id}>
                       <label className="hover:bg-muted flex cursor-pointer items-center gap-3 px-3 py-2 transition">
@@ -522,7 +570,7 @@ function ManageScreensDialog({
                           type="checkbox"
                           className="border-border accent-primary size-4 rounded"
                           checked={checked}
-                          onChange={() => toggleSelect(screen.id)}
+                          onChange={() => toggleSelect(screen)}
                         />
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">
                           {screen.name}
