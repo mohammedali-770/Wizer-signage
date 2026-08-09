@@ -19,7 +19,7 @@ describe('production preflight contract', () => {
     expect(preflight).not.toContain('prisma migrate');
   });
 
-  it('requires production registry, database, auth and metrics coordinates', () => {
+  it('requires production registry, database, auth, metrics and off-host recovery coordinates', () => {
     for (const key of [
       'APP_DOMAIN',
       'DATABASE_URL',
@@ -29,6 +29,8 @@ describe('production preflight contract', () => {
       'ENCRYPTION_KEY',
       'IMAGE_REGISTRY_PREFIX',
       'METRICS_TOKEN',
+      'BACKUP_OFFSITE_CMD',
+      'HEALTHCHECKS_URL',
     ]) {
       expect(preflight).toContain(key);
     }
@@ -39,6 +41,13 @@ describe('production preflight contract', () => {
     expect(preflight).toContain('METRICS_TOKEN must be at least 32 characters');
     expect(preflight).toContain('APP_DOMAIN points at a local/development hostname');
     expect(preflight).toContain('points at localhost');
+  });
+
+  it('refuses same-host-only backup posture and missing out-of-band backup monitoring', () => {
+    expect(preflight).toContain('BACKUP_OFFSITE_CMD is a no-op');
+    expect(preflight).toContain('configure a real off-host copy command');
+    expect(preflight).toContain('HEALTHCHECKS_URL must be an HTTPS dead-man monitoring URL');
+    expect(preflight).toContain('out-of-band backup dead-man monitoring is configured');
   });
 
   it('checks host headroom before a release begins', () => {
