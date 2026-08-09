@@ -21,13 +21,14 @@ const ACCESS_KEY = 'ms_access_token';
 const LEGACY_REFRESH_KEY = 'ms_refresh_token';
 
 export class ApiError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly status: number,
-  ) {
+  readonly code: string;
+  readonly status: number;
+
+  constructor(code: string, message: string, status: number) {
     super(message);
     this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
   }
 }
 
