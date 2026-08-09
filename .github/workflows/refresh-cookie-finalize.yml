@@ -21,6 +21,11 @@ jobs:
           fetch-depth: 0
           ref: codex/http-only-refresh-cookie
 
+      - name: Configure commit identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
       - name: Bring branch onto current main
         run: |
           set -euo pipefail
@@ -71,8 +76,6 @@ jobs:
         run: |
           set -euo pipefail
           git rm .github/workflows/refresh-cookie-finalize.yml
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add apps/api/src/modules/auth/auth.service.ts contracts/openapi.json
           git commit -m 'security(auth): make refresh rotation unique and update OpenAPI'
           git push origin HEAD:codex/http-only-refresh-cookie
