@@ -91,12 +91,25 @@ export class UpdateCompanySettingsDto {
 
 /**
  * Replaces the entire Android OTA rollout policy for one company. Publishing a
- * binary never changes this policy; operators explicitly pin a target version.
+ * binary never changes this policy; operators explicitly pin an immutable
+ * release identity (versionName + versionCode).
  */
 export class AndroidOtaSettingsDto {
   @ApiProperty({ description: 'Emergency master switch. false halts new installs immediately.' })
   @IsBoolean()
   enabled!: boolean;
+
+  @ApiPropertyOptional({
+    maxLength: 64,
+    pattern: '^(?!.*\\.\\.)[A-Za-z0-9._-]+$',
+    description:
+      'Exact published versionName. Required with targetVersionCode when enabled=true; used to address the immutable per-version manifest.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  @Matches(/^(?!.*\.\.)[A-Za-z0-9._-]+$/)
+  targetVersionName?: string;
 
   @ApiPropertyOptional({
     minimum: 1,
