@@ -29,7 +29,6 @@ read_env_value() {
   local key="$1"
   local raw
   raw="$(grep -E "^${key}=" "${ENV_FILE}" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
-  # Trim CR, surrounding quotes and ordinary whitespace without eval/source.
   raw="${raw//$'\r'/}"
   raw="${raw#\"}"; raw="${raw%\"}"
   raw="${raw#\'}"; raw="${raw%\'}"
@@ -62,9 +61,6 @@ for file in "${BASE}" "${PROXY}" "${LOGGING}" "${SLOTS}" "${SLOTS_LOGGING}"; do
   [[ -f "${file}" ]] || fail "required production compose file missing: ${file}"
 done
 
-# Required application/deployment coordinates. Never print values. Offsite
-# backup + dead-man monitoring + off-box logs are production requirements, not
-# best-effort warnings.
 for key in \
   APP_DOMAIN \
   DATABASE_URL \
@@ -76,22 +72,23 @@ for key in \
   METRICS_TOKEN \
   BACKUP_OFFSITE_CMD \
   HEALTHCHECKS_URL \
-  LOG_SHIPPING_ADDRESS; do
+  LOG_SHIPPING_ADDRESS \
+  SMTP_HOST \
+  SMTP_PORT \
+  SMTP_FROM; do
   require_value "${key}"
 done
 
 APP_DOMAIN="$(read_env_value APP_DOMAIN)"
 case "${APP_DOMAIN,,}" in
-  localhost|127.*|10.*|192.168.*|*.local|*.invalid)
-    fail "APP_DOMAIN points at a local/development hostname" ;;
+  localhost|127.*|10.*|192.168.*|*.local|*.invalid) fail "APP_DOMAIN points at a local/development hostname" ;;
 esac
 [[ "${APP_DOMAIN}" != *://* ]] || fail "APP_DOMAIN must be a hostname, not a URL with a scheme"
 [[ "${APP_DOMAIN}" != */* ]] || fail "APP_DOMAIN must not contain a path"
 pass "APP_DOMAIN looks production-like"
 
 REGISTRY="$(read_env_value IMAGE_REGISTRY_PREFIX)"
-[[ "${REGISTRY}" =~ ^ghcr\.io/[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$ ]] \
-  || fail "IMAGE_REGISTRY_PREFIX must be a GHCR namespace such as ghcr.io/owner"
+[[ "${REGISTRY}" =~ ^ghcr\.io/[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$ ]] || fail "IMAGE_REGISTRY_PREFIX must be a GHCR namespace such as ghcr.io/owner"
 pass "registry prefix is a canonical GHCR namespace"
 
 METRICS_TOKEN="$(read_env_value METRICS_TOKEN)"
@@ -107,62 +104,51 @@ pass "application secret lengths meet the production minimum"
 for key in DATABASE_URL DIRECT_URL; do
   value="$(read_env_value "${key}")"
   [[ "${value}" =~ ^postgres(ql)?:// ]] || fail "${key} is not a PostgreSQL URL"
-  case "${value,,}" in
-    *localhost*|*127.0.0.1*) fail "${key} points at localhost" ;;
-  esac
+  case "${value,,}" in *localhost*|*127.0.0.1*) fail "${key} points at localhost" ;; esac
 done
 pass "database URLs are PostgreSQL and non-local"
 
 OFFSITE_CMD="$(read_env_value BACKUP_OFFSITE_CMD)"
-case "${OFFSITE_CMD}" in
-  true|:|echo|"echo "*)
-    fail "BACKUP_OFFSITE_CMD is a no-op; configure a real off-host copy command" ;;
-esac
+case "${OFFSITE_CMD}" in true|:|echo|"echo "*) fail "BACKUP_OFFSITE_CMD is a no-op; configure a real off-host copy command" ;; esac
 pass "offsite backup copy command is configured"
 
 HEALTHCHECKS_URL_VALUE="$(read_env_value HEALTHCHECKS_URL)"
-[[ "${HEALTHCHECKS_URL_VALUE}" =~ ^https://[^[:space:]]+$ ]] \
-  || fail "HEALTHCHECKS_URL must be an HTTPS dead-man monitoring URL"
+[[ "${HEALTHCHECKS_URL_VALUE}" =~ ^https://[^[:space:]]+$ ]] || fail "HEALTHCHECKS_URL must be an HTTPS dead-man monitoring URL"
 case "${HEALTHCHECKS_URL_VALUE,,}" in
-  *localhost*|*127.0.0.1*|*.invalid*) fail "HEALTHCHECKS_URL points at a local/development target" ;;
+  *localhost*|*127.0.0.1*|*.invalid*|*00000000-0000-0000-0000-000000000000*) fail "HEALTHCHECKS_URL points at a placeholder/local target" ;;
 esac
 pass "out-of-band backup dead-man monitoring is configured"
 
 LOG_SHIPPING_ADDRESS_VALUE="$(read_env_value LOG_SHIPPING_ADDRESS)"
-[[ "${LOG_SHIPPING_ADDRESS_VALUE}" =~ ^[^[:space:]:]+:[0-9]{1,5}$ ]] \
-  || fail "LOG_SHIPPING_ADDRESS must be a collector host:port"
+[[ "${LOG_SHIPPING_ADDRESS_VALUE}" =~ ^[^[:space:]:]+:[0-9]{1,5}$ ]] || fail "LOG_SHIPPING_ADDRESS must be a collector host:port"
 LOG_SHIPPING_PORT="${LOG_SHIPPING_ADDRESS_VALUE##*:}"
-(( LOG_SHIPPING_PORT >= 1 && LOG_SHIPPING_PORT <= 65535 )) \
-  || fail "LOG_SHIPPING_ADDRESS port must be 1-65535"
-case "${LOG_SHIPPING_ADDRESS_VALUE,,}" in
-  localhost:*|127.*|*.invalid:*) fail "LOG_SHIPPING_ADDRESS points at a local/development collector" ;;
-esac
+(( LOG_SHIPPING_PORT >= 1 && LOG_SHIPPING_PORT <= 65535 )) || fail "LOG_SHIPPING_ADDRESS port must be 1-65535"
+case "${LOG_SHIPPING_ADDRESS_VALUE,,}" in localhost:*|127.*|*.invalid:*|*.example:*) fail "LOG_SHIPPING_ADDRESS points at a placeholder/local collector" ;; esac
 pass "off-box logging collector coordinate is configured"
 
-# Render the exact production blue/green compose graph INCLUDING the logging
-# overlays. Secrets may be consumed by Compose internally but the rendered config
-# is discarded and never printed.
-docker compose \
-  --env-file "${ENV_FILE}" \
-  -f "${BASE}" \
-  -f "${PROXY}" \
-  -f "${LOGGING}" \
-  config --quiet >/dev/null \
-  || fail "production proxy/logging compose configuration is invalid"
+SMTP_HOST_VALUE="$(read_env_value SMTP_HOST)"
+case "${SMTP_HOST_VALUE,,}" in localhost|127.*|*.invalid|*.example.com) fail "SMTP_HOST points at a placeholder/local mail server" ;; esac
+SMTP_PORT_VALUE="$(read_env_value SMTP_PORT)"
+[[ "${SMTP_PORT_VALUE}" =~ ^[0-9]{1,5}$ ]] || fail "SMTP_PORT must be an integer port"
+(( SMTP_PORT_VALUE >= 1 && SMTP_PORT_VALUE <= 65535 )) || fail "SMTP_PORT must be 1-65535"
+SMTP_FROM_VALUE="$(read_env_value SMTP_FROM)"
+[[ "${SMTP_FROM_VALUE}" == *"@"* ]] || fail "SMTP_FROM must contain a sender email address"
+SMTP_USER_VALUE="$(read_env_value SMTP_USER)"
+SMTP_PASSWORD_VALUE="$(read_env_value SMTP_PASSWORD)"
+SMTP_PASS_VALUE="$(read_env_value SMTP_PASS)"
+if [[ -n "${SMTP_USER_VALUE}" && -z "${SMTP_PASSWORD_VALUE}" && -z "${SMTP_PASS_VALUE}" ]]; then
+  fail "SMTP_USER is configured but neither SMTP_PASSWORD nor SMTP_PASS is set"
+fi
+pass "live SMTP delivery coordinates are configured"
 
-docker compose \
-  --env-file "${ENV_FILE}" \
-  -f "${SLOTS}" \
-  -f "${SLOTS_LOGGING}" \
-  config --quiet >/dev/null \
-  || fail "blue/green slot/logging compose configuration is invalid"
+docker compose --env-file "${ENV_FILE}" -f "${BASE}" -f "${PROXY}" -f "${LOGGING}" config --quiet >/dev/null || fail "production proxy/logging compose configuration is invalid"
+docker compose --env-file "${ENV_FILE}" -f "${SLOTS}" -f "${SLOTS_LOGGING}" config --quiet >/dev/null || fail "blue/green slot/logging compose configuration is invalid"
 pass "production Compose graphs including off-box logging render successfully"
 
 FREE_KB="$(df -Pk "${ROOT_DIR}" | awk 'NR==2 {print $4}')"
 [[ "${FREE_KB}" =~ ^[0-9]+$ ]] || fail "could not determine free disk space"
 MIN_KB=$(( MIN_FREE_GB * 1024 * 1024 ))
-(( FREE_KB >= MIN_KB )) \
-  || fail "less than ${MIN_FREE_GB} GiB free on the deployment filesystem"
+(( FREE_KB >= MIN_KB )) || fail "less than ${MIN_FREE_GB} GiB free on the deployment filesystem"
 pass "at least ${MIN_FREE_GB} GiB free disk is available"
 
 NOFILE="$(ulimit -n)"
@@ -172,9 +158,6 @@ if [[ "${NOFILE}" != "unlimited" ]]; then
 fi
 pass "deployment user open-file limit is sufficient"
 
-# Optional immutable release coordinate check. The preferred production wrapper
-# always supplies it; retaining optionality keeps this read-only script useful for
-# host-only diagnostics before a release SHA has been selected.
 if [[ $# -gt 0 ]]; then
   TARGET_SHA="$1"
   [[ "${TARGET_SHA}" =~ ^[0-9a-f]{40}$ ]] || fail "target release must be a full 40-character lowercase Git SHA"
