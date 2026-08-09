@@ -28,7 +28,13 @@ describe('production deployment wrapper', () => {
     expect(wrapper).toContain('aborting before image pull/migration');
   });
 
-  it('exports the accepted identity for blue-green logs/future enforcement', () => {
-    expect(wrapper).toContain('export EXPECTED_RELEASE_SHA="${TARGET_SHA}"');
+  it('exports the accepted identity and disables the non-production backup bypass', () => {
+    const accepted = wrapper.indexOf('export EXPECTED_RELEASE_SHA="${TARGET_SHA}"');
+    const noSkip = wrapper.indexOf('unset DEPLOY_SKIP_BACKUP');
+    const handoff = wrapper.indexOf('exec bash "${SCRIPT_DIR}/deploy-blue-green.sh"');
+
+    expect(accepted).toBeGreaterThan(0);
+    expect(noSkip).toBeGreaterThan(accepted);
+    expect(handoff).toBeGreaterThan(noSkip);
   });
 });
