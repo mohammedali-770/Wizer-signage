@@ -7,7 +7,7 @@
  *
  *   node dist/maintenance/maintenance.cli.js all
  *   node dist/maintenance/maintenance.cli.js retention
- *   node dist/maintenance/maintenance.cli.js sweep|reports|emergencies|backup-check
+ *   node dist/maintenance/maintenance.cli.js sweep|android-ota-health|reports|emergencies|backup-check
  *   node dist/maintenance/maintenance.cli.js record-backup --type=DATABASE --status=SUCCESS --location=s3://... --size=12345
  *
  * In dev: `pnpm --filter @wizer/api maintenance all`.
@@ -72,6 +72,7 @@ async function main(): Promise<void> {
       const job = command as
         | 'all'
         | 'sweep'
+        | 'android-ota-health'
         | 'retention'
         | 'reports'
         | 'emergencies'
@@ -80,10 +81,6 @@ async function main(): Promise<void> {
       // eslint-disable-next-line no-console
       console.log(JSON.stringify({ job, result }));
 
-      // A retention step that ERRORED must not exit 0. Retention failures are
-      // silent by nature — the row counts simply read as zero — so a broken
-      // cleanup can run for months while the database grows until writes stop.
-      // Exiting non-zero makes cron/`docker logs` and any wrapper surface it.
       const failures = collectRetentionFailures(result);
       if (failures.length > 0) {
         // eslint-disable-next-line no-console
