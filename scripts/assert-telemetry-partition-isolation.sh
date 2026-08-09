@@ -99,8 +99,10 @@ HELPER_PATH_OK="$(q "
 
 # A restored database must already contain current + next month partitions for
 # BOTH parents; otherwise the next month boundary can turn into an insert outage.
-CURRENT_SUFFIX="$(date -u +%Y_%m)"
-NEXT_SUFFIX="$(date -u -d "$(date -u +%Y-%m-01) +1 month" +%Y_%m 2>/dev/null || true)"
+# The conversion/helper's canonical child names are `heartbeats_yYYYYmMM` and
+# `proof_of_plays_yYYYYmMM`; do not invent a second naming convention here.
+CURRENT_SUFFIX="y$(date -u +%Y)m$(date -u +%m)"
+NEXT_SUFFIX="$(date -u -d "$(date -u +%Y-%m-01) +1 month" +y%Ym%m 2>/dev/null || true)"
 if [[ -z "$NEXT_SUFFIX" ]]; then
   # BSD/macOS date fallback (this script normally runs in Linux maintenance/CI).
   NEXT_SUFFIX="$(python3 - <<'PY'
@@ -109,7 +111,7 @@ now=datetime.utcnow()
 y,m=now.year,now.month
 if m==12: y,m=y+1,1
 else: m+=1
-print(f'{y:04d}_{m:02d}')
+print(f'y{y:04d}m{m:02d}')
 PY
 )"
 fi
