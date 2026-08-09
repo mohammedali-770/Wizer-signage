@@ -36,21 +36,35 @@ export interface SelectorEntity {
   name: string;
 }
 
+export interface SelectorSearchOptions {
+  tagApplicability?: TagApplicability;
+  /** Existing business filters that the old selector query already enforced. */
+  filters?: Readonly<Record<string, string>>;
+}
+
 /**
  * A selector search is intentionally a single bounded server page, not an
  * all-pages crawl. Users can reach any entity by refining `search`, so tenant
  * size no longer creates a silent correctness ceiling or a burst of 20 GETs.
+ *
+ * `filters` preserves selector semantics such as `status=ACTIVE`; moving search
+ * server-side must not make archived/disabled entities newly selectable.
  */
 export function selectorSearchPath(
   type: SearchableSelectorType,
   search: string,
-  options?: { tagApplicability?: TagApplicability },
+  options?: SelectorSearchOptions,
 ): string {
   const params = new URLSearchParams({ page: '1', pageSize: String(MAX_RESULTS) });
   const term = search.trim();
   if (term) params.set('search', term);
   if (type === 'TAG' && options?.tagApplicability) {
     params.set('applicableTo', options.tagApplicability);
+  }
+  for (const [key, value] of Object.entries(options?.filters ?? {}).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    if (key && value) params.set(key, value);
   }
   return `${BASE_PATH[type]}?${params.toString()}`;
 }
