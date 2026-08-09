@@ -24,10 +24,6 @@ data class HeartbeatPayload(
     val cachedAssets: Int? = null,
     val failedDownloads: Int? = null,
     val lastError: String? = null,
-    /** Previous-run crash metadata only; the stack trace never leaves the TV. */
-    val lastCrashAtMillis: Long? = null,
-    val lastCrashFingerprint: String? = null,
-    val crashCount: Int? = null,
     val capabilities: Map<String, Boolean>? = null,
 )
 
