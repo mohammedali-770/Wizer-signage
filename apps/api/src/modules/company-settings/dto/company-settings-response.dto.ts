@@ -18,13 +18,33 @@ export class CompanyPlanSummaryDto {
   limits!: PlanLimitsViewDto;
 }
 
+export class AndroidOtaAutoRollbackDto {
+  @ApiProperty({ format: 'date-time' })
+  triggeredAt!: string;
+
+  @ApiProperty()
+  fromVersionName!: string;
+
+  @ApiProperty()
+  fromVersionCode!: number;
+
+  @ApiProperty()
+  toVersionName!: string;
+
+  @ApiProperty()
+  toVersionCode!: number;
+
+  @ApiProperty({ type: [String], description: 'Bounded sample of screens that failed the rollout health gate.' })
+  failedScreenIds!: string[];
+}
+
 export class AndroidOtaSettingsResponseDto {
   @ApiProperty()
   enabled!: boolean;
 
   @ApiPropertyOptional({
     nullable: true,
-    description: 'Opaque revision changed on every explicit policy save; devices use it to bound terminal retries.',
+    description: 'Opaque revision changed on every explicit or automatic policy transition; devices use it to bound terminal retries.',
   })
   policyRevision?: string | null;
 
@@ -33,6 +53,12 @@ export class AndroidOtaSettingsResponseDto {
 
   @ApiPropertyOptional({ nullable: true })
   targetVersionCode?: number | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Pre-published known-good forward rollback release.' })
+  rollbackVersionName?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Must be greater than the candidate versionCode.' })
+  rollbackVersionCode?: number | null;
 
   @ApiProperty({ minimum: 0, maximum: 100 })
   rolloutPercent!: number;
@@ -45,6 +71,12 @@ export class AndroidOtaSettingsResponseDto {
 
   @ApiProperty({ minimum: 900, maximum: 86400 })
   checkIntervalSeconds!: number;
+
+  @ApiProperty({ minimum: 300, maximum: 3600 })
+  healthWindowSeconds!: number;
+
+  @ApiPropertyOptional({ type: AndroidOtaAutoRollbackDto, nullable: true })
+  lastAutoRollback?: AndroidOtaAutoRollbackDto | null;
 }
 
 /**
