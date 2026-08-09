@@ -1,0 +1,22 @@
+# Optional production overlay. Base compose keeps local json-file rotation as the
+# safe default. Include this file only after a Fluentd-compatible collector is
+# configured and monitored independently.
+
+x-offbox-logging: &offbox-logging
+  driver: fluentd
+  options:
+    fluentd-address: ${LOG_SHIPPING_ADDRESS:?LOG_SHIPPING_ADDRESS is required for log shipping}
+    fluentd-async: 'true'
+    fluentd-buffer-limit: ${LOG_SHIPPING_BUFFER_LIMIT:-1048576}
+    fluentd-retry-wait: ${LOG_SHIPPING_RETRY_WAIT_SECONDS:-1}
+    tag: 'wizer.{{.Name}}'
+
+services:
+  api:
+    logging: *offbox-logging
+  dashboard:
+    logging: *offbox-logging
+  maintenance:
+    logging: *offbox-logging
+  nginx:
+    logging: *offbox-logging
