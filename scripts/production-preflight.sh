@@ -70,6 +70,24 @@ case "${APP_DOMAIN,,}" in localhost|127.*|10.*|192.168.*|*.local|*.invalid) fail
 [[ "${APP_DOMAIN}" != *://* && "${APP_DOMAIN}" != */* ]] || fail "APP_DOMAIN must be a hostname without scheme/path"
 pass "APP_DOMAIN looks production-like"
 
+# configuration.ts resolves APP_URL first, then DASHBOARD_URL. Validate the same
+# winner so password-reset/invitation links cannot silently fall back to localhost
+# or be overridden by a stale APP_URL.
+PUBLIC_DASHBOARD_URL="$(read_env_value APP_URL)"
+[[ -n "${PUBLIC_DASHBOARD_URL}" ]] || PUBLIC_DASHBOARD_URL="$(read_env_value DASHBOARD_URL)"
+[[ -n "${PUBLIC_DASHBOARD_URL}" ]] || fail "APP_URL or DASHBOARD_URL is required for production email links"
+! is_placeholder "${PUBLIC_DASHBOARD_URL}" || fail "APP_URL/DASHBOARD_URL still contains a placeholder/development value"
+[[ "${PUBLIC_DASHBOARD_URL}" =~ ^https://[^/?#[:space:]@]+(:[0-9]{1,5})?/?$ ]] \
+  || fail "APP_URL/DASHBOARD_URL must be a public HTTPS origin without credentials, path, query or fragment"
+DASHBOARD_HOST="${PUBLIC_DASHBOARD_URL#https://}"
+DASHBOARD_HOST="${DASHBOARD_HOST%/}"
+DASHBOARD_HOST="${DASHBOARD_HOST%%:*}"
+case "${DASHBOARD_HOST,,}" in
+  localhost|127.*|10.*|192.168.*|*.local|*.invalid) fail "APP_URL/DASHBOARD_URL points at a local/development host" ;;
+  172.1[6-9].*|172.2[0-9].*|172.3[01].*) fail "APP_URL/DASHBOARD_URL points at a private host" ;;
+esac
+pass "public dashboard email-link origin is configured"
+
 REGISTRY="$(read_env_value IMAGE_REGISTRY_PREFIX)"
 [[ "${REGISTRY}" =~ ^ghcr\.io/[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$ ]] || fail "IMAGE_REGISTRY_PREFIX must be a GHCR namespace such as ghcr.io/owner"
 pass "registry prefix is a canonical GHCR namespace"
