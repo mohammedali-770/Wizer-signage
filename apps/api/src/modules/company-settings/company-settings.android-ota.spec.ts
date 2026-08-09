@@ -29,12 +29,20 @@ function harness() {
 }
 
 describe('CompanySettingsService Android OTA policy', () => {
-  it('refuses to enable OTA without an exact target version', async () => {
+  it('refuses to enable OTA without both exact release identity fields', async () => {
     const { service, prisma } = harness();
 
     await expect(
       service.updateAndroidOta('company-1', actor, {
         enabled: true,
+        targetVersionCode: 42,
+        rolloutPercent: 10,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.updateAndroidOta('company-1', actor, {
+        enabled: true,
+        targetVersionName: '1.4.2',
         rolloutPercent: 10,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -49,6 +57,7 @@ describe('CompanySettingsService Android OTA policy', () => {
     await expect(
       service.updateAndroidOta('company-1', actor, {
         enabled: true,
+        targetVersionName: '1.4.2',
         targetVersionCode: 42,
         rolloutPercent: 0,
         screenIds: [
@@ -81,6 +90,7 @@ describe('CompanySettingsService Android OTA policy', () => {
     await expect(
       service.updateAndroidOta('company-1', actor, {
         enabled: true,
+        targetVersionName: '1.4.2',
         targetVersionCode: 42,
         rolloutPercent: 0,
         groupIds: ['33333333-3333-4333-8333-333333333333'],
@@ -105,6 +115,7 @@ describe('CompanySettingsService Android OTA policy', () => {
           notificationEmails: ['ops@example.com'],
           androidOta: {
             enabled: true,
+            targetVersionName: '1.4.2',
             targetVersionCode: 42,
             rolloutPercent: 10,
             screenIds: [],
@@ -120,6 +131,7 @@ describe('CompanySettingsService Android OTA policy', () => {
 
     const result = await service.updateAndroidOta('company-1', actor, {
       enabled: true,
+      targetVersionName: '1.4.2',
       targetVersionCode: 42,
       rolloutPercent: 10,
       checkIntervalSeconds: 3600,
@@ -132,6 +144,7 @@ describe('CompanySettingsService Android OTA policy', () => {
           notificationEmails: ['ops@example.com'],
           androidOta: {
             enabled: true,
+            targetVersionName: '1.4.2',
             targetVersionCode: 42,
             rolloutPercent: 10,
             screenIds: [],
@@ -145,10 +158,19 @@ describe('CompanySettingsService Android OTA policy', () => {
       expect.objectContaining({
         action: 'company.android_ota_policy_changed',
         companyId: 'company-1',
+        metadata: expect.objectContaining({
+          targetVersionName: '1.4.2',
+          targetVersionCode: 42,
+        }),
       }),
     );
     expect(result.androidOta).toEqual(
-      expect.objectContaining({ enabled: true, targetVersionCode: 42, rolloutPercent: 10 }),
+      expect.objectContaining({
+        enabled: true,
+        targetVersionName: '1.4.2',
+        targetVersionCode: 42,
+        rolloutPercent: 10,
+      }),
     );
   });
 });
