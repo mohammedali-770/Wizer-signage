@@ -147,7 +147,10 @@ class ApiClient(
     /**
      * Download an entitled content file (relative `downloadPath`, e.g.
      * `/device/content/{id}/download`) to [dest]. Streams the body; returns true
-     * on success. The caller verifies size/checksum before committing to cache.
+     * on success. Any unsuccessful response, missing/truncated body, or network/
+     * filesystem exception removes [dest] so stale/partial bytes can never be
+     * mistaken for the result of the current attempt. The caller still verifies
+     * expected size/checksum before committing the file to cache.
      */
     suspend fun downloadToFile(token: String, downloadPath: String, dest: File): Boolean = withContext(Dispatchers.IO) {
         val request = Request.Builder()
@@ -157,8 +160,15 @@ class ApiClient(
             .build()
         try {
             http.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) return@withContext false
-                val body = resp.body ?: return@withContext false
+                if (!resp.isSuccessful) {
+                    dest.delete()
+                    return@withContext false
+                }
+                val body = resp.body
+                if (body == null) {
+                    dest.delete()
+                    return@withContext false
+                }
                 body.byteStream().use { input -> dest.outputStream().use { output -> input.copyTo(output) } }
                 true
             }
@@ -175,6 +185,25 @@ class ApiClient(
             .url("$base/device/heartbeat")
             .header("X-Device-Token", token)
             .post(json.encodeToString(payload).toRequestBody(jsonMedia))
+            .build()
+        try {
+            http.newCall(request).execute().use { resp -> resp.isSuccessful }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun sendEvent(token: String, eventType: String, payloadJson: String? = null): Boolean = withContext(Dispatchers.IO) {
+        val body = buildString {
+            append("{\"eventType\":")
+            append(json.encodeToString(eventType))
+            if (payloadJson != null) append(",\"payload\":$payloadJson")
+            append('}')
+        }.toRequestBody(jsonMedia)
+        val request = Request.Builder()
+            .url("$base/device/events")
+            .header("X-Device-Token", token)
+            .post(body)
             .build()
         try {
             http.newCall(request).execute().use { resp -> resp.isSuccessful }
