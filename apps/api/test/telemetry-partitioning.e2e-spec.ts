@@ -1,0 +1,90 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+describe('telemetry partitioning (real PostgreSQL)', () => {
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  it('uses RANGE partitioned parents for heartbeats and proof-of-play', async () => {
+    const rows = await prisma.$queryRaw<Array<{ table_name: string; strategy: string }>>`
+      SELECT c.relname AS table_name, pt.partstrat::text AS strategy
+        FROM pg_partitioned_table pt
+        JOIN pg_class c ON c.oid = pt.partrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public'
+         AND c.relname IN ('heartbeats', 'proof_of_plays')
+       ORDER BY c.relname
+    `;
+
+    expect(rows).toEqual([
+      { table_name: 'heartbeats', strategy: 'r' },
+      { table_name: 'proof_of_plays', strategy: 'r' },
+    ]);
+  });
+
+  it('has current and next-month children for both high-volume parents', async () => {
+    await prisma.$executeRaw`SELECT public.wizer_ensure_telemetry_partitions(2)`;
+
+    const rows = await prisma.$queryRaw<Array<{ parent: string; child: string }>>`
+      SELECT parent.relname AS parent, child.relname AS child
+        FROM pg_inherits i
+        JOIN pg_class parent ON parent.oid = i.inhparent
+        JOIN pg_class child ON child.oid = i.inhrelid
+        JOIN pg_namespace n ON n.oid = parent.relnamespace
+       WHERE n.nspname = 'public'
+         AND parent.relname IN ('heartbeats', 'proof_of_plays')
+    `;
+
+    const names = new Set(rows.map((row) => row.child));
+    for (let offset = 0; offset <= 1; offset++) {
+      const date = new Date();
+      const month = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + offset, 1));
+      const suffix = `${month.getUTCFullYear()}m${String(month.getUTCMonth() + 1).padStart(2, '0')}`;
+      expect(names).toContain(`heartbeats_y${suffix}`);
+      expect(names).toContain(`proof_of_plays_y${suffix}`);
+    }
+  });
+
+  it('keeps cross-partition proof-of-play idempotency in an unpartitioned registry', async () => {
+    const registry = await prisma.$queryRaw<Array<{ relkind: string }>>`
+      SELECT c.relkind::text AS relkind
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public'
+         AND c.relname = 'proof_of_play_session_keys'
+    `;
+    expect(registry).toEqual([{ relkind: 'r' }]);
+
+    const pk = await prisma.$queryRaw<Array<{ definition: string }>>`
+      SELECT pg_get_constraintdef(con.oid) AS definition
+        FROM pg_constraint con
+       WHERE con.conrelid = 'public.proof_of_play_session_keys'::regclass
+         AND con.contype = 'p'
+    `;
+    expect(pk).toHaveLength(1);
+    expect(pk[0]?.definition).toContain('"companyId", "playbackSessionId"');
+
+    const triggers = await prisma.$queryRaw<Array<{ name: string }>>`
+      SELECT tgname AS name
+        FROM pg_trigger
+       WHERE tgrelid = 'public.proof_of_plays'::regclass
+         AND NOT tgisinternal
+       ORDER BY tgname
+    `;
+    expect(triggers.map((row) => row.name)).toEqual(
+      expect.arrayContaining(['proof_of_plays_claim_session', 'proof_of_plays_release_session']),
+    );
+  });
+
+  it('backfill registry and event table counts start in lock-step', async () => {
+    const [row] = await prisma.$queryRaw<Array<{ events: bigint; keys: bigint }>>`
+      SELECT
+        (SELECT COUNT(*) FROM public.proof_of_plays) AS events,
+        (SELECT COUNT(*) FROM public.proof_of_play_session_keys) AS keys
+    `;
+    expect(row).toBeDefined();
+    expect(row!.keys).toBe(row!.events);
+  });
+});
