@@ -1,9 +1,11 @@
 /**
  * Typed API client for the Wizer Signage backend.
  *
- * - Attaches the access token, transparently refreshes once on a 401, and
- *   surfaces the platform error envelope `{ success:false, error }` as ApiError.
- * - Tokens live in localStorage (browser only); all access is SSR-guarded.
+ * - Attaches the short-lived access token, transparently refreshes once on a
+ *   401, and surfaces the platform error envelope as ApiError.
+ * - The ACCESS token lives in localStorage (browser only). The refresh token
+ *   never enters JavaScript: the API stores/rotates it in an HttpOnly cookie
+ *   scoped to /api/auth/refresh.
  */
 
 import { API_BASE_URL } from './api-base';
@@ -13,7 +15,10 @@ import { endImpersonation, isImpersonating } from './impersonation';
 const BASE = API_BASE_URL;
 
 const ACCESS_KEY = 'ms_access_token';
-const REFRESH_KEY = 'ms_refresh_token';
+// Removed from the active design. Kept only so an upgraded browser deletes the
+// pre-cookie value left by an older build rather than carrying a bearer secret
+// in localStorage indefinitely.
+const LEGACY_REFRESH_KEY = 'ms_refresh_token';
 
 export class ApiError extends Error {
   constructor(
@@ -31,21 +36,17 @@ export function getAccessToken(): string | null {
   return window.localStorage.getItem(ACCESS_KEY);
 }
 
-function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem(REFRESH_KEY);
-}
-
-export function setTokens(accessToken: string, refreshToken: string): void {
+export function setTokens(accessToken: string): void {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(ACCESS_KEY, accessToken);
-  window.localStorage.setItem(REFRESH_KEY, refreshToken);
+  // One-way migration from the old localStorage refresh-token design.
+  window.localStorage.removeItem(LEGACY_REFRESH_KEY);
 }
 
 export function clearTokens(): void {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(ACCESS_KEY);
-  window.localStorage.removeItem(REFRESH_KEY);
+  window.localStorage.removeItem(LEGACY_REFRESH_KEY);
 }
 
 export function hasSession(): boolean {
@@ -55,17 +56,21 @@ export function hasSession(): boolean {
 let refreshing: Promise<boolean> | null = null;
 
 async function refreshTokens(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
+  // An impersonation token is deliberately non-refreshable. The administrator's
+  // ordinary refresh cookie still exists (HttpOnly, so JS cannot stash/remove
+  // it), therefore calling /auth/refresh while impersonating would silently
+  // switch identity back to the admin session. Never cross that audit boundary.
+  if (isImpersonating()) return false;
+
   try {
     const res = await fetch(`${BASE}/auth/refresh`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      credentials: 'include',
     });
     if (!res.ok) return false;
-    const data = (await res.json()) as { accessToken: string; refreshToken: string };
-    setTokens(data.accessToken, data.refreshToken);
+    const data = (await res.json()) as { accessToken: string };
+    if (!data.accessToken) return false;
+    setTokens(data.accessToken);
     return true;
   } catch {
     return false;
@@ -88,12 +93,16 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       method: options.method ?? 'GET',
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      // Required for the browser to accept the Set-Cookie on login/2FA and send
+      // the scoped HttpOnly cookie to /auth/refresh when API and dashboard use
+      // different origins (e.g. localhost ports or a dedicated API host).
+      credentials: 'include',
     });
   };
 
   let res = await send();
 
-  if (res.status === 401 && options.auth !== false && getRefreshToken()) {
+  if (res.status === 401 && options.auth !== false && !isImpersonating()) {
     refreshing = refreshing ?? refreshTokens();
     const ok = await refreshing;
     refreshing = null;
@@ -117,11 +126,16 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
     const headers: Record<string, string> = {}; // let the browser set the multipart boundary
     const token = getAccessToken();
     if (token) headers.authorization = `Bearer ${token}`;
-    return fetch(`${BASE}${path}`, { method: 'POST', headers, body: formData });
+    return fetch(`${BASE}${path}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
   };
 
   let res = await send();
-  if (res.status === 401 && getRefreshToken()) {
+  if (res.status === 401 && !isImpersonating()) {
     refreshing = refreshing ?? refreshTokens();
     const ok = await refreshing;
     refreshing = null;
