@@ -99,22 +99,11 @@ HELPER_PATH_OK="$(q "
 
 # A restored database must already contain current + next month partitions for
 # BOTH parents; otherwise the next month boundary can turn into an insert outage.
-# The conversion/helper's canonical child names are `heartbeats_yYYYYmMM` and
-# `proof_of_plays_yYYYYmMM`; do not invent a second naming convention here.
-CURRENT_SUFFIX="y$(date -u +%Y)m$(date -u +%m)"
-NEXT_SUFFIX="$(date -u -d "$(date -u +%Y-%m-01) +1 month" +y%Ym%m 2>/dev/null || true)"
-if [[ -z "$NEXT_SUFFIX" ]]; then
-  # BSD/macOS date fallback (this script normally runs in Linux maintenance/CI).
-  NEXT_SUFFIX="$(python3 - <<'PY'
-from datetime import datetime
-now=datetime.utcnow()
-y,m=now.year,now.month
-if m==12: y,m=y+1,1
-else: m+=1
-print(f'y{y:04d}m{m:02d}')
-PY
-)"
-fi
+# Derive the canonical yYYYYmMM suffixes from PostgreSQL's UTC clock so this
+# verifier behaves identically on GNU/Linux, BusyBox/Alpine, macOS and restore
+# containers without relying on platform-specific `date` arithmetic.
+CURRENT_SUFFIX="$(q "SELECT 'y' || to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC','YYYY') || 'm' || to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC','MM')")"
+NEXT_SUFFIX="$(q "SELECT 'y' || to_char((date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') + interval '1 month'),'YYYY') || 'm' || to_char((date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') + interval '1 month'),'MM')")"
 for suffix in "$CURRENT_SUFFIX" "$NEXT_SUFFIX"; do
   [[ "$(q "SELECT to_regclass('wizer_telemetry.heartbeats_${suffix}') IS NOT NULL")" == t ]] \
     || fail "missing wizer_telemetry.heartbeats_${suffix}"
