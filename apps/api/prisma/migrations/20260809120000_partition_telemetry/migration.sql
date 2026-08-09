@@ -1,7 +1,7 @@
 -- Wizer Signage — monthly PostgreSQL partitioning for the two high-volume
 -- telemetry tables. Prisma 5.x cannot represent PostgreSQL partitioning in PSL,
 -- so this migration owns the physical layout explicitly while the Prisma models
--- continue to describe/query the logical rows.
+-- continue to describe/query the supported logical table shape.
 --
 -- IMPORTANT: this is intentionally a one-time pre-production conversion. It
 -- takes ACCESS EXCLUSIVE locks while copying/swapping the current tables so no
@@ -24,12 +24,12 @@ LOCK TABLE "proof_of_plays" IN ACCESS EXCLUSIVE MODE;
 -- Global tenant-scoped proof-of-play idempotency registry.
 -- ---------------------------------------------------------------------------
 CREATE TABLE "proof_of_play_session_keys" (
-  "companyId"        TEXT        NOT NULL,
-  "playbackSessionId" TEXT       NOT NULL,
-  "screenId"         TEXT        NOT NULL,
-  "proofOfPlayId"    TEXT        NOT NULL,
-  "startedAt"        TIMESTAMP(3) NOT NULL,
-  "createdAt"        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "companyId"         TEXT         NOT NULL,
+  "playbackSessionId" TEXT         NOT NULL,
+  "screenId"          TEXT         NOT NULL,
+  "proofOfPlayId"     TEXT         NOT NULL,
+  "startedAt"         TIMESTAMP(3) NOT NULL,
+  "createdAt"         TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "proof_of_play_session_keys_pkey"
     PRIMARY KEY ("companyId", "playbackSessionId"),
   CONSTRAINT "proof_of_play_session_keys_companyId_fkey"
@@ -42,8 +42,8 @@ CREATE UNIQUE INDEX "proof_of_play_session_keys_proofOfPlayId_key"
 CREATE INDEX "proof_of_play_session_keys_startedAt_idx"
   ON "proof_of_play_session_keys"("startedAt");
 
--- Existing data was protected by the tenant-scoped unique index introduced in
--- 20260809090000, so this backfill is guaranteed to have one key per session.
+-- Existing data was protected by the tenant-scoped unique index introduced by
+-- the proof-of-play tenancy fix, so this backfill has one key per session.
 INSERT INTO "proof_of_play_session_keys"
   ("companyId", "playbackSessionId", "screenId", "proofOfPlayId", "startedAt", "createdAt")
 SELECT
@@ -171,6 +171,40 @@ ALTER TABLE "proof_of_plays_partitioned" RENAME TO "proof_of_plays";
 
 DROP TABLE "heartbeats_unpartitioned_20260809";
 DROP TABLE "proof_of_plays_unpartitioned_20260809";
+
+-- Table renames do NOT rename PostgreSQL constraints/indexes. Normalize every
+-- Prisma-representable object only after the old tables are dropped and their
+-- canonical names become free. This keeps schema drift focused on the truly
+-- unsupported partition/trigger layer rather than temporary migration names.
+ALTER TABLE "heartbeats"
+  RENAME CONSTRAINT "heartbeats_partitioned_pkey" TO "heartbeats_pkey";
+ALTER TABLE "heartbeats"
+  RENAME CONSTRAINT "heartbeats_partitioned_screenId_fkey" TO "heartbeats_screenId_fkey";
+ALTER TABLE "heartbeats"
+  RENAME CONSTRAINT "heartbeats_partitioned_companyId_fkey" TO "heartbeats_companyId_fkey";
+ALTER INDEX "heartbeats_partitioned_screenId_idx" RENAME TO "heartbeats_screenId_idx";
+ALTER INDEX "heartbeats_partitioned_companyId_idx" RENAME TO "heartbeats_companyId_idx";
+ALTER INDEX "heartbeats_partitioned_createdAt_idx" RENAME TO "heartbeats_createdAt_idx";
+ALTER INDEX "heartbeats_partitioned_screenId_createdAt_idx"
+  RENAME TO "heartbeats_screenId_createdAt_idx";
+
+ALTER TABLE "proof_of_plays"
+  RENAME CONSTRAINT "proof_of_plays_partitioned_pkey" TO "proof_of_plays_pkey";
+ALTER TABLE "proof_of_plays"
+  RENAME CONSTRAINT "proof_of_plays_partitioned_companyId_fkey" TO "proof_of_plays_companyId_fkey";
+ALTER TABLE "proof_of_plays"
+  RENAME CONSTRAINT "proof_of_plays_partitioned_screenId_fkey" TO "proof_of_plays_screenId_fkey";
+ALTER INDEX "proof_of_plays_partitioned_companyId_playbackSessionId_idx"
+  RENAME TO "proof_of_plays_companyId_playbackSessionId_idx";
+ALTER INDEX "proof_of_plays_partitioned_companyId_startedAt_idx"
+  RENAME TO "proof_of_plays_companyId_startedAt_idx";
+ALTER INDEX "proof_of_plays_partitioned_screenId_startedAt_idx"
+  RENAME TO "proof_of_plays_screenId_startedAt_idx";
+ALTER INDEX "proof_of_plays_partitioned_startedAt_idx" RENAME TO "proof_of_plays_startedAt_idx";
+ALTER INDEX "proof_of_plays_partitioned_contentId_idx" RENAME TO "proof_of_plays_contentId_idx";
+ALTER INDEX "proof_of_plays_partitioned_emergencyBroadcastId_idx"
+  RENAME TO "proof_of_plays_emergencyBroadcastId_idx";
+ALTER INDEX "proof_of_plays_partitioned_status_idx" RENAME TO "proof_of_plays_status_idx";
 
 -- ---------------------------------------------------------------------------
 -- Cross-partition tenant idempotency.
