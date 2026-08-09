@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const root = resolve(__dirname, '..', '..', '..', '..');
+const root = resolve(__dirname, '..', '..', '..', '..', '..');
 const deployPath = resolve(root, 'scripts/deploy-blue-green.sh');
 const rollbackPath = resolve(root, 'scripts/rollback-blue-green.sh');
 const nginxTemplatePath = resolve(
@@ -60,7 +60,7 @@ describe('blue/green deployment contract', () => {
 
   it('blocks common destructive migration shapes from the zero-downtime path', () => {
     expect(deploy).toContain('ZERO_DOWNTIME_ALLOW_DESTRUCTIVE_MIGRATION');
-    expect(deploy).toMatch(/DROP\[\[:space:\]\]\+\(TABLE\|COLUMN\)/);
+    expect(deploy).toContain('DROP[[:space:]]+(TABLE|COLUMN)');
     expect(deploy).toContain('expand/backfill/contract');
   });
 });
