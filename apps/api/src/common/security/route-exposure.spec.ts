@@ -69,6 +69,11 @@ const EXPECTED_PUBLIC_ROUTES: readonly string[] = [
   'POST /device/proof-of-play/events',
   'POST /device/screenshots',
 
+  // --- Internal scrape: guarded by a separate constant-time metrics token ----
+  // This skips the user JWT so Prometheus does not need a human session. The
+  // MetricsTokenGuard fails closed when METRICS_TOKEN is absent/weak.
+  'GET /internal/metrics',
+
   // --- Local storage adapter (development only) -----------------------------
   // The :token is an encrypted, time-limited reference to a storage key. In
   // production storage is Supabase and signed URLs bypass this route entirely.
