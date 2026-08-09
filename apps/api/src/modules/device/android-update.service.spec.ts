@@ -5,6 +5,7 @@ const device = {
   companyId: 'company-1',
   screenId: '11111111-1111-4111-8111-111111111111',
 } as never;
+const revision = '2026-08-09T08:00:00.000Z';
 
 function harness() {
   const prisma = {
@@ -26,11 +27,12 @@ function screenWithPolicy(androidOta: Record<string, unknown>, groupIds: string[
 }
 
 describe('AndroidUpdateService rollout policy', () => {
-  it('returns an exact immutable release identity for an explicit canary', async () => {
+  it('returns an exact immutable release identity and revision for an explicit canary', async () => {
     const { service, prisma } = harness();
     prisma.screen.findFirst.mockResolvedValue(
       screenWithPolicy({
         enabled: true,
+        policyRevision: revision,
         targetVersionName: '1.4.2',
         targetVersionCode: 42,
         rolloutPercent: 0,
@@ -44,6 +46,7 @@ describe('AndroidUpdateService rollout policy', () => {
       expect.objectContaining({
         enabled: true,
         eligible: true,
+        policyRevision: revision,
         targetVersionName: '1.4.2',
         targetVersionCode: 42,
         rolloutPercent: 0,
@@ -53,10 +56,28 @@ describe('AndroidUpdateService rollout policy', () => {
   });
 
   it.each([
-    [{ enabled: true, targetVersionCode: 42, rolloutPercent: 100 }, 'missing versionName'],
+    [
+      { enabled: true, targetVersionName: '1.4.2', targetVersionCode: 42, rolloutPercent: 100 },
+      'missing revision',
+    ],
     [
       {
         enabled: true,
+        policyRevision: 'not-a-revision',
+        targetVersionName: '1.4.2',
+        targetVersionCode: 42,
+        rolloutPercent: 100,
+      },
+      'malformed revision',
+    ],
+    [
+      { enabled: true, policyRevision: revision, targetVersionCode: 42, rolloutPercent: 100 },
+      'missing versionName',
+    ],
+    [
+      {
+        enabled: true,
+        policyRevision: revision,
         targetVersionName: '../latest',
         targetVersionCode: 42,
         rolloutPercent: 100,
@@ -66,6 +87,7 @@ describe('AndroidUpdateService rollout policy', () => {
     [
       {
         enabled: true,
+        policyRevision: revision,
         targetVersionName: '1.4.2',
         rolloutPercent: 100,
       },
@@ -86,6 +108,7 @@ describe('AndroidUpdateService rollout policy', () => {
       screenWithPolicy(
         {
           enabled: true,
+          policyRevision: revision,
           targetVersionName: '2.0.0',
           targetVersionCode: 50,
           rolloutPercent: 0,
