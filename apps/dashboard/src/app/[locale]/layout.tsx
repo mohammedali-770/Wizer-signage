@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { connection } from 'next/server';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
@@ -19,13 +20,6 @@ export const metadata: Metadata = {
     'WIZER builds SaaS products that connect systems, organize operations, and turn data into confident decisions. Wizer Signage is our cloud digital signage platform.',
 };
 
-/**
- * Pre-render a static route for each supported locale.
- */
-export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }));
-}
-
 type LocaleLayoutProps = {
   children: React.ReactNode;
   // Next.js 15: dynamic route params are async (a Promise).
@@ -33,6 +27,13 @@ type LocaleLayoutProps = {
 };
 
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
+  // Nonce-based CSP requires a fresh HTML render for every request so the
+  // framework scripts receive the request's nonce. This intentionally opts the
+  // dashboard out of static prerendering; authenticated console pages already
+  // depend on live browser/API state, and correctness of the strict CSP takes
+  // precedence over shipping a cached HTML shell with no usable nonce.
+  await connection();
+
   const { locale } = await params;
 
   // Reject unknown locales early.
@@ -40,7 +41,8 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     notFound();
   }
 
-  // Enable static rendering for this request's locale.
+  // Bind the route locale explicitly for next-intl. This is still useful under
+  // dynamic rendering even though it is no longer being used to opt into SSG.
   setRequestLocale(locale);
 
   // The SHARED slice only. Each route group's layout re-provides the union of
