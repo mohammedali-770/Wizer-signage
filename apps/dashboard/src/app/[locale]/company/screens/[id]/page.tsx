@@ -6,28 +6,27 @@ import { useLocale, useTranslations } from 'next-intl';
 import { ArrowLeft, Pencil } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
-import { useAllPages, useApiResource } from '@/lib/use-api';
+import { useApiResource } from '@/lib/use-api';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import type {
   DeviceCommand,
   DeviceCommandStatus,
   DeviceSyncState,
   LiveScreenStatus,
-  LocationListItem,
   Orientation,
   Paginated,
   PlaybackManifest,
   Screen,
-  ScreenGroup,
   ScreenMonitoring,
   ScreenPairingStatus,
   ScreenUse,
-  Tag,
   WorkingHours,
 } from '@/lib/types';
 import { useRouter, Link } from '@/i18n/navigation';
 import { WorkingHoursEditor } from '@/components/working-hours-editor';
 import { FallbackContentPicker } from '@/components/content/fallback-content-picker';
+import { ServerSearchSelect } from '@/components/server-search-select';
+import { ServerSearchIdMultiSelect } from '@/components/server-search-id-multi-select';
 import {
   Badge,
   Button,
@@ -148,25 +147,15 @@ export default function ScreenDetailPage() {
   } = useApiResource<Screen>(id ? `/screens/${id}` : null);
   const pairing = useApiResource<ScreenPairingStatus>(id ? `/screens/${id}/pairing-status` : null);
   const monitoring = useApiResource<ScreenMonitoring>(id ? `/screens/${id}/monitoring` : null);
-  // Current backend manifest — to show the live manifest version/hash and whether
-  // the paired device is in sync with it (Req 6).
   const manifest = useApiResource<PlaybackManifest>(id ? `/screens/${id}/playback-manifest` : null);
   const commands = useApiResource<Paginated<DeviceCommand>>(
     id ? `/screens/${id}/commands?pageSize=8` : null,
   );
 
-  // Dialog open state.
   const [editOpen, setEditOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [groupsOpen, setGroupsOpen] = useState(false);
-
-  // Dialog lookups: fetched only when the relevant dialog opens (not on page
-  // load), then cached by useApiResource so reopening is instant. Avoids 3 of
-  // the page's mount-time API calls for data only used inside dialogs.
-  const locations = useAllPages<LocationListItem>(moveOpen ? '/locations' : null);
-  const allTags = useAllPages<Tag>(tagsOpen ? '/tags' : null);
-  const allGroups = useAllPages<ScreenGroup>(groupsOpen ? '/screen-groups' : null);
   const [pinOpen, setPinOpen] = useState(false);
   const [pairOpen, setPairOpen] = useState(false);
   const [unpairOpen, setUnpairOpen] = useState(false);
@@ -175,7 +164,6 @@ export default function ScreenDetailPage() {
 
   const [busy, setBusy] = useState(false);
 
-  // Edit form state.
   const [editName, setEditName] = useState('');
   const [editCode, setEditCode] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -189,7 +177,6 @@ export default function ScreenDetailPage() {
   const [editNotes, setEditNotes] = useState('');
   const [editWorkingHours, setEditWorkingHours] = useState<WorkingHours | null>(null);
 
-  // Move / tags / groups / pin form state.
   const [moveLocationId, setMoveLocationId] = useState('');
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [groupIds, setGroupIds] = useState<string[]>([]);
@@ -220,13 +207,13 @@ export default function ScreenDetailPage() {
 
   const openTags = () => {
     if (!screen) return;
-    setTagIds(screen.tags.map((t) => t.id));
+    setTagIds(screen.tags.map((tag) => tag.id));
     setTagsOpen(true);
   };
 
   const openGroups = () => {
     if (!screen) return;
-    setGroupIds(screen.groups.map((g) => g.id));
+    setGroupIds(screen.groups.map((group) => group.id));
     setGroupsOpen(true);
   };
 
@@ -364,10 +351,6 @@ export default function ScreenDetailPage() {
     );
   };
 
-  const toggleId = (value: string, list: string[], setList: (next: string[]) => void) => {
-    setList(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
-  };
-
   return (
     <div>
       <Link
@@ -474,8 +457,6 @@ export default function ScreenDetailPage() {
                       </>
                     ) : null}
                     <div className="flex items-center gap-2 pt-3">
-                      {/* Primary CTA when the screen still needs pairing, so it
-                          stands out; a re-pair on an already-paired screen is secondary. */}
                       <Button
                         size="sm"
                         variant={
@@ -561,8 +542,6 @@ export default function ScreenDetailPage() {
                         </DetailRow>
                         <DetailRow label={t('fields.deviceSyncedTo')}>
                           {(() => {
-                            // Defensive: TS narrowing from the outer `sync` guard does
-                            // not flow into this closure.
                             const reported = pairing.data?.sync?.manifestVersion;
                             if (!reported) return '—';
                             const isHash = /^[0-9a-f]{64}$/.test(reported);
@@ -682,8 +661,6 @@ export default function ScreenDetailPage() {
                     </div>
 
                     <div className="border-border flex flex-wrap gap-2 border-t pt-3">
-                      {/* Primary action — pushes a force-sync so the screen re-fetches
-                          and re-downloads immediately (Req 4). */}
                       <Button
                         size="sm"
                         disabled={busy}
@@ -743,15 +720,15 @@ export default function ScreenDetailPage() {
                       <div className="border-border border-t pt-3">
                         <p className="text-muted-foreground mb-2 text-xs">{t('recentCommands')}</p>
                         <ul className="space-y-1">
-                          {commands.data.items.map((c) => (
+                          {commands.data.items.map((command) => (
                             <li
-                              key={c.id}
+                              key={command.id}
                               className="flex items-center justify-between gap-2 text-sm"
                             >
-                              <span>{c.commandType}</span>
+                              <span>{command.commandType}</span>
                               <span className="text-muted-foreground flex items-center gap-2">
-                                <Badge tone={commandTone(c.status)}>{c.status}</Badge>
-                                {formatDateTime(c.createdAt, locale)}
+                                <Badge tone={commandTone(command.status)}>{command.status}</Badge>
+                                {formatDateTime(command.createdAt, locale)}
                               </span>
                             </li>
                           ))}
@@ -876,8 +853,8 @@ export default function ScreenDetailPage() {
                       <p className="text-muted-foreground mb-2 text-sm">{t('groups')}</p>
                       {screen.groups.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
-                          {screen.groups.map((g) => (
-                            <Badge key={g.id}>{g.name}</Badge>
+                          {screen.groups.map((group) => (
+                            <Badge key={group.id}>{group.name}</Badge>
                           ))}
                         </div>
                       ) : (
@@ -904,7 +881,6 @@ export default function ScreenDetailPage() {
             </section>
           </div>
 
-          {/* Edit dialog */}
           <Dialog
             open={editOpen}
             onClose={() => !busy && setEditOpen(false)}
@@ -937,9 +913,9 @@ export default function ScreenDetailPage() {
                     onChange={(e) => setEditUse(e.target.value as '' | ScreenUse)}
                   >
                     <option value="">{t('notSet')}</option>
-                    {USE_OPTIONS.map((u) => (
-                      <option key={u} value={u}>
-                        {te(`screenUse.${u}`)}
+                    {USE_OPTIONS.map((use) => (
+                      <option key={use} value={use}>
+                        {te(`screenUse.${use}`)}
                       </option>
                     ))}
                   </Select>
@@ -949,9 +925,9 @@ export default function ScreenDetailPage() {
                     value={editOrientation}
                     onChange={(e) => setEditOrientation(e.target.value as Orientation)}
                   >
-                    {ORIENTATION_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {te(`orientation.${o}`)}
+                    {ORIENTATION_OPTIONS.map((orientation) => (
+                      <option key={orientation} value={orientation}>
+                        {te(`orientation.${orientation}`)}
                       </option>
                     ))}
                   </Select>
@@ -1061,7 +1037,6 @@ export default function ScreenDetailPage() {
             </form>
           </Dialog>
 
-          {/* Move dialog */}
           <Dialog
             open={moveOpen}
             onClose={() => !busy && setMoveOpen(false)}
@@ -1070,14 +1045,16 @@ export default function ScreenDetailPage() {
           >
             <div className="space-y-4">
               <Field label={tc('location')}>
-                <Select value={moveLocationId} onChange={(e) => setMoveLocationId(e.target.value)}>
-                  <option value="">{t('unassigned')}</option>
-                  {(locations.data?.items ?? []).map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </Select>
+                <ServerSearchSelect
+                  type="LOCATION"
+                  value={moveLocationId}
+                  onChange={setMoveLocationId}
+                  emptyLabel={t('unassigned')}
+                  searchPlaceholder={
+                    locale === 'ar' ? 'بحث عن موقع…' : 'Search locations…'
+                  }
+                  disabled={busy}
+                />
               </Field>
               <div className="flex justify-end gap-2">
                 <Button
@@ -1096,7 +1073,6 @@ export default function ScreenDetailPage() {
             </div>
           </Dialog>
 
-          {/* Tags dialog */}
           <Dialog
             open={tagsOpen}
             onClose={() => !busy && setTagsOpen(false)}
@@ -1105,23 +1081,16 @@ export default function ScreenDetailPage() {
             className="max-h-[80vh] overflow-y-auto"
           >
             <div className="space-y-4">
-              {(allTags.data?.items ?? []).length === 0 ? (
-                <p className="text-muted-foreground text-sm">{t('tagsDialog.empty')}</p>
-              ) : (
-                <div className="space-y-2">
-                  {(allTags.data?.items ?? []).map((tag) => (
-                    <label key={tag.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="border-border accent-primary size-4 rounded"
-                        checked={tagIds.includes(tag.id)}
-                        onChange={() => toggleId(tag.id, tagIds, setTagIds)}
-                      />
-                      {tag.name}
-                    </label>
-                  ))}
-                </div>
-              )}
+              <ServerSearchIdMultiSelect
+                type="TAG"
+                valueIds={tagIds}
+                initialItems={screen.tags.map((tag) => ({ id: tag.id, name: tag.name }))}
+                onChangeIds={setTagIds}
+                tagApplicability="SCREEN"
+                searchPlaceholder={locale === 'ar' ? 'بحث عن الوسوم…' : 'Search tags…'}
+                emptyText={t('tagsDialog.empty')}
+                disabled={busy}
+              />
               <div className="border-border flex justify-end gap-2 border-t pt-4">
                 <Button
                   type="button"
@@ -1139,7 +1108,6 @@ export default function ScreenDetailPage() {
             </div>
           </Dialog>
 
-          {/* Groups dialog */}
           <Dialog
             open={groupsOpen}
             onClose={() => !busy && setGroupsOpen(false)}
@@ -1148,23 +1116,17 @@ export default function ScreenDetailPage() {
             className="max-h-[80vh] overflow-y-auto"
           >
             <div className="space-y-4">
-              {(allGroups.data?.items ?? []).length === 0 ? (
-                <p className="text-muted-foreground text-sm">{t('groupsDialog.empty')}</p>
-              ) : (
-                <div className="space-y-2">
-                  {(allGroups.data?.items ?? []).map((g) => (
-                    <label key={g.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="border-border accent-primary size-4 rounded"
-                        checked={groupIds.includes(g.id)}
-                        onChange={() => toggleId(g.id, groupIds, setGroupIds)}
-                      />
-                      {g.name}
-                    </label>
-                  ))}
-                </div>
-              )}
+              <ServerSearchIdMultiSelect
+                type="SCREEN_GROUP"
+                valueIds={groupIds}
+                initialItems={screen.groups.map((group) => ({ id: group.id, name: group.name }))}
+                onChangeIds={setGroupIds}
+                searchPlaceholder={
+                  locale === 'ar' ? 'بحث عن المجموعات…' : 'Search screen groups…'
+                }
+                emptyText={t('groupsDialog.empty')}
+                disabled={busy}
+              />
               <div className="border-border flex justify-end gap-2 border-t pt-4">
                 <Button
                   type="button"
@@ -1182,7 +1144,6 @@ export default function ScreenDetailPage() {
             </div>
           </Dialog>
 
-          {/* Kiosk PIN dialog */}
           <Dialog
             open={pinOpen}
             onClose={() => !busy && setPinOpen(false)}
@@ -1217,7 +1178,6 @@ export default function ScreenDetailPage() {
             </div>
           </Dialog>
 
-          {/* Pair device */}
           <Dialog
             open={pairOpen}
             onClose={() => !busy && setPairOpen(false)}
@@ -1271,7 +1231,6 @@ export default function ScreenDetailPage() {
             </div>
           </Dialog>
 
-          {/* Unpair confirmation */}
           <Dialog
             open={unpairOpen}
             onClose={() => !busy && setUnpairOpen(false)}
@@ -1309,7 +1268,6 @@ export default function ScreenDetailPage() {
             </div>
           </Dialog>
 
-          {/* Delete confirmation */}
           <Dialog
             open={deleteOpen}
             onClose={() => !busy && setDeleteOpen(false)}
