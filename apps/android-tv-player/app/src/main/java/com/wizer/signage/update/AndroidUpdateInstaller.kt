@@ -20,6 +20,9 @@ class AndroidUpdateInstaller(private val context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             return StartResult.Blocked("silent_self_update_requires_android_12")
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+            return StartResult.Blocked("package_install_permission_not_provisioned")
+        }
         if (!apk.isFile || apk.length() <= 0L) return StartResult.Failed("staged_apk_missing")
 
         val installer = context.packageManager.packageInstaller
@@ -42,6 +45,9 @@ class AndroidUpdateInstaller(private val context: Context) {
                     action = ACTION_INSTALL_RESULT
                     putExtra(EXTRA_TARGET_VERSION_CODE, targetVersionCode)
                 }
+                // PackageInstaller populates result extras into this PendingIntent,
+                // so it must be mutable on modern Android. It is explicit and
+                // targets our non-exported receiver, limiting who can reach it.
                 val pending = PendingIntent.getBroadcast(
                     context,
                     targetVersionCode,
@@ -51,6 +57,8 @@ class AndroidUpdateInstaller(private val context: Context) {
                 session.commit(pending.intentSender)
             }
             StartResult.Started
+        } catch (e: SecurityException) {
+            StartResult.Blocked(e.message ?: "package_installer_security_exception")
         } catch (e: Exception) {
             StartResult.Failed(e.message ?: "package_installer_exception")
         }
