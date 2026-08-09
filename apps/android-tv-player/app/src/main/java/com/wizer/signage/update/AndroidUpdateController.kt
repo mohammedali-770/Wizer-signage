@@ -29,6 +29,11 @@ import kotlin.coroutines.coroutineContext
  * Every failure is best-effort telemetry only; playback is never stopped to
  * force an update. Platforms that request user confirmation are deliberately
  * reported BLOCKED instead of opening UI over signage.
+ *
+ * Terminal BLOCKED/FAILED results are sticky for one policy revision. This
+ * prevents repeated downloads/install attempts on a known-bad revision while
+ * still allowing an operator to fix provisioning and explicitly save a new
+ * policy revision to authorize one fresh attempt.
  */
 class AndroidUpdateController(
     context: Context,
@@ -69,12 +74,17 @@ class AndroidUpdateController(
             }
 
             try {
+                // Reconcile an already-started install independently of policy
+                // fetch availability so an app replacement can still report
+                // INSTALLED when the policy endpoint has a transient outage.
                 reconcilePreviousAttempt(token)
+
                 val policy = control.getPolicy(token)
                 if (policy != null) {
                     nextDelayMs = policy.checkIntervalSeconds
                         .coerceIn(MIN_CHECK_SECONDS, MAX_CHECK_SECONDS)
                         .toLong() * 1000L
+                    releaseTerminalStateForNewPolicy(policy)
                     evaluateAndInstall(token, policy)
                 }
             } catch (_: Exception) {
@@ -106,46 +116,54 @@ class AndroidUpdateController(
         }
 
         val terminal = snapshot.state == "FAILED" || snapshot.state == "BLOCKED"
-        if (terminal && !snapshot.reported) {
-            if (control.report(
-                    token,
-                    AndroidUpdateResult(
-                        state = snapshot.state ?: "FAILED",
-                        targetVersionCode = target,
-                        installedVersionCode = installed,
-                        error = snapshot.error,
-                    ),
-                )
-            ) {
+        if (terminal) {
+            if (!snapshot.reported && reportTerminal(token, snapshot.state ?: "FAILED", target, snapshot.error)) {
                 state.markReported()
-                state.clear()
             }
             return
         }
 
         // A successful PackageInstaller commit normally kills/replaces this
         // process. If the app survived for too long without the version moving,
-        // treat it as a failed attempt rather than hammering the same APK forever.
+        // convert the attempt to a sticky FAILED result instead of hammering the
+        // same APK forever.
         if (
             snapshot.attemptedAtMs > 0L &&
             System.currentTimeMillis() - snapshot.attemptedAtMs >= INSTALL_TIMEOUT_MS
         ) {
-            val result = AndroidUpdateResult(
-                state = "FAILED",
-                targetVersionCode = target,
-                installedVersionCode = installed,
-                error = "install_timeout",
-            )
-            if (control.report(token, result)) state.clear() else state.record("FAILED", "install_timeout")
+            state.record("FAILED", "install_timeout")
+            if (reportTerminal(token, "FAILED", target, "install_timeout")) {
+                state.markReported()
+            }
+        }
+    }
+
+    /**
+     * A terminal state blocks the exact revision that caused it. An operator
+     * saving a new policy revision (including disabling/re-enabling after device
+     * provisioning) explicitly authorizes a new attempt.
+     */
+    private fun releaseTerminalStateForNewPolicy(policy: AndroidUpdatePolicy) {
+        val snapshot = state.snapshot()
+        val terminal = snapshot.state == "FAILED" || snapshot.state == "BLOCKED"
+        if (!terminal || !snapshot.reported) return
+
+        val sameRevision =
+            snapshot.policyRevision != null && snapshot.policyRevision == policy.policyRevision
+        val sameTarget = snapshot.pendingVersionCode == policy.targetVersionCode
+        if (!sameRevision || !sameTarget || !policy.enabled) {
+            state.clear()
         }
     }
 
     private suspend fun evaluateAndInstall(token: String, policy: AndroidUpdatePolicy) {
         val targetCode = policy.targetVersionCode ?: return
         val targetName = policy.targetVersionName?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        val revision = policy.policyRevision?.trim()?.takeIf { it.isNotEmpty() } ?: return
         if (!policy.enabled || !policy.eligible || targetCode <= BuildConfig.VERSION_CODE) return
 
-        // Never begin a second install while the previous one is unresolved.
+        // Never begin a second install while the previous one is unresolved or
+        // while the same policy revision is terminal-sticky.
         if (state.snapshot().pendingVersionCode != null) return
 
         // Fetch the exact immutable manifest authorized by the authenticated
@@ -154,25 +172,40 @@ class AndroidUpdateController(
         val release = releases.fetchVersion(targetName, targetCode) ?: return
         if (release.versionName != targetName || release.versionCode != targetCode) return
 
-        val decision = AndroidReleasePolicy.evaluate(
-            release = release,
-            installedVersionCode = BuildConfig.VERSION_CODE,
-            sdkInt = Build.VERSION.SDK_INT,
-        )
-        if (decision !is AndroidReleaseDecision.UpdateAvailable) return
+        when (
+            val decision = AndroidReleasePolicy.evaluate(
+                release = release,
+                installedVersionCode = BuildConfig.VERSION_CODE,
+                sdkInt = Build.VERSION.SDK_INT,
+            )
+        ) {
+            is AndroidReleaseDecision.UpdateAvailable -> Unit
+            AndroidReleaseDecision.Current -> return
+            is AndroidReleaseDecision.Rejected -> {
+                state.begin(targetCode, revision)
+                state.record("BLOCKED", decision.reason)
+                if (reportTerminal(token, "BLOCKED", targetCode, decision.reason)) state.markReported()
+                return
+            }
+        }
 
         val staged = File(otaDir, release.fileName)
         staged.delete()
         if (!releases.downloadVerified(release, staged)) {
-            reportFailure(token, targetCode, "download_verification_failed")
+            // Download failures remain retryable: no install/trust decision has
+            // been made and a CDN/network retry may legitimately succeed later.
+            reportTerminal(token, "FAILED", targetCode, "download_verification_failed")
             return
         }
 
+        // From this point on, failures are tied to this exact policy revision.
+        state.begin(targetCode, revision)
         when (val trust = trustVerifier(staged, release.certificateSha256)) {
             ApkTrustVerifier.Result.Trusted -> Unit
             is ApkTrustVerifier.Result.Rejected -> {
                 staged.delete()
-                reportBlocked(token, targetCode, trust.reason)
+                state.record("BLOCKED", trust.reason)
+                if (reportTerminal(token, "BLOCKED", targetCode, trust.reason)) state.markReported()
                 return
             }
         }
@@ -189,7 +222,6 @@ class AndroidUpdateController(
             ),
         )
 
-        state.begin(targetCode)
         when (val start = installer.install(staged, targetCode)) {
             AndroidUpdateInstaller.StartResult.Started -> control.report(
                 token,
@@ -201,38 +233,29 @@ class AndroidUpdateController(
             )
             is AndroidUpdateInstaller.StartResult.Blocked -> {
                 state.record("BLOCKED", start.reason)
-                reportBlocked(token, targetCode, start.reason)
+                if (reportTerminal(token, "BLOCKED", targetCode, start.reason)) state.markReported()
             }
             is AndroidUpdateInstaller.StartResult.Failed -> {
                 state.record("FAILED", start.reason)
-                reportFailure(token, targetCode, start.reason)
+                if (reportTerminal(token, "FAILED", targetCode, start.reason)) state.markReported()
             }
         }
     }
 
-    private suspend fun reportFailure(token: String, target: Int, error: String) {
-        control.report(
-            token,
-            AndroidUpdateResult(
-                state = "FAILED",
-                targetVersionCode = target,
-                installedVersionCode = BuildConfig.VERSION_CODE,
-                error = error,
-            ),
-        )
-    }
-
-    private suspend fun reportBlocked(token: String, target: Int, error: String) {
-        control.report(
-            token,
-            AndroidUpdateResult(
-                state = "BLOCKED",
-                targetVersionCode = target,
-                installedVersionCode = BuildConfig.VERSION_CODE,
-                error = error,
-            ),
-        )
-    }
+    private suspend fun reportTerminal(
+        token: String,
+        terminalState: String,
+        target: Int,
+        error: String?,
+    ): Boolean = control.report(
+        token,
+        AndroidUpdateResult(
+            state = terminalState,
+            targetVersionCode = target,
+            installedVersionCode = BuildConfig.VERSION_CODE,
+            error = error,
+        ),
+    )
 
     companion object {
         private const val MIN_CHECK_SECONDS = 15 * 60
