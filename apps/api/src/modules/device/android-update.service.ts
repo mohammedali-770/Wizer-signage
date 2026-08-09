@@ -99,6 +99,7 @@ export class AndroidUpdateService {
           ...capabilities,
           androidOta: {
             state: dto.state,
+            policyRevision: dto.policyRevision ?? null,
             targetVersionCode: dto.targetVersionCode ?? null,
             installedVersionCode: dto.installedVersionCode ?? null,
             error: dto.error ?? null,
