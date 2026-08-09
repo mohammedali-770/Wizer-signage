@@ -39,9 +39,11 @@ REMOTE_MAIN_SHA="$(git -C "${ROOT_DIR}" ls-remote origin refs/heads/main | awk '
 }
 printf '  ok  protected main still equals the accepted immutable release SHA\n'
 
-# Expose the accepted identity for logs/future internal enforcement without
-# changing deploy-blue-green.sh's established positional interface.
+# Expose the accepted identity for the blue/green script, which rechecks it after
+# its own fetch/pull. Production also removes the non-production backup escape
+# hatch: the mandatory pre-migration backup cannot be skipped through this path.
 export EXPECTED_RELEASE_SHA="${TARGET_SHA}"
+unset DEPLOY_SKIP_BACKUP
 
 printf '==> [production] Preflight + immutable-main check passed; handing off to blue/green deployment...\n'
 exec bash "${SCRIPT_DIR}/deploy-blue-green.sh"
