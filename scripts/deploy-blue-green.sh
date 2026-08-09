@@ -12,7 +12,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BASE_COMPOSE_FILE="${ROOT_DIR}/infra/docker/docker-compose.yml"
 PROXY_COMPOSE_FILE="${ROOT_DIR}/infra/docker/docker-compose.blue-green-proxy.yml"
+LOG_COMPOSE_FILE="${ROOT_DIR}/infra/docker/docker-compose.log-shipping.yml"
 SLOTS_COMPOSE_FILE="${ROOT_DIR}/infra/docker/docker-compose.blue-green-slots.yml"
+SLOTS_LOG_COMPOSE_FILE="${ROOT_DIR}/infra/docker/docker-compose.blue-green-log-shipping.yml"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 BG_HISTORY="${BLUE_GREEN_HISTORY:-${ROOT_DIR}/.blue-green-history}"
@@ -22,9 +24,15 @@ HEALTH_INTERVAL="${HEALTH_INTERVAL:-5}"
 API_DRAIN_SECONDS="${API_DRAIN_SECONDS:-75}"
 
 [[ -f "${ENV_FILE}" ]] || { echo "ERROR: ${ENV_FILE} not found." >&2; exit 1; }
+for required_file in "${BASE_COMPOSE_FILE}" "${PROXY_COMPOSE_FILE}" "${LOG_COMPOSE_FILE}" "${SLOTS_COMPOSE_FILE}" "${SLOTS_LOG_COMPOSE_FILE}"; do
+  [[ -f "${required_file}" ]] || { echo "ERROR: required production compose file missing: ${required_file}" >&2; exit 1; }
+done
 
-BASE_COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${BASE_COMPOSE_FILE}" -f "${PROXY_COMPOSE_FILE}")
-SLOTS_COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${SLOTS_COMPOSE_FILE}")
+# Production always includes off-box logging for BOTH base services and the
+# blue/green serving slots. fluentd-async keeps collector downtime from blocking
+# container startup, while cutover acceptance confirms logs are actually arriving.
+BASE_COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${BASE_COMPOSE_FILE}" -f "${PROXY_COMPOSE_FILE}" -f "${LOG_COMPOSE_FILE}")
+SLOTS_COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${SLOTS_COMPOSE_FILE}" -f "${SLOTS_LOG_COMPOSE_FILE}")
 
 read_env_value() {
   local key="$1"
@@ -37,6 +45,13 @@ IMAGE_REGISTRY_PREFIX="${IMAGE_REGISTRY_PREFIX:-$(read_env_value IMAGE_REGISTRY_
   exit 1
 }
 export IMAGE_REGISTRY_PREFIX
+
+LOG_SHIPPING_ADDRESS="${LOG_SHIPPING_ADDRESS:-$(read_env_value LOG_SHIPPING_ADDRESS)}"
+[[ -n "${LOG_SHIPPING_ADDRESS}" ]] || {
+  echo "ERROR: LOG_SHIPPING_ADDRESS is required for production blue/green deployment." >&2
+  exit 1
+}
+export LOG_SHIPPING_ADDRESS
 
 APP_DOMAIN_VALUE="$(read_env_value APP_DOMAIN)"
 PUBLIC_HEALTH_URL="${HEALTH_URL:-${APP_DOMAIN_VALUE:+https://${APP_DOMAIN_VALUE}/api/health/ready}}"
@@ -54,6 +69,19 @@ FULL_SHA="$(git rev-parse HEAD)"
 [[ "${IMAGE_TAG}" =~ ^[0-9a-f]{12}$ && "${FULL_SHA}" =~ ^${IMAGE_TAG}[0-9a-f]{28}$ ]] || {
   echo "ERROR: invalid git release identity." >&2; exit 1;
 }
+
+# The preferred production wrapper exports EXPECTED_RELEASE_SHA after verifying
+# remote protected main. Enforce it again AFTER this script's own fetch/pull to
+# close the race between wrapper validation and deployment target resolution.
+if [[ -n "${EXPECTED_RELEASE_SHA:-}" ]]; then
+  [[ "${EXPECTED_RELEASE_SHA}" =~ ^[0-9a-f]{40}$ ]] || {
+    echo "ERROR: EXPECTED_RELEASE_SHA is not a full lowercase Git SHA." >&2; exit 1;
+  }
+  [[ "${FULL_SHA}" == "${EXPECTED_RELEASE_SHA}" ]] || {
+    echo "ERROR: protected main moved after production-wrapper validation; no image pull/migration performed." >&2
+    exit 1
+  }
+fi
 export IMAGE_TAG
 
 echo "==> [blue-green] Target ${FULL_SHA} (${IMAGE_TAG})"
