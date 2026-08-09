@@ -14,6 +14,14 @@ import { MonitoringService } from './monitoring.service';
 import { ScreenMonitoringController } from './screen-monitoring.controller';
 import { ScreenshotService } from './screenshot.service';
 
+/**
+ * Phase 8 — monitoring, heartbeat, remote commands, screenshots, and bounded
+ * crash/version fleet diagnostics. Imports DeviceModule for the exported
+ * DeviceAuthGuard used by device-facing routes. Storage is global.
+ *
+ * Crash reports intentionally contain only a timestamp, short fingerprint,
+ * cumulative count and app version; raw Android stack traces remain on-device.
+ */
 @Module({
   imports: [ActivityLogModule, DeviceModule, NotificationsModule],
   controllers: [
