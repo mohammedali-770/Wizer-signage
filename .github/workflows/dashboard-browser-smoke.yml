@@ -8,6 +8,9 @@ on:
       - 'contracts/openapi.json'
       - '.github/workflows/dashboard-browser-smoke.yml'
 
+# Keep this separate from the required monorepo CI gate: Chromium + a second
+# production Next build are valuable for dashboard changes, but wasteful for
+# API-only, Android-only, or infrastructure-only pull requests.
 concurrency:
   group: dashboard-smoke-${{ github.ref }}
   cancel-in-progress: true
