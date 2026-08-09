@@ -102,8 +102,16 @@ echo "[backup] $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 # into `psql --set ON_ERROR_STOP=on` and the very first CREATE TABLE aborts with
 # "already exists", so the backup was effectively write-only.
 #
-# --schema=public keeps the dump to our own objects: Supabase owns auth/storage/
-# extensions schemas that we neither back up nor have permission to recreate.
+# Wizer owns TWO PostgreSQL schemas after telemetry partitioning:
+#   public          — Prisma-owned business tables + partition parents
+#   wizer_telemetry — monthly child partitions + PoP idempotency registry
+#
+# Both must be in the same logical dump. Omitting wizer_telemetry creates a
+# deceptively successful backup that restores parent tables but loses telemetry
+# rows and cross-partition idempotency state. Keeping public explicitly avoids
+# Supabase-owned auth/storage/extension schemas that Wizer neither owns nor has
+# permission to recreate. Before the partition migration exists in a database,
+# public is still selected and remains the complete Wizer-owned schema.
 if pg_dump \
     --dbname="${DUMP_URL}" \
     --no-owner \
@@ -111,6 +119,7 @@ if pg_dump \
     --clean \
     --if-exists \
     --schema=public \
+    --schema=wizer_telemetry \
     --format=plain \
     | gzip -9 > "${OUTFILE}"; then
   SIZE="$(du -h "${OUTFILE}" | cut -f1)"
