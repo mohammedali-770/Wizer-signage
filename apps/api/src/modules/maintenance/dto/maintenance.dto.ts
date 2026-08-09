@@ -5,7 +5,6 @@ import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 export const MAINTENANCE_JOBS = [
   'all',
   'sweep',
-  'android-ota-health',
   'retention',
   'reports',
   'emergencies',
@@ -16,8 +15,8 @@ export class RunMaintenanceDto {
   @ApiPropertyOptional({
     enum: MAINTENANCE_JOBS,
     description:
-      'Which maintenance job to run. Omitted runs ALL jobs — so an empty body is not a no-op, ' +
-      'it is the most expensive call this endpoint offers.',
+      'Which sweep to run. Omitted runs them ALL — so an empty body is not a no-op, it is the ' +
+      'most expensive call this endpoint offers.',
   })
   @IsOptional()
   @IsEnum(MAINTENANCE_JOBS)
