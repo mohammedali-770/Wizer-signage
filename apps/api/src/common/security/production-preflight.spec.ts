@@ -21,7 +21,7 @@ describe('production preflight contract', () => {
     expect(preflight).not.toContain('prisma migrate');
   });
 
-  it('requires production registry, database, auth, metrics, recovery, logging and mail coordinates', () => {
+  it('requires production registry, database, auth, metrics, recovery, logging, mail and storage coordinates', () => {
     for (const key of [
       'APP_DOMAIN',
       'DATABASE_URL',
@@ -37,9 +37,20 @@ describe('production preflight contract', () => {
       'SMTP_HOST',
       'SMTP_PORT',
       'SMTP_FROM',
+      'SUPABASE_URL',
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'SUPABASE_STORAGE_BUCKET',
     ]) {
       expect(preflight).toContain(key);
     }
+  });
+
+  it('validates the same APP_URL then DASHBOARD_URL precedence used for email links', () => {
+    expect(preflight).toContain('PUBLIC_DASHBOARD_URL="$(read_env_value APP_URL)"');
+    expect(preflight).toContain('PUBLIC_DASHBOARD_URL="$(read_env_value DASHBOARD_URL)"');
+    expect(preflight).toContain('APP_URL or DASHBOARD_URL is required for production email links');
+    expect(preflight).toContain('public HTTPS origin without credentials, path, query or fragment');
+    expect(preflight).toContain('public dashboard email-link origin is configured');
   });
 
   it('rejects common placeholder/local configuration and weak secrets', () => {
@@ -47,6 +58,13 @@ describe('production preflight contract', () => {
     expect(preflight).toContain('METRICS_TOKEN must be at least 32 characters');
     expect(preflight).toContain('APP_DOMAIN points at a local/development hostname');
     expect(preflight).toContain('points at localhost');
+  });
+
+  it('requires persistent Supabase production storage', () => {
+    expect(preflight).toContain('SUPABASE_URL must be an HTTPS project URL');
+    expect(preflight).toContain('SUPABASE_SERVICE_ROLE_KEY is implausibly short');
+    expect(preflight).toContain('SUPABASE_STORAGE_BUCKET has an invalid bucket name');
+    expect(preflight).toContain('persistent Supabase production storage is configured');
   });
 
   it('refuses same-host-only backup posture and missing out-of-band backup monitoring', () => {
