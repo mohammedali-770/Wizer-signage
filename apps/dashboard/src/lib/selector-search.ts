@@ -47,8 +47,9 @@ export interface SelectorSearchOptions {
  * all-pages crawl. Users can reach any entity by refining `search`, so tenant
  * size no longer creates a silent correctness ceiling or a burst of 20 GETs.
  *
- * `filters` preserves selector semantics such as `status=ACTIVE`; moving search
- * server-side must not make archived/disabled entities newly selectable.
+ * Content and playlists are assignable resources, so their selector candidates
+ * are ACTIVE by default (matching the pre-migration queries). Individual ID
+ * lookup still recovers the label of an older archived selection when editing.
  */
 export function selectorSearchPath(
   type: SearchableSelectorType,
@@ -60,6 +61,9 @@ export function selectorSearchPath(
   if (term) params.set('search', term);
   if (type === 'TAG' && options?.tagApplicability) {
     params.set('applicableTo', options.tagApplicability);
+  }
+  if (type === 'CONTENT' || type === 'PLAYLIST') {
+    params.set('status', 'ACTIVE');
   }
   for (const [key, value] of Object.entries(options?.filters ?? {}).sort(([a], [b]) =>
     a.localeCompare(b),
