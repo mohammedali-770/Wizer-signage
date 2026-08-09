@@ -6,26 +6,27 @@
 # the container's stdout (/proc/1/fd/1) so `docker logs` shows it.
 #
 # OVERLAP: every job is wrapped in `flock -n` against its own lock file. The jobs
-# are individually idempotent, but a slow run (a large tenant sweep, a big dump)
-# could otherwise stack every 5 minutes and pile concurrent Prisma pools onto the
-# same database. -n means "skip this tick if the previous run is still going"
-# rather than queueing, which is the right behaviour for periodic maintenance.
+# are individually idempotent, but a slow run could otherwise stack and pile
+# concurrent Prisma pools onto the same database. -n means "skip this tick if
+# the previous run is still going" rather than queueing.
 #
 # Times are UTC unless TZ is set.
-#
 # fields: minute hour day-of-month month day-of-week  command
 # =============================================================================
+
+# OTA health is intentionally the fastest loop. The policy health window can be
+# as short as five minutes; checking only in the nightly `all` run would make
+# automatic recovery operationally meaningless. A one-minute tick keeps
+# detection latency to roughly one scheduler interval, and flock skips overlap.
+* * * * * flock -n /tmp/wizer-ota-health.lock -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js android-ota-health' >> /proc/1/fd/1 2>&1
 
 # Alerts sweep + due scheduled reports + emergency auto-END — every 5 minutes.
 */5 * * * * flock -n /tmp/wizer-sweep.lock      -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js sweep'       >> /proc/1/fd/1 2>&1
 */5 * * * * flock -n /tmp/wizer-reports.lock    -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js reports'      >> /proc/1/fd/1 2>&1
 */5 * * * * flock -n /tmp/wizer-emergency.lock  -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js emergencies'  >> /proc/1/fd/1 2>&1
 
-# Pre-create current + future heartbeat/proof-of-play monthly partitions daily.
-# Failure is loud in container logs and occurs months before an uncovered boundary.
-15 0 * * * flock -n /tmp/wizer-partitions.lock -c 'cd /app && su-exec node bash scripts/ensure-telemetry-partitions.sh' >> /proc/1/fd/1 2>&1
-
-# Full nightly run (sweep + retention cleanup + reports + auto-END + backup check) at 03:30.
+# Full nightly run (sweep + OTA health backstop + retention cleanup + reports +
+# auto-END + backup check) at 03:30.
 30 3 * * * flock -n /tmp/wizer-nightly.lock     -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js all'          >> /proc/1/fd/1 2>&1
 
 # Database backup at 02:00 (pg_dump → BACKUP_DIR, records a BackupRecord).

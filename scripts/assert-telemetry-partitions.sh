@@ -1,131 +1,80 @@
 #!/usr/bin/env bash
-# Verify the physical PostgreSQL features Prisma cannot model directly.
-# Read-only: safe against production and disposable restore-drill databases.
+# =============================================================================
+# Wizer Signage — telemetry partition physical-schema verifier (READ ONLY)
+# =============================================================================
+# Usage:
+#   DIRECT_URL=postgresql://... bash scripts/assert-telemetry-partitions.sh
+#
+# This is the operator-facing post-migration/post-restore assertion. Prisma owns
+# the two partitioned parent tables in public; PostgreSQL owns monthly children,
+# the PoP idempotency registry and trigger internals in wizer_telemetry.
+# =============================================================================
 set -euo pipefail
 
-DATABASE_URL_VALUE="${DATABASE_URL:-${DIRECT_URL:-}}"
-[[ -n "${DATABASE_URL_VALUE}" ]] || {
-  echo "ERROR [telemetry-check]: DATABASE_URL or DIRECT_URL is required." >&2
-  exit 1
-}
-command -v psql >/dev/null 2>&1 || {
-  echo "ERROR [telemetry-check]: psql is required." >&2
-  exit 1
-}
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DB_URL="${DIRECT_URL:-${DATABASE_URL:-}}"
+if [[ -z "$DB_URL" ]]; then
+  echo 'ERROR: DIRECT_URL or DATABASE_URL is required.' >&2
+  exit 2
+fi
+command -v psql >/dev/null 2>&1 || { echo 'ERROR: psql is required.' >&2; exit 2; }
 
-fail() { echo "ERROR [telemetry-check]: $*" >&2; exit 1; }
-pass() { echo "  ok  $*"; }
+fail() { echo "ERROR: $*" >&2; exit 1; }
+q() { psql "$DB_URL" -X -qAt --set=ON_ERROR_STOP=1 -c "$1"; }
 
-query_scalar() {
-  psql "${DATABASE_URL_VALUE}" -X -v ON_ERROR_STOP=1 -Atqc "$1"
-}
-
-printf '==> Verifying Wizer telemetry partition layout\n'
-
-for table in heartbeats proof_of_plays; do
-  strategy="$(query_scalar "
-    SELECT pt.partstrat::text
-      FROM pg_partitioned_table pt
-      JOIN pg_class c ON c.oid = pt.partrelid
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-     WHERE n.nspname = 'public' AND c.relname = '${table}';
-  ")"
-  [[ "${strategy}" == "r" ]] || fail "${table} is not a RANGE-partitioned parent"
-  pass "${table} is RANGE partitioned"
+# Parents must be RANGE-partitioned and keep canonical names visible to Prisma.
+for parent in heartbeats proof_of_plays; do
+  [[ "$(q "SELECT relkind FROM pg_class WHERE oid='public.${parent}'::regclass")" == p ]] \
+    || fail "public.${parent} is not a partitioned parent"
+  [[ "$(q "SELECT partstrat FROM pg_partitioned_table WHERE partrelid='public.${parent}'::regclass")" == r ]] \
+    || fail "public.${parent} is not RANGE partitioned"
 done
 
-registry_kind="$(query_scalar "
-  SELECT c.relkind::text
-    FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-   WHERE n.nspname = 'public' AND c.relname = 'proof_of_play_session_keys';
+HEARTBEAT_PK="$(q "
+  SELECT string_agg(a.attname, ',' ORDER BY u.ordinality)
+  FROM pg_constraint con
+  CROSS JOIN LATERAL unnest(con.conkey) WITH ORDINALITY AS u(attnum, ordinality)
+  JOIN pg_attribute a ON a.attrelid=con.conrelid AND a.attnum=u.attnum
+  WHERE con.conrelid='public.heartbeats'::regclass AND con.contype='p'
 ")"
-[[ "${registry_kind}" == "r" ]] || fail "proof_of_play_session_keys is missing or not an ordinary unpartitioned table"
-pass "proof-of-play global tenant session registry exists"
+[[ "$HEARTBEAT_PK" == 'id,createdAt' ]] || fail "unexpected heartbeats PK: ${HEARTBEAT_PK:-<none>}"
 
-pk_definition="$(query_scalar "
-  SELECT pg_get_constraintdef(con.oid)
-    FROM pg_constraint con
-   WHERE con.conrelid = 'public.proof_of_play_session_keys'::regclass
-     AND con.contype = 'p';
+POP_PK="$(q "
+  SELECT string_agg(a.attname, ',' ORDER BY u.ordinality)
+  FROM pg_constraint con
+  CROSS JOIN LATERAL unnest(con.conkey) WITH ORDINALITY AS u(attnum, ordinality)
+  JOIN pg_attribute a ON a.attrelid=con.conrelid AND a.attnum=u.attnum
+  WHERE con.conrelid='public.proof_of_plays'::regclass AND con.contype='p'
 ")"
-[[ "${pk_definition}" == *'"companyId", "playbackSessionId"'* ]] \
-  || fail "session registry primary key is not (companyId, playbackSessionId)"
-pass "tenant playback-session idempotency key is global across partitions"
+[[ "$POP_PK" == 'id,startedAt' ]] || fail "unexpected proof_of_plays PK: ${POP_PK:-<none>}"
 
-triggers="$(query_scalar "
-  SELECT string_agg(tgname, ',' ORDER BY tgname)
-    FROM pg_trigger
-   WHERE tgrelid = 'public.proof_of_plays'::regclass
-     AND NOT tgisinternal;
+# The migration normalizes temporary copy/swap object names before completion.
+BAD_NAMES="$(q "
+  SELECT count(*)
+  FROM (
+    SELECT conname AS name
+      FROM pg_constraint
+     WHERE conrelid IN ('public.heartbeats'::regclass, 'public.proof_of_plays'::regclass)
+    UNION ALL
+    SELECT c.relname AS name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid=c.relnamespace
+     WHERE n.nspname IN ('public','wizer_telemetry')
+       AND c.relkind='i'
+  ) x
+  WHERE name LIKE '%_partitioned_%'
 ")"
-[[ ",${triggers}," == *',proof_of_plays_claim_session,'* ]] \
-  || fail "proof_of_plays_claim_session trigger is missing"
-[[ ",${triggers}," == *',proof_of_plays_release_session,'* ]] \
-  || fail "proof_of_plays_release_session trigger is missing"
-pass "claim/release idempotency triggers are installed"
+[[ "$BAD_NAMES" == 0 ]] || fail "$BAD_NAMES temporary _partitioned_ object name(s) remain"
 
-# The rolling maintenance function is part of the physical schema contract.
-function_exists="$(query_scalar "
-  SELECT COUNT(*)
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'public'
-     AND p.proname = 'wizer_ensure_telemetry_partitions';
-")"
-[[ "${function_exists}" =~ ^[1-9][0-9]*$ ]] || fail "wizer_ensure_telemetry_partitions function is missing"
-pass "partition maintenance function exists"
+# Both parents need at least current + future children. Exact month availability,
+# internal namespace, registry PK and trigger/helper search_path are delegated to
+# the stricter ownership verifier below.
+for parent in heartbeats proof_of_plays; do
+  CHILD_COUNT="$(q "SELECT count(*) FROM pg_inherits WHERE inhparent='public.${parent}'::regclass")"
+  [[ "$CHILD_COUNT" =~ ^[0-9]+$ && "$CHILD_COUNT" -ge 2 ]] \
+    || fail "public.${parent} has only ${CHILD_COUNT:-0} child partition(s)"
+done
 
-# Ensure the current and next UTC month partitions exist for both parents. The
-# deployment/maintenance job should stay ahead of the ingest clock; a missing
-# next-month child is a future write outage waiting to happen.
-missing="$(psql "${DATABASE_URL_VALUE}" -X -v ON_ERROR_STOP=1 -At <<'SQL'
-WITH months AS (
-  SELECT date_trunc('month', now() AT TIME ZONE 'UTC')::date AS month_start
-  UNION ALL
-  SELECT (date_trunc('month', now() AT TIME ZONE 'UTC') + interval '1 month')::date
-), expected AS (
-  SELECT parent,
-         parent || '_y' || to_char(month_start, 'YYYY') || 'm' || to_char(month_start, 'MM') AS child
-    FROM months
-    CROSS JOIN (VALUES ('heartbeats'), ('proof_of_plays')) AS parents(parent)
-), actual AS (
-  SELECT parent.relname AS parent, child.relname AS child
-    FROM pg_inherits i
-    JOIN pg_class parent ON parent.oid = i.inhparent
-    JOIN pg_class child ON child.oid = i.inhrelid
-    JOIN pg_namespace n ON n.oid = parent.relnamespace
-   WHERE n.nspname = 'public'
-     AND parent.relname IN ('heartbeats', 'proof_of_plays')
-)
-SELECT expected.parent || ':' || expected.child
-  FROM expected
-  LEFT JOIN actual USING (parent, child)
- WHERE actual.child IS NULL
- ORDER BY 1;
-SQL
-)"
-[[ -z "${missing}" ]] || fail "missing current/next telemetry partition(s): ${missing//$'\n'/, }"
-pass "current and next-month children exist for both telemetry parents"
+DIRECT_URL="$DB_URL" bash "$ROOT/scripts/assert-telemetry-partition-isolation.sh"
 
-# Parent object names must be canonical after the lock/copy/swap migration;
-# stale *_partitioned_* names are a drift/operability smell and complicate
-# restore/debugging tooling.
-stale_names="$(query_scalar "
-  SELECT COUNT(*)
-    FROM (
-      SELECT conname AS name
-        FROM pg_constraint
-       WHERE conrelid IN ('public.heartbeats'::regclass, 'public.proof_of_plays'::regclass)
-      UNION ALL
-      SELECT indexname
-        FROM pg_indexes
-       WHERE schemaname = 'public'
-         AND tablename IN ('heartbeats', 'proof_of_plays')
-    ) names
-   WHERE name LIKE '%\\_partitioned\\_%' ESCAPE '\\';
-")"
-[[ "${stale_names}" == "0" ]] || fail "temporary _partitioned_ parent constraint/index names remain"
-pass "parent constraints/indexes use canonical names"
-
-printf '==> TELEMETRY PARTITION CHECK PASSED\n'
+echo 'telemetry partition physical schema: OK'
