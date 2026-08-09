@@ -3,8 +3,8 @@
 # Regression tests for scripts/backup-db.sh + scripts/lib/pg-url.sh
 # =============================================================================
 # Deterministic and hermetic: NO real database, NO docker, NO network. pg_dump
-# and node are replaced with mocks so we can assert exactly which URL the script
-# hands to pg_dump and how failures are handled. Safe to run in CI.
+# and node are replaced with mocks so we can assert exactly which URL and schema
+# boundaries the script hands to pg_dump and how failures are handled.
 #
 # Covers (requirement C):
 #   1. DIRECT_URL is selected when both URLs are set.
@@ -12,8 +12,9 @@
 #   3. A pooled URL with pgbouncer=true is never passed unchanged to pg_dump.
 #   4. Missing usable URLs fail closed without leaking values.
 #   5. pg_dump failure removes the partial output and records FAILED.
+#   6. Both Wizer-owned schemas (public + wizer_telemetry) are always selected.
 #   9. No credentials appear in the script's own logs.
-# (Volume-ownership cases 6-8 need Docker and live in the e2e test.)
+# (Volume-ownership cases 7-8 need Docker and live in the e2e test.)
 # =============================================================================
 set -uo pipefail
 
@@ -36,7 +37,8 @@ cp "$REPO_ROOT/scripts/lib/pg-url.sh" "$WORK/scripts/lib/pg-url.sh"
 
 cat > "$WORK/bin/pg_dump" <<'MOCK'
 #!/usr/bin/env bash
-# Capture the --dbname value the script chose, then emit a fake dump (or fail).
+# Capture every argument plus the --dbname value, then emit a fake dump (or fail).
+printf '%s\n' "$@" > "$PG_DUMP_ARGS_CAPTURE"
 for a in "$@"; do
   case "$a" in --dbname=*) printf '%s' "${a#--dbname=}" > "$PG_DUMP_CAPTURE" ;; esac
 done
@@ -62,19 +64,22 @@ touch "$WORK/fake-cli.js"
 
 # run_backup: runs the sandboxed script with the current DIRECT_URL/DATABASE_URL
 # (which must be exported by the caller). Resets capture files each call and
-# populates: RC, OUT (combined log), CAPTURED (dbname pg_dump saw), RECORD.
+# populates: RC, OUT (combined log), CAPTURED (dbname pg_dump saw), ARGS (all
+# pg_dump arguments), RECORD.
 run_backup() {
-  : > "$WORK/pg_dump_capture"; : > "$WORK/record_capture"; : > "$WORK/out.log"
+  : > "$WORK/pg_dump_capture"; : > "$WORK/pg_dump_args_capture"; : > "$WORK/record_capture"; : > "$WORK/out.log"
   rm -f "$WORK/backups"/*.sql.gz 2>/dev/null || true
   PATH="$WORK/bin:$PATH" \
   BACKUP_DIR="$WORK/backups" \
   MAINTENANCE_CLI="$WORK/fake-cli.js" \
   PG_DUMP_CAPTURE="$WORK/pg_dump_capture" \
+  PG_DUMP_ARGS_CAPTURE="$WORK/pg_dump_args_capture" \
   RECORD_CAPTURE="$WORK/record_capture" \
   PG_DUMP_FAIL="${PG_DUMP_FAIL:-0}" \
     bash "$WORK/scripts/backup-db.sh" > "$WORK/out.log" 2>&1
   RC=$?
   CAPTURED="$(cat "$WORK/pg_dump_capture" 2>/dev/null || true)"
+  ARGS="$(cat "$WORK/pg_dump_args_capture" 2>/dev/null || true)"
   RECORD="$(cat "$WORK/record_capture" 2>/dev/null || true)"
   OUT="$(cat "$WORK/out.log" 2>/dev/null || true)"
 }
@@ -95,6 +100,13 @@ case "$CAPTURED" in *pgbouncer*) fail "1: pgbouncer leaked into dbname" ;; *) pa
 [ "$(backup_count)" -eq 1 ] && pass "1: exactly one backup file written" || fail "1: backup file missing/duplicated"
 echo "$RECORD" | grep -q "SUCCESS" && pass "1: BackupRecord SUCCESS recorded" || fail "1: SUCCESS not recorded"
 case "$OUT" in *"$SECRET"*) fail "9: secret leaked in log (case 1)" ;; *) pass "9: no secret in log (case 1)" ;; esac
+
+echo "$ARGS" | grep -Fxq -- '--schema=public' \
+  && pass "6: public schema included" || fail "6: public schema missing from pg_dump"
+echo "$ARGS" | grep -Fxq -- '--schema=wizer_telemetry' \
+  && pass "6: wizer_telemetry schema included" || fail "6: wizer_telemetry schema missing from pg_dump"
+[ "$(printf '%s\n' "$ARGS" | grep -c '^--schema=')" -eq 2 ] \
+  && pass "6: exactly the two Wizer-owned schemas selected" || fail "6: unexpected pg_dump schema selection"
 
 # --- 2. DATABASE_URL fallback for a standard PostgreSQL URL -------------------
 reset_env
