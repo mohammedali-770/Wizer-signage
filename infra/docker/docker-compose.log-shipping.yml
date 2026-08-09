@@ -1,0 +1,32 @@
+# Optional production overlay: ship container stdout/stderr off-box through a
+# Fluentd-compatible collector. The base compose keeps json-file rotation as its
+# safe default; operators opt in by adding this file to `docker compose -f ...`.
+#
+# Required:
+#   LOG_SHIPPING_ADDRESS=collector.example.internal:24224
+#
+# `fluentd-async=true` is deliberate: a logging collector outage must not stop
+# the API/dashboard/player-management plane from starting. Docker buffers while
+# disconnected up to fluentd-buffer-limit; alert on collector health separately.
+
+x-offbox-logging: &offbox-logging
+  driver: fluentd
+  options:
+    fluentd-address: ${LOG_SHIPPING_ADDRESS:?LOG_SHIPPING_ADDRESS is required for log shipping}
+    fluentd-async: 'true'
+    fluentd-buffer-limit: ${LOG_SHIPPING_BUFFER_LIMIT:-1048576}
+    fluentd-retry-wait: ${LOG_SHIPPING_RETRY_WAIT_SECONDS:-1}
+    tag: 'wizer.{{.Name}}'
+
+services:
+  api:
+    logging: *offbox-logging
+
+  dashboard:
+    logging: *offbox-logging
+
+  maintenance:
+    logging: *offbox-logging
+
+  nginx:
+    logging: *offbox-logging
