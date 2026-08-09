@@ -68,16 +68,17 @@ const EXPECTED_PUBLIC_ROUTES: readonly string[] = [
   'GET /device/content/:contentId/download',
   'POST /device/proof-of-play/events',
   'POST /device/screenshots',
+  'GET /device/update/policy',
+  'POST /device/update/result',
 
   // --- Local storage adapter (development only) -----------------------------
   // The :token is an encrypted, time-limited reference to a storage key. In
   // production storage is Supabase and signed URLs bypass this route entirely.
   'GET /content-files/:token',
 
-  // --- APK distribution: the player has no credentials before pairing -------
-  // In production nginx serves /api/downloads/android/ directly from a
-  // read-only mount and this handler is never reached for that subtree.
+  // --- Android distribution: intentionally public binary/manifest files ------
   'GET /downloads/:file',
+  'GET /downloads/android/:file',
 ];
 
 /**
@@ -85,11 +86,12 @@ const EXPECTED_PUBLIC_ROUTES: readonly string[] = [
  * route inside them is anonymous, so adding one here is a deliberate decision.
  */
 const EXPECTED_CLASS_LEVEL_PUBLIC: readonly string[] = [
+  'AndroidUpdateController', // device-token authenticated staged OTA control plane
   'ContentFilesController', // dev-only local storage adapter, token-scoped
   'DeviceController', // device-token authenticated via DeviceAuthGuard
   'DeviceProofOfPlayController', // ditto
   'DeviceTelemetryController', // ditto
-  'DownloadsController', // APK distribution, pre-pairing
+  'DownloadsController', // Android distribution artifacts, pre-pairing/public
   'HealthController', // liveness/readiness probes
   'PublicController', // marketing site + self-serve trial signup
 ];
