@@ -10,6 +10,7 @@ import com.wizer.signage.data.SyncManager
 import com.wizer.signage.data.cache.AssetDownloader
 import com.wizer.signage.data.cache.CacheManager
 import com.wizer.signage.monitoring.CommandExecutor
+import com.wizer.signage.monitoring.CrashTelemetryStore
 import com.wizer.signage.monitoring.DefaultCommandActions
 import com.wizer.signage.monitoring.MonitoringController
 import com.wizer.signage.monitoring.TelemetryCollector
@@ -43,8 +44,11 @@ class PlayerContainer(context: Context) {
 
     val syncManager = SyncManager(api, store, manifestStore, cache, downloader, connectivity)
 
-    // Phase 8 — heartbeat + remote commands.
-    private val telemetry = TelemetryCollector(syncManager, connectivity)
+    // Phase 8 — heartbeat + remote commands. Crash telemetry is kept separately
+    // from the raw CrashRecovery file so only a fingerprint/timestamp/count ever
+    // crosses the network, and only after an accepted heartbeat is it cleared.
+    private val crashTelemetry = CrashTelemetryStore(appContext)
+    private val telemetry = TelemetryCollector(syncManager, connectivity, crashTelemetry)
     private val commandExecutor = CommandExecutor(DefaultCommandActions(syncManager, store, api))
     val monitoringController = MonitoringController(api, store, telemetry, commandExecutor)
 
