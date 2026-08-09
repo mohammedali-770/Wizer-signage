@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { SELECTOR_RESULT_LIMIT, selectorEntityPath, selectorSearchPath } from './selector-search.ts';
+import {
+  SELECTOR_RESULT_LIMIT,
+  normalizeSelectorEntity,
+  selectorEntityPath,
+  selectorSearchPath,
+} from './selector-search.ts';
 
 describe('selector server search paths', () => {
   it('uses one bounded first page when the query is empty', () => {
@@ -18,11 +23,43 @@ describe('selector server search paths', () => {
     );
   });
 
-  it('maps locations to the location API', () => {
+  it('maps scalable entity types to their server endpoints', () => {
     assert.match(selectorSearchPath('LOCATION', 'Riyadh'), /^\/locations\?/);
+    assert.match(selectorSearchPath('COMPANY', 'Acme'), /^\/companies\?/);
+    assert.match(selectorSearchPath('PLAYLIST', 'Breakfast'), /^\/playlists\?/);
+    assert.match(selectorSearchPath('CONTENT', 'Promo'), /^\/content\?/);
+    assert.match(selectorSearchPath('TAG', 'Lobby'), /^\/tags\?/);
   });
 
   it('encodes ids used for individual selected-label resolution', () => {
     assert.equal(selectorEntityPath('SCREEN', 'a/b'), '/screens/a%2Fb');
+  });
+
+  it('normalizes name and title resources without leaking API shape differences', () => {
+    assert.deepEqual(normalizeSelectorEntity('SCREEN', { id: 's1', name: 'Lobby TV' }), {
+      id: 's1',
+      name: 'Lobby TV',
+    });
+    assert.deepEqual(normalizeSelectorEntity('PLAYLIST', { id: 'p1', title: 'Breakfast' }), {
+      id: 'p1',
+      name: 'Breakfast',
+    });
+    assert.deepEqual(normalizeSelectorEntity('CONTENT', { id: 'c1', title: 'Promo' }), {
+      id: 'c1',
+      name: 'Promo',
+    });
+  });
+
+  it('unwraps company detail responses for selected-label recovery', () => {
+    assert.deepEqual(
+      normalizeSelectorEntity('COMPANY', { company: { id: 'co1', name: 'Acme' }, usage: {} }),
+      { id: 'co1', name: 'Acme' },
+    );
+  });
+
+  it('fails closed on malformed selector payloads', () => {
+    assert.equal(normalizeSelectorEntity('SCREEN', { id: 's1' }), null);
+    assert.equal(normalizeSelectorEntity('CONTENT', { id: 'c1', title: '' }), null);
+    assert.equal(normalizeSelectorEntity('TAG', null), null);
   });
 });
