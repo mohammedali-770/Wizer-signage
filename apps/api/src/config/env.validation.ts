@@ -2,11 +2,9 @@
  * Environment variable validation.
  *
  * Uses class-validator + class-transformer to validate `process.env` at boot.
- *
- * Phase 1 promotes the database and auth secrets to REQUIRED: the API can no
- * longer operate without a database connection or JWT/encryption secrets, so we
- * fail fast at boot with a clear message rather than crashing later. Everything
- * not yet needed at runtime (Supabase storage, SMTP, maps, Redis) stays optional.
+ * Core database/auth secrets are always required. Production additionally fails
+ * closed unless live SMTP and persistent Supabase Storage are configured; their
+ * development fallbacks must never be reachable in a production process.
  */
 
 import { plainToInstance } from 'class-transformer';
@@ -22,19 +20,6 @@ import {
   validateSync,
 } from 'class-validator';
 
-/**
- * Accepted JWT lifetime format: a number followed by a unit, as understood by
- * the `ms` library that jsonwebtoken uses (`15m`, `30d`, `2 hours`).
- *
- * A UNIT IS REQUIRED, deliberately. `ms` reads a bare string of digits as
- * MILLISECONDS while jsonwebtoken reads a bare *number* as SECONDS, so
- * `JWT_ACCESS_TTL=900` is ambiguous and reads as 900ms — access tokens expiring
- * instantly. Requiring the unit removes the ambiguity rather than picking a
- * side. Both defaults (`15m`, `30d`) already carry one.
- *
- * Previously these were validated as plain strings, so a typo like `15mn` got
- * through boot and only surfaced as a throw at the first login attempt.
- */
 export const JWT_TTL_PATTERN =
   /^\d+(\.\d+)?\s*(ms|s(ec(ond)?s?)?|m(in(ute)?s?)?|h(r|our)?s?|d(ay)?s?|w(eek)?s?|y(ear)?s?)$/i;
 
@@ -59,7 +44,6 @@ export class EnvironmentVariables {
   @IsString()
   LOG_LEVEL?: string;
 
-  // --- App / URLs ---------------------------------------------------------
   @IsOptional()
   @IsString()
   APP_URL?: string;
@@ -68,24 +52,22 @@ export class EnvironmentVariables {
   @IsString()
   DASHBOARD_URL?: string;
 
-  // --- Performance troubleshooting (all optional) -------------------------
   @IsOptional()
   @IsString()
-  PERF_LOG_REQUESTS?: string; // 'true' → log every request line (default: slow-only)
+  PERF_LOG_REQUESTS?: string;
 
   @IsOptional()
   @IsString()
-  PERF_LOG_QUERIES?: string; // 'true' → log Prisma SQL + duration (never params)
+  PERF_LOG_QUERIES?: string;
 
   @IsOptional()
   @IsInt()
-  PERF_SLOW_MS?: number; // request slow threshold (default 1000)
+  PERF_SLOW_MS?: number;
 
   @IsOptional()
   @IsInt()
-  PERF_SLOW_QUERY_MS?: number; // query slow tag threshold (default 50)
+  PERF_SLOW_QUERY_MS?: number;
 
-  // --- HTTP ---------------------------------------------------------------
   @IsOptional()
   @IsString()
   API_HOST?: string;
@@ -104,7 +86,6 @@ export class EnvironmentVariables {
   @IsString()
   CORS_ORIGINS?: string;
 
-  // --- Database (REQUIRED) ------------------------------------------------
   @IsString({ message: 'DATABASE_URL is required (Supabase Postgres connection string).' })
   DATABASE_URL!: string;
 
@@ -112,7 +93,9 @@ export class EnvironmentVariables {
   @IsString()
   DIRECT_URL?: string;
 
-  // --- Supabase (required from Phase 4 — storage) -------------------------
+  // Supabase Storage remains optional for development/test so the local adapter
+  // can support hermetic workflows, but validate() promotes the three server-side
+  // storage coordinates to REQUIRED when NODE_ENV=production.
   @IsOptional()
   @IsString()
   SUPABASE_URL?: string;
@@ -129,7 +112,6 @@ export class EnvironmentVariables {
   @IsString()
   SUPABASE_STORAGE_BUCKET?: string;
 
-  // --- JWT / sessions (REQUIRED) ------------------------------------------
   @IsString({ message: 'JWT_ACCESS_SECRET is required.' })
   @MinLength(16, { message: 'JWT_ACCESS_SECRET must be at least 16 characters.' })
   JWT_ACCESS_SECRET!: string;
@@ -151,17 +133,14 @@ export class EnvironmentVariables {
   @Min(1)
   SESSION_INACTIVITY_TIMEOUT_MINUTES?: number;
 
-  // --- Encryption (REQUIRED) — encrypts secrets at rest (TOTP secrets) -----
   @IsString({ message: 'ENCRYPTION_KEY is required (used to encrypt 2FA secrets at rest).' })
   @MinLength(16, { message: 'ENCRYPTION_KEY must be at least 16 characters.' })
   ENCRYPTION_KEY!: string;
 
-  // --- Two-factor ---------------------------------------------------------
   @IsOptional()
   @IsString()
   TWO_FACTOR_ISSUER?: string;
 
-  // --- SMTP ---------------------------------------------------------------
   @IsOptional()
   @IsString()
   SMTP_HOST?: string;
@@ -192,7 +171,6 @@ export class EnvironmentVariables {
   @IsString()
   SMTP_SECURE?: string;
 
-  // --- Retention / maintenance (Phase 10) ---------------------------------
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -203,7 +181,6 @@ export class EnvironmentVariables {
   @Min(1)
   CONTENT_TRASH_RETENTION_DAYS?: number;
 
-  // --- Maps ---------------------------------------------------------------
   @IsOptional()
   @IsString()
   MAP_PROVIDER?: string;
@@ -212,12 +189,10 @@ export class EnvironmentVariables {
   @IsString()
   MAP_API_KEY?: string;
 
-  // --- Cache / queues -----------------------------------------------------
   @IsOptional()
   @IsString()
   REDIS_URL?: string;
 
-  // --- Seed (optional; used by prisma/seed.ts) ----------------------------
   @IsOptional()
   @IsString()
   SEED_SUPERADMIN_EMAIL?: string;
@@ -235,18 +210,11 @@ export class EnvironmentVariables {
   SEED_COMPANY_NAME?: string;
 }
 
-/**
- * Validation function passed to `ConfigModule.forRoot({ validate })`.
- * Throws an aggregated error if any constraint fails, preventing boot with a
- * misconfigured environment.
- */
 export function validate(config: Record<string, unknown>): EnvironmentVariables {
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
-    // Coerce string env values (e.g. "3001") into the declared types.
     enableImplicitConversion: true,
   });
 
-  // skipMissingProperties:false so REQUIRED (non-@IsOptional) vars are enforced.
   const errors = validateSync(validatedConfig, {
     skipMissingProperties: false,
   });
@@ -259,12 +227,6 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
     throw new Error(`Invalid environment configuration: ${details}`);
   }
 
-  // --- Production-only requirements ----------------------------------------
-  // SMTP is optional in dev (MailService falls back to a log-only transport),
-  // but in production that fallback is dangerous: password-reset and invitation
-  // emails would silently never be delivered while the API still returns
-  // success, leaving users unable to reset or accept invites — and the flows
-  // would appear healthy. Fail fast instead.
   if (validatedConfig.NODE_ENV === Environment.Production) {
     const missingSmtp = (['SMTP_HOST', 'SMTP_PORT', 'SMTP_FROM'] as const).filter((key) => {
       const value = validatedConfig[key];
@@ -275,6 +237,20 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
         `Invalid environment configuration: ${missingSmtp.join(', ')} ${
           missingSmtp.length === 1 ? 'is' : 'are'
         } required when NODE_ENV=production (email delivery must not silently fall back to log-only).`,
+      );
+    }
+
+    const missingStorage = (
+      ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_STORAGE_BUCKET'] as const
+    ).filter((key) => {
+      const value = validatedConfig[key];
+      return value === undefined || value === null || String(value).trim() === '';
+    });
+    if (missingStorage.length > 0) {
+      throw new Error(
+        `Invalid environment configuration: ${missingStorage.join(', ')} ${
+          missingStorage.length === 1 ? 'is' : 'are'
+        } required when NODE_ENV=production (content storage must not fall back to ephemeral local disk).`,
       );
     }
   }
