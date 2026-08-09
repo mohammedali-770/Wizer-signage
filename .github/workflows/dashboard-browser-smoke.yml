@@ -2,7 +2,7 @@ name: Dashboard browser smoke
 
 on:
   pull_request:
-    branches: [main, codex/nonce-csp]
+    branches: [main]
     paths:
       - 'apps/dashboard/**'
       - 'contracts/openapi.json'
