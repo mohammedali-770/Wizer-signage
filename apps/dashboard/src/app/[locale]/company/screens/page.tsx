@@ -4,17 +4,10 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Monitor, Plus, Search } from 'lucide-react';
 
-import { useAllPages, useApiResource } from '@/lib/use-api';
+import { ServerSearchSelect } from '@/components/server-search-select';
+import { useApiResource } from '@/lib/use-api';
 import { formatDate } from '@/lib/format';
-import type {
-  LocationListItem,
-  Orientation,
-  Paginated,
-  Screen,
-  ScreenStatus,
-  ScreenUse,
-  Tag,
-} from '@/lib/types';
+import type { Orientation, Paginated, Screen, ScreenStatus, ScreenUse } from '@/lib/types';
 import { Link } from '@/i18n/navigation';
 import {
   Badge,
@@ -79,9 +72,6 @@ export default function ScreensPage() {
   // Pending search input (committed on Enter / button click).
   const [searchInput, setSearchInput] = useState('');
 
-  const locations = useAllPages<LocationListItem>('/locations');
-  const tags = useAllPages<Tag>('/tags');
-
   const path = useMemo(() => {
     const params = new URLSearchParams();
     params.set('page', String(page));
@@ -126,9 +116,9 @@ export default function ScreensPage() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-start gap-3">
         <form
-          className="flex flex-1 items-center gap-2"
+          className="flex min-w-64 flex-1 items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             applySearch();
@@ -149,22 +139,18 @@ export default function ScreensPage() {
           </Button>
         </form>
 
-        <Select
-          value={locationId}
-          onChange={(e) => {
-            setLocationId(e.target.value);
-            resetPage();
-          }}
-          className="w-44"
-          aria-label={t('filterByLocation')}
-        >
-          <option value="">{t('allLocations')}</option>
-          {(locations.data?.items ?? []).map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </Select>
+        <div className="w-52">
+          <ServerSearchSelect
+            type="LOCATION"
+            value={locationId}
+            onChange={(value) => {
+              setLocationId(value);
+              resetPage();
+            }}
+            emptyLabel={t('allLocations')}
+            searchPlaceholder={t('filterByLocation')}
+          />
+        </div>
 
         <Select
           value={status}
@@ -217,22 +203,18 @@ export default function ScreensPage() {
           ))}
         </Select>
 
-        <Select
-          value={tagId}
-          onChange={(e) => {
-            setTagId(e.target.value);
-            resetPage();
-          }}
-          className="w-40"
-          aria-label={t('filterByTag')}
-        >
-          <option value="">{t('allTags')}</option>
-          {(tags.data?.items ?? []).map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </Select>
+        <div className="w-48">
+          <ServerSearchSelect
+            type="TAG"
+            value={tagId}
+            onChange={(value) => {
+              setTagId(value);
+              resetPage();
+            }}
+            emptyLabel={t('allTags')}
+            searchPlaceholder={t('filterByTag')}
+          />
+        </div>
       </div>
 
       {/* First load → skeleton; on refetch the previous rows stay visible. */}
