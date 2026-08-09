@@ -100,7 +100,7 @@ describe('CompanySettingsService Android OTA policy', () => {
     expect(prisma.company.update).not.toHaveBeenCalled();
   });
 
-  it('persists a complete replacement policy and audit summary', async () => {
+  it('persists a complete replacement policy, new revision, and audit summary', async () => {
     const { service, prisma, activityLog } = harness();
     prisma.company.findFirst
       .mockResolvedValueOnce({ settings: { notificationEmails: ['ops@example.com'] } })
@@ -115,6 +115,7 @@ describe('CompanySettingsService Android OTA policy', () => {
           notificationEmails: ['ops@example.com'],
           androidOta: {
             enabled: true,
+            policyRevision: '2026-08-09T08:00:00.000Z',
             targetVersionName: '1.4.2',
             targetVersionCode: 42,
             rolloutPercent: 10,
@@ -144,6 +145,7 @@ describe('CompanySettingsService Android OTA policy', () => {
           notificationEmails: ['ops@example.com'],
           androidOta: {
             enabled: true,
+            policyRevision: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
             targetVersionName: '1.4.2',
             targetVersionCode: 42,
             rolloutPercent: 10,
@@ -159,6 +161,7 @@ describe('CompanySettingsService Android OTA policy', () => {
         action: 'company.android_ota_policy_changed',
         companyId: 'company-1',
         metadata: expect.objectContaining({
+          policyRevision: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
           targetVersionName: '1.4.2',
           targetVersionCode: 42,
         }),
@@ -167,6 +170,7 @@ describe('CompanySettingsService Android OTA policy', () => {
     expect(result.androidOta).toEqual(
       expect.objectContaining({
         enabled: true,
+        policyRevision: '2026-08-09T08:00:00.000Z',
         targetVersionName: '1.4.2',
         targetVersionCode: 42,
         rolloutPercent: 10,
