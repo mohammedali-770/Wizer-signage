@@ -22,6 +22,12 @@ export class AndroidOtaSettingsResponseDto {
   @ApiProperty()
   enabled!: boolean;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Opaque revision changed on every explicit policy save; devices use it to bound terminal retries.',
+  })
+  policyRevision?: string | null;
+
   @ApiPropertyOptional({ nullable: true })
   targetVersionName?: string | null;
 
