@@ -37,14 +37,17 @@ class ApiException(message: String) : Exception(message)
 /**
  * Thin HTTP client for the device-facing API (OkHttp + kotlinx.serialization).
  * Calls run on the IO dispatcher. The base URL comes from BuildConfig.API_BASE_URL.
+ *
+ * [http] is injectable only so JVM tests can exercise timeout/truncation paths
+ * without waiting for the production 10s/20s network deadlines. Normal callers
+ * use the exact same production defaults as before.
  */
-class ApiClient(baseUrl: String = BuildConfig.API_BASE_URL) {
+class ApiClient(
+    baseUrl: String = BuildConfig.API_BASE_URL,
+    private val http: OkHttpClient = defaultHttpClient(),
+) {
 
     private val base = baseUrl.trimEnd('/')
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .build()
     private val json = Json {
         ignoreUnknownKeys = true
         explicitNulls = false
@@ -253,5 +256,12 @@ class ApiClient(baseUrl: String = BuildConfig.API_BASE_URL) {
         } catch (e: Exception) {
             false
         }
+    }
+
+    companion object {
+        private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
     }
 }
