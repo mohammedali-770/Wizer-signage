@@ -11,15 +11,17 @@ describe('production preflight contract', () => {
     expect(() => execFileSync('bash', ['-n', preflightPath])).not.toThrow();
   });
 
-  it('is read-only and validates both blue-green compose graphs', () => {
+  it('is read-only and validates blue-green plus logging compose graphs', () => {
     expect(preflight).toContain('config --quiet');
     expect(preflight).toContain('docker-compose.blue-green-proxy.yml');
     expect(preflight).toContain('docker-compose.blue-green-slots.yml');
+    expect(preflight).toContain('docker-compose.log-shipping.yml');
+    expect(preflight).toContain('docker-compose.blue-green-log-shipping.yml');
     expect(preflight).not.toMatch(/docker compose[\s\S]{0,80}\b(up|down|restart|stop|rm)\b/);
     expect(preflight).not.toContain('prisma migrate');
   });
 
-  it('requires production registry, database, auth, metrics and off-host recovery coordinates', () => {
+  it('requires production registry, database, auth, metrics, recovery and logging coordinates', () => {
     for (const key of [
       'APP_DOMAIN',
       'DATABASE_URL',
@@ -31,6 +33,7 @@ describe('production preflight contract', () => {
       'METRICS_TOKEN',
       'BACKUP_OFFSITE_CMD',
       'HEALTHCHECKS_URL',
+      'LOG_SHIPPING_ADDRESS',
     ]) {
       expect(preflight).toContain(key);
     }
@@ -48,6 +51,12 @@ describe('production preflight contract', () => {
     expect(preflight).toContain('configure a real off-host copy command');
     expect(preflight).toContain('HEALTHCHECKS_URL must be an HTTPS dead-man monitoring URL');
     expect(preflight).toContain('out-of-band backup dead-man monitoring is configured');
+  });
+
+  it('requires a production off-box log collector and validates its port', () => {
+    expect(preflight).toContain('LOG_SHIPPING_ADDRESS must be a collector host:port');
+    expect(preflight).toContain('LOG_SHIPPING_ADDRESS port must be 1-65535');
+    expect(preflight).toContain('off-box logging collector coordinate is configured');
   });
 
   it('checks host headroom before a release begins', () => {
