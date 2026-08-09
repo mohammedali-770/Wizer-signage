@@ -4,9 +4,12 @@
 -- preserving idempotency within a tenant.
 --
 -- Build the replacement first so the table never has a window with no useful
--- duplicate protection. CONCURRENTLY follows the existing high-volume-index
--- migration pattern and avoids blocking proof-of-play ingest on production.
-CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS "proof_of_plays_companyId_playbackSessionId_key"
+-- duplicate protection. Prisma executes migrations in a transaction, so
+-- CREATE/DROP INDEX CONCURRENTLY is not legal here (Postgres 25001). The
+-- existing global UNIQUE constraint means this replacement cannot encounter a
+-- duplicate that was previously allowed. At the current pre-scale stage the
+-- brief write lock is preferable to an unreproducible out-of-band migration.
+CREATE UNIQUE INDEX "proof_of_plays_companyId_playbackSessionId_key"
   ON "proof_of_plays"("companyId", "playbackSessionId");
 
-DROP INDEX CONCURRENTLY IF EXISTS "proof_of_plays_playbackSessionId_key";
+DROP INDEX "proof_of_plays_playbackSessionId_key";
