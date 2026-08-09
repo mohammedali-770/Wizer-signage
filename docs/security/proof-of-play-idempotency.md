@@ -7,4 +7,6 @@ The database enforces `UNIQUE (companyId, playbackSessionId)`. Ingest pre-reads 
 1. another tenant cannot pre-claim or resolve this tenant's idempotency key;
 2. a session id cannot be reused to rewrite a different screen inside the same tenant.
 
+The replacement index is created before the old global unique index is dropped. This migration intentionally uses normal `CREATE INDEX`/`DROP INDEX` statements because Prisma executes migrations transactionally and PostgreSQL rejects `CONCURRENTLY` inside that transaction. At the current pre-scale stage, keeping migrations reproducible through `prisma migrate deploy` is safer than an undocumented out-of-band index operation.
+
 Do not replace the compound tenant key with a global unique constraint. Future table partitioning must preserve this invariant explicitly; PostgreSQL partitioned unique constraints require the partition key to participate, so proof-of-play partitioning needs an idempotency design rather than dropping this protection.
