@@ -28,6 +28,7 @@ type Policy = {
 
 type Attempt = {
   state?: unknown;
+  policyRevision?: unknown;
   targetVersionCode?: unknown;
   reportedAt?: unknown;
 };
@@ -50,6 +51,10 @@ export class AndroidOtaHealthService {
    * a heartbeat carrying the exact candidate version and the device snapshot is
    * clean (no playback error, failed/partial sync, or lastSyncError). Once that
    * happened, a later unrelated outage does not retroactively fail the rollout.
+   *
+   * Attempt telemetry is also bound to policyRevision. Re-saving the same
+   * candidate after remediation therefore cannot inherit an old failed attempt
+   * and immediately trip the new revision's health window.
    */
   async sweep(now: Date = new Date()) {
     let checkedPolicies = 0;
@@ -104,7 +109,12 @@ export class AndroidOtaHealthService {
         for (const screen of attempts) {
           const attempt = this.parseAttempt(screen.capabilities);
           if (!attempt || (attempt.state !== 'INSTALLING' && attempt.state !== 'INSTALLED')) continue;
-          if (attempt.targetVersionCode !== policy.targetVersionCode) continue;
+          if (
+            attempt.targetVersionCode !== policy.targetVersionCode ||
+            attempt.policyRevision !== policy.policyRevision
+          ) {
+            continue;
+          }
           const startedAtMs = Date.parse(attempt.reportedAt);
           if (!Number.isFinite(startedAtMs)) continue;
           if (now.getTime() - startedAtMs < policy.healthWindowSeconds * 1000) continue;
@@ -290,7 +300,9 @@ export class AndroidOtaHealthService {
     };
   }
 
-  private parseAttempt(capabilitiesValue: unknown): (Attempt & { reportedAt: string }) | null {
+  private parseAttempt(
+    capabilitiesValue: unknown,
+  ): (Attempt & { policyRevision: string; reportedAt: string }) | null {
     if (!capabilitiesValue || typeof capabilitiesValue !== 'object' || Array.isArray(capabilitiesValue)) {
       return null;
     }
@@ -299,7 +311,13 @@ export class AndroidOtaHealthService {
       return null;
     }
     const raw = capabilities.androidOta as Attempt;
-    if (typeof raw.reportedAt !== 'string') return null;
-    return { ...raw, reportedAt: raw.reportedAt };
+    if (
+      typeof raw.reportedAt !== 'string' ||
+      typeof raw.policyRevision !== 'string' ||
+      !POLICY_REVISION_RE.test(raw.policyRevision)
+    ) {
+      return null;
+    }
+    return { ...raw, policyRevision: raw.policyRevision, reportedAt: raw.reportedAt };
   }
 }
