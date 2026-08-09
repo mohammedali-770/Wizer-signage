@@ -30,6 +30,10 @@ export type PublishedAndroidRelease = {
  * Read-only view of the immutable Android release directory shared with nginx.
  * Policy changes and automatic rollback use this rather than trusting an
  * operator-entered version coordinate that may not actually exist on disk.
+ *
+ * This intentionally verifies the three publication artifacts needed for a
+ * recovery — manifest, APK and checksum sidecar — rather than accepting a
+ * surviving JSON manifest whose binary was deleted or truncated later.
  */
 @Injectable()
 export class AndroidReleaseCatalogService {
@@ -47,13 +51,14 @@ export class AndroidReleaseCatalogService {
     }
 
     const manifestName = `wizer-signage-v${versionName}-${versionCode}.json`;
-    const path = join(this.dir, 'android', manifestName);
-    if (!existsSync(path)) return null;
+    const androidDir = join(this.dir, 'android');
+    const manifestPath = join(androidDir, manifestName);
+    if (!existsSync(manifestPath)) return null;
 
     try {
-      const stat = statSync(path);
-      if (!stat.isFile() || stat.size <= 0 || stat.size > 64 * 1024) return null;
-      const parsed = JSON.parse(readFileSync(path, 'utf8')) as AndroidReleaseManifest;
+      const manifestStat = statSync(manifestPath);
+      if (!manifestStat.isFile() || manifestStat.size <= 0 || manifestStat.size > 64 * 1024) return null;
+      const parsed = JSON.parse(readFileSync(manifestPath, 'utf8')) as AndroidReleaseManifest;
       const fileName = `wizer-signage-v${versionName}-${versionCode}.apk`;
       if (
         parsed.schemaVersion !== 1 ||
@@ -77,6 +82,23 @@ export class AndroidReleaseCatalogService {
       ) {
         return null;
       }
+
+      const apkPath = join(androidDir, fileName);
+      const checksumPath = `${apkPath}.sha256`;
+      if (!existsSync(apkPath) || !existsSync(checksumPath)) return null;
+      const apkStat = statSync(apkPath);
+      const checksumStat = statSync(checksumPath);
+      if (!apkStat.isFile() || apkStat.size !== parsed.sizeBytes) return null;
+      if (!checksumStat.isFile() || checksumStat.size <= 0 || checksumStat.size > 1024) return null;
+
+      // Publisher writes the standard "<sha>  <filename>" shape. Verify the
+      // sidecar binds the exact manifest hash to the exact canonical APK name;
+      // the player independently computes the APK SHA-256 before install.
+      const checksum = readFileSync(checksumPath, 'utf8').trim();
+      const match = checksum.match(/^([0-9a-fA-F]{64})\s+\*?([^/\\\s]+)$/);
+      if (!match) return null;
+      if (match[1]?.toLowerCase() !== parsed.sha256.toLowerCase() || match[2] !== fileName) return null;
+
       return { versionName, versionCode, fileName };
     } catch {
       return null;
