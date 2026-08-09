@@ -11,21 +11,17 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.coroutines.coroutineContext
 
-/**
- * Phase 8 orchestrator: a heartbeat loop and a command-poll loop. Failures never
- * crash playback — offline playback (Phase 7) continues regardless. The intervals
- * come from device config (defaults 60s heartbeat / 12s poll).
- */
 class MonitoringController(
     private val api: ApiClient,
     private val store: DeviceStore,
     private val telemetry: TelemetryCollector,
     private val executor: CommandExecutor,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    private val crashReporter: CrashReporter? = null,
 ) {
     private var heartbeatJob: Job? = null
     private var pollJob: Job? = null
@@ -53,15 +49,17 @@ class MonitoringController(
     }
 
     private suspend fun heartbeatLoop() {
-        // Independent stagger per loop so a fleet coming back from a power cut
-        // spreads its heartbeats instead of arriving as one spike.
         delay(Jitter.startupDelay())
         while (coroutineContext.isActive) {
             store.deviceToken?.let { token ->
                 try {
+                    // A previous-run crash is diagnostic, not a playback health
+                    // state. Report it independently and keep retrying until the
+                    // authenticated server accepts it.
+                    crashReporter?.reportIfPending(token)
                     api.sendHeartbeat(token, telemetry.collect())
-                } catch (e: Exception) {
-                    // Heartbeat is best-effort; never break playback.
+                } catch (_: Exception) {
+                    // Monitoring is best-effort; never break playback.
                 }
             }
             delay(Jitter.periodic(heartbeatMs))
@@ -82,8 +80,6 @@ class MonitoringController(
                         } catch (e: Exception) {
                             CommandExecutor.Outcome(false, error = e.message ?: "execution error")
                         }
-                        // Retry the result report so a transient network blip doesn't
-                        // leave the command stuck in RUNNING on the backend.
                         val payload = CommandResultPayload(
                             status = if (outcome.success) "SUCCEEDED" else "FAILED",
                             result = outcome.result.toJsonObject(),
@@ -94,12 +90,10 @@ class MonitoringController(
                         while (!reported && attempt < 3) {
                             reported = api.reportCommandResult(token, command.id, payload)
                             attempt++
-                            // Full jitter: every screen that got the same broadcast
-                            // command would otherwise retry in lockstep.
                             if (!reported && attempt < 3) delay(Jitter.backoff(attempt - 1, 1_000L))
                         }
                     }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Polling is best-effort.
                 }
             }
