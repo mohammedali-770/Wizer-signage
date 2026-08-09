@@ -20,6 +20,11 @@
 # detection latency to roughly one scheduler interval, and flock skips overlap.
 * * * * * flock -n /tmp/wizer-ota-health.lock -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js android-ota-health' >> /proc/1/fd/1 2>&1
 
+# Keep current and future telemetry RANGE partitions ahead of the ingest clock.
+# The helper is idempotent; running shortly after midnight UTC leaves ample
+# margin before any configured future month can become an insert outage.
+15 0 * * * flock -n /tmp/wizer-partitions.lock -c 'cd /app && su-exec node bash scripts/ensure-telemetry-partitions.sh' >> /proc/1/fd/1 2>&1
+
 # Alerts sweep + due scheduled reports + emergency auto-END — every 5 minutes.
 */5 * * * * flock -n /tmp/wizer-sweep.lock      -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js sweep'       >> /proc/1/fd/1 2>&1
 */5 * * * * flock -n /tmp/wizer-reports.lock    -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js reports'      >> /proc/1/fd/1 2>&1
