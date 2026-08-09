@@ -62,6 +62,7 @@ const EXPECTED_PUBLIC_ROUTES: readonly string[] = [
   'GET /device/sync-plan',
   'POST /device/sync-status',
   'POST /device/heartbeat',
+  'POST /device/crash-report',
   'GET /device/commands/pending',
   'POST /device/commands/:id/ack',
   'POST /device/commands/:id/result',
