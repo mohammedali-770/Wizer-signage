@@ -9,11 +9,26 @@ export interface ClientErrorPayload {
   column?: number;
 }
 
+/**
+ * Browser exception text is untrusted diagnostic input. Scrub credential-like
+ * material before either uploading it OR using it as fingerprint input.
+ *
+ * The final opaque-token rule is intentionally broad: a false-positive redaction
+ * costs a little debugging context; leaking a bearer/JWT/API key into off-box
+ * logs is much worse.
+ */
 export function sanitizeClientErrorMessage(value: unknown): string {
   const text = value instanceof Error ? `${value.name}: ${value.message}` : String(value ?? 'Unknown error');
   return text
     .replace(/https?:\/\/\S+/gi, '<url>')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '<email>')
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer <redacted>')
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '<jwt>')
+    .replace(
+      /\b(token|secret|password|passwd|api[_-]?key|authorization)\s*[:=]\s*[^\s,;]+/gi,
+      '$1=<redacted>',
+    )
+    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, '<opaque>')
     .replace(/\b\d{7,}\b/g, '<number>')
     .slice(0, 160);
 }
@@ -50,14 +65,17 @@ export function buildClientErrorPayload(
   column?: number,
 ): ClientErrorPayload {
   const sanitizedSource = sanitizeClientErrorSource(source);
-  const raw = error instanceof Error ? `${error.name}:${error.message}` : String(error ?? 'Unknown error');
+  const sanitizedMessage = sanitizeClientErrorMessage(error);
+  // Fingerprint only what we are willing to upload. Besides avoiding secret-
+  // derived hashes, this keeps rotating bearer tokens from fragmenting one root
+  // cause into thousands of different fingerprints.
   const fingerprint = clientErrorFingerprint(
-    `${kind}|${raw}|${sanitizedSource ?? ''}|${line ?? ''}|${column ?? ''}`,
+    `${kind}|${sanitizedMessage}|${sanitizedSource ?? ''}|${line ?? ''}|${column ?? ''}`,
   );
   return {
     kind,
     fingerprint,
-    message: sanitizeClientErrorMessage(error),
+    message: sanitizedMessage,
     ...(sanitizedSource ? { source: sanitizedSource } : {}),
     ...(Number.isInteger(line) && (line ?? -1) >= 0 ? { line } : {}),
     ...(Number.isInteger(column) && (column ?? -1) >= 0 ? { column } : {}),
