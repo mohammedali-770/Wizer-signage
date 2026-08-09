@@ -1245,16 +1245,6 @@
       "post": {
         "operationId": "AuthController_refresh",
         "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RefreshTokenDto"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "",
@@ -1267,7 +1257,7 @@
             }
           }
         },
-        "summary": "Exchange a refresh token for a new token pair.",
+        "summary": "Rotate the HttpOnly refresh cookie and return a new access token.",
         "tags": [
           "auth"
         ]
@@ -9154,10 +9144,6 @@
             "type": "string",
             "description": "Short-lived bearer token for the Authorization header."
           },
-          "refreshToken": {
-            "type": "string",
-            "description": "Rotated on every use; reuse is treated as theft."
-          },
           "user": {
             "$ref": "#/components/schemas/UserViewDto"
           },
@@ -9168,7 +9154,6 @@
         },
         "required": [
           "accessToken",
-          "refreshToken",
           "user"
         ]
       },
@@ -9226,18 +9211,6 @@
         "required": [
           "challengeToken",
           "code"
-        ]
-      },
-      "RefreshTokenDto": {
-        "type": "object",
-        "properties": {
-          "refreshToken": {
-            "type": "string",
-            "description": "The refresh token from the last token pair. Rotated on every use: the one sent here is invalidated, and presenting it a second time is treated as theft and revokes the session."
-          }
-        },
-        "required": [
-          "refreshToken"
         ]
       },
       "SuccessResponseDto": {

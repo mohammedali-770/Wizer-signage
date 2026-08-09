@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
@@ -8,6 +19,7 @@ import {
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
+import type { CookieOptions, Request, Response } from 'express';
 
 import { AllowWithoutTwoFactor } from '../../common/decorators/allow-without-two-factor.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -26,17 +38,52 @@ import {
   AcceptInvitationDto,
   ForgotPasswordDto,
   LoginDto,
-  RefreshTokenDto,
   ResetPasswordDto,
   TwoFactorLoginDto,
 } from './dto/auth.dto';
+
+const REFRESH_COOKIE = 'wizer_refresh';
+const REFRESH_COOKIE_PATH = '/api/auth/refresh';
+
+function cookieOptions(): CookieOptions {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: REFRESH_COOKIE_PATH,
+  };
+}
+
+function jwtMaxAgeMs(token: string): number | undefined {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return undefined;
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+      exp?: unknown;
+    };
+    if (typeof decoded.exp !== 'number') return undefined;
+    return Math.max(0, decoded.exp * 1000 - Date.now());
+  } catch {
+    // The service has just signed this token; absence of a parseable exp should
+    // not make login fail. The cookie simply becomes a browser-session cookie.
+    return undefined;
+  }
+}
 
 @ApiTags('auth')
 // Referenced only inside a oneOf, so Swagger would not otherwise emit them.
 @ApiExtraModels(AuthTokensDto, TwoFactorChallengeDto)
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  private readonly dashboardOrigin: string;
+
+  constructor(
+    private readonly auth: AuthService,
+    config: ConfigService,
+  ) {
+    const dashboardUrl = config.get<string>('app.dashboardUrl') ?? 'http://localhost:3000';
+    this.dashboardOrigin = new URL(dashboardUrl).origin;
+  }
 
   @Public()
   @Post('login')
@@ -54,8 +101,14 @@ export class AuthController {
       ],
     },
   })
-  login(@Body() dto: LoginDto, @ReqMeta() meta: RequestMeta) {
-    return this.auth.login(dto, meta);
+  async login(
+    @Body() dto: LoginDto,
+    @ReqMeta() meta: RequestMeta,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.auth.login(dto, meta);
+    if ('requiresTwoFactor' in result) return result;
+    return this.establishBrowserSession(response, result);
   }
 
   @Public()
@@ -64,8 +117,13 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Complete login by verifying a 2FA code.' })
   @ApiOkResponse({ type: AuthTokensDto })
-  loginTwoFactor(@Body() dto: TwoFactorLoginDto, @ReqMeta() meta: RequestMeta) {
-    return this.auth.verifyTwoFactorLogin(dto, meta);
+  async loginTwoFactor(
+    @Body() dto: TwoFactorLoginDto,
+    @ReqMeta() meta: RequestMeta,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.auth.verifyTwoFactorLogin(dto, meta);
+    return this.establishBrowserSession(response, result);
   }
 
   @Public()
@@ -75,10 +133,21 @@ export class AuthController {
   // only @Public() auth route left on the 100/min global default. A legitimate
   // client refreshes at most a few times an hour.
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Exchange a refresh token for a new token pair.' })
+  @ApiOperation({
+    summary: 'Rotate the HttpOnly refresh cookie and return a new access token.',
+  })
   @ApiOkResponse({ type: AuthTokensDto })
-  refresh(@Body() dto: RefreshTokenDto) {
-    return this.auth.refresh(dto.refreshToken);
+  async refresh(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    this.assertBrowserRefreshOrigin(request);
+    const refreshToken = this.readRefreshCookie(request);
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh session is missing or expired.');
+    }
+    const result = await this.auth.refresh(refreshToken);
+    return this.establishBrowserSession(response, result);
   }
 
   @Post('logout')
@@ -87,8 +156,13 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Revoke the current session.' })
   @ApiOkResponse({ type: SuccessResponseDto })
-  logout(@CurrentUser() user: AuthenticatedUser) {
-    return this.auth.logout(user);
+  async logout(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.auth.logout(user);
+    response.clearCookie(REFRESH_COOKIE, cookieOptions());
+    return result;
   }
 
   @Public()
@@ -130,5 +204,52 @@ export class AuthController {
   @ApiOkResponse({ type: MeResponseDto })
   me(@CurrentUser() user: AuthenticatedUser) {
     return this.auth.getMe(user);
+  }
+
+  private establishBrowserSession<T extends { refreshToken: string }>(
+    response: Response,
+    result: T,
+  ): Omit<T, 'refreshToken'> {
+    const { refreshToken, ...publicResult } = result;
+    const maxAge = jwtMaxAgeMs(refreshToken);
+    response.cookie(REFRESH_COOKIE, refreshToken, {
+      ...cookieOptions(),
+      ...(maxAge === undefined ? {} : { maxAge }),
+    });
+    return publicResult;
+  }
+
+  private readRefreshCookie(request: Request): string | null {
+    const header = request.headers.cookie;
+    if (!header) return null;
+
+    for (const part of header.split(';')) {
+      const [rawName, ...rawValue] = part.trim().split('=');
+      if (rawName !== REFRESH_COOKIE) continue;
+      const value = rawValue.join('=');
+      if (!value) return null;
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  private assertBrowserRefreshOrigin(request: Request): void {
+    const fetchSite = request.get('sec-fetch-site');
+    if (fetchSite?.toLowerCase() === 'cross-site') {
+      throw new ForbiddenException('Cross-site refresh requests are not allowed.');
+    }
+
+    // Browsers send Origin on fetch/XHR POSTs. Tests and non-browser health
+    // harnesses may omit it; the HttpOnly + SameSite=Strict cookie still remains
+    // the authentication factor in that case. If Origin is present, it must be
+    // the configured dashboard origin rather than an arbitrary website.
+    const origin = request.get('origin');
+    if (origin && origin !== this.dashboardOrigin) {
+      throw new ForbiddenException('Refresh origin is not allowed.');
+    }
   }
 }
