@@ -17,6 +17,12 @@
 # telemetry internals moved to `wizer_telemetry`; that produces a green backup
 # while silently omitting partition data and idempotency state.
 #
+# When this script is run inside the normal quality job, DIRECT_URL/DATABASE_URL
+# points at the already-migrated Wizer PostgreSQL 16 service. In that case the
+# final extension also runs telemetry-backup-restore-drill.sh so a real migrated
+# partition tree is dumped, restored into a second Postgres 16 instance, and
+# checked with both physical telemetry verifiers. No extra CI runner is needed.
+#
 # Everything it creates is namespaced `bkdrill_*` and removed on exit.
 #
 # Usage:  bash scripts/tests/backup-restore-drill.sh
@@ -112,6 +118,22 @@ echo "== Verify BOTH Wizer-owned schemas actually came back =="
 [ "$(psql_q "select payload from wizer_telemetry.telemetry_probe where id='tp1'")" = "partition-internal-state" ] \
   && ok "wizer_telemetry object and data restored" || no "internal telemetry schema/data missing after restore"
 case "$RES" in *pw_drill*) no "credential leaked into restore log" ;; *) ok "no credential in restore log" ;; esac
+
+# The synthetic round trip above proves generic multi-schema backup behavior. If
+# the caller also supplied the already-migrated Wizer database URL (normal CI),
+# prove the REAL partitioned schema and PoP registry survive the same tooling.
+echo "== Migrated Wizer telemetry-schema recovery extension =="
+MIGRATED_SOURCE="${TELEMETRY_DR_SOURCE_URL:-${DIRECT_URL:-${DATABASE_URL:-}}}"
+if [[ -n "$MIGRATED_SOURCE" ]]; then
+  if TELEMETRY_DR_SOURCE_URL="$MIGRATED_SOURCE" \
+      bash "$REPO/scripts/tests/telemetry-backup-restore-drill.sh"; then
+    ok "migrated Wizer telemetry schema survives backup/restore"
+  else
+    no "migrated Wizer telemetry schema backup/restore failed"
+  fi
+else
+  echo "  skip - no migrated Wizer source URL supplied"
+fi
 
 echo
 echo "== drill results: $PASS passed, $FAIL failed =="
