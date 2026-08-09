@@ -8,6 +8,7 @@ class AndroidUpdateStateStore(context: Context) {
 
     data class Snapshot(
         val pendingVersionCode: Int?,
+        val policyRevision: String?,
         val attemptedAtMs: Long,
         val state: String?,
         val error: String?,
@@ -16,15 +17,17 @@ class AndroidUpdateStateStore(context: Context) {
 
     fun snapshot(): Snapshot = Snapshot(
         pendingVersionCode = prefs.getInt(KEY_PENDING, 0).takeIf { it > 0 },
+        policyRevision = prefs.getString(KEY_POLICY_REVISION, null),
         attemptedAtMs = prefs.getLong(KEY_ATTEMPTED_AT, 0L),
         state = prefs.getString(KEY_STATE, null),
         error = prefs.getString(KEY_ERROR, null),
         reported = prefs.getBoolean(KEY_REPORTED, false),
     )
 
-    fun begin(targetVersionCode: Int) {
+    fun begin(targetVersionCode: Int, policyRevision: String) {
         prefs.edit()
             .putInt(KEY_PENDING, targetVersionCode)
+            .putString(KEY_POLICY_REVISION, policyRevision)
             .putLong(KEY_ATTEMPTED_AT, System.currentTimeMillis())
             .putString(KEY_STATE, "INSTALLING")
             .remove(KEY_ERROR)
@@ -46,6 +49,7 @@ class AndroidUpdateStateStore(context: Context) {
 
     companion object {
         private const val KEY_PENDING = "pending_version_code"
+        private const val KEY_POLICY_REVISION = "policy_revision"
         private const val KEY_ATTEMPTED_AT = "attempted_at_ms"
         private const val KEY_STATE = "state"
         private const val KEY_ERROR = "error"
