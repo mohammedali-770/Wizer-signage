@@ -8,6 +8,7 @@ import com.wizer.signage.data.AndroidUpdateApiClient
 import com.wizer.signage.data.DeviceStore
 import com.wizer.signage.data.model.AndroidReleaseDecision
 import com.wizer.signage.data.model.AndroidReleasePolicy
+import com.wizer.signage.data.model.AndroidUpdatePolicy
 import com.wizer.signage.data.model.AndroidUpdateResult
 import com.wizer.signage.util.Jitter
 import java.io.File
@@ -23,7 +24,7 @@ import kotlin.coroutines.coroutineContext
 /**
  * Staged OTA orchestrator. Publishing an APK is not enough to install it: the
  * paired device must first receive an authenticated eligible policy whose exact
- * targetVersionCode matches the public release manifest.
+ * target versionName + versionCode names one immutable public manifest.
  *
  * Every failure is best-effort telemetry only; playback is never stopped to
  * force an update. Platforms that request user confirmation are deliberately
@@ -125,7 +126,10 @@ class AndroidUpdateController(
         // A successful PackageInstaller commit normally kills/replaces this
         // process. If the app survived for too long without the version moving,
         // treat it as a failed attempt rather than hammering the same APK forever.
-        if (snapshot.attemptedAtMs > 0L && System.currentTimeMillis() - snapshot.attemptedAtMs >= INSTALL_TIMEOUT_MS) {
+        if (
+            snapshot.attemptedAtMs > 0L &&
+            System.currentTimeMillis() - snapshot.attemptedAtMs >= INSTALL_TIMEOUT_MS
+        ) {
             val result = AndroidUpdateResult(
                 state = "FAILED",
                 targetVersionCode = target,
@@ -136,34 +140,39 @@ class AndroidUpdateController(
         }
     }
 
-    private suspend fun evaluateAndInstall(token: String, policy: com.wizer.signage.data.model.AndroidUpdatePolicy) {
-        val target = policy.targetVersionCode ?: return
-        if (!policy.enabled || !policy.eligible || target <= BuildConfig.VERSION_CODE) return
+    private suspend fun evaluateAndInstall(token: String, policy: AndroidUpdatePolicy) {
+        val targetCode = policy.targetVersionCode ?: return
+        val targetName = policy.targetVersionName?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        if (!policy.enabled || !policy.eligible || targetCode <= BuildConfig.VERSION_CODE) return
 
         // Never begin a second install while the previous one is unresolved.
         if (state.snapshot().pendingVersionCode != null) return
 
-        val latest = releases.fetchLatest() ?: return
+        // Fetch the exact immutable manifest authorized by the authenticated
+        // policy. `latest.json` is only discovery metadata and may advance while
+        // this screen remains in an earlier canary cohort.
+        val release = releases.fetchVersion(targetName, targetCode) ?: return
+        if (release.versionName != targetName || release.versionCode != targetCode) return
+
         val decision = AndroidReleasePolicy.evaluate(
-            release = latest,
+            release = release,
             installedVersionCode = BuildConfig.VERSION_CODE,
             sdkInt = Build.VERSION.SDK_INT,
         )
         if (decision !is AndroidReleaseDecision.UpdateAvailable) return
-        if (latest.versionCode != target) return // authenticated policy pins the exact binary
 
-        val staged = File(otaDir, latest.fileName)
+        val staged = File(otaDir, release.fileName)
         staged.delete()
-        if (!releases.downloadVerified(latest, staged)) {
-            reportFailure(token, target, "download_verification_failed")
+        if (!releases.downloadVerified(release, staged)) {
+            reportFailure(token, targetCode, "download_verification_failed")
             return
         }
 
-        when (val trust = trustVerifier(staged, latest.certificateSha256)) {
+        when (val trust = trustVerifier(staged, release.certificateSha256)) {
             ApkTrustVerifier.Result.Trusted -> Unit
             is ApkTrustVerifier.Result.Rejected -> {
                 staged.delete()
-                reportBlocked(token, target, trust.reason)
+                reportBlocked(token, targetCode, trust.reason)
                 return
             }
         }
@@ -175,28 +184,28 @@ class AndroidUpdateController(
             token,
             AndroidUpdateResult(
                 state = "DOWNLOADED",
-                targetVersionCode = target,
+                targetVersionCode = targetCode,
                 installedVersionCode = BuildConfig.VERSION_CODE,
             ),
         )
 
-        state.begin(target)
-        when (val start = installer.install(staged, target)) {
+        state.begin(targetCode)
+        when (val start = installer.install(staged, targetCode)) {
             AndroidUpdateInstaller.StartResult.Started -> control.report(
                 token,
                 AndroidUpdateResult(
                     state = "INSTALLING",
-                    targetVersionCode = target,
+                    targetVersionCode = targetCode,
                     installedVersionCode = BuildConfig.VERSION_CODE,
                 ),
             )
             is AndroidUpdateInstaller.StartResult.Blocked -> {
                 state.record("BLOCKED", start.reason)
-                reportBlocked(token, target, start.reason)
+                reportBlocked(token, targetCode, start.reason)
             }
             is AndroidUpdateInstaller.StartResult.Failed -> {
                 state.record("FAILED", start.reason)
-                reportFailure(token, target, start.reason)
+                reportFailure(token, targetCode, start.reason)
             }
         }
     }
