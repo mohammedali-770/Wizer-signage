@@ -6,7 +6,7 @@ import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityCategory, ActivityLogService } from '../activity-log/activity-log.service';
 import { UsageLimitsService } from '../usage-limits/usage-limits.service';
-import type { UpdateCompanySettingsDto } from './dto/company-settings.dto';
+import type { AndroidOtaSettingsDto, UpdateCompanySettingsDto } from './dto/company-settings.dto';
 
 @Injectable()
 export class CompanySettingsService {
@@ -33,6 +33,7 @@ export class CompanySettingsService {
     if (!company) throw new NotFoundException('Company not found.');
 
     const settings = (company.settings ?? {}) as Record<string, unknown>;
+    const androidOta = (settings.androidOta ?? {}) as Record<string, unknown>;
     return {
       id: company.id,
       name: company.name,
@@ -45,6 +46,17 @@ export class CompanySettingsService {
       notificationEmails: settings.notificationEmails ?? [],
       fallbackContentId: company.fallbackContentId,
       hasDefaultKioskPin: !!company.defaultKioskPinHash,
+      androidOta: {
+        enabled: androidOta.enabled === true,
+        targetVersionCode:
+          typeof androidOta.targetVersionCode === 'number' ? androidOta.targetVersionCode : null,
+        rolloutPercent:
+          typeof androidOta.rolloutPercent === 'number' ? androidOta.rolloutPercent : 0,
+        screenIds: Array.isArray(androidOta.screenIds) ? androidOta.screenIds : [],
+        groupIds: Array.isArray(androidOta.groupIds) ? androidOta.groupIds : [],
+        checkIntervalSeconds:
+          typeof androidOta.checkIntervalSeconds === 'number' ? androidOta.checkIntervalSeconds : 21_600,
+      },
       // Read-only billing summary (managed by Super Admin).
       plan: company.subscription
         ? {
@@ -100,6 +112,66 @@ export class CompanySettingsService {
         ...Object.keys(data).filter((k) => k !== 'settings'),
         ...Object.keys(settings).map((k) => `settings.${k}`),
       ],
+    });
+    return this.get(companyId);
+  }
+
+  /** Replace the complete staged-rollout policy after ownership validation. */
+  async updateAndroidOta(companyId: string, actor: AuthenticatedUser, dto: AndroidOtaSettingsDto) {
+    if (dto.enabled && dto.targetVersionCode === undefined) {
+      throw new BadRequestException('targetVersionCode is required when Android OTA is enabled.');
+    }
+
+    const company = await this.prisma.company.findFirst({
+      where: { id: companyId, deletedAt: null },
+      select: { settings: true },
+    });
+    if (!company) throw new NotFoundException('Company not found.');
+
+    const screenIds = [...new Set(dto.screenIds ?? [])];
+    const groupIds = [...new Set(dto.groupIds ?? [])];
+
+    if (screenIds.length > 0) {
+      const owned = await this.prisma.screen.count({
+        where: { companyId, id: { in: screenIds }, deletedAt: null },
+      });
+      if (owned !== screenIds.length) {
+        throw new BadRequestException('Every OTA canary screen must belong to your company.');
+      }
+    }
+    if (groupIds.length > 0) {
+      const owned = await this.prisma.screenGroup.count({
+        where: { companyId, id: { in: groupIds } },
+      });
+      if (owned !== groupIds.length) {
+        throw new BadRequestException('Every OTA canary group must belong to your company.');
+      }
+    }
+
+    const policy = {
+      enabled: dto.enabled,
+      targetVersionCode: dto.targetVersionCode ?? null,
+      rolloutPercent: dto.rolloutPercent,
+      screenIds,
+      groupIds,
+      checkIntervalSeconds: dto.checkIntervalSeconds ?? 21_600,
+    };
+    const settings = {
+      ...((company.settings ?? {}) as Record<string, unknown>),
+      androidOta: policy,
+    };
+
+    await this.prisma.company.update({
+      where: { id: companyId },
+      data: { settings: settings as Prisma.InputJsonValue },
+    });
+    await this.log(actor, companyId, 'company.android_ota_policy_changed', {
+      enabled: policy.enabled,
+      targetVersionCode: policy.targetVersionCode,
+      rolloutPercent: policy.rolloutPercent,
+      canaryScreenCount: screenIds.length,
+      canaryGroupCount: groupIds.length,
+      checkIntervalSeconds: policy.checkIntervalSeconds,
     });
     return this.get(companyId);
   }
