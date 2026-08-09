@@ -13,18 +13,23 @@ on:
         required: true
         default: false
         type: boolean
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-images.yml'
+      - 'scripts/pull-release-images.sh'
+      - 'scripts/tests/pull-release-images.test.sh'
 
-# This workflow is deliberately MANUAL. CI already builds all three images on
-# every pull request; rebuilding and pushing them on every merge would spend
-# Actions minutes to prove the same tree again. A release is the point where we
-# need durable artifacts, so that is where the registry build belongs.
+# Normal PR CI already builds all three images. This workflow does not push on a
+# pull request: it runs only the cheap registry-helper regression there. Durable
+# registry artifacts are built only when an operator deliberately starts a
+# production release, preserving the repository's Actions-minute optimisation.
 permissions:
   contents: read
-  packages: write
 
 concurrency:
-  group: production-image-release
-  cancel-in-progress: false
+  group: release-images-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   REGISTRY: ghcr.io
@@ -33,10 +38,25 @@ env:
   MAINTENANCE_IMAGE: ghcr.io/${{ github.repository_owner }}/wizer-signage-maintenance
 
 jobs:
+  registry-helper-test:
+    name: Registry pull identity check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Verify pull/retag fail-closed behaviour
+        run: bash scripts/tests/pull-release-images.test.sh
+
   publish:
     name: Build and publish immutable images
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout selected revision
@@ -53,8 +73,13 @@ jobs:
           node <<'NODE'
           const raw = process.env.RELEASE_API_URL;
           let url;
-          try { url = new URL(raw); } catch { process.exitCode = 2; }
-          if (!url || url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
+          try {
+            url = new URL(raw);
+          } catch {
+            console.error('api_url must be a valid absolute URL.');
+            process.exit(1);
+          }
+          if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
             console.error('api_url must be an absolute HTTPS URL with no credentials, query, or fragment.');
             process.exit(1);
           }
