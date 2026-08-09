@@ -1,6 +1,8 @@
 package com.wizer.signage
 
 import android.content.Context
+import com.wizer.signage.data.AndroidReleaseClient
+import com.wizer.signage.data.AndroidUpdateApiClient
 import com.wizer.signage.data.ApiClient
 import com.wizer.signage.data.ConnectivityObserver
 import com.wizer.signage.data.DeviceStore
@@ -16,11 +18,13 @@ import com.wizer.signage.monitoring.TelemetryCollector
 import com.wizer.signage.proofofplay.PlaybackEventTracker
 import com.wizer.signage.proofofplay.ProofOfPlayQueue
 import com.wizer.signage.proofofplay.ProofOfPlayReporter
+import com.wizer.signage.update.AndroidUpdateController
 import java.io.File
 
 /**
  * Manual dependency container (no DI framework in the foundation). Wires the
- * pairing repository (Phase 6) and the offline-cache / smart-sync engine (Phase 7).
+ * pairing repository, offline cache/sync, monitoring, proof-of-play and the
+ * fail-closed Android OTA controller.
  */
 class PlayerContainer(context: Context) {
 
@@ -47,6 +51,15 @@ class PlayerContainer(context: Context) {
     private val telemetry = TelemetryCollector(syncManager, connectivity)
     private val commandExecutor = CommandExecutor(DefaultCommandActions(syncManager, store, api))
     val monitoringController = MonitoringController(api, store, telemetry, commandExecutor)
+
+    // Production OTA — public signed release transport + authenticated staged
+    // rollout policy. The controller is started only while a device is paired.
+    val updateController = AndroidUpdateController(
+        context = appContext,
+        store = store,
+        control = AndroidUpdateApiClient(),
+        releases = AndroidReleaseClient(),
+    )
 
     // Phase 9 — proof-of-play (bounded offline buffer + best-effort flush).
     private val proofOfPlayQueue = ProofOfPlayQueue(File(cacheDir, "proof_of_play_queue.json"))
