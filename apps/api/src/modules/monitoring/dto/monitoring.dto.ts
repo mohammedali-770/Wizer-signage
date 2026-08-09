@@ -8,7 +8,6 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  Matches,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -106,21 +105,6 @@ export class HeartbeatDto {
   @IsString()
   @MaxLength(500)
   lastError?: string;
-
-  /** Previous-run crash metadata. The Android stack trace is never uploaded. */
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  lastCrashAtMillis?: number;
-
-  @IsOptional()
-  @Matches(/^[a-f0-9]{24}$/)
-  lastCrashFingerprint?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  crashCount?: number;
 
   /** Best-effort device capability flags, e.g. { screenshot, reboot, kiosk, autoStart }. */
   @IsOptional()
