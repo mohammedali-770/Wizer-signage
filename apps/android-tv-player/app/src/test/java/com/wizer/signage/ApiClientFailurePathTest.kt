@@ -95,6 +95,22 @@ class ApiClientFailurePathTest {
     }
 
     @Test
+    fun `http content failure deletes any stale destination`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(503).setBody("maintenance"))
+        val directory = Files.createTempDirectory("wizer-api-client-test").toFile()
+        val destination = directory.resolve("asset.bin").apply { writeText("stale-bytes") }
+
+        try {
+            val ok = client().downloadToFile("token", "/device/content/asset/download", destination)
+
+            assertFalse(ok)
+            assertFalse("failed HTTP download must remove stale destination bytes", destination.exists())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `truncated content download deletes the partial file`() = runTest {
         server.enqueue(
             MockResponse()
