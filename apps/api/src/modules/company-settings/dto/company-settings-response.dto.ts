@@ -18,17 +18,33 @@ export class CompanyPlanSummaryDto {
   limits!: PlanLimitsViewDto;
 }
 
+export class AndroidOtaSettingsResponseDto {
+  @ApiProperty()
+  enabled!: boolean;
+
+  @ApiPropertyOptional({ nullable: true })
+  targetVersionCode?: number | null;
+
+  @ApiProperty({ minimum: 0, maximum: 100 })
+  rolloutPercent!: number;
+
+  @ApiProperty({ type: [String] })
+  screenIds!: string[];
+
+  @ApiProperty({ type: [String] })
+  groupIds!: string[];
+
+  @ApiProperty({ minimum: 900, maximum: 86400 })
+  checkIntervalSeconds!: number;
+}
+
 /**
- * GET /company-settings, and what PATCH returns (it re-reads).
+ * GET /company-settings, and what PATCH/PUT android-ota returns (it re-reads).
  *
  * Assembled from two rows — the Company and its settings JSON — with defaults
  * applied at read time, so several fields are never null even though nothing
  * was ever written: `defaultHeartbeatIntervalSeconds` falls back to 60 and
  * `notificationEmails` to `[]`.
- *
- * `hasDefaultKioskPin` replaces `defaultKioskPinHash`, exactly as
- * `ScreenDto.hasKioskPin` replaces `kioskPinHash`. The hash must never appear
- * here; the boolean is all a settings page needs.
  */
 export class CompanySettingsDto {
   @ApiProperty()
@@ -72,6 +88,12 @@ export class CompanySettingsDto {
       'ScreenDto.hasKioskPin makes.',
   })
   hasDefaultKioskPin!: boolean;
+
+  @ApiProperty({
+    type: AndroidOtaSettingsResponseDto,
+    description: 'Staged Android update policy. Publishing a binary does not modify it.',
+  })
+  androidOta!: AndroidOtaSettingsResponseDto;
 
   @ApiPropertyOptional({
     type: CompanyPlanSummaryDto,
