@@ -3,9 +3,12 @@
  *
  * Uses class-validator + class-transformer to validate `process.env` at boot.
  * Core database/auth secrets are always required. Production additionally fails
- * closed unless live SMTP and persistent Supabase Storage are configured; their
- * development fallbacks must never be reachable in a production process.
+ * closed unless public email-link origin, live SMTP and persistent Supabase
+ * Storage are configured; development fallbacks must never be reachable in a
+ * production process.
  */
+
+import { URL } from 'node:url';
 
 import { plainToInstance } from 'class-transformer';
 import {
@@ -93,9 +96,6 @@ export class EnvironmentVariables {
   @IsString()
   DIRECT_URL?: string;
 
-  // Supabase Storage remains optional for development/test so the local adapter
-  // can support hermetic workflows, but validate() promotes the three server-side
-  // storage coordinates to REQUIRED when NODE_ENV=production.
   @IsOptional()
   @IsString()
   SUPABASE_URL?: string;
@@ -210,6 +210,54 @@ export class EnvironmentVariables {
   SEED_COMPANY_NAME?: string;
 }
 
+function validateProductionDashboardOrigin(config: EnvironmentVariables): void {
+  // configuration.ts resolves APP_URL first, then DASHBOARD_URL. Validate the
+  // exact same winner so a stale/bad APP_URL cannot silently override a correct
+  // DASHBOARD_URL in password-reset and invitation emails.
+  const raw = (config.APP_URL ?? config.DASHBOARD_URL)?.trim();
+  if (!raw) {
+    throw new Error(
+      'Invalid environment configuration: APP_URL or DASHBOARD_URL is required when NODE_ENV=production (email links need the public dashboard origin).',
+    );
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(
+      'Invalid environment configuration: APP_URL/DASHBOARD_URL must be a valid HTTPS dashboard origin.',
+    );
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  const privateIpv4 =
+    /^127\./.test(hostname) ||
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+  const localHost =
+    hostname === 'localhost' ||
+    hostname === '::1' ||
+    hostname.endsWith('.local') ||
+    hostname.endsWith('.invalid') ||
+    privateIpv4;
+
+  if (
+    parsed.protocol !== 'https:' ||
+    parsed.username !== '' ||
+    parsed.password !== '' ||
+    (parsed.pathname !== '' && parsed.pathname !== '/') ||
+    parsed.search !== '' ||
+    parsed.hash !== '' ||
+    localHost
+  ) {
+    throw new Error(
+      'Invalid environment configuration: APP_URL/DASHBOARD_URL must be a public HTTPS origin with no credentials, path, query, fragment, or local/private host.',
+    );
+  }
+}
+
 export function validate(config: Record<string, unknown>): EnvironmentVariables {
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
@@ -228,6 +276,8 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
   }
 
   if (validatedConfig.NODE_ENV === Environment.Production) {
+    validateProductionDashboardOrigin(validatedConfig);
+
     const missingSmtp = (['SMTP_HOST', 'SMTP_PORT', 'SMTP_FROM'] as const).filter((key) => {
       const value = validatedConfig[key];
       return value === undefined || value === null || String(value).trim() === '';
