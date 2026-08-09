@@ -24,6 +24,7 @@ export const AlertEvent = {
   BackupFailed: 'backup.failed',
   ReportFailed: 'report.failed',
   ContentExpiring: 'content.expiring',
+  AndroidOtaAutoRollback: 'android.ota.auto_rollback',
 } as const;
 
 export type AlertEventType = (typeof AlertEvent)[keyof typeof AlertEvent];
@@ -48,6 +49,7 @@ export const DEFAULT_SEVERITY: Record<string, NotificationSeverity> = {
   [AlertEvent.BackupFailed]: NotificationSeverity.CRITICAL,
   [AlertEvent.ReportFailed]: NotificationSeverity.WARNING,
   [AlertEvent.ContentExpiring]: NotificationSeverity.INFO,
+  [AlertEvent.AndroidOtaAutoRollback]: NotificationSeverity.CRITICAL,
 };
 
 /**
@@ -67,6 +69,7 @@ export const EMAIL_DEFAULT_EVENTS: ReadonlySet<string> = new Set<string>([
   AlertEvent.GraceEnding,
   AlertEvent.BackupFailed,
   AlertEvent.ReportFailed,
+  AlertEvent.AndroidOtaAutoRollback,
 ]);
 
 /** Default on/off for a (channel, event) pair when the user has no preference row. */
