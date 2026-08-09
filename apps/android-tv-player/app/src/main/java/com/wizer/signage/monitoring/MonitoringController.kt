@@ -1,6 +1,7 @@
 package com.wizer.signage.monitoring
 
 import com.wizer.signage.data.ApiClient
+import com.wizer.signage.data.CrashReportClient
 import com.wizer.signage.data.DeviceStore
 import com.wizer.signage.data.model.CommandResultPayload
 import com.wizer.signage.util.Jitter
@@ -16,9 +17,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlin.coroutines.coroutineContext
 
 /**
- * Phase 8 orchestrator: a heartbeat loop and a command-poll loop. Failures never
- * crash playback — offline playback (Phase 7) continues regardless. The intervals
- * come from device config (defaults 60s heartbeat / 12s poll).
+ * Phase 8 orchestrator: heartbeat, privacy-bounded crash reporting, and remote
+ * command polling. Failures never crash playback — offline playback continues.
  */
 class MonitoringController(
     private val api: ApiClient,
@@ -26,6 +26,7 @@ class MonitoringController(
     private val telemetry: TelemetryCollector,
     private val executor: CommandExecutor,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    private val crashReports: CrashReportClient = CrashReportClient(),
 ) {
     private var heartbeatJob: Job? = null
     private var pollJob: Job? = null
@@ -59,13 +60,14 @@ class MonitoringController(
         while (coroutineContext.isActive) {
             store.deviceToken?.let { token ->
                 try {
-                    val accepted = api.sendHeartbeat(token, telemetry.collect())
-                    // Previous-run crash evidence is retained locally across
-                    // restarts/network failures until the server has accepted a
-                    // heartbeat containing it. Never clear on a failed send.
-                    if (accepted) telemetry.acknowledgeCrashIfPending()
+                    telemetry.pendingCrashReport()?.let { crash ->
+                        // Crash evidence survives every failed attempt/restart and
+                        // is cleared only after this dedicated endpoint accepts it.
+                        if (crashReports.report(token, crash)) telemetry.acknowledgeCrashReport()
+                    }
+                    api.sendHeartbeat(token, telemetry.collect())
                 } catch (e: Exception) {
-                    // Heartbeat is best-effort; never break playback.
+                    // Monitoring is best-effort; never break playback.
                 }
             }
             delay(Jitter.periodic(heartbeatMs))
