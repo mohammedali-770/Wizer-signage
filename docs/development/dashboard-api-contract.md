@@ -1,0 +1,7 @@
+# Dashboard API contract types
+
+`contracts/openapi.json` is the source of truth for the HTTP contract. The dashboard generates `apps/dashboard/src/lib/api-contract.generated.ts` with `openapi-typescript` and exposes stable aliases through `api-contract.ts`.
+
+Use `pnpm --filter @wizer/dashboard contract:generate` after an intentional OpenAPI change. CI runs `contract:check` on dashboard/contract pull requests and fails if the committed generated file no longer matches the OpenAPI document.
+
+Application code should prefer aliases from `api-contract.ts` when an endpoint shape already exists in OpenAPI instead of adding another hand-maintained copy to `types.ts`. The migration can remain incremental; generated files themselves must never be edited by hand.
