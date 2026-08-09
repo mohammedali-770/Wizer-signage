@@ -1,6 +1,6 @@
 import { TagType } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 
@@ -50,11 +50,25 @@ export class CreateTagDto {
 export class UpdateTagDto extends PartialType(CreateTagDto) {}
 
 export class ListTagsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ description: 'Case-insensitive tag-name search.' })
   @IsOptional()
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({
+    enum: Object.values(TagType),
+    description: 'Exact stored tag type. Mutually exclusive with applicableTo.',
+  })
   @IsOptional()
   @IsEnum(TagType)
   type?: TagType;
+
+  @ApiPropertyOptional({
+    enum: ['SCREEN', 'CONTENT'],
+    description:
+      'Selector-oriented applicability filter. SCREEN returns SCREEN+BOTH; CONTENT returns CONTENT+BOTH. Mutually exclusive with exact `type`.',
+  })
+  @IsOptional()
+  @IsIn(['SCREEN', 'CONTENT'])
+  applicableTo?: 'SCREEN' | 'CONTENT';
 }
