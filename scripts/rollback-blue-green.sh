@@ -10,7 +10,9 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 BASE="${ROOT_DIR}/infra/docker/docker-compose.yml"
 PROXY="${ROOT_DIR}/infra/docker/docker-compose.blue-green-proxy.yml"
+LOGGING="${ROOT_DIR}/infra/docker/docker-compose.log-shipping.yml"
 SLOTS="${ROOT_DIR}/infra/docker/docker-compose.blue-green-slots.yml"
+SLOTS_LOGGING="${ROOT_DIR}/infra/docker/docker-compose.blue-green-log-shipping.yml"
 BG_HISTORY="${BLUE_GREEN_HISTORY:-${ROOT_DIR}/.blue-green-history}"
 ROLLBACK_HISTORY="${BLUE_GREEN_ROLLBACK_HISTORY:-${BG_HISTORY}.rollbacks}"
 LEGACY_HISTORY="${DEPLOY_STATE:-${ROOT_DIR}/.deploy-history}"
@@ -20,9 +22,12 @@ API_DRAIN_SECONDS="${API_DRAIN_SECONDS:-75}"
 
 [[ -f "${ENV_FILE}" ]] || { echo "ERROR: ${ENV_FILE} not found." >&2; exit 1; }
 [[ -s "${BG_HISTORY}" ]] || { echo "ERROR: no blue/green deployment history exists." >&2; exit 1; }
+for required_file in "${BASE}" "${PROXY}" "${LOGGING}" "${SLOTS}" "${SLOTS_LOGGING}"; do
+  [[ -f "${required_file}" ]] || { echo "ERROR: required production compose file missing: ${required_file}" >&2; exit 1; }
+done
 
-BASE_COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${BASE}" -f "${PROXY}")
-SLOTS_COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${SLOTS}")
+BASE_COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${BASE}" -f "${PROXY}" -f "${LOGGING}")
+SLOTS_COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${SLOTS}" -f "${SLOTS_LOGGING}")
 
 read_env_value() {
   local key="$1"
@@ -30,6 +35,12 @@ read_env_value() {
 }
 IMAGE_REGISTRY_PREFIX="${IMAGE_REGISTRY_PREFIX:-$(read_env_value IMAGE_REGISTRY_PREFIX)}"
 export IMAGE_REGISTRY_PREFIX
+LOG_SHIPPING_ADDRESS="${LOG_SHIPPING_ADDRESS:-$(read_env_value LOG_SHIPPING_ADDRESS)}"
+[[ -n "${LOG_SHIPPING_ADDRESS}" ]] || {
+  echo "ERROR: LOG_SHIPPING_ADDRESS is required for production rollback logging." >&2
+  exit 1
+}
+export LOG_SHIPPING_ADDRESS
 APP_DOMAIN_VALUE="$(read_env_value APP_DOMAIN)"
 PUBLIC_HEALTH_URL="${HEALTH_URL:-${APP_DOMAIN_VALUE:+https://${APP_DOMAIN_VALUE}/api/health/ready}}"
 PUBLIC_HEALTH_URL="${PUBLIC_HEALTH_URL:-http://localhost/api/health/ready}"
