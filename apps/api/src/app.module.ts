@@ -53,6 +53,18 @@ import { PublicModule } from './modules/public/public.module';
 import { MetricsMiddleware } from './modules/observability/metrics.middleware';
 import { ObservabilityModule } from './modules/observability/observability.module';
 
+/**
+ * Root application module (Phase 1).
+ *
+ * Wires global config, Prisma, the common cross-cutting layer, mail, and the
+ * Identity/Auth/Tenancy feature modules. Global providers enforce, in order:
+ * rate limiting -> authentication -> roles -> permissions -> tenant presence ->
+ * mandatory-2FA, then populate the request-scoped tenant context and normalize
+ * all errors into the platform envelope.
+ *
+ * Observability is intentionally cross-cutting: request metrics are middleware
+ * so rejected throttled/auth requests are counted as well as successful ones.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -113,7 +125,11 @@ import { ObservabilityModule } from './modules/observability/observability.modul
   ],
 })
 export class AppModule implements NestModule {
-  /** Request IDs and metrics cover rejected auth/throttle requests too. */
+  /**
+   * Correlation IDs and request metrics must be assigned before ANY guard,
+   * interceptor, or filter runs — a request rejected by the throttler or auth
+   * guard is exactly the kind of failure operators need to diagnose.
+   */
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(RequestIdMiddleware, MetricsMiddleware).forRoutes('*');
   }
