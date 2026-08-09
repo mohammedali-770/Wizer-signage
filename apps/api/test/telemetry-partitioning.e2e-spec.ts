@@ -25,7 +25,7 @@ describe('telemetry partitioning (real PostgreSQL)', () => {
   });
 
   it('has current and next-month children for both high-volume parents', async () => {
-    await prisma.$executeRaw`SELECT public.wizer_ensure_telemetry_partitions(2)`;
+    await prisma.$queryRaw`SELECT public.wizer_ensure_telemetry_partitions(2)`;
 
     const rows = await prisma.$queryRaw<Array<{ parent: string; child: string }>>`
       SELECT parent.relname AS parent, child.relname AS child
