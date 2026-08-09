@@ -23,6 +23,9 @@ export class AndroidOtaSettingsResponseDto {
   enabled!: boolean;
 
   @ApiPropertyOptional({ nullable: true })
+  targetVersionName?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
   targetVersionCode?: number | null;
 
   @ApiProperty({ minimum: 0, maximum: 100 })
