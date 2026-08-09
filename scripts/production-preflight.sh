@@ -39,7 +39,7 @@ require_value() {
   value="$(read_env_value "${key}")"
   [[ -n "${value}" ]] || fail "${key} is missing/empty in ${ENV_FILE}"
   case "${value,,}" in
-    *change-me*|*changeme*|*replace-me*|*example.invalid*|*ci-only*|*placeholder*)
+    *change-me*|*changeme*|*replace-me*|*example.invalid*|*ci-only*|*placeholder*|*__generate*|*__service*|*__smtp*)
       fail "${key} still contains a placeholder/development value" ;;
   esac
   pass "${key} is configured"
@@ -60,7 +60,10 @@ for file in "${BASE}" "${PROXY}" "${SLOTS}"; do
   [[ -f "${file}" ]] || fail "required compose file missing: ${file}"
 done
 
-# Required application/deployment coordinates. Never print values.
+# Required application/deployment coordinates. Never print values. Offsite
+# backup + dead-man monitoring are production requirements, not best-effort
+# warnings: a successful local-only backup is lost with the host, and an in-app
+# backup alert cannot report the maintenance container's own death.
 for key in \
   APP_DOMAIN \
   DATABASE_URL \
@@ -69,7 +72,9 @@ for key in \
   JWT_REFRESH_SECRET \
   ENCRYPTION_KEY \
   IMAGE_REGISTRY_PREFIX \
-  METRICS_TOKEN; do
+  METRICS_TOKEN \
+  BACKUP_OFFSITE_CMD \
+  HEALTHCHECKS_URL; do
   require_value "${key}"
 done
 
@@ -105,6 +110,21 @@ for key in DATABASE_URL DIRECT_URL; do
   esac
 done
 pass "database URLs are PostgreSQL and non-local"
+
+OFFSITE_CMD="$(read_env_value BACKUP_OFFSITE_CMD)"
+case "${OFFSITE_CMD}" in
+  true|:|echo|"echo "*)
+    fail "BACKUP_OFFSITE_CMD is a no-op; configure a real off-host copy command" ;;
+esac
+pass "offsite backup copy command is configured"
+
+HEALTHCHECKS_URL_VALUE="$(read_env_value HEALTHCHECKS_URL)"
+[[ "${HEALTHCHECKS_URL_VALUE}" =~ ^https://[^[:space:]]+$ ]] \
+  || fail "HEALTHCHECKS_URL must be an HTTPS dead-man monitoring URL"
+case "${HEALTHCHECKS_URL_VALUE,,}" in
+  *localhost*|*127.0.0.1*|*.invalid*) fail "HEALTHCHECKS_URL points at a local/development target" ;;
+esac
+pass "out-of-band backup dead-man monitoring is configured"
 
 # Render the exact production blue/green compose graph. Secrets may be consumed
 # by Compose internally but the rendered config is discarded and never printed.
