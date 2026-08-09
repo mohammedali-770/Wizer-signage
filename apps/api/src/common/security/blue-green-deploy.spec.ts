@@ -11,12 +11,16 @@ const nginxTemplatePath = resolve(
 );
 const proxyOverlayPath = resolve(root, 'infra/docker/docker-compose.blue-green-proxy.yml');
 const slotsComposePath = resolve(root, 'infra/docker/docker-compose.blue-green-slots.yml');
+const baseLoggingPath = resolve(root, 'infra/docker/docker-compose.log-shipping.yml');
+const slotLoggingPath = resolve(root, 'infra/docker/docker-compose.blue-green-log-shipping.yml');
 
 const deploy = readFileSync(deployPath, 'utf8');
 const rollback = readFileSync(rollbackPath, 'utf8');
 const nginxTemplate = readFileSync(nginxTemplatePath, 'utf8');
 const proxyOverlay = readFileSync(proxyOverlayPath, 'utf8');
 const slotsCompose = readFileSync(slotsComposePath, 'utf8');
+const baseLogging = readFileSync(baseLoggingPath, 'utf8');
+const slotLogging = readFileSync(slotLoggingPath, 'utf8');
 
 describe('blue/green deployment contract', () => {
   it('keeps both operational scripts syntactically valid bash', () => {
@@ -36,6 +40,32 @@ describe('blue/green deployment contract', () => {
     }
     expect(slotsCompose).toContain('external: true');
     expect(slotsCompose).toContain('name: wizer-signage');
+  });
+
+  it('keeps off-box logging on base services and every serving slot during deploy and rollback', () => {
+    expect(baseLogging).toContain('driver: fluentd');
+    expect(baseLogging).toContain("fluentd-async: 'true'");
+    for (const service of ['api_blue', 'dashboard_blue', 'api_green', 'dashboard_green']) {
+      expect(slotLogging).toContain(`${service}:`);
+    }
+    expect(slotLogging).toContain('driver: fluentd');
+    expect(slotLogging).toContain("fluentd-async: 'true'");
+    expect(deploy).toContain('docker-compose.log-shipping.yml');
+    expect(deploy).toContain('docker-compose.blue-green-log-shipping.yml');
+    expect(rollback).toContain('docker-compose.log-shipping.yml');
+    expect(rollback).toContain('docker-compose.blue-green-log-shipping.yml');
+  });
+
+  it('rechecks the production wrapper accepted SHA after its own fetch/pull', () => {
+    const pull = deploy.indexOf('git pull --ff-only');
+    const identity = deploy.indexOf('FULL_SHA="$(git rev-parse HEAD)"');
+    const expected = deploy.indexOf('EXPECTED_RELEASE_SHA');
+    const imagePull = deploy.indexOf('pull-release-images.sh');
+    expect(pull).toBeGreaterThan(0);
+    expect(identity).toBeGreaterThan(pull);
+    expect(expected).toBeGreaterThan(identity);
+    expect(imagePull).toBeGreaterThan(expected);
+    expect(deploy).toContain('protected main moved after production-wrapper validation');
   });
 
   it('health-gates the inactive slot before the traffic file is switched', () => {
