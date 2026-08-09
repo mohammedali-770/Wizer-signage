@@ -5,9 +5,12 @@ import type { AuthenticatedDevice } from '../../common/types/device.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { AndroidUpdateResultDto } from './dto/android-update.dto';
 
+const VERSION_NAME_RE = /^(?!.*\.\.)[A-Za-z0-9._-]+$/;
+
 type OtaSettings = {
   enabled?: boolean;
   rolloutPercent?: number;
+  targetVersionName?: string;
   targetVersionCode?: number;
   checkIntervalSeconds?: number;
   screenIds?: unknown;
@@ -31,6 +34,9 @@ export class AndroidUpdateService {
 
     const companySettings = (screen.company.settings ?? {}) as Record<string, unknown>;
     const raw = (companySettings.androidOta ?? {}) as OtaSettings;
+    const rawName = typeof raw.targetVersionName === 'string' ? raw.targetVersionName.trim() : '';
+    const targetVersionName =
+      rawName.length > 0 && rawName.length <= 64 && VERSION_NAME_RE.test(rawName) ? rawName : null;
     const targetVersionCode =
       Number.isInteger(raw.targetVersionCode) && Number(raw.targetVersionCode) > 0
         ? Number(raw.targetVersionCode)
@@ -52,8 +58,9 @@ export class AndroidUpdateService {
     const digest = createHash('sha256').update(`${device.companyId}:${screen.id}`).digest();
     const cohort = digest.readUInt32BE(0) % 100;
     const explicitCanary =
-      screenIds.includes(screen.id) || screen.groups.some((membership) => groupIds.includes(membership.groupId));
-    const enabled = raw.enabled === true && targetVersionCode !== null;
+      screenIds.includes(screen.id) ||
+      screen.groups.some((membership) => groupIds.includes(membership.groupId));
+    const enabled = raw.enabled === true && targetVersionName !== null && targetVersionCode !== null;
     const eligible = enabled && (explicitCanary || cohort < rolloutPercent);
 
     return {
@@ -61,6 +68,7 @@ export class AndroidUpdateService {
       eligible,
       rolloutPercent,
       cohort,
+      targetVersionName,
       targetVersionCode,
       checkIntervalSeconds,
     };
