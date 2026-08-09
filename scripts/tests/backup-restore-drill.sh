@@ -6,11 +6,16 @@
 # actually be RESTORED — including into a database that already has the schema,
 # which is the real disaster-recovery and rollback case.
 #
-# This is the regression test for a genuine defect: pg_dump ran without
-# --clean/--if-exists, so `restore-db.sh` piped the dump into
+# The drill covers both Wizer-owned schemas:
+#   public          — Prisma-owned business data / partition parents
+#   wizer_telemetry — PostgreSQL-owned partition internals / PoP registry
+#
+# This is also the regression test for a genuine earlier defect: pg_dump ran
+# without --clean/--if-exists, so `restore-db.sh` piped the dump into
 # `psql --set ON_ERROR_STOP=on` and the first CREATE TABLE aborted with
-# "already exists". The backup was effectively write-only, and nobody would have
-# discovered that until an outage.
+# "already exists". A second regression would be dumping only `public` after
+# telemetry internals moved to `wizer_telemetry`; that produces a green backup
+# while silently omitting partition data and idempotency state.
 #
 # Everything it creates is namespaced `bkdrill_*` and removed on exit.
 #
@@ -54,8 +59,17 @@ CREATE TABLE companies (id text PRIMARY KEY, name text NOT NULL);
 CREATE TABLE invoices  (id text PRIMARY KEY, "companyId" text NOT NULL REFERENCES companies(id), total numeric NOT NULL);
 INSERT INTO companies VALUES ('c1','Acme'), ('c2','Globex');
 INSERT INTO invoices  VALUES ('i1','c1',100), ('i2','c1',250), ('i3','c2',75);
+
+CREATE SCHEMA wizer_telemetry;
+CREATE TABLE wizer_telemetry.telemetry_probe (
+  id text PRIMARY KEY,
+  payload text NOT NULL
+);
+INSERT INTO wizer_telemetry.telemetry_probe VALUES ('tp1','partition-internal-state');
 SQL
 [ "$(psql_q 'select count(*) from invoices')" = "3" ] && ok "seeded 3 invoices" || no "seed failed"
+[ "$(psql_q 'select count(*) from wizer_telemetry.telemetry_probe')" = "1" ] \
+  && ok "seeded internal telemetry schema" || no "telemetry seed failed"
 
 echo "== Take a backup with the REAL backup-db.sh =="
 mkdir -p "$WORK/backups"
@@ -73,8 +87,14 @@ case "$OUT" in *pw_drill*) no "credential leaked into backup log" ;; *) ok "no c
 case "$OUT" in *"BACKUP_OFFSITE_CMD is not set"*) ok "warns when no offsite copy is configured" ;; *) no "missing offsite warning" ;; esac
 
 echo "== Mutate the database (simulate the damage we need to undo) =="
-docker exec -i "$PG" psql -U postgres -p "$PGPORT_DRILL" -d postgres -c "DELETE FROM invoices WHERE id='i2'; UPDATE companies SET name='CORRUPTED' WHERE id='c1';" >/dev/null 2>&1
+docker exec -i "$PG" psql -U postgres -p "$PGPORT_DRILL" -d postgres >/dev/null 2>&1 <<'SQL'
+DELETE FROM invoices WHERE id='i2';
+UPDATE companies SET name='CORRUPTED' WHERE id='c1';
+DROP TABLE wizer_telemetry.telemetry_probe;
+SQL
 [ "$(psql_q 'select count(*) from invoices')" = "2" ] && ok "database mutated (2 invoices, corrupted name)" || no "mutation failed"
+[ "$(psql_q "select to_regclass('wizer_telemetry.telemetry_probe') is null")" = "t" ] \
+  && ok "internal telemetry object removed" || no "telemetry mutation failed"
 
 echo "== Restore INTO THE NON-EMPTY database (the real DR case) =="
 RES="$(docker run --rm --network=host \
@@ -83,12 +103,14 @@ RES="$(docker run --rm --network=host \
   -e DIRECT_URL="postgresql://postgres:pw_drill@127.0.0.1:${PGPORT_DRILL}/postgres?sslmode=disable" \
   postgres:16-alpine bash /app/scripts/restore-db.sh "/backups/$(basename "$DUMP")" 2>&1)"
 RRC=$?
-[ "$RRC" -eq 0 ] && ok "restore-db.sh succeeded against a populated database" || { no "restore rc=$RRC"; echo "$RES" | tail -5 | sed 's/^/      /'; }
+[ "$RRC" -eq 0 ] && ok "restore-db.sh succeeded against a populated database" || { no "restore rc=$RRC"; echo "$RES" | tail -8 | sed 's/^/      /'; }
 
-echo "== Verify the data actually came back =="
+echo "== Verify BOTH Wizer-owned schemas actually came back =="
 [ "$(psql_q 'select count(*) from invoices')" = "3" ] && ok "all 3 invoices restored" || no "invoice count = $(psql_q 'select count(*) from invoices')"
 [ "$(psql_q "select name from companies where id='c1'")" = "Acme" ] && ok "corrupted row restored to its backed-up value" || no "company name not restored"
 [ "$(psql_q "select total from invoices where id='i2'")" = "250" ] && ok "deleted invoice restored with correct amount" || no "i2 not restored"
+[ "$(psql_q "select payload from wizer_telemetry.telemetry_probe where id='tp1'")" = "partition-internal-state" ] \
+  && ok "wizer_telemetry object and data restored" || no "internal telemetry schema/data missing after restore"
 case "$RES" in *pw_drill*) no "credential leaked into restore log" ;; *) ok "no credential in restore log" ;; esac
 
 echo
