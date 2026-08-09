@@ -25,7 +25,10 @@ export interface SelectedTarget {
   targetId: string;
 }
 
-type SelectorEntity = Pick<Screen, 'id' | 'name'> | Pick<ScreenGroup, 'id' | 'name'> | Pick<LocationListItem, 'id' | 'name'>;
+type SelectorEntity =
+  | Pick<Screen, 'id' | 'name'>
+  | Pick<ScreenGroup, 'id' | 'name'>
+  | Pick<LocationListItem, 'id' | 'name'>;
 
 /**
  * Picks schedule targets (screens / groups / locations / company-wide).
@@ -61,16 +64,23 @@ export function TargetSelector({
   const searchableType = type === 'COMPANY' ? null : (type as SearchableSelectorType);
   const searchPath = searchableType ? selectorSearchPath(searchableType, debouncedSearch) : null;
   const resource = useApiResource<Paginated<SelectorEntity>>(searchPath);
-  const options = resource.data?.items ?? [];
+  const options = useMemo(() => resource.data?.items ?? [], [resource.data]);
 
   // Cache labels from every search response we see. That means changing the
   // query never turns already-selected chips back into raw UUIDs.
   useEffect(() => {
     if (options.length === 0 || !searchableType) return;
     setResolvedLabels((current) => {
+      let changed = false;
       const next = { ...current };
-      for (const option of options) next[`${searchableType}:${option.id}`] = option.name;
-      return next;
+      for (const option of options) {
+        const key = `${searchableType}:${option.id}`;
+        if (next[key] !== option.name) {
+          next[key] = option.name;
+          changed = true;
+        }
+      }
+      return changed ? next : current;
     });
   }, [options, searchableType]);
 
