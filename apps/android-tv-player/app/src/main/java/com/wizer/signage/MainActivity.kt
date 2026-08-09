@@ -30,10 +30,7 @@ import com.wizer.signage.ui.theme.WizerSignageTheme
  *
  * Renders full-screen and immersive, then routes between the pairing flow and
  * the signage player based on whether a device token is stored. Kiosk behaviour
- * (immersive reinforcement, keep-awake, accidental-Back suppression, and — on an
- * MDM-allowlisted device — Android lock task) is applied by [KioskController]
- * only while the device is **paired** (the active signage experience), never on
- * the pairing/setup screen. See docs/android-player.md (Kiosk mode).
+ * and OTA polling are enabled only while the screen is paired.
  */
 class MainActivity : ComponentActivity() {
 
@@ -71,6 +68,7 @@ class MainActivity : ComponentActivity() {
                         onPairedChanged = { p ->
                             paired = p
                             kiosk.onPairedChanged(p)
+                            if (p) container.updateController.start() else container.updateController.stop()
                         },
                     )
                 }
@@ -79,6 +77,7 @@ class MainActivity : ComponentActivity() {
 
         // Initial apply (keep-awake + immersive + lock task if allowlisted+playing).
         kiosk.onPairedChanged(paired)
+        if (paired) container.updateController.start()
     }
 
     override fun onResume() {
@@ -95,6 +94,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        container.updateController.stop()
         ScreenCaptureController.detach()
         super.onDestroy()
     }
@@ -104,10 +104,10 @@ class MainActivity : ComponentActivity() {
  * Top-level router. `sessionKey` bumps on unpair so a re-entered pairing/player
  * screen gets a fresh ViewModel rather than a stale Activity-scoped one.
  *
- * Reports paired transitions up to the Activity so [KioskController] can react.
- * The soft-kiosk Back suppression is a Compose [BackHandler] present ONLY on the
- * player route (paired), so the pairing/setup screen keeps normal Back/DPAD
- * navigation and an unpaired device is never trapped.
+ * Reports paired transitions up to the Activity so [KioskController] and the
+ * OTA controller can react. The soft-kiosk Back suppression is a Compose
+ * [BackHandler] present ONLY on the player route (paired), so the pairing/setup
+ * screen keeps normal Back/DPAD navigation and an unpaired device is never trapped.
  */
 @Composable
 fun PlayerApp(

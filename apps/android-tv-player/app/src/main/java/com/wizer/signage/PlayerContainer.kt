@@ -1,6 +1,8 @@
 package com.wizer.signage
 
 import android.content.Context
+import com.wizer.signage.data.AndroidReleaseClient
+import com.wizer.signage.data.AndroidUpdateApiClient
 import com.wizer.signage.data.ApiClient
 import com.wizer.signage.data.ConnectivityObserver
 import com.wizer.signage.data.DeviceStore
@@ -18,8 +20,13 @@ import com.wizer.signage.monitoring.TelemetryCollector
 import com.wizer.signage.proofofplay.PlaybackEventTracker
 import com.wizer.signage.proofofplay.ProofOfPlayQueue
 import com.wizer.signage.proofofplay.ProofOfPlayReporter
+import com.wizer.signage.update.AndroidUpdateController
 import java.io.File
 
+/**
+ * Manual dependency container. Wires pairing, offline cache/sync, monitoring,
+ * crash telemetry, proof-of-play and the fail-closed Android OTA controller.
+ */
 class PlayerContainer(context: Context) {
 
     private val appContext = context.applicationContext
@@ -47,6 +54,13 @@ class PlayerContainer(context: Context) {
         telemetry = telemetry,
         executor = commandExecutor,
         crashReporter = crashReporter,
+    )
+
+    val updateController = AndroidUpdateController(
+        context = appContext,
+        store = store,
+        control = AndroidUpdateApiClient(),
+        releases = AndroidReleaseClient(),
     )
 
     private val proofOfPlayQueue = ProofOfPlayQueue(File(cacheDir, "proof_of_play_queue.json"))
