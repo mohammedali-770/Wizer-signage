@@ -3,10 +3,12 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsEmail,
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Matches,
   Max,
@@ -85,6 +87,60 @@ export class UpdateCompanySettingsDto {
   @IsOptional()
   @IsString()
   fallbackContentId?: string;
+}
+
+/**
+ * Replaces the entire Android OTA rollout policy for one company. Publishing a
+ * binary never changes this policy; operators explicitly pin a target version.
+ */
+export class AndroidOtaSettingsDto {
+  @ApiProperty({ description: 'Emergency master switch. false halts new installs immediately.' })
+  @IsBoolean()
+  enabled!: boolean;
+
+  @ApiPropertyOptional({
+    minimum: 1,
+    description: 'Exact published versionCode allowed to install. Required when enabled=true.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  targetVersionCode?: number;
+
+  @ApiProperty({ minimum: 0, maximum: 100, description: 'Stable deterministic fleet cohort percentage.' })
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  rolloutPercent!: number;
+
+  @ApiPropertyOptional({
+    type: [String],
+    maxItems: 200,
+    description: 'Explicit same-company screen canaries. Eligible regardless of rolloutPercent.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsUUID('4', { each: true })
+  screenIds?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    maxItems: 100,
+    description: 'Explicit same-company screen-group canaries. Eligible regardless of rolloutPercent.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID('4', { each: true })
+  groupIds?: string[];
+
+  @ApiPropertyOptional({ minimum: 900, maximum: 86400, default: 21600 })
+  @IsOptional()
+  @IsInt()
+  @Min(900)
+  @Max(86_400)
+  checkIntervalSeconds?: number;
 }
 
 export class SetDefaultKioskPinDto {
