@@ -114,8 +114,6 @@ export class CompanySettingsService {
     });
     if (!company) throw new NotFoundException('Company not found.');
 
-    // Normalize "" → null so clearing the fallback never persists an empty id,
-    // and validate any non-empty id against ACTIVE same-company content.
     const fallbackContentId =
       dto.fallbackContentId === undefined ? undefined : dto.fallbackContentId?.trim() || null;
     if (fallbackContentId) {
@@ -131,8 +129,7 @@ export class CompanySettingsService {
     }
 
     const settings = { ...((company.settings ?? {}) as Record<string, unknown>) };
-    if (dto.defaultWorkingHours !== undefined)
-      settings.defaultWorkingHours = dto.defaultWorkingHours;
+    if (dto.defaultWorkingHours !== undefined) settings.defaultWorkingHours = dto.defaultWorkingHours;
     if (dto.defaultHeartbeatIntervalSeconds !== undefined) {
       settings.defaultHeartbeatIntervalSeconds = dto.defaultHeartbeatIntervalSeconds;
     }
@@ -155,13 +152,14 @@ export class CompanySettingsService {
   }
 
   /**
-   * Replace the complete staged-rollout policy after ownership and immutable
-   * release validation. Every explicit save receives a new revision token.
+   * Replace the complete staged-rollout policy. Every explicit save receives a
+   * new revision token.
    *
-   * A production rollout is only allowed to arm when a known-good rollback APK
-   * is ALREADY published under a strictly higher versionCode. Android does not
-   * permit an unattended downgrade, so "we will build rollback later" is not a
-   * recoverable production strategy.
+   * Enabling is fail-closed: candidate + known-good recovery artifacts must be
+   * fully published and the recovery versionCode must move forward. Disabling
+   * is deliberately fail-open with respect to those validations: an emergency
+   * halt must still work after an artifact is deleted, a canary is removed, or
+   * a prior policy is partially corrupted.
    */
   async updateAndroidOta(companyId: string, actor: AuthenticatedUser, dto: AndroidOtaSettingsDto) {
     const targetVersionName = dto.targetVersionName?.trim() || null;
@@ -169,49 +167,40 @@ export class CompanySettingsService {
     const rollbackVersionName = dto.rollbackVersionName?.trim() || null;
     const rollbackVersionCode = dto.rollbackVersionCode ?? null;
 
-    const candidatePairComplete = (targetVersionName === null) === (targetVersionCode === null);
-    const rollbackPairComplete = (rollbackVersionName === null) === (rollbackVersionCode === null);
-    if (!candidatePairComplete) {
-      throw new BadRequestException('targetVersionName and targetVersionCode must be supplied together.');
-    }
-    if (!rollbackPairComplete) {
-      throw new BadRequestException('rollbackVersionName and rollbackVersionCode must be supplied together.');
-    }
-    if (
-      dto.enabled &&
-      (!targetVersionName || targetVersionCode === null || !rollbackVersionName || rollbackVersionCode === null)
-    ) {
-      throw new BadRequestException(
-        'Candidate and rollback versionName/versionCode are required before Android OTA can be enabled.',
-      );
-    }
-    if (
-      targetVersionCode !== null &&
-      rollbackVersionCode !== null &&
-      rollbackVersionCode <= targetVersionCode
-    ) {
-      throw new BadRequestException(
-        'rollbackVersionCode must be greater than targetVersionCode so Android can install the rollback as a forward update.',
-      );
-    }
-
-    if (
-      targetVersionName &&
-      targetVersionCode !== null &&
-      !this.androidReleases.find(targetVersionName, targetVersionCode)
-    ) {
-      throw new BadRequestException(
-        `Candidate Android release ${targetVersionName}/${targetVersionCode} is not published or failed immutable-manifest verification.`,
-      );
-    }
-    if (
-      rollbackVersionName &&
-      rollbackVersionCode !== null &&
-      !this.androidReleases.find(rollbackVersionName, rollbackVersionCode)
-    ) {
-      throw new BadRequestException(
-        `Rollback Android release ${rollbackVersionName}/${rollbackVersionCode} is not published or failed immutable-manifest verification.`,
-      );
+    if (dto.enabled) {
+      const candidatePairComplete = (targetVersionName === null) === (targetVersionCode === null);
+      const rollbackPairComplete = (rollbackVersionName === null) === (rollbackVersionCode === null);
+      if (!candidatePairComplete) {
+        throw new BadRequestException('targetVersionName and targetVersionCode must be supplied together.');
+      }
+      if (!rollbackPairComplete) {
+        throw new BadRequestException('rollbackVersionName and rollbackVersionCode must be supplied together.');
+      }
+      if (
+        !targetVersionName ||
+        targetVersionCode === null ||
+        !rollbackVersionName ||
+        rollbackVersionCode === null
+      ) {
+        throw new BadRequestException(
+          'Candidate and rollback versionName/versionCode are required before Android OTA can be enabled.',
+        );
+      }
+      if (rollbackVersionCode <= targetVersionCode) {
+        throw new BadRequestException(
+          'rollbackVersionCode must be greater than targetVersionCode so Android can install the rollback as a forward update.',
+        );
+      }
+      if (!this.androidReleases.find(targetVersionName, targetVersionCode)) {
+        throw new BadRequestException(
+          `Candidate Android release ${targetVersionName}/${targetVersionCode} is not published or failed immutable-manifest verification.`,
+        );
+      }
+      if (!this.androidReleases.find(rollbackVersionName, rollbackVersionCode)) {
+        throw new BadRequestException(
+          `Rollback Android release ${rollbackVersionName}/${rollbackVersionCode} is not published or failed immutable-manifest verification.`,
+        );
+      }
     }
 
     const company = await this.prisma.company.findFirst({
@@ -223,7 +212,9 @@ export class CompanySettingsService {
     const screenIds = [...new Set(dto.screenIds ?? [])];
     const groupIds = [...new Set(dto.groupIds ?? [])];
 
-    if (screenIds.length > 0) {
+    // Ownership is an enablement gate, not a halt gate. A deleted canary must
+    // never make the emergency stop button unusable.
+    if (dto.enabled && screenIds.length > 0) {
       const owned = await this.prisma.screen.count({
         where: { companyId, id: { in: screenIds }, deletedAt: null },
       });
@@ -231,7 +222,7 @@ export class CompanySettingsService {
         throw new BadRequestException('Every OTA canary screen must belong to your company.');
       }
     }
-    if (groupIds.length > 0) {
+    if (dto.enabled && groupIds.length > 0) {
       const owned = await this.prisma.screenGroup.count({
         where: { companyId, id: { in: groupIds } },
       });
