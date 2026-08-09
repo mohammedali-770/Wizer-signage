@@ -11,14 +11,17 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.coroutines.coroutineContext
 
 /**
  * Phase 8 orchestrator: a heartbeat loop and a command-poll loop. Failures never
  * crash playback — offline playback (Phase 7) continues regardless. The intervals
  * come from device config (defaults 60s heartbeat / 12s poll).
+ *
+ * Crash diagnostics are deliberately a separate failure domain from heartbeat:
+ * an unavailable telemetry endpoint must never make a healthy player look offline.
  */
 class MonitoringController(
     private val api: ApiClient,
@@ -26,6 +29,7 @@ class MonitoringController(
     private val telemetry: TelemetryCollector,
     private val executor: CommandExecutor,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    private val crashReporter: CrashReporter? = null,
 ) {
     private var heartbeatJob: Job? = null
     private var pollJob: Job? = null
@@ -58,9 +62,18 @@ class MonitoringController(
         delay(Jitter.startupDelay())
         while (coroutineContext.isActive) {
             store.deviceToken?.let { token ->
+                // A previous-run crash is diagnostic, not a playback-health
+                // state. Retry it independently until the authenticated server
+                // accepts it; a telemetry outage must not suppress heartbeat.
+                try {
+                    crashReporter?.reportIfPending(token)
+                } catch (_: Exception) {
+                    // Crash telemetry is best-effort and remains persisted locally.
+                }
+
                 try {
                     api.sendHeartbeat(token, telemetry.collect())
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Heartbeat is best-effort; never break playback.
                 }
             }
@@ -99,7 +112,7 @@ class MonitoringController(
                             if (!reported && attempt < 3) delay(Jitter.backoff(attempt - 1, 1_000L))
                         }
                     }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Polling is best-effort.
                 }
             }

@@ -25,16 +25,17 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
  * it cannot drift from what Nest actually registers at runtime.
  *
  * WHEN THIS FAILS: a route's exposure changed. Either revert it, or add it here
- * with a comment justifying anonymous access. Do not silence it by pasting the
- * received array — read the route first.
+ * with a comment justifying anonymous/user-JWT bypass access. Do not silence it
+ * by pasting the received array — read the route and its alternate guard first.
  */
 
 /**
- * Routes intentionally reachable with no user token.
+ * Routes intentionally reachable with no USER access token.
  *
  * The `/device/*` routes are not unauthenticated: they are authenticated by a
  * DEVICE token via `DeviceAuthGuard`, which is a different credential than a
  * user JWT, so they must bypass `JwtAuthGuard` to reach their own guard.
+ * `/internal/metrics` similarly uses a dedicated scrape-token guard.
  */
 const EXPECTED_PUBLIC_ROUTES: readonly string[] = [
   // --- Health: probed by Docker, the deploy gate and the external monitor ----
@@ -62,12 +63,18 @@ const EXPECTED_PUBLIC_ROUTES: readonly string[] = [
   'GET /device/sync-plan',
   'POST /device/sync-status',
   'POST /device/heartbeat',
+  'POST /device/crash-report',
   'GET /device/commands/pending',
   'POST /device/commands/:id/ack',
   'POST /device/commands/:id/result',
   'GET /device/content/:contentId/download',
   'POST /device/proof-of-play/events',
   'POST /device/screenshots',
+
+  // --- Internal scrape: separate secret, no human session -------------------
+  // `MetricsTokenGuard` fails closed if METRICS_TOKEN is absent/weak and uses a
+  // constant-time comparison. Never expose this route through the public proxy.
+  'GET /internal/metrics',
 
   // --- Local storage adapter (development only) -----------------------------
   // The :token is an encrypted, time-limited reference to a storage key. In
@@ -82,13 +89,15 @@ const EXPECTED_PUBLIC_ROUTES: readonly string[] = [
 
 /**
  * Controllers whose `@Public()` sits on the CLASS. Every present and future
- * route inside them is anonymous, so adding one here is a deliberate decision.
+ * route inside them bypasses the user-JWT guard, so adding one here is a
+ * deliberate decision and the controller must provide its own boundary where
+ * appropriate (e.g. DeviceAuthGuard).
  */
 const EXPECTED_CLASS_LEVEL_PUBLIC: readonly string[] = [
   'ContentFilesController', // dev-only local storage adapter, token-scoped
   'DeviceController', // device-token authenticated via DeviceAuthGuard
   'DeviceProofOfPlayController', // ditto
-  'DeviceTelemetryController', // ditto
+  'DeviceTelemetryController', // ditto, including bounded crash reports
   'DownloadsController', // APK distribution, pre-pairing
   'HealthController', // liveness/readiness probes
   'PublicController', // marketing site + self-serve trial signup
@@ -173,7 +182,7 @@ describe('route exposure', () => {
     expect(routes.length).toBeGreaterThan(100);
   });
 
-  it('exposes exactly the expected unauthenticated routes', () => {
+  it('exposes exactly the expected routes without a user access token', () => {
     const actual = routes
       .filter((r) => r.isPublic)
       .map((r) => r.signature)

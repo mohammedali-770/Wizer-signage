@@ -8,31 +8,20 @@
 #
 #   environment:
 #     APP_DOMAIN: "wizer.sa"
-#     NGINX_ENVSUBST_FILTER: "^APP_DOMAIN$"     # ONLY substitute APP_DOMAIN, so
-#                                               # nginx vars ($host, $scheme…) survive
+#     NGINX_ENVSUBST_FILTER: "^APP_DOMAIN$"
 #   volumes:
-#     - ../nginx/templates:/etc/nginx/templates:ro   # (instead of conf.d)
+#     - ../nginx/templates:/etc/nginx/templates:ro
 #     - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 #     - certbot-webroot:/var/www/certbot:ro
 #     - letsencrypt:/etc/letsencrypt:ro
 #
 # NGINX_ENVSUBST_FILTER is REQUIRED — without it envsubst would clobber nginx
-# runtime variables like $host. See docs/nginx-ssl.md.
+# runtime variables like $host.
 # =============================================================================
 
-# `keepalive` holds idle upstream connections open for reuse. It has two
-# prerequisites, and BOTH must hold or the pool is configured but never used:
-#   1. proxy_http_version 1.1  — set once at the http{} level in nginx.conf
-#   2. an absent Connection header on the proxied request
-# nginx defaults to sending `Connection: close` upstream, so (2) requires an
-# explicit `proxy_set_header Connection ""` in every location that proxies here
-# (or, for the dashboard, the $connection_upgrade map whose empty branch is "").
 upstream dashboard_upstream { server dashboard:3000; keepalive 32; }
 upstream api_upstream       { server api:3001;       keepalive 32; }
 
-# Cache policy for the static Android download subtree: immutable versioned
-# files (APK / .sha256 / per-version .json) cache forever; the mutable
-# latest.json pointer must always revalidate.
 map $uri $wizer_android_cache {
     default          "public, max-age=31536000, immutable";
     ~*/latest\.json$ "no-cache";
@@ -70,40 +59,6 @@ server {
     add_header X-Frame-Options           "SAMEORIGIN" always;
     add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy        "camera=(), microphone=(), geolocation=(), payment=()" always;
-
-    # -------------------------------------------------------------------------
-    # Content-Security-Policy
-    # -------------------------------------------------------------------------
-    # There was no CSP anywhere before this. This one carries ONLY the
-    # directives that work without a per-request nonce, and deliberately sets
-    # NO fetch directives at all — no default-src, no script-src, no style-src.
-    #
-    # That omission is the whole design. Next.js App Router inlines the RSC
-    # hydration payload as a <script>, so any policy that restricts scripts needs
-    # either 'unsafe-inline' (which is decorative — it voids 'strict-dynamic' and
-    # every hash allowance) or a nonce minted per request in the Next middleware
-    # and threaded through the render. nginx cannot produce one.
-    #
-    # And a `default-src 'self'` with script-src absent does NOT leave scripts
-    # alone — script-src falls back to default-src, so the inline hydration
-    # payload is blocked and the dashboard renders a blank page. A CSP that takes
-    # the app down is worse than no CSP, so the fetch directives wait for the
-    # middleware.
-    #
-    # What IS here needs no nonce, cannot break a working page, and each line
-    # closes a real class of attack on its own:
-    #
-    #   base-uri 'self'        — one injected <base> tag otherwise re-points every
-    #                            relative script URL on the page at another host.
-    #   object-src 'none'      — plugin-hosted script execution.
-    #   form-action 'self'     — stops an injected form POSTing a session
-    #                            elsewhere.
-    #   frame-ancestors 'self' — clickjacking. Matches the X-Frame-Options
-    #                            SAMEORIGIN above rather than tightening to
-    #                            'none', so this is not a silent behaviour change
-    #                            for any same-origin embed; it is still an upgrade
-    #                            because browsers honour frame-ancestors where
-    #                            they now ignore X-Frame-Options.
     add_header Content-Security-Policy "base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'self'" always;
 
     location /.well-known/acme-challenge/ {
@@ -112,67 +67,39 @@ server {
     }
 
     # -------------------------------------------------------------------------
-    # Android APK distribution — served DIRECTLY by nginx from a read-only mount
-    # (not proxied to the API). `^~` makes this the chosen prefix so this exact
-    # subtree is served statically while everything else under /api/ still hits
-    # the API upstream below. Files are published atomically by
-    # scripts/publish-android-release.sh. The APK is NOT a secret: authenticity
-    # comes from Android signing + the published SHA-256 + the expected cert
-    # fingerprint + HTTPS. See docs/android-distribution.md.
+    # INTERNAL METRICS — NEVER PUBLIC
     # -------------------------------------------------------------------------
+    # Nest serves GET /api/internal/metrics for a Prometheus scraper that joins
+    # the private Docker/Compose network and talks directly to api:3001. Keep an
+    # exact public-edge tombstone here so the generic /api/ proxy below can never
+    # expose the endpoint if routes are reordered/refactored. METRICS_TOKEN is
+    # still mandatory defense-in-depth on the direct internal request.
+    location = /api/internal/metrics {
+        return 404;
+    }
+
     location ^~ /api/downloads/android/ {
         alias /usr/share/nginx/downloads/android/;
-
-        # Bandwidth, not request count, is the scarce resource here — see the
-        # zone definition in nginx.conf. burst=10 absorbs a device resuming a
-        # ranged download without letting a loop run free; limit_conn caps how
-        # many large transfers one address can hold open at once.
         limit_req  zone=wizer_downloads burst=10 nodelay;
         limit_conn wizer_conn 8;
-
-        # Read-only distribution: only GET/HEAD; reject upload/mutation methods.
         limit_except GET HEAD { deny all; }
-        # No directory listing.
         autoindex off;
-
-        # Never expose dotfiles or stray staging/temp artifacts. (The publisher
-        # stages OUTSIDE this directory, so none should ever appear here — this
-        # is defense in depth. These return 403 without serving a file, so the
-        # parent `alias` is not involved.)
         location ~ /\.                 { deny all; }
         location ~ \.(tmp|part|swp)$    { deny all; }
-
-        # Correct, non-sniffable content types per file kind.
         types {
             application/vnd.android.package-archive apk;
             text/plain                              sha256;
             application/json                        json;
         }
         default_type application/octet-stream;
-
-        # TLS-only (HSTS) + no MIME sniffing + per-file caching (see the map).
-        # A location-level add_header replaces inherited ones, so re-assert the
-        # security headers we care about for binary downloads here.
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
         add_header X-Content-Type-Options    "nosniff" always;
-        # NOTE: NO `always` on Cache-Control — it must attach ONLY to cacheable
-        # success/redirect responses (200/206/304/…), never to a 404. Otherwise a
-        # request to a not-yet-transferred versioned URL would return a 404 stamped
-        # `immutable` and poison that URL in shared caches for a year.
         add_header Cache-Control             $wizer_android_cache;
-        # HTTP range requests (resumable large-APK downloads) stay enabled by
-        # default for static files — do not disable.
     }
 
-    # Everything else under /api/downloads/ — the API's own APK route. The
-    # android/ subtree above is a LONGER ^~ prefix and still wins for those URLs;
-    # this catches the rest, which would otherwise fall through to the general
-    # /api/ block and be bounded only by the 30r/s API zone. Same reasoning as
-    # the static subtree: the response is a large binary, not a JSON payload.
     location ^~ /api/downloads/ {
         limit_req  zone=wizer_downloads burst=10 nodelay;
         limit_conn wizer_conn 8;
-
         proxy_pass http://api_upstream;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
@@ -184,13 +111,9 @@ server {
         proxy_send_timeout 300s;
     }
 
-    # Credential endpoints, matched BEFORE the general /api/ block (a longer
-    # literal prefix wins in nginx). Brute-forcing a password or replaying a
-    # stolen refresh token should never get as far as Node.
     location /api/auth/ {
         limit_req  zone=wizer_auth burst=10 nodelay;
         limit_conn wizer_conn 20;
-
         proxy_pass http://api_upstream;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
@@ -199,7 +122,6 @@ server {
         proxy_set_header X-Forwarded-Host  $host;
         proxy_set_header X-Forwarded-Port  $server_port;
         proxy_set_header X-Request-Id      $request_id;
-        # Required for the api_upstream keepalive pool — see the note there.
         proxy_set_header Connection        "";
         proxy_read_timeout 60s;
         proxy_send_timeout 60s;
@@ -208,14 +130,8 @@ server {
     }
 
     location /api/ {
-        # burst=60 nodelay: a dashboard page fans out several requests at once,
-        # and a site's screens all poll on the same cadence. Sustained abuse
-        # still converges on the 30r/s zone rate.
         limit_req  zone=wizer_api burst=60 nodelay;
-        # Bounds slowloris-style connection hoarding. Well above what any real
-        # client opens, including a device resuming a large ranged download.
         limit_conn wizer_conn 100;
-
         proxy_pass http://api_upstream;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
@@ -223,20 +139,12 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host  $host;
         proxy_set_header X-Forwarded-Port  $server_port;
-        # Correlation ID: the API honours this header and echoes it back in the
-        # error envelope, so nginx's access log and the app log share one key.
         proxy_set_header X-Request-Id      $request_id;
-        # Required for the api_upstream keepalive pool — see the note there.
-        # This is the hot path: every screen in the fleet polls the manifest,
-        # heartbeat and command endpoints on a fixed cadence, so without pooling
-        # each poll pays a fresh TCP handshake into Node.
         proxy_set_header Connection        "";
         client_max_body_size 512m;
         proxy_request_buffering off;
         proxy_read_timeout      300s;
         proxy_send_timeout      300s;
-        # Dynamic, per-tenant API responses must never be proxy-cached, even if a
-        # cache zone is introduced later. Defensive — honor upstream no-cache too.
         proxy_no_cache      1;
         proxy_cache_bypass  1;
     }
@@ -244,23 +152,9 @@ server {
     location /_next/static/ {
         proxy_pass http://dashboard_upstream;
         proxy_set_header Host       $host;
-        # Required for the dashboard_upstream keepalive pool — see the note there.
         proxy_set_header Connection "";
-        # NOTE: there is deliberately no proxy_cache_valid here. It only has an
-        # effect alongside a proxy_cache_path/proxy_cache pair, and this
-        # deployment defines neither — the directive that used to sit here read
-        # as "nginx caches these for an hour" while nginx cached nothing at all.
-        # The real caching is the immutable Cache-Control below, which is
-        # correct for content-hashed Next.js build assets and is served by the
-        # browser and any CDN in front of us.
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
-
-    # NOTE: there is deliberately no /ws location. The API has no WebSocket
-    # gateway — devices poll (manifest, commands, heartbeat), which is what the
-    # Android player implements. The block that used to be here proxied to an
-    # endpoint that never existed and held a 3600s timeout open for it, while
-    # the docs it matched described a device channel the platform does not have.
 
     location / {
         proxy_pass http://dashboard_upstream;

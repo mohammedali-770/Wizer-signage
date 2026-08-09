@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { Logger, ValidationPipe, type LogLevel } from '@nestjs/common';
+import { ConsoleLogger, Logger, ValidationPipe, type LogLevel } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -55,10 +55,17 @@ function resolveLogLevels(raw: string | undefined): LogLevel[] {
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
+  const logLevels = resolveLogLevels(process.env.LOG_LEVEL);
+  // Production emits one JSON object per log line so Docker/Fluentd can ship
+  // structured records without regex parsing. Human-readable output remains the
+  // local-development default; LOG_FORMAT=json can opt into the production shape.
+  const structuredLogs = process.env.NODE_ENV === 'production' || process.env.LOG_FORMAT === 'json';
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: false,
-    logger: resolveLogLevels(process.env.LOG_LEVEL),
+    logger: structuredLogs
+      ? new ConsoleLogger({ json: true, logLevels, compact: true })
+      : logLevels,
   });
 
   // Behind Nginx/Let's Encrypt: trust the first proxy hop so `req.ip` and
