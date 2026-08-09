@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test env-validation.test.mjs 'src/**/*.test.ts'",
     "contract:generate": "openapi-typescript ../../contracts/openapi.json -o src/lib/api-contract.generated.ts --export-type && prettier --write src/lib/api-contract.generated.ts",
-    "contract:check": "pnpm contract:generate && git diff --exit-code -- src/lib/api-contract.generated.ts"
+    "contract:check": "rm -f /tmp/wizer-api-contract.generated.ts && openapi-typescript ../../contracts/openapi.json -o /tmp/wizer-api-contract.generated.ts --export-type && prettier --write /tmp/wizer-api-contract.generated.ts && cmp /tmp/wizer-api-contract.generated.ts src/lib/api-contract.generated.ts"
   },
   "dependencies": {
     "@wizer/shared": "workspace:*",
