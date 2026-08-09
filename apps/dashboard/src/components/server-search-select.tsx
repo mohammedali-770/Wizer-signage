@@ -25,6 +25,7 @@ export function ServerSearchSelect({
   disabled,
   required,
   tagApplicability,
+  filters,
 }: {
   type: SearchableSelectorType;
   value: string;
@@ -34,6 +35,7 @@ export function ServerSearchSelect({
   disabled?: boolean;
   required?: boolean;
   tagApplicability?: TagApplicability;
+  filters?: Readonly<Record<string, string>>;
 }) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -45,7 +47,7 @@ export function ServerSearchSelect({
   }, [search]);
 
   const resource = useApiResource<Paginated<Record<string, unknown>>>(
-    selectorSearchPath(type, debouncedSearch, { tagApplicability }),
+    selectorSearchPath(type, debouncedSearch, { tagApplicability, filters }),
   );
   const options = useMemo(
     () =>
