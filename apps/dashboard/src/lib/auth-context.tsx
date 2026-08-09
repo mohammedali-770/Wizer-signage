@@ -58,8 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus('authenticated');
     } catch (e) {
       // Only a genuine auth failure (401/403) logs the user out and clears
-      // tokens. Transient errors (5xx/network) keep the stored tokens so a
-      // later retry can recover instead of forcing a re-login.
+      // tokens. Transient errors (5xx/network) keep the stored access token so
+      // a later retry can recover instead of forcing a re-login.
       if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
         clearTokens();
       }
@@ -78,8 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // A session can die while the app is open — an admin revokes it, the company
   // is suspended, the password is changed in another tab. `apiFetch` already
-  // clears the tokens on a 401, but nothing told the UI, so the console kept
-  // rendering data it could no longer refresh. Flipping to `unauthenticated`
+  // clears the access token on a 401, but nothing told the UI, so the console
+  // kept rendering data it could no longer refresh. Flipping to unauthenticated
   // makes both shells redirect to /login on their existing effect.
   useEffect(() => {
     const onInvalidated = () => {
@@ -96,15 +96,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         requiresTwoFactor?: boolean;
         challengeToken?: string;
         accessToken?: string;
-        refreshToken?: string;
         mustEnableTwoFactor?: boolean;
       }>('/auth/login', { email, password }, { auth: false });
 
       if (res.requiresTwoFactor && res.challengeToken) {
         return { next: '2fa', challengeToken: res.challengeToken };
       }
-      setTokens(res.accessToken!, res.refreshToken!);
-      // Start the new session with a clean cache.
+      setTokens(res.accessToken!);
+      // Start the new session with a clean cache. The refresh token is already
+      // stored by the browser as an HttpOnly cookie from the login response.
       invalidateApiCache();
       await reload();
       return { next: res.mustEnableTwoFactor ? 'enroll' : 'authenticated' };
@@ -114,12 +114,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyTwoFactor = useCallback(
     async (challengeToken: string, code: string) => {
-      const res = await api.post<{ accessToken: string; refreshToken: string }>(
+      const res = await api.post<{ accessToken: string }>(
         '/auth/login/2fa',
         { challengeToken, code },
         { auth: false },
       );
-      setTokens(res.accessToken, res.refreshToken);
+      setTokens(res.accessToken);
       // Start the new session with a clean cache (same as login()).
       invalidateApiCache();
       await reload();
@@ -150,7 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await api.post('/auth/logout', {});
     } catch {
-      // ignore — clear locally regardless
+      // ignore — clear locally regardless. The server-side session will expire
+      // and the refresh cookie is scoped so it cannot authenticate other paths.
     }
     clearTokens();
     // Drop all cached GET responses so a different user logging in on the same
