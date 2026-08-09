@@ -1,0 +1,29 @@
+name: Refresh nonce CSP branch
+
+on:
+  push:
+    branches: [codex/nonce-csp]
+    paths:
+      - '.github/workflows/rebase-nonce-csp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/nonce-csp
+          fetch-depth: 0
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git merge --no-edit origin/main
+          git rm .github/workflows/rebase-nonce-csp.yml
+          git commit -m 'chore: refresh nonce CSP branch onto main'
+          git push origin HEAD:codex/nonce-csp
