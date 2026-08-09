@@ -52,6 +52,14 @@ server {
         default_type "text/plain";
     }
 
+    # Prometheus scrapes api:3001 directly on the private Compose network. Keep
+    # the public edge from ever forwarding this route through the generic /api/
+    # catch-all below. METRICS_TOKEN remains defense-in-depth on the internal
+    # request itself.
+    location = /api/internal/metrics {
+        return 404;
+    }
+
     location ^~ /api/downloads/android/ {
         alias /usr/share/nginx/downloads/android/;
         limit_req  zone=wizer_downloads burst=10 nodelay;
