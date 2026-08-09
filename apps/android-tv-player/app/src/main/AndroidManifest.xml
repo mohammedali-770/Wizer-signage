@@ -6,9 +6,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Android 12+ self-update contract. PackageInstaller still reports
-         STATUS_PENDING_USER_ACTION when the platform cannot update unattended;
-         Wizer never launches that UI on a signage screen. -->
+    <!-- OTA self-update. REQUEST_INSTALL_PACKAGES must be allowlisted once by
+         device provisioning / the operator on normal Android TV. Wizer never
+         opens the unknown-sources Settings UI itself. Android 12+ then supports
+         requesting a no-user-action self-update; PackageInstaller can still
+         refuse and Wizer records BLOCKED without interrupting playback. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <!-- Keep the screen on / device awake while signage is playing. -->
