@@ -1,0 +1,27 @@
+# Production-only logging overlay for the blue/green API/dashboard slots.
+# deploy-blue-green.sh and rollback-blue-green.sh include this together with
+# docker-compose.blue-green-slots.yml. The normal base-stack overlay lives in
+# docker-compose.log-shipping.yml.
+#
+# fluentd-async keeps a collector outage from preventing a Wizer container from
+# starting; the collector must still be monitored independently and its receipt
+# of release logs is a production-acceptance check.
+
+x-offbox-slot-logging: &offbox-slot-logging
+  driver: fluentd
+  options:
+    fluentd-address: ${LOG_SHIPPING_ADDRESS:?LOG_SHIPPING_ADDRESS is required for production log shipping}
+    fluentd-async: 'true'
+    fluentd-buffer-limit: ${LOG_SHIPPING_BUFFER_LIMIT:-1048576}
+    fluentd-retry-wait: ${LOG_SHIPPING_RETRY_WAIT_SECONDS:-1}
+    tag: 'wizer.{{.Name}}'
+
+services:
+  api_blue:
+    logging: *offbox-slot-logging
+  dashboard_blue:
+    logging: *offbox-slot-logging
+  api_green:
+    logging: *offbox-slot-logging
+  dashboard_green:
+    logging: *offbox-slot-logging
