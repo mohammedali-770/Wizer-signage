@@ -31,6 +31,24 @@ describe('selector server search paths', () => {
     assert.match(selectorSearchPath('TAG', 'Lobby'), /^\/tags\?/);
   });
 
+  it('passes selector-safe tag applicability to the API', () => {
+    assert.equal(
+      selectorSearchPath('TAG', 'promo', { tagApplicability: 'CONTENT' }),
+      `/tags?page=1&pageSize=${SELECTOR_RESULT_LIMIT}&search=promo&applicableTo=CONTENT`,
+    );
+    assert.equal(
+      selectorSearchPath('TAG', '', { tagApplicability: 'SCREEN' }),
+      `/tags?page=1&pageSize=${SELECTOR_RESULT_LIMIT}&applicableTo=SCREEN`,
+    );
+  });
+
+  it('ignores tag applicability for non-tag selectors', () => {
+    assert.equal(
+      selectorSearchPath('SCREEN', 'Lobby', { tagApplicability: 'CONTENT' }),
+      `/screens?page=1&pageSize=${SELECTOR_RESULT_LIMIT}&search=Lobby`,
+    );
+  });
+
   it('encodes ids used for individual selected-label resolution', () => {
     assert.equal(selectorEntityPath('SCREEN', 'a/b'), '/screens/a%2Fb');
   });
