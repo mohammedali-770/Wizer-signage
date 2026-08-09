@@ -30,11 +30,30 @@ class AndroidReleaseClient(
     private val origin = apiUrl.newBuilder().encodedPath("/").query(null).fragment(null).build()
     private val json = Json { ignoreUnknownKeys = false; explicitNulls = false }
 
-    suspend fun fetchLatest(): AndroidRelease? = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url("$apiBase/downloads/android/latest.json")
-            .get()
-            .build()
+    suspend fun fetchLatest(): AndroidRelease? =
+        fetchManifest("$apiBase/downloads/android/latest.json")
+
+    /**
+     * Resolve the immutable manifest named by the authenticated rollout policy.
+     * Do NOT substitute latest.json: a newer publish must not strand screens
+     * intentionally pinned to the previous canary release.
+     */
+    suspend fun fetchVersion(versionName: String, versionCode: Int): AndroidRelease? {
+        val safeName = versionName.trim()
+        if (!VERSION_NAME.matches(safeName) || safeName == "." || safeName == ".." || safeName.contains("..")) {
+            return null
+        }
+        if (versionCode <= 0) return null
+        return fetchManifest("$apiBase/downloads/android/wizer-signage-v$safeName-$versionCode.json")
+    }
+
+    private suspend fun fetchManifest(url: String): AndroidRelease? = withContext(Dispatchers.IO) {
+        val resolved = origin.resolve(url) ?: return@withContext null
+        if (resolved.scheme != origin.scheme || resolved.host != origin.host || resolved.port != origin.port) {
+            return@withContext null
+        }
+        if (!resolved.encodedPath.startsWith("/api/downloads/android/")) return@withContext null
+        val request = Request.Builder().url(resolved).get().build()
         try {
             http.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
@@ -98,5 +117,9 @@ class AndroidReleaseClient(
             }
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private companion object {
+        val VERSION_NAME = Regex("^[A-Za-z0-9._-]+$")
     }
 }
