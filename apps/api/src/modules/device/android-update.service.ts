@@ -6,9 +6,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import type { AndroidUpdateResultDto } from './dto/android-update.dto';
 
 const VERSION_NAME_RE = /^(?!.*\.\.)[A-Za-z0-9._-]+$/;
+const POLICY_REVISION_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 type OtaSettings = {
   enabled?: boolean;
+  policyRevision?: string;
   rolloutPercent?: number;
   targetVersionName?: string;
   targetVersionCode?: number;
@@ -41,6 +43,10 @@ export class AndroidUpdateService {
       Number.isInteger(raw.targetVersionCode) && Number(raw.targetVersionCode) > 0
         ? Number(raw.targetVersionCode)
         : null;
+    const policyRevision =
+      typeof raw.policyRevision === 'string' && POLICY_REVISION_RE.test(raw.policyRevision)
+        ? raw.policyRevision
+        : null;
     const rolloutPercent = Math.max(0, Math.min(100, Math.trunc(Number(raw.rolloutPercent) || 0)));
     const checkIntervalSeconds = Math.max(
       900,
@@ -60,7 +66,11 @@ export class AndroidUpdateService {
     const explicitCanary =
       screenIds.includes(screen.id) ||
       screen.groups.some((membership) => groupIds.includes(membership.groupId));
-    const enabled = raw.enabled === true && targetVersionName !== null && targetVersionCode !== null;
+    const enabled =
+      raw.enabled === true &&
+      policyRevision !== null &&
+      targetVersionName !== null &&
+      targetVersionCode !== null;
     const eligible = enabled && (explicitCanary || cohort < rolloutPercent);
 
     return {
@@ -68,6 +78,7 @@ export class AndroidUpdateService {
       eligible,
       rolloutPercent,
       cohort,
+      policyRevision,
       targetVersionName,
       targetVersionCode,
       checkIntervalSeconds,
