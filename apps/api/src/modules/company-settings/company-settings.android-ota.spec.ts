@@ -19,22 +19,31 @@ function harness() {
     screenGroup: { count: jest.fn() },
   };
   const activityLog = { log: jest.fn().mockResolvedValue(undefined) };
+  const androidReleases = {
+    find: jest.fn().mockImplementation((versionName: string, versionCode: number) => ({
+      versionName,
+      versionCode,
+      fileName: `wizer-signage-v${versionName}-${versionCode}.apk`,
+    })),
+  };
   const service = new CompanySettingsService(
     prisma as never,
     activityLog as never,
     {} as never,
     {} as never,
+    androidReleases as never,
   );
-  return { service, prisma, activityLog };
+  return { service, prisma, activityLog, androidReleases };
 }
 
 describe('CompanySettingsService Android OTA policy', () => {
-  it('refuses to enable OTA without both exact release identity fields', async () => {
+  it('refuses to enable OTA without exact candidate and rollback identities', async () => {
     const { service, prisma } = harness();
 
     await expect(
       service.updateAndroidOta('company-1', actor, {
         enabled: true,
+        targetVersionName: '1.4.2',
         targetVersionCode: 42,
         rolloutPercent: 10,
       }),
@@ -42,10 +51,43 @@ describe('CompanySettingsService Android OTA policy', () => {
     await expect(
       service.updateAndroidOta('company-1', actor, {
         enabled: true,
-        targetVersionName: '1.4.2',
+        rollbackVersionName: '1.4.1-safe',
+        rollbackVersionCode: 43,
         rolloutPercent: 10,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.company.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('requires rollback versionCode to move forward and both releases to be published', async () => {
+    const { service, prisma, androidReleases } = harness();
+
+    await expect(
+      service.updateAndroidOta('company-1', actor, {
+        enabled: true,
+        targetVersionName: '1.4.2',
+        targetVersionCode: 42,
+        rollbackVersionName: '1.4.1-safe',
+        rollbackVersionCode: 41,
+        rolloutPercent: 5,
+      }),
+    ).rejects.toThrow('rollbackVersionCode must be greater than targetVersionCode');
+
+    androidReleases.find.mockImplementation((name: string, code: number) =>
+      name === '1.4.2' && code === 42
+        ? { versionName: name, versionCode: code, fileName: 'candidate.apk' }
+        : null,
+    );
+    await expect(
+      service.updateAndroidOta('company-1', actor, {
+        enabled: true,
+        targetVersionName: '1.4.2',
+        targetVersionCode: 42,
+        rollbackVersionName: '1.4.1-safe',
+        rollbackVersionCode: 43,
+        rolloutPercent: 5,
+      }),
+    ).rejects.toThrow('Rollback Android release 1.4.1-safe/43 is not published');
     expect(prisma.company.findFirst).not.toHaveBeenCalled();
   });
 
@@ -59,6 +101,8 @@ describe('CompanySettingsService Android OTA policy', () => {
         enabled: true,
         targetVersionName: '1.4.2',
         targetVersionCode: 42,
+        rollbackVersionName: '1.4.1-safe',
+        rollbackVersionCode: 43,
         rolloutPercent: 0,
         screenIds: [
           '11111111-1111-4111-8111-111111111111',
@@ -92,6 +136,8 @@ describe('CompanySettingsService Android OTA policy', () => {
         enabled: true,
         targetVersionName: '1.4.2',
         targetVersionCode: 42,
+        rollbackVersionName: '1.4.1-safe',
+        rollbackVersionCode: 43,
         rolloutPercent: 0,
         groupIds: ['33333333-3333-4333-8333-333333333333'],
       }),
@@ -100,7 +146,7 @@ describe('CompanySettingsService Android OTA policy', () => {
     expect(prisma.company.update).not.toHaveBeenCalled();
   });
 
-  it('persists a complete replacement policy, new revision, and audit summary', async () => {
+  it('persists a complete replacement policy, new revision, health gate, and audit summary', async () => {
     const { service, prisma, activityLog } = harness();
     prisma.company.findFirst
       .mockResolvedValueOnce({ settings: { notificationEmails: ['ops@example.com'] } })
@@ -118,10 +164,14 @@ describe('CompanySettingsService Android OTA policy', () => {
             policyRevision: '2026-08-09T08:00:00.000Z',
             targetVersionName: '1.4.2',
             targetVersionCode: 42,
+            rollbackVersionName: '1.4.1-safe',
+            rollbackVersionCode: 43,
             rolloutPercent: 10,
             screenIds: [],
             groupIds: [],
             checkIntervalSeconds: 3600,
+            healthWindowSeconds: 600,
+            lastAutoRollback: null,
           },
         },
         fallbackContentId: null,
@@ -134,8 +184,11 @@ describe('CompanySettingsService Android OTA policy', () => {
       enabled: true,
       targetVersionName: '1.4.2',
       targetVersionCode: 42,
+      rollbackVersionName: '1.4.1-safe',
+      rollbackVersionCode: 43,
       rolloutPercent: 10,
       checkIntervalSeconds: 3600,
+      healthWindowSeconds: 600,
     });
 
     expect(prisma.company.update).toHaveBeenCalledWith({
@@ -148,10 +201,14 @@ describe('CompanySettingsService Android OTA policy', () => {
             policyRevision: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
             targetVersionName: '1.4.2',
             targetVersionCode: 42,
+            rollbackVersionName: '1.4.1-safe',
+            rollbackVersionCode: 43,
             rolloutPercent: 10,
             screenIds: [],
             groupIds: [],
             checkIntervalSeconds: 3600,
+            healthWindowSeconds: 600,
+            lastAutoRollback: null,
           },
         },
       },
@@ -164,6 +221,9 @@ describe('CompanySettingsService Android OTA policy', () => {
           policyRevision: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
           targetVersionName: '1.4.2',
           targetVersionCode: 42,
+          rollbackVersionName: '1.4.1-safe',
+          rollbackVersionCode: 43,
+          healthWindowSeconds: 600,
         }),
       }),
     );
@@ -173,7 +233,10 @@ describe('CompanySettingsService Android OTA policy', () => {
         policyRevision: '2026-08-09T08:00:00.000Z',
         targetVersionName: '1.4.2',
         targetVersionCode: 42,
+        rollbackVersionName: '1.4.1-safe',
+        rollbackVersionCode: 43,
         rolloutPercent: 10,
+        healthWindowSeconds: 600,
       }),
     );
   });
