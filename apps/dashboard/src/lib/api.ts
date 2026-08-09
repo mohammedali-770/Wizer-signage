@@ -11,6 +11,7 @@
 import { API_BASE_URL } from './api-base';
 import { invalidateApiCache } from './api-cache';
 import { endImpersonation, isImpersonating } from './impersonation';
+import { requestRefreshedAccessToken, shouldAttemptBrowserRefresh } from './refresh-client';
 
 const BASE = API_BASE_URL;
 
@@ -61,21 +62,12 @@ async function refreshTokens(): Promise<boolean> {
   // ordinary refresh cookie still exists (HttpOnly, so JS cannot stash/remove
   // it), therefore calling /auth/refresh while impersonating would silently
   // switch identity back to the admin session. Never cross that audit boundary.
-  if (isImpersonating()) return false;
+  if (!shouldAttemptBrowserRefresh(true, isImpersonating())) return false;
 
-  try {
-    const res = await fetch(`${BASE}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    if (!res.ok) return false;
-    const data = (await res.json()) as { accessToken: string };
-    if (!data.accessToken) return false;
-    setTokens(data.accessToken);
-    return true;
-  } catch {
-    return false;
-  }
+  const accessToken = await requestRefreshedAccessToken(BASE);
+  if (!accessToken) return false;
+  setTokens(accessToken);
+  return true;
 }
 
 interface RequestOptions {
@@ -103,7 +95,10 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
   let res = await send();
 
-  if (res.status === 401 && options.auth !== false && !isImpersonating()) {
+  if (
+    res.status === 401 &&
+    shouldAttemptBrowserRefresh(options.auth !== false, isImpersonating())
+  ) {
     refreshing = refreshing ?? refreshTokens();
     const ok = await refreshing;
     refreshing = null;
@@ -136,7 +131,7 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
   };
 
   let res = await send();
-  if (res.status === 401 && !isImpersonating()) {
+  if (res.status === 401 && shouldAttemptBrowserRefresh(true, isImpersonating())) {
     refreshing = refreshing ?? refreshTokens();
     const ok = await refreshing;
     refreshing = null;
