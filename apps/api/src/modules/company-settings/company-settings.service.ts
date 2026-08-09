@@ -5,6 +5,7 @@ import { PasswordService } from '../../common/crypto/password.service';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityCategory, ActivityLogService } from '../activity-log/activity-log.service';
+import { AndroidReleaseCatalogService } from '../downloads/android-release-catalog.service';
 import { UsageLimitsService } from '../usage-limits/usage-limits.service';
 import type { AndroidOtaSettingsDto, UpdateCompanySettingsDto } from './dto/company-settings.dto';
 
@@ -15,6 +16,7 @@ export class CompanySettingsService {
     private readonly activityLog: ActivityLogService,
     private readonly password: PasswordService,
     private readonly usageLimits: UsageLimitsService,
+    private readonly androidReleases: AndroidReleaseCatalogService,
   ) {}
 
   /** Current usage vs plan limits for the caller's own company. */
@@ -34,6 +36,31 @@ export class CompanySettingsService {
 
     const settings = (company.settings ?? {}) as Record<string, unknown>;
     const androidOta = (settings.androidOta ?? {}) as Record<string, unknown>;
+    const rollbackRaw =
+      androidOta.lastAutoRollback &&
+      typeof androidOta.lastAutoRollback === 'object' &&
+      !Array.isArray(androidOta.lastAutoRollback)
+        ? (androidOta.lastAutoRollback as Record<string, unknown>)
+        : null;
+    const lastAutoRollback =
+      rollbackRaw &&
+      typeof rollbackRaw.triggeredAt === 'string' &&
+      typeof rollbackRaw.fromVersionName === 'string' &&
+      typeof rollbackRaw.fromVersionCode === 'number' &&
+      typeof rollbackRaw.toVersionName === 'string' &&
+      typeof rollbackRaw.toVersionCode === 'number'
+        ? {
+            triggeredAt: rollbackRaw.triggeredAt,
+            fromVersionName: rollbackRaw.fromVersionName,
+            fromVersionCode: rollbackRaw.fromVersionCode,
+            toVersionName: rollbackRaw.toVersionName,
+            toVersionCode: rollbackRaw.toVersionCode,
+            failedScreenIds: Array.isArray(rollbackRaw.failedScreenIds)
+              ? rollbackRaw.failedScreenIds.filter((id): id is string => typeof id === 'string').slice(0, 50)
+              : [],
+          }
+        : null;
+
     return {
       id: company.id,
       name: company.name,
@@ -54,12 +81,19 @@ export class CompanySettingsService {
           typeof androidOta.targetVersionName === 'string' ? androidOta.targetVersionName : null,
         targetVersionCode:
           typeof androidOta.targetVersionCode === 'number' ? androidOta.targetVersionCode : null,
+        rollbackVersionName:
+          typeof androidOta.rollbackVersionName === 'string' ? androidOta.rollbackVersionName : null,
+        rollbackVersionCode:
+          typeof androidOta.rollbackVersionCode === 'number' ? androidOta.rollbackVersionCode : null,
         rolloutPercent:
           typeof androidOta.rolloutPercent === 'number' ? androidOta.rolloutPercent : 0,
         screenIds: Array.isArray(androidOta.screenIds) ? androidOta.screenIds : [],
         groupIds: Array.isArray(androidOta.groupIds) ? androidOta.groupIds : [],
         checkIntervalSeconds:
           typeof androidOta.checkIntervalSeconds === 'number' ? androidOta.checkIntervalSeconds : 21_600,
+        healthWindowSeconds:
+          typeof androidOta.healthWindowSeconds === 'number' ? androidOta.healthWindowSeconds : 900,
+        lastAutoRollback,
       },
       // Read-only billing summary (managed by Super Admin).
       plan: company.subscription
@@ -121,18 +155,62 @@ export class CompanySettingsService {
   }
 
   /**
-   * Replace the complete staged-rollout policy after ownership validation.
-   * Every explicit save receives a new revision token. Devices use that token
-   * to keep a terminal BLOCKED/FAILED result sticky for the exact policy that
-   * caused it, while letting an operator deliberately save a new revision to
-   * authorize one fresh attempt after remediation.
+   * Replace the complete staged-rollout policy after ownership and immutable
+   * release validation. Every explicit save receives a new revision token.
+   *
+   * A production rollout is only allowed to arm when a known-good rollback APK
+   * is ALREADY published under a strictly higher versionCode. Android does not
+   * permit an unattended downgrade, so "we will build rollback later" is not a
+   * recoverable production strategy.
    */
   async updateAndroidOta(companyId: string, actor: AuthenticatedUser, dto: AndroidOtaSettingsDto) {
     const targetVersionName = dto.targetVersionName?.trim() || null;
     const targetVersionCode = dto.targetVersionCode ?? null;
-    if (dto.enabled && (!targetVersionName || targetVersionCode === null)) {
+    const rollbackVersionName = dto.rollbackVersionName?.trim() || null;
+    const rollbackVersionCode = dto.rollbackVersionCode ?? null;
+
+    const candidatePairComplete = (targetVersionName === null) === (targetVersionCode === null);
+    const rollbackPairComplete = (rollbackVersionName === null) === (rollbackVersionCode === null);
+    if (!candidatePairComplete) {
+      throw new BadRequestException('targetVersionName and targetVersionCode must be supplied together.');
+    }
+    if (!rollbackPairComplete) {
+      throw new BadRequestException('rollbackVersionName and rollbackVersionCode must be supplied together.');
+    }
+    if (
+      dto.enabled &&
+      (!targetVersionName || targetVersionCode === null || !rollbackVersionName || rollbackVersionCode === null)
+    ) {
       throw new BadRequestException(
-        'targetVersionName and targetVersionCode are required when Android OTA is enabled.',
+        'Candidate and rollback versionName/versionCode are required before Android OTA can be enabled.',
+      );
+    }
+    if (
+      targetVersionCode !== null &&
+      rollbackVersionCode !== null &&
+      rollbackVersionCode <= targetVersionCode
+    ) {
+      throw new BadRequestException(
+        'rollbackVersionCode must be greater than targetVersionCode so Android can install the rollback as a forward update.',
+      );
+    }
+
+    if (
+      targetVersionName &&
+      targetVersionCode !== null &&
+      !this.androidReleases.find(targetVersionName, targetVersionCode)
+    ) {
+      throw new BadRequestException(
+        `Candidate Android release ${targetVersionName}/${targetVersionCode} is not published or failed immutable-manifest verification.`,
+      );
+    }
+    if (
+      rollbackVersionName &&
+      rollbackVersionCode !== null &&
+      !this.androidReleases.find(rollbackVersionName, rollbackVersionCode)
+    ) {
+      throw new BadRequestException(
+        `Rollback Android release ${rollbackVersionName}/${rollbackVersionCode} is not published or failed immutable-manifest verification.`,
       );
     }
 
@@ -162,18 +240,29 @@ export class CompanySettingsService {
       }
     }
 
+    const previousSettings = (company.settings ?? {}) as Record<string, unknown>;
+    const previousOta =
+      previousSettings.androidOta &&
+      typeof previousSettings.androidOta === 'object' &&
+      !Array.isArray(previousSettings.androidOta)
+        ? (previousSettings.androidOta as Record<string, unknown>)
+        : {};
     const policy = {
       enabled: dto.enabled,
       policyRevision: new Date().toISOString(),
       targetVersionName,
       targetVersionCode,
+      rollbackVersionName,
+      rollbackVersionCode,
       rolloutPercent: dto.rolloutPercent,
       screenIds,
       groupIds,
       checkIntervalSeconds: dto.checkIntervalSeconds ?? 21_600,
+      healthWindowSeconds: dto.healthWindowSeconds ?? 900,
+      lastAutoRollback: previousOta.lastAutoRollback ?? null,
     };
     const settings = {
-      ...((company.settings ?? {}) as Record<string, unknown>),
+      ...previousSettings,
       androidOta: policy,
     };
 
@@ -186,10 +275,13 @@ export class CompanySettingsService {
       policyRevision: policy.policyRevision,
       targetVersionName: policy.targetVersionName,
       targetVersionCode: policy.targetVersionCode,
+      rollbackVersionName: policy.rollbackVersionName,
+      rollbackVersionCode: policy.rollbackVersionCode,
       rolloutPercent: policy.rolloutPercent,
       canaryScreenCount: screenIds.length,
       canaryGroupCount: groupIds.length,
       checkIntervalSeconds: policy.checkIntervalSeconds,
+      healthWindowSeconds: policy.healthWindowSeconds,
     });
     return this.get(companyId);
   }
