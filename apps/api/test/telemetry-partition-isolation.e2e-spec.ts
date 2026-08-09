@@ -5,7 +5,7 @@ type Row<T extends string> = Record<T, string | number | bigint | boolean | null
 const prisma = new PrismaClient();
 
 function suffix(date: Date): string {
-  return `${date.getUTCFullYear()}_${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+  return `y${date.getUTCFullYear()}m${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 function nextMonth(date: Date): Date {
