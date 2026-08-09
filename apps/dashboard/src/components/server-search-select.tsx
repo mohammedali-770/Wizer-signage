@@ -6,18 +6,14 @@ import { Search } from 'lucide-react';
 import { Input, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import {
-  SELECTOR_RESULT_LIMIT,
+  normalizeSelectorEntity,
   selectorEntityPath,
   selectorSearchPath,
   type SearchableSelectorType,
+  type SelectorEntity,
 } from '@/lib/selector-search';
 import type { Paginated } from '@/lib/types';
 import { useApiResource } from '@/lib/use-api';
-
-interface NamedEntity {
-  id: string;
-  name: string;
-}
 
 export function ServerSearchSelect({
   type,
@@ -26,6 +22,7 @@ export function ServerSearchSelect({
   emptyLabel = 'All',
   searchPlaceholder = 'Search…',
   disabled,
+  required,
 }: {
   type: SearchableSelectorType;
   value: string;
@@ -33,18 +30,27 @@ export function ServerSearchSelect({
   emptyLabel?: string;
   searchPlaceholder?: string;
   disabled?: boolean;
+  required?: boolean;
 }) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedEntity, setSelectedEntity] = useState<NamedEntity | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<SelectorEntity | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 250);
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const resource = useApiResource<Paginated<NamedEntity>>(selectorSearchPath(type, debouncedSearch));
-  const options = useMemo(() => resource.data?.items ?? [], [resource.data]);
+  const resource = useApiResource<Paginated<Record<string, unknown>>>(
+    selectorSearchPath(type, debouncedSearch),
+  );
+  const options = useMemo(
+    () =>
+      (resource.data?.items ?? [])
+        .map((item) => normalizeSelectorEntity(type, item))
+        .filter((item): item is SelectorEntity => item !== null),
+    [resource.data, type],
+  );
 
   useEffect(() => {
     if (!value) {
@@ -60,9 +66,10 @@ export function ServerSearchSelect({
 
     let active = true;
     void api
-      .get<NamedEntity>(selectorEntityPath(type, value))
-      .then((entity) => {
-        if (active) setSelectedEntity(entity);
+      .get<unknown>(selectorEntityPath(type, value))
+      .then((payload) => {
+        const entity = normalizeSelectorEntity(type, payload);
+        if (active && entity) setSelectedEntity(entity);
       })
       .catch(() => {
         // Keep the id selected even if the label lookup fails. The list query
@@ -96,6 +103,7 @@ export function ServerSearchSelect({
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled || resource.loading || !!resource.error}
         className="w-full"
+        required={required}
       >
         <option value="">{emptyLabel}</option>
         {selectOptions.map((option) => (
@@ -104,13 +112,6 @@ export function ServerSearchSelect({
           </option>
         ))}
       </Select>
-      <p className="text-muted-foreground text-xs">
-        {resource.error
-          ? 'Search failed — change the query to retry.'
-          : resource.data?.meta?.total && resource.data.meta.total > SELECTOR_RESULT_LIMIT
-            ? `${resource.data.meta.total} matches — refine the search to reach any result.`
-            : `Showing up to ${SELECTOR_RESULT_LIMIT} server matches.`}
-      </p>
     </div>
   );
 }
