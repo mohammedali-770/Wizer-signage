@@ -1,0 +1,58 @@
+name: Finalize dashboard OpenAPI types v2
+
+on:
+  push:
+    branches: [codex/dashboard-openapi-types]
+    paths:
+      - '.github/workflows/finalize-dashboard-openapi-types-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/dashboard-openapi-types
+          fetch-depth: 0
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Install generator and generate contract types
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.0 --activate
+          pnpm --filter @wizer/dashboard add -D openapi-typescript@^7
+          node <<'NODE'
+          const fs = require('node:fs');
+          const packagePath = 'apps/dashboard/package.json';
+          const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+          pkg.scripts['contract:generate'] = 'openapi-typescript ../../contracts/openapi.json -o src/lib/api-contract.generated.ts --export-type';
+          pkg.scripts['contract:check'] = 'openapi-typescript ../../contracts/openapi.json -o src/lib/api-contract.generated.ts --export-type --check';
+          fs.writeFileSync(packagePath, JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('apps/dashboard/src/lib/types.ts')
+          text = path.read_text()
+          if "import type { ContractMeResponse, ContractUserView } from './api-contract';" not in text:
+              text = "import type { ContractMeResponse, ContractUserView } from './api-contract';\n\n" + text
+          old = '''export interface AuthUser {\n  id: string;\n  email: string;\n  name: string;\n  role: UserRole;\n  status: UserStatus;\n  companyId: string | null;\n}\nexport interface MeResponse {\n  user: AuthUser;\n  permissions: string[];\n  mfaSatisfied: boolean;\n  twoFactorRequired: boolean;\n}\n'''
+          new = '''export type AuthUser = ContractUserView;\nexport type MeResponse = ContractMeResponse;\n'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('expected auth response block not found')
+          path.write_text(text)
+          PY
+          pnpm --filter @wizer/dashboard contract:generate
+          pnpm --filter @wizer/dashboard typecheck
+      - name: Commit generated artifacts
+        run: |
+          git add apps/dashboard/package.json apps/dashboard/src/lib/api-contract.generated.ts apps/dashboard/src/lib/api-contract.ts apps/dashboard/src/lib/types.ts pnpm-lock.yaml
+          git commit -m 'feat(dashboard): generate API types from OpenAPI contract'
+          git push origin HEAD:codex/dashboard-openapi-types
