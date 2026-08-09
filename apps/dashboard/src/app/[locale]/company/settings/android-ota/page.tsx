@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { AlertTriangle, ArrowLeft, Search, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, RotateCcw, Search, ShieldCheck, X } from 'lucide-react';
 
 import { Link } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
@@ -23,15 +23,28 @@ import {
   useToast,
 } from '@/components/ui';
 
+interface AutoRollbackView {
+  triggeredAt: string;
+  fromVersionName: string;
+  fromVersionCode: number;
+  toVersionName: string;
+  toVersionCode: number;
+  failedScreenIds: string[];
+}
+
 interface AndroidOtaPolicyView {
   enabled: boolean;
   policyRevision: string | null;
   targetVersionName: string | null;
   targetVersionCode: number | null;
+  rollbackVersionName: string | null;
+  rollbackVersionCode: number | null;
   rolloutPercent: number;
   screenIds: string[];
   groupIds: string[];
   checkIntervalSeconds: number;
+  healthWindowSeconds: number;
+  lastAutoRollback: AutoRollbackView | null;
 }
 
 interface CompanySettingsView {
@@ -69,15 +82,18 @@ export default function AndroidOtaSettingsPage() {
   const text = ar
     ? {
         title: 'تحديث مشغل Android',
-        description: 'تحكم تدريجي وآمن في تحديث أجهزة Wizer Signage.',
+        description: 'تحكم تدريجي وآمن في تحديث أجهزة Wizer Signage مع رجوع تلقائي عند فشل صحة الإصدار.',
         back: 'إعدادات الشركة',
-        release: 'الإصدار المسموح',
+        release: 'سياسة الإصدار والاستعادة',
+        candidate: 'الإصدار المرشح',
+        recovery: 'إصدار الاستعادة المعروف بأنه سليم',
         versionName: 'اسم الإصدار',
         versionCode: 'رقم الإصدار',
         enabled: 'تفعيل التحديثات الجديدة',
         enabledHint: 'إيقاف هذا الخيار يوقف بدء محاولات تثبيت جديدة بعد جلب السياسة التالية.',
         rollout: 'نسبة التوزيع',
         cadence: 'فترة التحقق بالدقائق',
+        healthWindow: 'مهلة إثبات الصحة بالدقائق',
         canaries: 'الأجهزة التجريبية',
         screens: 'شاشات محددة',
         groups: 'مجموعات محددة',
@@ -89,27 +105,36 @@ export default function AndroidOtaSettingsPage() {
         saving: 'جاري الحفظ…',
         saved: 'تم حفظ سياسة التحديث.',
         failed: 'تعذر حفظ سياسة التحديث.',
-        invalid: 'أدخل اسم إصدار ورقم إصدار موجب قبل تفعيل التحديث.',
+        invalid:
+          'قبل التفعيل أدخل الإصدار المرشح وإصدار الاستعادة المنشورين، ويجب أن يكون versionCode للاستعادة أعلى من الإصدار المرشح.',
         revision: 'مراجعة السياسة الحالية',
         noRevision: 'لم يتم حفظ سياسة تحديث بعد.',
         retryWarning:
           'كل حفظ ينشئ مراجعة سياسة جديدة. إذا كان جهاز BLOCKED أو FAILED نهائياً، فإن حفظ السياسة بعد معالجة السبب يسمح بمحاولة واحدة جديدة لذلك الجهاز.',
         rolloutWarning:
-          'ابدأ بشاشات تجريبية ونسبة 0%. راقب الأعطال وحالة الاتصال بعد التثبيت، ثم ارفع النسبة تدريجياً. latest.json لا يغيّر الأجهزة تلقائياً.',
+          'ابدأ بشاشات تجريبية ونسبة 0%. إذا لم يثبت الإصدار المرشح نبضة قلب سليمة خلال المهلة، يحول عامل الصيانة نفس مجموعة التوزيع تلقائياً إلى إصدار الاستعادة.',
         exactWarning:
-          'يجب أن يطابق اسم ورقم الإصدار ملف manifest ثابتاً منشوراً. لا تستخدم إصداراً أقدم؛ الرجوع يتم ببناء نسخة سليمة برقم versionCode أعلى.',
+          'لن يسمح الخادم بالتفعيل إلا إذا كان ملفا candidate وrecovery منشورين فعلياً مع APK وchecksum صالحين. Android لا يسمح بالرجوع التلقائي إلى versionCode أقل، لذلك يجب نشر كود سليم برقم أعلى مسبقاً.',
+        lastRollback: 'آخر رجوع تلقائي',
+        noRollback: 'لم يحدث رجوع تلقائي حتى الآن.',
+        rollbackFrom: 'من',
+        rollbackTo: 'إلى',
+        failedScreens: 'الشاشات التي فشلت في إثبات الصحة',
       }
     : {
         title: 'Android player updates',
-        description: 'Safely control staged Wizer Signage player updates.',
+        description: 'Safely control staged Wizer Signage updates with heartbeat-based automatic recovery.',
         back: 'Company settings',
-        release: 'Authorized release',
+        release: 'Release and recovery policy',
+        candidate: 'Candidate release',
+        recovery: 'Known-good recovery release',
         versionName: 'Version name',
         versionCode: 'Version code',
         enabled: 'Enable new update attempts',
         enabledHint: 'Turning this off stops new install attempts after a device fetches the policy again.',
         rollout: 'Rollout percentage',
         cadence: 'Check interval (minutes)',
+        healthWindow: 'Healthy-heartbeat window (minutes)',
         canaries: 'Canary devices',
         screens: 'Explicit screens',
         groups: 'Explicit groups',
@@ -121,23 +146,32 @@ export default function AndroidOtaSettingsPage() {
         saving: 'Saving…',
         saved: 'Android rollout policy saved.',
         failed: 'Could not save Android rollout policy.',
-        invalid: 'Enter a version name and positive version code before enabling updates.',
+        invalid:
+          'Before enabling, provide published candidate and recovery releases; the recovery versionCode must be greater than the candidate code.',
         revision: 'Current policy revision',
         noRevision: 'No rollout policy has been saved yet.',
         retryWarning:
           'Every save creates a new policy revision. After you remediate a terminal BLOCKED/FAILED device, saving the policy is the explicit one-attempt retry authorization.',
         rolloutWarning:
-          'Start with explicit canaries and 0%. Watch crash/offline health after installation, then increase percentage deliberately. latest.json never advances devices by itself.',
+          'Start with explicit canaries and 0%. If the candidate does not prove a clean heartbeat within the health window, maintenance automatically switches the same rollout cohort to the recovery build.',
         exactWarning:
-          'Version name and code must identify one published immutable manifest. Never downgrade versionCode; rollback is a known-good build published under a higher code.',
+          'The server will not arm this rollout unless both candidate and recovery manifests, APKs and checksum sidecars are already published and verifiable. Android cannot unattended-downgrade, so the known-good recovery code must be published under a higher versionCode in advance.',
+        lastRollback: 'Last automatic recovery',
+        noRollback: 'No automatic recovery has been triggered yet.',
+        rollbackFrom: 'From',
+        rollbackTo: 'To',
+        failedScreens: 'Screens that failed the health gate',
       };
 
   const [initialized, setInitialized] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [versionName, setVersionName] = useState('');
   const [versionCode, setVersionCode] = useState('');
+  const [rollbackVersionName, setRollbackVersionName] = useState('');
+  const [rollbackVersionCode, setRollbackVersionCode] = useState('');
   const [rolloutPercent, setRolloutPercent] = useState('0');
   const [checkMinutes, setCheckMinutes] = useState('360');
+  const [healthMinutes, setHealthMinutes] = useState('15');
   const [screenIds, setScreenIds] = useState<string[]>([]);
   const [groupIds, setGroupIds] = useState<string[]>([]);
   const [labels, setLabels] = useState<Record<string, string>>({});
@@ -161,8 +195,13 @@ export default function AndroidOtaSettingsPage() {
     setEnabled(policy.enabled);
     setVersionName(policy.targetVersionName ?? '');
     setVersionCode(policy.targetVersionCode == null ? '' : String(policy.targetVersionCode));
+    setRollbackVersionName(policy.rollbackVersionName ?? '');
+    setRollbackVersionCode(
+      policy.rollbackVersionCode == null ? '' : String(policy.rollbackVersionCode),
+    );
     setRolloutPercent(String(policy.rolloutPercent ?? 0));
     setCheckMinutes(String(Math.max(15, Math.round((policy.checkIntervalSeconds ?? 21_600) / 60))));
+    setHealthMinutes(String(Math.max(5, Math.round((policy.healthWindowSeconds ?? 900) / 60))));
     setScreenIds(policy.screenIds ?? []);
     setGroupIds(policy.groupIds ?? []);
     setInitialized(true);
@@ -172,9 +211,7 @@ export default function AndroidOtaSettingsPage() {
     const next: Record<string, string> = {};
     for (const item of screens.data?.items ?? []) next[item.id] = item.name;
     for (const item of groups.data?.items ?? []) next[item.id] = item.name;
-    if (Object.keys(next).length > 0) {
-      setLabels((current) => ({ ...current, ...next }));
-    }
+    if (Object.keys(next).length > 0) setLabels((current) => ({ ...current, ...next }));
   }, [groups.data, screens.data]);
 
   const selectedScreenSet = useMemo(() => new Set(screenIds), [screenIds]);
@@ -194,9 +231,19 @@ export default function AndroidOtaSettingsPage() {
 
   const save = async (forceEnabled = enabled) => {
     const code = Number(versionCode);
+    const recoveryCode = Number(rollbackVersionCode);
     const percent = Math.max(0, Math.min(100, Math.trunc(Number(rolloutPercent) || 0)));
     const minutes = Math.max(15, Math.min(1440, Math.trunc(Number(checkMinutes) || 360)));
-    if (forceEnabled && (!versionName.trim() || !Number.isInteger(code) || code <= 0)) {
+    const health = Math.max(5, Math.min(60, Math.trunc(Number(healthMinutes) || 15)));
+    if (
+      forceEnabled &&
+      (!versionName.trim() ||
+        !Number.isInteger(code) ||
+        code <= 0 ||
+        !rollbackVersionName.trim() ||
+        !Number.isInteger(recoveryCode) ||
+        recoveryCode <= code)
+    ) {
       toast(text.invalid, 'error');
       return;
     }
@@ -207,14 +254,29 @@ export default function AndroidOtaSettingsPage() {
         enabled: forceEnabled,
         ...(versionName.trim() ? { targetVersionName: versionName.trim() } : {}),
         ...(Number.isInteger(code) && code > 0 ? { targetVersionCode: code } : {}),
+        ...(rollbackVersionName.trim()
+          ? { rollbackVersionName: rollbackVersionName.trim() }
+          : {}),
+        ...(Number.isInteger(recoveryCode) && recoveryCode > 0
+          ? { rollbackVersionCode: recoveryCode }
+          : {}),
         rolloutPercent: percent,
         screenIds,
         groupIds,
         checkIntervalSeconds: minutes * 60,
+        healthWindowSeconds: health * 60,
       });
-      setEnabled(updated.androidOta.enabled);
-      setRolloutPercent(String(updated.androidOta.rolloutPercent));
-      setCheckMinutes(String(Math.round(updated.androidOta.checkIntervalSeconds / 60)));
+      const policy = updated.androidOta;
+      setEnabled(policy.enabled);
+      setVersionName(policy.targetVersionName ?? '');
+      setVersionCode(policy.targetVersionCode == null ? '' : String(policy.targetVersionCode));
+      setRollbackVersionName(policy.rollbackVersionName ?? '');
+      setRollbackVersionCode(
+        policy.rollbackVersionCode == null ? '' : String(policy.rollbackVersionCode),
+      );
+      setRolloutPercent(String(policy.rolloutPercent));
+      setCheckMinutes(String(Math.round(policy.checkIntervalSeconds / 60)));
+      setHealthMinutes(String(Math.round(policy.healthWindowSeconds / 60)));
       settings.reload();
       toast(text.saved, 'success');
     } catch (error) {
@@ -236,6 +298,7 @@ export default function AndroidOtaSettingsPage() {
   }
 
   const revision = settings.data?.androidOta.policyRevision;
+  const lastRollback = settings.data?.androidOta.lastAutoRollback;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -252,7 +315,7 @@ export default function AndroidOtaSettingsPage() {
           <CardHeader>
             <CardTitle>{text.release}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             <label className="flex items-start gap-3">
               <input
                 type="checkbox"
@@ -267,29 +330,59 @@ export default function AndroidOtaSettingsPage() {
               </span>
             </label>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={text.versionName}>
-                <Input
-                  value={versionName}
-                  onChange={(event) => setVersionName(event.target.value)}
-                  placeholder="1.4.2"
-                  disabled={saving}
-                />
-              </Field>
-              <Field label={text.versionCode}>
-                <Input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={versionCode}
-                  onChange={(event) => setVersionCode(event.target.value)}
-                  placeholder="42"
-                  disabled={saving}
-                />
-              </Field>
-            </div>
+            <section className="border-border rounded-lg border p-4">
+              <h3 className="mb-3 text-sm font-semibold">{text.candidate}</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label={text.versionName}>
+                  <Input
+                    value={versionName}
+                    onChange={(event) => setVersionName(event.target.value)}
+                    placeholder="1.4.2"
+                    disabled={saving}
+                  />
+                </Field>
+                <Field label={text.versionCode}>
+                  <Input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={versionCode}
+                    onChange={(event) => setVersionCode(event.target.value)}
+                    placeholder="42"
+                    disabled={saving}
+                  />
+                </Field>
+              </div>
+            </section>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <section className="border-border rounded-lg border p-4">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                <RotateCcw className="size-4" /> {text.recovery}
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label={text.versionName}>
+                  <Input
+                    value={rollbackVersionName}
+                    onChange={(event) => setRollbackVersionName(event.target.value)}
+                    placeholder="1.4.1-safe"
+                    disabled={saving}
+                  />
+                </Field>
+                <Field label={text.versionCode}>
+                  <Input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={rollbackVersionCode}
+                    onChange={(event) => setRollbackVersionCode(event.target.value)}
+                    placeholder="43"
+                    disabled={saving}
+                  />
+                </Field>
+              </div>
+            </section>
+
+            <div className="grid gap-4 sm:grid-cols-3">
               <Field label={text.rollout}>
                 <Input
                   type="number"
@@ -309,6 +402,17 @@ export default function AndroidOtaSettingsPage() {
                   step={1}
                   value={checkMinutes}
                   onChange={(event) => setCheckMinutes(event.target.value)}
+                  disabled={saving}
+                />
+              </Field>
+              <Field label={text.healthWindow}>
+                <Input
+                  type="number"
+                  min={5}
+                  max={60}
+                  step={1}
+                  value={healthMinutes}
+                  onChange={(event) => setHealthMinutes(event.target.value)}
                   disabled={saving}
                 />
               </Field>
@@ -370,6 +474,44 @@ export default function AndroidOtaSettingsPage() {
               </p>
             </div>
           </div>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{text.lastRollback}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {lastRollback ? (
+              <div className="space-y-2 text-sm">
+                <p>
+                  <span className="text-muted-foreground">{text.rollbackFrom}: </span>
+                  <strong>{lastRollback.fromVersionName}</strong> / {lastRollback.fromVersionCode}
+                  {' → '}
+                  <span className="text-muted-foreground">{text.rollbackTo}: </span>
+                  <strong>{lastRollback.toVersionName}</strong> / {lastRollback.toVersionCode}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }).format(
+                    new Date(lastRollback.triggeredAt),
+                  )}
+                </p>
+                {lastRollback.failedScreenIds.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs font-medium">{text.failedScreens}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {lastRollback.failedScreenIds.map((id) => (
+                        <Badge key={id} tone="warning">
+                          {labels[id] ?? shortId(id)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">{text.noRollback}</p>
+            )}
+          </CardContent>
         </Card>
 
         <div className="flex flex-wrap justify-end gap-2">
