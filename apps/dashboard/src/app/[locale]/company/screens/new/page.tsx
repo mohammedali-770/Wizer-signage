@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { ServerSearchSelect } from '@/components/server-search-select';
 import { api, ApiError } from '@/lib/api';
-import { useAllPages } from '@/lib/use-api';
-import type { LocationListItem, Orientation, Screen, ScreenUse, WorkingHours } from '@/lib/types';
+import type { Orientation, Screen, ScreenUse, WorkingHours } from '@/lib/types';
 import { useRouter, Link } from '@/i18n/navigation';
 import { WorkingHoursEditor } from '@/components/working-hours-editor';
 import {
@@ -45,8 +45,6 @@ export default function NewScreenPage() {
   const te = useTranslations('enums');
   const router = useRouter();
   const { toast } = useToast();
-
-  const locations = useAllPages<LocationListItem>('/locations');
 
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -145,14 +143,14 @@ export default function NewScreenPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field label={tc('location')}>
-                <Select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-                  <option value="">{t('options.unassigned')}</option>
-                  {(locations.data?.items ?? []).map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </Select>
+                <ServerSearchSelect
+                  type="LOCATION"
+                  value={locationId}
+                  onChange={setLocationId}
+                  emptyLabel={t('options.unassigned')}
+                  searchPlaceholder={tc('search')}
+                  disabled={saving}
+                />
               </Field>
               <Field label={t('fields.use')}>
                 <Select value={use} onChange={(e) => setUse(e.target.value as '' | ScreenUse)}>
