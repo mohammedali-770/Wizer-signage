@@ -63,4 +63,20 @@ describe('blue/green deployment contract', () => {
     expect(deploy).toContain('DROP[[:space:]]+(TABLE|COLUMN)');
     expect(deploy).toContain('expand/backfill/contract');
   });
+
+  it('derives rollback current state from live nginx rather than stale deployment history', () => {
+    const liveRead = rollback.indexOf('OLD_UPSTREAMS="$(docker exec wizer-signage-nginx cat');
+    const slotDecision = rollback.indexOf("grep -q 'server api-blue:3001'");
+    const historyWalk = rollback.indexOf('while IFS= read -r line');
+    expect(liveRead).toBeGreaterThan(0);
+    expect(slotDecision).toBeGreaterThan(liveRead);
+    expect(historyWalk).toBeGreaterThan(slotDecision);
+  });
+
+  it('skips releases already recorded as rolled away from on repeated rollback', () => {
+    expect(rollback).toContain('ROLLED_AWAY_TAGS=');
+    expect(rollback).toContain('is_rolled_away');
+    expect(rollback).toContain('if is_rolled_away "${tag}"; then continue; fi');
+    expect(rollback).toContain('ROLLBACK from=%s/%s to=%s/%s');
+  });
 });
