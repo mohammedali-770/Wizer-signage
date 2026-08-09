@@ -17,6 +17,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/release-images.yml'
+      - 'scripts/deploy-release.sh'
       - 'scripts/pull-release-images.sh'
       - 'scripts/tests/pull-release-images.test.sh'
 
@@ -39,13 +40,15 @@ env:
 
 jobs:
   registry-helper-test:
-    name: Registry pull identity check
+    name: Registry pull/deploy checks
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+      - name: Shell syntax
+        run: bash -n scripts/pull-release-images.sh scripts/deploy-release.sh scripts/tests/pull-release-images.test.sh
       - name: Verify pull/retag fail-closed behaviour
         run: bash scripts/tests/pull-release-images.test.sh
 
