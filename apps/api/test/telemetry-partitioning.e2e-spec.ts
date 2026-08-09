@@ -26,6 +26,38 @@ describe('telemetry partitioning (real PostgreSQL)', () => {
     ]);
   });
 
+  it('normalizes parent constraint/index names after the temporary-table swap', async () => {
+    const constraints = await prisma.$queryRaw<Array<{ name: string }>>`
+      SELECT conname AS name
+        FROM pg_constraint
+       WHERE conrelid IN ('public.heartbeats'::regclass, 'public.proof_of_plays'::regclass)
+       ORDER BY conname
+    `;
+    const constraintNames = new Set(constraints.map((row) => row.name));
+    for (const name of [
+      'heartbeats_pkey',
+      'heartbeats_screenId_fkey',
+      'heartbeats_companyId_fkey',
+      'proof_of_plays_pkey',
+      'proof_of_plays_screenId_fkey',
+      'proof_of_plays_companyId_fkey',
+    ]) {
+      expect(constraintNames).toContain(name);
+    }
+    expect([...constraintNames].some((name) => name.includes('_partitioned_'))).toBe(false);
+
+    const indexes = await prisma.$queryRaw<Array<{ name: string }>>`
+      SELECT indexname AS name
+        FROM pg_indexes
+       WHERE schemaname = 'public'
+         AND tablename IN ('heartbeats', 'proof_of_plays')
+    `;
+    const indexNames = indexes.map((row) => row.name);
+    expect(indexNames).toContain('heartbeats_screenId_createdAt_idx');
+    expect(indexNames).toContain('proof_of_plays_companyId_playbackSessionId_idx');
+    expect(indexNames.some((name) => name.includes('_partitioned_'))).toBe(false);
+  });
+
   it('has current and next-month children for both high-volume parents', async () => {
     await prisma.$queryRaw`SELECT public.wizer_ensure_telemetry_partitions(2)`;
 
