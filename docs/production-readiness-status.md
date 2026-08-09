@@ -10,7 +10,7 @@ This document tracks implementation of the production-readiness audit whose base
 - **P0:** COMPLETE.
 - **P1 application/security correctness:** COMPLETE.
 - **P1 observability stack:** OPEN (Sentry/pino/Prometheus/off-box log shipping still require implementation/vendor configuration).
-- **P1 immutable registry releases:** IN PROGRESS in the PR that adds `.github/workflows/release-images.yml`; production still builds images on the host until the deploy path is switched to pull the published SHA tags.
+- **P1 immutable registry code path:** IMPLEMENTED IN PR #67; operational activation remains (publish a release, configure read-only GHCR auth on the production host, run the registry deploy + smoke gate).
 - **P2:** PARTIAL. Several items are complete, but the large fleet/deployment/security items below remain open.
 
 ## Major work already merged
@@ -65,12 +65,12 @@ Required completion criteria:
 
 ### 3. Refresh token in httpOnly cookie + nonce CSP — OPEN/PARTIAL
 
-The iframe `allow-same-origin` issue is fixed and the CSP has safe baseline directives, but refresh tokens are still client-managed and the CSP deliberately has no nonce-backed `script-src`.
+The iframe `allow-same-origin` issue is fixed and the CSP has safe baseline directives. The refresh-token cookie migration is now being implemented in PR #69; nonce-backed `script-src` remains separate until that migration is green.
 
 Required completion criteria:
 
 - Refresh token only in `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/auth/refresh`.
-- Access token stays short-lived/in memory.
+- Access token stays short-lived/in memory or in the existing access-token store without a refresh bearer secret beside it.
 - CSRF/origin handling verified for refresh/logout flows.
 - Next middleware mints a per-request nonce and the rendered response uses it.
 - CSP adds a real `script-src` without `'unsafe-inline'`.
@@ -114,9 +114,17 @@ External readiness monitoring and dead-man backup monitoring are in place, but t
 - Off-box log shipping.
 - Android crash/version fleet metrics surfaced in the dashboard.
 
-### 10. Immutable registry release + production pull — IN PROGRESS
+### 10. Immutable registry release + production pull — CODE IMPLEMENTED, ACTIVATION OPEN
 
-`.github/workflows/release-images.yml` publishes all three production images to GHCR under the immutable 12-character commit SHA. The current `scripts/deploy.sh` still builds on the production host, so this item is not complete until deploy/rollback are taught to pull/use the registry coordinates and the production host has read-only GHCR authentication.
+PR #67 adds the manual GHCR publisher, a fail-closed pull helper that verifies the embedded full Git revision before retagging, and `scripts/deploy-release.sh`. The new deploy path pulls the exact SHA release, takes the pre-migration backup, runs migrations from that image, starts Compose with `--no-build`, gates on readiness, smoke-tests the public endpoint, and writes the same history consumed by the existing rollback script.
+
+Operational completion still requires:
+
+1. Merge PR #67 after the normal CI matrix is green.
+2. Run the manual release workflow once to publish the current main SHA.
+3. Configure read-only GHCR authentication on the private production host and set `IMAGE_REGISTRY_PREFIX=ghcr.io/mohammedali-770`.
+4. Run `scripts/deploy-release.sh` and confirm the public smoke gate.
+5. Make the registry path the normal runbook once that first release is proven.
 
 ## Definition of production-ready for this audit
 
