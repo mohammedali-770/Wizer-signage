@@ -13,11 +13,25 @@ plugins {
 //   ./gradlew assembleDebug -PapiBaseUrl=http://10.0.2.2:3001/api
 //
 // MUST be the host nginx actually serves (server_name signage.wizer.sa; see
-// infra/docker/.env.production.example). There is no OTA update channel, so an
-// APK baked against the wrong host can never pair or sync and is unrecoverable
-// once it is on a wall.
+// infra/docker/.env.production.example). OTA can recover a bad build only after
+// that build can still reach the API/release host, so production release tooling
+// continues to require this value explicitly.
 val apiBaseUrl: String = (project.findProperty("apiBaseUrl") as String?)
     ?: "https://signage.wizer.sa/api"
+
+// Development/CI builds keep deterministic defaults. A production signed build
+// uses scripts/build-android-release.sh, which requires both properties on every
+// invocation so OTA versionCode is intentionally monotonic rather than a source
+// edit someone can forget.
+val releaseVersionCodeProp = project.findProperty("releaseVersionCode") as String?
+val appVersionCode = releaseVersionCodeProp?.toIntOrNull()?.takeIf { it > 0 }
+    ?: if (releaseVersionCodeProp == null) 1 else throw GradleException("releaseVersionCode must be a positive integer")
+val releaseVersionNameProp = (project.findProperty("releaseVersionName") as String?)?.trim()
+val appVersionName = when {
+    releaseVersionNameProp == null -> "0.6.0"
+    releaseVersionNameProp.matches(Regex("^[A-Za-z0-9._-]{1,40}$")) -> releaseVersionNameProp
+    else -> throw GradleException("releaseVersionName must match [A-Za-z0-9._-]{1,40}")
+}
 
 // -----------------------------------------------------------------------------
 // Release signing — credentials come ONLY from environment variables, never from
@@ -62,8 +76,8 @@ android {
         applicationId = "com.wizer.signage"
         minSdk = 21
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.6.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
