@@ -24,6 +24,7 @@ function screen(overrides: Record<string, unknown> = {}) {
     capabilities: {
       androidOta: {
         state: 'INSTALLED',
+        policyRevision: policy.policyRevision,
         targetVersionCode: 42,
         reportedAt: '2026-08-09T09:05:00.000Z',
       },
@@ -137,12 +138,34 @@ describe('AndroidOtaHealthService', () => {
     );
   });
 
-  it('ignores non-terminal pre-install/download state and unrelated target attempts', async () => {
+  it('ignores old-revision attempts after the same candidate is explicitly re-saved', async () => {
+    const t = harness([
+      screen({
+        capabilities: {
+          androidOta: {
+            state: 'INSTALLED',
+            policyRevision: '2026-08-09T08:00:00.000Z',
+            targetVersionCode: 42,
+            reportedAt: '2026-08-09T08:01:00.000Z',
+          },
+        },
+      }),
+    ]);
+
+    const result = await t.service.sweep(now);
+
+    expect(result.failedScreens).toBe(0);
+    expect(t.prisma.$executeRaw).not.toHaveBeenCalled();
+    expect(t.alerts.raise).not.toHaveBeenCalled();
+  });
+
+  it('ignores non-terminal pre-install state and unrelated target attempts', async () => {
     const t = harness([
       screen({
         capabilities: {
           androidOta: {
             state: 'DOWNLOADED',
+            policyRevision: policy.policyRevision,
             targetVersionCode: 42,
             reportedAt: '2026-08-09T09:00:00.000Z',
           },
@@ -153,6 +176,7 @@ describe('AndroidOtaHealthService', () => {
         capabilities: {
           androidOta: {
             state: 'INSTALLED',
+            policyRevision: policy.policyRevision,
             targetVersionCode: 41,
             reportedAt: '2026-08-09T09:00:00.000Z',
           },
