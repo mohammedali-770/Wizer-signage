@@ -145,13 +145,7 @@ class AndroidUpdateController(
      */
     private fun releaseTerminalStateForNewPolicy(policy: AndroidUpdatePolicy) {
         val snapshot = state.snapshot()
-        val terminal = snapshot.state == "FAILED" || snapshot.state == "BLOCKED"
-        if (!terminal || !snapshot.reported) return
-
-        val sameRevision =
-            snapshot.policyRevision != null && snapshot.policyRevision == policy.policyRevision
-        val sameTarget = snapshot.pendingVersionCode == policy.targetVersionCode
-        if (!sameRevision || !sameTarget || !policy.enabled) {
+        if (AndroidUpdateRetryPolicy.shouldRelease(snapshot, policy)) {
             state.clear()
         }
     }
