@@ -21,6 +21,10 @@
 */5 * * * * flock -n /tmp/wizer-reports.lock    -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js reports'      >> /proc/1/fd/1 2>&1
 */5 * * * * flock -n /tmp/wizer-emergency.lock  -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js emergencies'  >> /proc/1/fd/1 2>&1
 
+# Pre-create current + future heartbeat/proof-of-play monthly partitions daily.
+# Failure is loud in container logs and occurs months before an uncovered boundary.
+15 0 * * * flock -n /tmp/wizer-partitions.lock -c 'cd /app && su-exec node bash scripts/ensure-telemetry-partitions.sh' >> /proc/1/fd/1 2>&1
+
 # Full nightly run (sweep + retention cleanup + reports + auto-END + backup check) at 03:30.
 30 3 * * * flock -n /tmp/wizer-nightly.lock     -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js all'          >> /proc/1/fd/1 2>&1
 
