@@ -1,0 +1,47 @@
+name: Dashboard browser smoke
+
+on:
+  pull_request:
+    branches: [main, codex/nonce-csp]
+    paths:
+      - 'apps/dashboard/**'
+      - 'contracts/openapi.json'
+      - '.github/workflows/dashboard-browser-smoke.yml'
+
+concurrency:
+  group: dashboard-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    name: EN · AR · RTL · CSP hydration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6.0.9
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter @wizer/dashboard exec playwright install --with-deps chromium
+
+      - name: Production browser smoke
+        run: pnpm --filter @wizer/dashboard test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dashboard-playwright-report
+          path: apps/dashboard/playwright-report/
+          retention-days: 7
