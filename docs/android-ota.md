@@ -1,100 +1,126 @@
 # Android OTA update channel
 
-Wizer's Android OTA path is intentionally split into **artifact availability**, **rollout authorization**, and **installation**. No one layer can update the fleet by itself.
+Wizer's Android OTA path is intentionally split into **artifact availability**, **rollout authorization**, **installation**, and **health-gated recovery**. No one layer can update the fleet by itself.
 
 ## 1. Immutable signed release channel
 
-`scripts/publish-android-release.sh` is the source of immutable APK artifacts and the atomic `android/latest.json` pointer. Every release also has an immutable per-version manifest named `wizer-signage-v<versionName>-<versionCode>.json`. The API/nginx distribution surface exposes only the canonical files emitted by that publisher under `/api/downloads/android/`; arbitrary files in the downloads mount remain private.
+`scripts/publish-android-release.sh` is the source of immutable APK artifacts and the atomic `android/latest.json` pointer. Every release also has an immutable per-version manifest named `wizer-signage-v<versionName>-<versionCode>.json`. The API/nginx distribution surface exposes only canonical published files under `/api/downloads/android/`.
 
-The player treats public release metadata as untrusted input. Before downloading it checks:
+The player treats public release metadata as untrusted input. Before downloading it checks schema, package, forward-only `versionCode`, device `minSdk`, canonical filename/path, SHA-256, and signing-certificate syntax. The APK is streamed to a `.part` file and becomes staged only when its final size and SHA-256 match the authorized per-version manifest.
 
-- schema version;
-- package `com.wizer.signage`;
-- forward-only `versionCode`;
-- device `minSdk` compatibility;
-- canonical immutable filename and same-origin download path;
-- SHA-256 and signing-certificate fingerprint syntax.
+`latest.json` is **discovery metadata only**. It is not the rollout coordinate. A newer publish may advance `latest.json` while a canary remains pinned to an earlier candidate.
 
-The APK is streamed to a `.part` file and becomes the staged APK only when its final size and SHA-256 exactly match the authorized per-version manifest.
-
-`latest.json` is **discovery metadata only**. It is not the rollout coordinate. A newer publish may advance `latest.json` while a canary group intentionally remains pinned to the previous release.
+The API also keeps a read-only release-catalog verifier over the shared immutable downloads mount. A rollout cannot be armed unless the candidate and recovery manifests, APKs, and checksum sidecars are all present and internally consistent.
 
 ## 2. Authenticated staged-rollout authorization
 
-A newer public release **does not authorize installation**. A paired screen must separately receive an eligible response from authenticated `GET /api/device/update/policy`.
+A public release **does not authorize installation**. A paired screen must separately receive an eligible response from authenticated `GET /api/device/update/policy`.
 
-Company administrators replace the policy with `PUT /api/company-settings/android-ota` (the normal `/api` prefix applies):
+Company administrators replace policy with `PUT /api/company-settings/android-ota`:
 
 ```json
 {
   "enabled": true,
   "targetVersionName": "1.4.2",
   "targetVersionCode": 42,
+  "rollbackVersionName": "1.4.1-safe",
+  "rollbackVersionCode": 43,
   "rolloutPercent": 5,
   "screenIds": [],
   "groupIds": [],
-  "checkIntervalSeconds": 21600
+  "checkIntervalSeconds": 21600,
+  "healthWindowSeconds": 900
 }
 ```
 
 Rules:
 
-- `enabled=false` immediately halts **new** install attempts.
-- `targetVersionName` **and** `targetVersionCode` are mandatory while enabled. Together they name the exact immutable per-version manifest the client is allowed to fetch. Publishing version 43 therefore cannot accidentally advance a policy pinned to `1.4.2`/42.
-- malformed/incomplete stored target identity fails closed: the device receives `enabled=false`/`eligible=false` rather than falling back to `latest.json`.
-- `screenIds` and `groupIds` are ownership-validated same-company canaries and are eligible regardless of percentage.
-- `rolloutPercent` uses a stable SHA-256 cohort of `companyId:screenId`; a screen does not jump cohorts between polls/restarts.
-- the polling interval is bounded to 15 minutes–24 hours; default is 6 hours.
-- every policy change is written to the company activity log with exact target identity, percentage, canary counts and cadence.
+- `enabled=false` is the emergency halt. It never depends on candidate/recovery files or canary ownership still being valid.
+- `targetVersionName` + `targetVersionCode` identify the exact immutable candidate.
+- `rollbackVersionName` + `rollbackVersionCode` identify a **pre-published known-good recovery build**. They are mandatory while arming a rollout.
+- `rollbackVersionCode` must be strictly greater than the candidate code. Android does not support unattended downgrade; recovery is therefore a forward update containing known-good code.
+- candidate and recovery artifacts must both pass the server release-catalog verification before enablement.
+- malformed/incomplete stored candidate identity fails closed to devices; Wizer never falls back to `latest.json`.
+- `screenIds` and `groupIds` are same-company canaries and are eligible regardless of percentage.
+- `rolloutPercent` uses a stable SHA-256 cohort of `companyId:screenId`.
+- polling is bounded to 15 minutes–24 hours; default 6 hours.
+- the health window is bounded to 5–60 minutes; default 15 minutes.
+- every explicit save creates a new `policyRevision` and is activity-logged.
 
-Suggested rollout: explicit lab/canary screens → 1% → 5% → 25% → 50% → 100%, with a soak period and fleet health review between stages. The percentages are operational guidance, not automatic timers: promotion is always an explicit admin action.
+Suggested rollout: explicit lab/canary screens at 0% → 1% → 5% → 25% → 50% → 100%, with fleet-health review between stages.
 
-## 3. APK trust boundary
+## 3. Policy-revision attempt isolation
 
-Before `PackageInstaller` receives the staged APK, `ApkTrustVerifier` checks:
+Every Android update result includes the exact `policyRevision` that authorized it. The API persists that revision with `Screen.capabilities.androidOta`.
+
+This prevents an old failed attempt from contaminating a new explicit save of the same candidate. Terminal `BLOCKED`/`FAILED` state is sticky for its original revision; a new operator revision permits one deliberate retry after remediation.
+
+## 4. APK trust boundary
+
+Before `PackageInstaller` receives a staged APK, `ApkTrustVerifier` checks:
 
 1. the APK is parseable;
-2. its package is the currently-running Wizer package;
-3. its current signer equals the certificate fingerprint in the already-verified release metadata;
-4. the staged APK and installed Wizer app share signing lineage.
+2. its package is the running Wizer package;
+3. its current signer equals the fingerprint in release metadata;
+4. staged and installed Wizer apps share signing lineage.
 
-Android then performs its own package/signature checks again during installation. A mismatch is reported `BLOCKED` and the staged file is discarded.
+Android performs its own package/signature checks again during installation. A mismatch is `BLOCKED` and the staged file is deleted.
 
-## 4. Unattended self-update without kiosk UI
+Production release networking is HTTPS-only. LAN/cleartext exceptions exist only in the debug source set. Android app backup and device-transfer backup are disabled so pairing/device credentials cannot be cloned onto another TV.
 
-Wizer uses Android's self-update `PackageInstaller` path only on Android 12 (API 31) and newer. The app declares `REQUEST_INSTALL_PACKAGES` and `UPDATE_PACKAGES_WITHOUT_USER_ACTION`, requests `USER_ACTION_NOT_REQUIRED`, and updates its own package.
+## 5. Unattended self-update without kiosk UI
 
-Device provisioning must allow Wizer to request package installs (`PackageManager.canRequestPackageInstalls() == true`). Wizer deliberately does **not** open the unknown-sources settings page itself. If a TV was not provisioned, it reports `BLOCKED: package_install_permission_not_provisioned` and continues signage playback.
+Wizer uses the self-update `PackageInstaller` path only on Android 12+ (API 31+). It declares `REQUEST_INSTALL_PACKAGES` and `UPDATE_PACKAGES_WITHOUT_USER_ACTION`, requests `USER_ACTION_NOT_REQUIRED`, and updates its own package.
 
-Android may still return `STATUS_PENDING_USER_ACTION` because of device policy, platform/OEM behavior, target-SDK requirements, or future Android changes. Wizer **never launches** that confirmation intent over signage. It records `BLOCKED: platform_requires_user_action` and keeps the existing version running.
+Provisioning must allow Wizer to request package installs. Wizer deliberately does **not** open unknown-sources Settings or a confirmation intent over signage. If the platform returns `STATUS_PENDING_USER_ACTION`, Wizer records `BLOCKED: platform_requires_user_action` and keeps current playback running.
 
-Android's target-SDK threshold for unattended updates advances across platform releases. A release process must therefore keep the player target SDK current; the fail-closed pending-user-action result remains mandatory even when the current target satisfies today's rule.
+## 6. Install state and fleet telemetry
 
-## 5. Install state and fleet telemetry
-
-`AndroidUpdateStateStore` persists the target/version attempt across the package replacement. The client reports to authenticated `POST /api/device/update/result`:
+`AndroidUpdateStateStore` persists candidate version + policy revision across package replacement. The client reports to authenticated `POST /api/device/update/result`:
 
 - `DOWNLOADED` — verified APK staged;
 - `INSTALLING` — PackageInstaller session committed;
-- `INSTALLED` — after restart, `BuildConfig.VERSION_CODE` is at least the pending target;
-- `BLOCKED` — trust/provisioning/platform requires action;
-- `FAILED` — download/install error or a 30-minute unresolved install timeout.
+- `INSTALLED` — after restart, installed `VERSION_CODE` reached the pending target;
+- `BLOCKED` — trust/provisioning/platform requires intervention;
+- `FAILED` — download/install error or unresolved install timeout.
 
-The server stores the latest OTA state under `Screen.capabilities.androidOta`, alongside timestamp, target, installed version and bounded error text. This gives the dashboard/API a fleet-level view without creating high-volume telemetry rows.
+The API stores state, authorizing policy revision, target/installed version, bounded error, and `reportedAt` under `Screen.capabilities.androidOta`.
 
-## 6. Halt and rollback
+## 7. Healthy-heartbeat automatic recovery
 
-**Halt:** set `enabled=false`. In-progress PackageInstaller sessions cannot be remotely uncommitted by changing server policy, but no new screens will start an install after their next policy fetch.
+The normal maintenance cycle runs `AndroidOtaHealthService` before slower retention/report work.
 
-**Rollback is forward-only.** Android application updates normally reject a lower `versionCode`. If release 42 is unhealthy, rebuild the known-good code as release 43 (or higher), give it its own new versionName, sign with the same Wizer lineage, publish it, canary it, then pin the exact new `targetVersionName` + `targetVersionCode`. Never repoint `latest.json` at an older APK or weaken the monotonic publisher guard.
+For the current candidate **and current policy revision only**, the worker inspects screens that reported `INSTALLING` or `INSTALLED`. Once `healthWindowSeconds` has elapsed, the attempt is proven healthy only when the screen has subsequently sent a heartbeat from the exact candidate `appVersion` and the latest device snapshot has no playback error, failed/partial sync, or `lastSyncError`.
 
-## 7. Production release checklist
+If one or more attempted screens fail that gate:
 
-1. Build/sign with the production Wizer keystore and verify the signing fingerprint.
-2. Publish the immutable release; confirm `latest.json`, APK, checksum and the exact per-version manifest are reachable.
-3. Leave company rollout policies disabled while validating a lab TV.
-4. Ensure lab/canary devices are Android 12+ and Wizer is allowed to request package installs.
-5. Pin the exact new `targetVersionName` + `targetVersionCode` with explicit canary screens/groups and `rolloutPercent=0`.
-6. Confirm `INSTALLED` telemetry and normal heartbeats/playback after restart.
-7. Increase percentage deliberately while watching crash/offline/warning rates.
-8. Halt immediately on abnormal health; remediate with a higher-version forward rollback build if necessary.
+1. the worker re-verifies the pre-published recovery artifact;
+2. it performs a compare-and-swap on the exact policy revision, so a concurrent operator save wins;
+3. it atomically changes the target to the higher-version known-good recovery build while preserving the same rollout cohort/canaries;
+4. it records `lastAutoRollback` with candidate, recovery, timestamp, and a bounded failed-screen sample;
+5. it emits a CRITICAL dashboard/email event `android.ota.auto_rollback`.
+
+If the recovery artifact has disappeared or become invalid, Wizer **halts new installs instead** and leaves a CRITICAL open alert for operator recovery.
+
+A screen that already proved a clean post-install heartbeat is not retroactively failed merely because it later has an unrelated network outage.
+
+After an automatic recovery, the recovery target remains enabled long enough for affected devices to install it, but the recovery coordinate is consumed. Arming a future candidate requires a newly published higher-version known-good recovery coordinate.
+
+## 8. Halt and rollback model
+
+**Halt:** set `enabled=false`. In-progress PackageInstaller sessions cannot be remotely uncommitted, but no new screen starts an install after its next policy fetch. Halt validation is intentionally independent of release-catalog/canary state.
+
+**Recovery is forward-only.** Never repoint `latest.json` to an older APK and never weaken the monotonic publisher guard. Known-good source is rebuilt and signed under a higher `versionCode` before rollout begins, so automatic recovery remains a normal Android update.
+
+## 9. Production release checklist
+
+1. Build/sign candidate with the production Wizer keystore using explicit version name/code and HTTPS API base URL.
+2. Publish candidate; verify immutable APK, checksum, per-version manifest, and signing fingerprint.
+3. Build/sign the current known-good source under a **higher** versionCode; publish it as the recovery release.
+4. Keep rollout disabled while validating both artifacts and a lab TV.
+5. Confirm lab/canary devices are Android 12+ and provisioned for package installs.
+6. In Company → Settings → Android OTA, enter candidate and recovery name/code, set explicit canaries, `rolloutPercent=0`, and a deliberate health window.
+7. Save/enable; confirm policy revision, `INSTALLING`/`INSTALLED`, and a clean post-install heartbeat.
+8. Deliberately increase rollout percentage while watching Fleet Health, crash diagnostics, offline alerts, and automatic-recovery notifications.
+9. Exercise the health gate in staging/lab at least once and confirm the affected cohort receives the pre-staged recovery build automatically.
+10. Keep the emergency Halt control available throughout rollout.
