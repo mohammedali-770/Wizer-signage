@@ -48,6 +48,8 @@ export class CompanySettingsService {
       hasDefaultKioskPin: !!company.defaultKioskPinHash,
       androidOta: {
         enabled: androidOta.enabled === true,
+        targetVersionName:
+          typeof androidOta.targetVersionName === 'string' ? androidOta.targetVersionName : null,
         targetVersionCode:
           typeof androidOta.targetVersionCode === 'number' ? androidOta.targetVersionCode : null,
         rolloutPercent:
@@ -118,8 +120,12 @@ export class CompanySettingsService {
 
   /** Replace the complete staged-rollout policy after ownership validation. */
   async updateAndroidOta(companyId: string, actor: AuthenticatedUser, dto: AndroidOtaSettingsDto) {
-    if (dto.enabled && dto.targetVersionCode === undefined) {
-      throw new BadRequestException('targetVersionCode is required when Android OTA is enabled.');
+    const targetVersionName = dto.targetVersionName?.trim() || null;
+    const targetVersionCode = dto.targetVersionCode ?? null;
+    if (dto.enabled && (!targetVersionName || targetVersionCode === null)) {
+      throw new BadRequestException(
+        'targetVersionName and targetVersionCode are required when Android OTA is enabled.',
+      );
     }
 
     const company = await this.prisma.company.findFirst({
@@ -150,7 +156,8 @@ export class CompanySettingsService {
 
     const policy = {
       enabled: dto.enabled,
-      targetVersionCode: dto.targetVersionCode ?? null,
+      targetVersionName,
+      targetVersionCode,
       rolloutPercent: dto.rolloutPercent,
       screenIds,
       groupIds,
@@ -167,6 +174,7 @@ export class CompanySettingsService {
     });
     await this.log(actor, companyId, 'company.android_ota_policy_changed', {
       enabled: policy.enabled,
+      targetVersionName: policy.targetVersionName,
       targetVersionCode: policy.targetVersionCode,
       rolloutPercent: policy.rolloutPercent,
       canaryScreenCount: screenIds.length,
