@@ -1,0 +1,30 @@
+name: Refresh proof-of-play branch
+
+on:
+  push:
+    branches: [codex/proof-of-play-tenant-unique]
+    paths:
+      - '.github/workflows/rebase-proof-of-play.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/proof-of-play-tenant-unique
+          fetch-depth: 0
+      - run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git merge --no-edit origin/main
+          git rm .github/workflows/rebase-proof-of-play.yml
+          git commit -m 'chore: refresh proof-of-play fix onto main'
+          git push origin HEAD:codex/proof-of-play-tenant-unique
