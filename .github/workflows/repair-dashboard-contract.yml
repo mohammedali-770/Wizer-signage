@@ -1,0 +1,48 @@
+name: Repair generated dashboard contract
+
+on:
+  push:
+    branches: [codex/dashboard-openapi-types]
+    paths:
+      - '.github/workflows/repair-dashboard-contract.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/dashboard-openapi-types
+          fetch-depth: 0
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - uses: pnpm/action-setup@v6.0.9
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Regenerate and verify
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @wizer/dashboard contract:generate
+          pnpm --filter @wizer/dashboard contract:check
+          pnpm --filter @wizer/dashboard typecheck
+      - name: Commit exact generated output
+        run: |
+          git rm .github/workflows/repair-dashboard-contract.yml
+          git add apps/dashboard/src/lib/api-contract.generated.ts
+          if git diff --cached --quiet; then
+            echo 'No generated diff after regeneration.'
+            git commit --allow-empty -m 'chore: verify dashboard API contract generation'
+          else
+            git commit -m 'fix(dashboard): refresh generated API contract types'
+          fi
+          git push origin HEAD:codex/dashboard-openapi-types
