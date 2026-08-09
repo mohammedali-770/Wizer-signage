@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 # Wizer Signage — fail-closed production host preflight.
-#
-# This script is intentionally READ-ONLY: it does not pull images, migrate the
-# database, restart containers, or modify nginx. Run it immediately before a
-# production release/blue-green deployment. It prints variable NAMES and safe
-# diagnostics only; secret values are never echoed.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,8 +21,7 @@ pass() { printf '  ok  %s\n' "$*"; }
 [[ -r "${ENV_FILE}" ]] || fail "environment file is not readable: ${ENV_FILE}"
 
 read_env_value() {
-  local key="$1"
-  local raw
+  local key="$1" raw
   raw="$(grep -E "^${key}=" "${ENV_FILE}" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
   raw="${raw//$'\r'/}"
   raw="${raw#\"}"; raw="${raw%\"}"
@@ -35,24 +29,27 @@ read_env_value() {
   printf '%s' "${raw}" | xargs
 }
 
+is_placeholder() {
+  local value="${1,,}"
+  case "${value}" in
+    *change-me*|*changeme*|*replace*|*placeholder*|*ci-only*|*example.invalid*|*__generate*|*__service*|*__smtp*|*your_github*|*your-provider*|*your-company*|*your-project*) return 0 ;;
+  esac
+  return 1
+}
+
 require_value() {
   local key="$1" value
   value="$(read_env_value "${key}")"
   [[ -n "${value}" ]] || fail "${key} is missing/empty in ${ENV_FILE}"
-  case "${value,,}" in
-    *change-me*|*changeme*|*replace-me*|*example.invalid*|*ci-only*|*placeholder*|*__generate*|*__service*|*__smtp*)
-      fail "${key} still contains a placeholder/development value" ;;
-  esac
+  ! is_placeholder "${value}" || fail "${key} still contains a placeholder/development value"
   pass "${key} is configured"
 }
 
 printf '==> Wizer production preflight\n'
-
 for command in docker curl awk grep sed df; do
   command -v "${command}" >/dev/null 2>&1 || fail "required command '${command}' is not installed"
 done
 pass "required host commands are present"
-
 docker info >/dev/null 2>&1 || fail "Docker daemon is not reachable by the deployment user"
 docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is unavailable"
 pass "Docker + Compose v2 are usable"
@@ -62,29 +59,15 @@ for file in "${BASE}" "${PROXY}" "${LOGGING}" "${SLOTS}" "${SLOTS_LOGGING}"; do
 done
 
 for key in \
-  APP_DOMAIN \
-  DATABASE_URL \
-  DIRECT_URL \
-  JWT_ACCESS_SECRET \
-  JWT_REFRESH_SECRET \
-  ENCRYPTION_KEY \
-  IMAGE_REGISTRY_PREFIX \
-  METRICS_TOKEN \
-  BACKUP_OFFSITE_CMD \
-  HEALTHCHECKS_URL \
-  LOG_SHIPPING_ADDRESS \
-  SMTP_HOST \
-  SMTP_PORT \
-  SMTP_FROM; do
+  APP_DOMAIN DATABASE_URL DIRECT_URL JWT_ACCESS_SECRET JWT_REFRESH_SECRET ENCRYPTION_KEY \
+  IMAGE_REGISTRY_PREFIX METRICS_TOKEN BACKUP_OFFSITE_CMD HEALTHCHECKS_URL LOG_SHIPPING_ADDRESS \
+  SMTP_HOST SMTP_PORT SMTP_FROM SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_STORAGE_BUCKET; do
   require_value "${key}"
 done
 
 APP_DOMAIN="$(read_env_value APP_DOMAIN)"
-case "${APP_DOMAIN,,}" in
-  localhost|127.*|10.*|192.168.*|*.local|*.invalid) fail "APP_DOMAIN points at a local/development hostname" ;;
-esac
-[[ "${APP_DOMAIN}" != *://* ]] || fail "APP_DOMAIN must be a hostname, not a URL with a scheme"
-[[ "${APP_DOMAIN}" != */* ]] || fail "APP_DOMAIN must not contain a path"
+case "${APP_DOMAIN,,}" in localhost|127.*|10.*|192.168.*|*.local|*.invalid) fail "APP_DOMAIN points at a local/development hostname" ;; esac
+[[ "${APP_DOMAIN}" != *://* && "${APP_DOMAIN}" != */* ]] || fail "APP_DOMAIN must be a hostname without scheme/path"
 pass "APP_DOMAIN looks production-like"
 
 REGISTRY="$(read_env_value IMAGE_REGISTRY_PREFIX)"
@@ -93,13 +76,11 @@ pass "registry prefix is a canonical GHCR namespace"
 
 METRICS_TOKEN="$(read_env_value METRICS_TOKEN)"
 (( ${#METRICS_TOKEN} >= 32 )) || fail "METRICS_TOKEN must be at least 32 characters"
-pass "METRICS_TOKEN meets the minimum length"
-
 for key in JWT_ACCESS_SECRET JWT_REFRESH_SECRET ENCRYPTION_KEY; do
   value="$(read_env_value "${key}")"
   (( ${#value} >= 32 )) || fail "${key} must be at least 32 characters"
 done
-pass "application secret lengths meet the production minimum"
+pass "application/metrics secret lengths meet the production minimum"
 
 for key in DATABASE_URL DIRECT_URL; do
   value="$(read_env_value "${key}")"
@@ -108,15 +89,21 @@ for key in DATABASE_URL DIRECT_URL; do
 done
 pass "database URLs are PostgreSQL and non-local"
 
+SUPABASE_URL_VALUE="$(read_env_value SUPABASE_URL)"
+[[ "${SUPABASE_URL_VALUE}" =~ ^https://[^[:space:]]+$ ]] || fail "SUPABASE_URL must be an HTTPS project URL"
+SUPABASE_ROLE_VALUE="$(read_env_value SUPABASE_SERVICE_ROLE_KEY)"
+(( ${#SUPABASE_ROLE_VALUE} >= 20 )) || fail "SUPABASE_SERVICE_ROLE_KEY is implausibly short"
+SUPABASE_BUCKET_VALUE="$(read_env_value SUPABASE_STORAGE_BUCKET)"
+[[ "${SUPABASE_BUCKET_VALUE}" =~ ^[A-Za-z0-9._-]{1,100}$ ]] || fail "SUPABASE_STORAGE_BUCKET has an invalid bucket name"
+pass "persistent Supabase production storage is configured"
+
 OFFSITE_CMD="$(read_env_value BACKUP_OFFSITE_CMD)"
 case "${OFFSITE_CMD}" in true|:|echo|"echo "*) fail "BACKUP_OFFSITE_CMD is a no-op; configure a real off-host copy command" ;; esac
 pass "offsite backup copy command is configured"
 
 HEALTHCHECKS_URL_VALUE="$(read_env_value HEALTHCHECKS_URL)"
 [[ "${HEALTHCHECKS_URL_VALUE}" =~ ^https://[^[:space:]]+$ ]] || fail "HEALTHCHECKS_URL must be an HTTPS dead-man monitoring URL"
-case "${HEALTHCHECKS_URL_VALUE,,}" in
-  *localhost*|*127.0.0.1*|*.invalid*|*00000000-0000-0000-0000-000000000000*) fail "HEALTHCHECKS_URL points at a placeholder/local target" ;;
-esac
+case "${HEALTHCHECKS_URL_VALUE,,}" in *localhost*|*127.0.0.1*|*.invalid*|*00000000-0000-0000-0000-000000000000*) fail "HEALTHCHECKS_URL points at a placeholder/local target" ;; esac
 pass "out-of-band backup dead-man monitoring is configured"
 
 LOG_SHIPPING_ADDRESS_VALUE="$(read_env_value LOG_SHIPPING_ADDRESS)"
@@ -136,8 +123,10 @@ SMTP_FROM_VALUE="$(read_env_value SMTP_FROM)"
 SMTP_USER_VALUE="$(read_env_value SMTP_USER)"
 SMTP_PASSWORD_VALUE="$(read_env_value SMTP_PASSWORD)"
 SMTP_PASS_VALUE="$(read_env_value SMTP_PASS)"
-if [[ -n "${SMTP_USER_VALUE}" && -z "${SMTP_PASSWORD_VALUE}" && -z "${SMTP_PASS_VALUE}" ]]; then
-  fail "SMTP_USER is configured but neither SMTP_PASSWORD nor SMTP_PASS is set"
+if [[ -n "${SMTP_USER_VALUE}" ]]; then
+  [[ -n "${SMTP_PASSWORD_VALUE}" || -n "${SMTP_PASS_VALUE}" ]] || fail "SMTP_USER is configured but neither SMTP_PASSWORD nor SMTP_PASS is set"
+  if [[ -n "${SMTP_PASSWORD_VALUE}" ]]; then ! is_placeholder "${SMTP_PASSWORD_VALUE}" || fail "SMTP_PASSWORD still contains a placeholder value"; fi
+  if [[ -n "${SMTP_PASS_VALUE}" ]]; then ! is_placeholder "${SMTP_PASS_VALUE}" || fail "SMTP_PASS still contains a placeholder value"; fi
 fi
 pass "live SMTP delivery coordinates are configured"
 
