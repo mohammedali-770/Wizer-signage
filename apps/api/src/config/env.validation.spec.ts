@@ -13,6 +13,10 @@ describe('validate (environment)', () => {
     ENCRYPTION_KEY: 'c'.repeat(32),
   };
 
+  const dashboard = {
+    DASHBOARD_URL: 'https://signage.wizer.sa',
+  };
+
   const smtp = {
     SMTP_HOST: 'smtp.example.com',
     SMTP_PORT: '587',
@@ -25,8 +29,10 @@ describe('validate (environment)', () => {
     SUPABASE_STORAGE_BUCKET: 'wizer-signage',
   };
 
+  const production = { ...base, ...dashboard, ...smtp, ...storage, NODE_ENV: 'production' };
+
   describe('required secrets', () => {
-    it('accepts a complete development environment without SMTP or Supabase storage', () => {
+    it('accepts a complete development environment without production-only services', () => {
       expect(() => validate({ ...base, NODE_ENV: 'development' })).not.toThrow();
     });
 
@@ -65,39 +71,81 @@ describe('validate (environment)', () => {
     it('explains the unit requirement rather than just naming the variable', () => {
       expect(ttl({ JWT_ACCESS_TTL: '900' })).toThrow(/explicit unit/);
     });
+  });
 
-    it('leaves both optional — the defaults already carry units', () => {
-      expect(() => validate({ ...base, NODE_ENV: 'development' })).not.toThrow();
+  describe('production dashboard origin requirement', () => {
+    it('rejects production without APP_URL or DASHBOARD_URL', () => {
+      expect(() => validate({ ...base, ...smtp, ...storage, NODE_ENV: 'production' })).toThrow(
+        /APP_URL or DASHBOARD_URL is required/,
+      );
+    });
+
+    it('rejects HTTP, localhost, credentials, paths, queries and fragments', () => {
+      for (const url of [
+        'http://signage.wizer.sa',
+        'https://localhost:3000',
+        'https://127.0.0.1',
+        'https://user:pass@signage.wizer.sa',
+        'https://signage.wizer.sa/app',
+        'https://signage.wizer.sa?debug=1',
+        'https://signage.wizer.sa#fragment',
+      ]) {
+        expect(() =>
+          validate({ ...base, ...smtp, ...storage, NODE_ENV: 'production', DASHBOARD_URL: url }),
+        ).toThrow(/public HTTPS origin/);
+      }
+    });
+
+    it('accepts either alias when it is a clean public HTTPS origin', () => {
+      expect(() => validate(production)).not.toThrow();
+      expect(() =>
+        validate({ ...base, ...smtp, ...storage, NODE_ENV: 'production', APP_URL: 'https://signage.wizer.sa' }),
+      ).not.toThrow();
+    });
+
+    it('validates APP_URL when both aliases exist because APP_URL wins configuration resolution', () => {
+      expect(() =>
+        validate({
+          ...production,
+          APP_URL: 'http://localhost:3000',
+          DASHBOARD_URL: 'https://signage.wizer.sa',
+        }),
+      ).toThrow(/public HTTPS origin/);
     });
   });
 
   describe('production SMTP requirement', () => {
     it('rejects production when SMTP is entirely absent', () => {
-      expect(() => validate({ ...base, ...storage, NODE_ENV: 'production' })).toThrow(
+      expect(() => validate({ ...base, ...dashboard, ...storage, NODE_ENV: 'production' })).toThrow(
         /SMTP_HOST.*required when NODE_ENV=production/s,
       );
     });
 
     it('names every missing SMTP variable', () => {
-      expect(() => validate({ ...base, ...storage, NODE_ENV: 'production' })).toThrow(/SMTP_HOST/);
-      expect(() => validate({ ...base, ...storage, NODE_ENV: 'production' })).toThrow(/SMTP_PORT/);
-      expect(() => validate({ ...base, ...storage, NODE_ENV: 'production' })).toThrow(/SMTP_FROM/);
+      const input = { ...base, ...dashboard, ...storage, NODE_ENV: 'production' };
+      expect(() => validate(input)).toThrow(/SMTP_HOST/);
+      expect(() => validate(input)).toThrow(/SMTP_PORT/);
+      expect(() => validate(input)).toThrow(/SMTP_FROM/);
     });
 
     it('rejects production when only some SMTP vars are set', () => {
       expect(() =>
-        validate({ ...base, ...storage, NODE_ENV: 'production', SMTP_HOST: 'smtp.example.com' }),
+        validate({
+          ...base,
+          ...dashboard,
+          ...storage,
+          NODE_ENV: 'production',
+          SMTP_HOST: 'smtp.example.com',
+        }),
       ).toThrow(/SMTP_PORT|SMTP_FROM/);
     });
 
     it('rejects blank/whitespace SMTP values', () => {
-      expect(() =>
-        validate({ ...base, ...storage, ...smtp, NODE_ENV: 'production', SMTP_FROM: '   ' }),
-      ).toThrow(/SMTP_FROM/);
+      expect(() => validate({ ...production, SMTP_FROM: '   ' })).toThrow(/SMTP_FROM/);
     });
 
-    it('accepts production with complete SMTP and persistent storage configuration', () => {
-      expect(() => validate({ ...base, ...smtp, ...storage, NODE_ENV: 'production' })).not.toThrow();
+    it('accepts production with complete SMTP, dashboard and persistent storage configuration', () => {
+      expect(() => validate(production)).not.toThrow();
     });
 
     it('does not require SMTP outside production', () => {
@@ -108,18 +156,21 @@ describe('validate (environment)', () => {
 
   describe('production persistent storage requirement', () => {
     it('rejects production when Supabase storage is absent', () => {
-      expect(() => validate({ ...base, ...smtp, NODE_ENV: 'production' })).toThrow(/SUPABASE_URL/);
-      expect(() => validate({ ...base, ...smtp, NODE_ENV: 'production' })).toThrow(
-        /SUPABASE_SERVICE_ROLE_KEY/,
-      );
-      expect(() => validate({ ...base, ...smtp, NODE_ENV: 'production' })).toThrow(
-        /SUPABASE_STORAGE_BUCKET/,
-      );
+      const input = { ...base, ...dashboard, ...smtp, NODE_ENV: 'production' };
+      expect(() => validate(input)).toThrow(/SUPABASE_URL/);
+      expect(() => validate(input)).toThrow(/SUPABASE_SERVICE_ROLE_KEY/);
+      expect(() => validate(input)).toThrow(/SUPABASE_STORAGE_BUCKET/);
     });
 
     it('rejects partial Supabase storage configuration', () => {
       expect(() =>
-        validate({ ...base, ...smtp, NODE_ENV: 'production', SUPABASE_URL: storage.SUPABASE_URL }),
+        validate({
+          ...base,
+          ...dashboard,
+          ...smtp,
+          NODE_ENV: 'production',
+          SUPABASE_URL: storage.SUPABASE_URL,
+        }),
       ).toThrow(/SUPABASE_SERVICE_ROLE_KEY|SUPABASE_STORAGE_BUCKET/);
     });
 
