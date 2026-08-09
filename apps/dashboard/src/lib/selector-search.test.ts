@@ -31,6 +31,17 @@ describe('selector server search paths', () => {
     assert.match(selectorSearchPath('TAG', 'Lobby'), /^\/tags\?/);
   });
 
+  it('keeps assignable content and playlists ACTIVE-only', () => {
+    assert.equal(
+      selectorSearchPath('PLAYLIST', 'Breakfast'),
+      `/playlists?page=1&pageSize=${SELECTOR_RESULT_LIMIT}&search=Breakfast&status=ACTIVE`,
+    );
+    assert.equal(
+      selectorSearchPath('CONTENT', ''),
+      `/content?page=1&pageSize=${SELECTOR_RESULT_LIMIT}&status=ACTIVE`,
+    );
+  });
+
   it('passes selector-safe tag applicability to the API', () => {
     assert.equal(
       selectorSearchPath('TAG', 'promo', { tagApplicability: 'CONTENT' }),
@@ -46,6 +57,13 @@ describe('selector server search paths', () => {
     assert.equal(
       selectorSearchPath('SCREEN', 'Lobby', { tagApplicability: 'CONTENT' }),
       `/screens?page=1&pageSize=${SELECTOR_RESULT_LIMIT}&search=Lobby`,
+    );
+  });
+
+  it('allows explicit business filters without losing selector defaults', () => {
+    assert.equal(
+      selectorSearchPath('CONTENT', 'promo', { filters: { orientation: 'LANDSCAPE' } }),
+      `/content?page=1&pageSize=${SELECTOR_RESULT_LIMIT}&search=promo&status=ACTIVE&orientation=LANDSCAPE`,
     );
   });
 
