@@ -12,8 +12,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "node --test env-validation.test.mjs 'src/**/*.test.ts'",
-    "contract:generate": "openapi-typescript ../../contracts/openapi.json -o src/lib/api-contract.generated.ts --export-type",
-    "contract:check": "openapi-typescript ../../contracts/openapi.json -o src/lib/api-contract.generated.ts --export-type --check"
+    "contract:generate": "openapi-typescript ../../contracts/openapi.json -o src/lib/api-contract.generated.ts --export-type && prettier --write src/lib/api-contract.generated.ts",
+    "contract:check": "pnpm contract:generate && git diff --exit-code -- src/lib/api-contract.generated.ts"
   },
   "dependencies": {
     "@wizer/shared": "workspace:*",
