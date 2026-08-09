@@ -45,13 +45,15 @@ describe('telemetry partition Prisma/PostgreSQL ownership boundary', () => {
   it('uses the conversion helper canonical yYYYYmMM child naming everywhere', () => {
     expect(conversionMigration).toContain("format('heartbeats_y%sm%s'");
     expect(conversionMigration).toContain("format('proof_of_plays_y%sm%s'");
-    expect(verifier).toContain('y$(date -u +%Y)m$(date -u +%m)');
+    expect(verifier).toContain("SELECT 'y' || to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC','YYYY')");
     expect(verifier).toContain('wizer_telemetry.heartbeats_${suffix}');
     expect(verifier).toContain('wizer_telemetry.proof_of_plays_${suffix}');
   });
 
-  it('verifies current and next month partitions after restore', () => {
+  it('verifies current and next month partitions after restore without platform-specific date arithmetic', () => {
     expect(verifier).toContain('CURRENT_SUFFIX');
     expect(verifier).toContain('NEXT_SUFFIX');
+    expect(verifier).toContain("interval '1 month'");
+    expect(verifier).not.toContain('date -u -d');
   });
 });
