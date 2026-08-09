@@ -99,6 +99,8 @@ describe('browser refresh cookie (e2e)', () => {
     expect(refreshed.body.accessToken).toEqual(expect.any(String));
     expect(refreshed.body).not.toHaveProperty('refreshToken');
     const secondSetCookie = setCookieHeader(refreshed);
+    // Rotation must produce a genuinely new bearer even when both JWTs are
+    // minted inside the same second; the refresh JWT carries a unique jti.
     expect(cookiePair(secondSetCookie)).not.toEqual(cookiePair(firstSetCookie));
   });
 
