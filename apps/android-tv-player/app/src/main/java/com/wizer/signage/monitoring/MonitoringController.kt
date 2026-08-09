@@ -59,7 +59,11 @@ class MonitoringController(
         while (coroutineContext.isActive) {
             store.deviceToken?.let { token ->
                 try {
-                    api.sendHeartbeat(token, telemetry.collect())
+                    val accepted = api.sendHeartbeat(token, telemetry.collect())
+                    // Previous-run crash evidence is retained locally across
+                    // restarts/network failures until the server has accepted a
+                    // heartbeat containing it. Never clear on a failed send.
+                    if (accepted) telemetry.acknowledgeCrashIfPending()
                 } catch (e: Exception) {
                     // Heartbeat is best-effort; never break playback.
                 }
