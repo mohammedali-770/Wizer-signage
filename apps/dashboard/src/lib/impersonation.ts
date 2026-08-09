@@ -2,23 +2,21 @@
  * Client-side state for an audited super-admin impersonation.
  *
  * The API issues a short-lived access token scoped to the target tenant and
- * deliberately issues NO refresh token — an impersonation expires rather than
- * being extended. That has two consequences this module exists to handle:
+ * deliberately issues NO refresh token for the impersonation itself. The
+ * administrator's ordinary refresh token now lives in an HttpOnly cookie, so
+ * JavaScript cannot (and must not try to) move it around.
  *
- *  1. The admin's own tokens must survive. Overwriting them would mean ending
- *     an impersonation logs the admin out of the platform console entirely, so
- *     they are stashed and restored.
- *  2. The refresh token must be out of play for the duration. If it were left
- *     in place, the client's refresh-on-401 would quietly swap the tenant token
- *     for the admin's ordinary one — the banner would vanish and the session
- *     would silently stop being an impersonation, which is precisely the state
- *     the audit trail is supposed to make impossible.
+ * `api.ts` therefore enforces the critical boundary: while impersonation is
+ * active, a 401 NEVER calls /auth/refresh. That prevents the still-present admin
+ * refresh cookie from silently swapping an expired tenant token back into the
+ * administrator identity. This module only stashes/restores the admin ACCESS
+ * token and records the visible impersonation state.
  */
 
 const ACCESS_KEY = 'ms_access_token';
-const REFRESH_KEY = 'ms_refresh_token';
+const LEGACY_REFRESH_KEY = 'ms_refresh_token';
 const ADMIN_ACCESS_KEY = 'ms_admin_access_token';
-const ADMIN_REFRESH_KEY = 'ms_admin_refresh_token';
+const LEGACY_ADMIN_REFRESH_KEY = 'ms_admin_refresh_token';
 const STATE_KEY = 'ms_impersonation';
 
 export interface ImpersonationState {
@@ -32,50 +30,48 @@ function store(): Storage | null {
   return typeof window === 'undefined' ? null : window.localStorage;
 }
 
-/**
- * Enter impersonation: stash the admin's tokens, install the tenant-scoped one,
- * and take the refresh token out of play.
- */
+/** Enter impersonation: stash the admin access token and install the tenant one. */
 export function beginImpersonation(accessToken: string, state: ImpersonationState): void {
   const s = store();
   if (!s) return;
 
   const adminAccess = s.getItem(ACCESS_KEY);
-  const adminRefresh = s.getItem(REFRESH_KEY);
   if (adminAccess) s.setItem(ADMIN_ACCESS_KEY, adminAccess);
-  if (adminRefresh) s.setItem(ADMIN_REFRESH_KEY, adminRefresh);
+
+  // One-way cleanup for browsers upgrading from the pre-cookie design. The
+  // active refresh credential is HttpOnly and cannot be reached from here.
+  s.removeItem(LEGACY_REFRESH_KEY);
+  s.removeItem(LEGACY_ADMIN_REFRESH_KEY);
 
   s.setItem(ACCESS_KEY, accessToken);
-  s.removeItem(REFRESH_KEY);
   s.setItem(STATE_KEY, JSON.stringify(state));
 }
 
 /**
- * Leave impersonation and put the admin back where they were.
+ * Leave impersonation and put the administrator's access token back.
  *
- * Returns false when there was nothing to restore — the admin's own session had
- * itself expired — so the caller can send them to the login page rather than
- * leaving them holding a dead token.
+ * Returns false when there was nothing to restore — the admin's own access
+ * token had already disappeared — so the caller can send them to login. If the
+ * restored access token later expires, api.ts may use the admin's HttpOnly
+ * refresh cookie again because the impersonation state has been cleared.
  */
 export function endImpersonation(): boolean {
   const s = store();
   if (!s) return false;
 
   const adminAccess = s.getItem(ADMIN_ACCESS_KEY);
-  const adminRefresh = s.getItem(ADMIN_REFRESH_KEY);
 
   s.removeItem(STATE_KEY);
   s.removeItem(ADMIN_ACCESS_KEY);
-  s.removeItem(ADMIN_REFRESH_KEY);
+  s.removeItem(LEGACY_REFRESH_KEY);
+  s.removeItem(LEGACY_ADMIN_REFRESH_KEY);
 
   if (!adminAccess) {
     s.removeItem(ACCESS_KEY);
-    s.removeItem(REFRESH_KEY);
     return false;
   }
 
   s.setItem(ACCESS_KEY, adminAccess);
-  if (adminRefresh) s.setItem(REFRESH_KEY, adminRefresh);
   return true;
 }
 
