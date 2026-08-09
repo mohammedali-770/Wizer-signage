@@ -21,7 +21,7 @@ describe('production preflight contract', () => {
     expect(preflight).not.toContain('prisma migrate');
   });
 
-  it('requires production registry, database, auth, metrics, recovery and logging coordinates', () => {
+  it('requires production registry, database, auth, metrics, recovery, logging and mail coordinates', () => {
     for (const key of [
       'APP_DOMAIN',
       'DATABASE_URL',
@@ -34,6 +34,9 @@ describe('production preflight contract', () => {
       'BACKUP_OFFSITE_CMD',
       'HEALTHCHECKS_URL',
       'LOG_SHIPPING_ADDRESS',
+      'SMTP_HOST',
+      'SMTP_PORT',
+      'SMTP_FROM',
     ]) {
       expect(preflight).toContain(key);
     }
@@ -57,6 +60,14 @@ describe('production preflight contract', () => {
     expect(preflight).toContain('LOG_SHIPPING_ADDRESS must be a collector host:port');
     expect(preflight).toContain('LOG_SHIPPING_ADDRESS port must be 1-65535');
     expect(preflight).toContain('off-box logging collector coordinate is configured');
+  });
+
+  it('requires live SMTP delivery before deployment', () => {
+    expect(preflight).toContain('SMTP_HOST points at a placeholder/local mail server');
+    expect(preflight).toContain('SMTP_PORT must be 1-65535');
+    expect(preflight).toContain('SMTP_FROM must contain a sender email address');
+    expect(preflight).toContain('neither SMTP_PASSWORD nor SMTP_PASS is set');
+    expect(preflight).toContain('live SMTP delivery coordinates are configured');
   });
 
   it('checks host headroom before a release begins', () => {
