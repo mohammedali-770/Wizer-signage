@@ -514,7 +514,7 @@ export class AuthService {
 
   private signRefresh(userId: string, sessionId: string): Promise<string> {
     return this.jwt.signAsync(
-      { sub: userId, sid: sessionId, typ: 'refresh' },
+      { sub: userId, sid: sessionId, typ: 'refresh', jti: randomUUID() },
       { secret: this.refreshSecret, expiresIn: this.refreshTtl },
     );
   }
