@@ -1,0 +1,16 @@
+# Blue/green production proxy overlay.
+#
+# Applied together with docker-compose.yml only by scripts/deploy-blue-green.sh.
+# It swaps the nginx template mount for the blue/green-aware template and adds
+# a persistent runtime volume containing active-upstreams.conf. The legacy base
+# compose/deploy path remains unchanged until operators opt into blue/green.
+services:
+  nginx:
+    volumes:
+      - ../nginx/templates-blue-green:/etc/nginx/templates:ro
+      - ../nginx/docker-entrypoint.d/05-active-upstreams-default.sh:/docker-entrypoint.d/05-active-upstreams-default.sh:ro
+      - nginx-runtime:/etc/nginx/runtime
+
+volumes:
+  nginx-runtime:
+    name: wizer-signage-nginx-runtime
