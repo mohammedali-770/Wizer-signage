@@ -7,7 +7,8 @@
  *
  *   node dist/maintenance/maintenance.cli.js all
  *   node dist/maintenance/maintenance.cli.js retention
- *   node dist/maintenance/maintenance.cli.js sweep|android-ota-health|reports|emergencies|backup-check
+ *   node dist/maintenance/maintenance.cli.js sweep|reports|emergencies|backup-check
+ *   node dist/maintenance/maintenance.cli.js android-ota-health   # internal cron-only job
  *   node dist/maintenance/maintenance.cli.js record-backup --type=DATABASE --status=SUCCESS --location=s3://... --size=12345
  *
  * In dev: `pnpm --filter @wizer/api maintenance all`.
@@ -16,6 +17,7 @@ import { NestFactory } from '@nestjs/core';
 import { BackupStatus, BackupType } from '@prisma/client';
 
 import { AppModule } from '../app.module';
+import { AndroidOtaHealthService } from '../modules/maintenance/android-ota-health.service';
 import { BackupService } from '../modules/maintenance/backup.service';
 import { MaintenanceService } from '../modules/maintenance/maintenance.service';
 
@@ -30,12 +32,6 @@ function parseFlags(args: string[]): Flags {
   return flags;
 }
 
-/**
- * Pull `retention.failures` out of whatever shape the job returned — `run('all')`
- * nests it under `retention`, `run('retention')` returns it directly. Defensive
- * on purpose: a shape change must degrade to "no failures detected", never throw
- * inside the error-reporting path.
- */
 function collectRetentionFailures(result: unknown): string[] {
   if (typeof result !== 'object' || result === null) return [];
   const record = result as Record<string, unknown>;
@@ -68,11 +64,17 @@ async function main(): Promise<void> {
       });
       // eslint-disable-next-line no-console
       console.log(JSON.stringify(run));
+    } else if (command === 'android-ota-health') {
+      // Deliberately CLI-only. This is a frequent internal reconciliation loop,
+      // not a dashboard/admin API operation. Keeping it out of RunMaintenanceDto
+      // avoids expanding the external OpenAPI contract for scheduler plumbing.
+      const result = await app.get(AndroidOtaHealthService).sweep();
+      // eslint-disable-next-line no-console
+      console.log(JSON.stringify({ job: command, result }));
     } else {
       const job = command as
         | 'all'
         | 'sweep'
-        | 'android-ota-health'
         | 'retention'
         | 'reports'
         | 'emergencies'
