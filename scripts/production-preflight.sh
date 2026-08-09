@@ -15,7 +15,9 @@ MIN_NOFILE="${MIN_NOFILE:-4096}"
 
 BASE="${ROOT_DIR}/infra/docker/docker-compose.yml"
 PROXY="${ROOT_DIR}/infra/docker/docker-compose.blue-green-proxy.yml"
+LOGGING="${ROOT_DIR}/infra/docker/docker-compose.log-shipping.yml"
 SLOTS="${ROOT_DIR}/infra/docker/docker-compose.blue-green-slots.yml"
+SLOTS_LOGGING="${ROOT_DIR}/infra/docker/docker-compose.blue-green-log-shipping.yml"
 
 fail() { printf 'ERROR [preflight]: %s\n' "$*" >&2; exit 1; }
 pass() { printf '  ok  %s\n' "$*"; }
@@ -56,14 +58,13 @@ docker info >/dev/null 2>&1 || fail "Docker daemon is not reachable by the deplo
 docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is unavailable"
 pass "Docker + Compose v2 are usable"
 
-for file in "${BASE}" "${PROXY}" "${SLOTS}"; do
-  [[ -f "${file}" ]] || fail "required compose file missing: ${file}"
+for file in "${BASE}" "${PROXY}" "${LOGGING}" "${SLOTS}" "${SLOTS_LOGGING}"; do
+  [[ -f "${file}" ]] || fail "required production compose file missing: ${file}"
 done
 
 # Required application/deployment coordinates. Never print values. Offsite
-# backup + dead-man monitoring are production requirements, not best-effort
-# warnings: a successful local-only backup is lost with the host, and an in-app
-# backup alert cannot report the maintenance container's own death.
+# backup + dead-man monitoring + off-box logs are production requirements, not
+# best-effort warnings.
 for key in \
   APP_DOMAIN \
   DATABASE_URL \
@@ -74,7 +75,8 @@ for key in \
   IMAGE_REGISTRY_PREFIX \
   METRICS_TOKEN \
   BACKUP_OFFSITE_CMD \
-  HEALTHCHECKS_URL; do
+  HEALTHCHECKS_URL \
+  LOG_SHIPPING_ADDRESS; do
   require_value "${key}"
 done
 
@@ -126,21 +128,35 @@ case "${HEALTHCHECKS_URL_VALUE,,}" in
 esac
 pass "out-of-band backup dead-man monitoring is configured"
 
-# Render the exact production blue/green compose graph. Secrets may be consumed
-# by Compose internally but the rendered config is discarded and never printed.
+LOG_SHIPPING_ADDRESS_VALUE="$(read_env_value LOG_SHIPPING_ADDRESS)"
+[[ "${LOG_SHIPPING_ADDRESS_VALUE}" =~ ^[^[:space:]:]+:[0-9]{1,5}$ ]] \
+  || fail "LOG_SHIPPING_ADDRESS must be a collector host:port"
+LOG_SHIPPING_PORT="${LOG_SHIPPING_ADDRESS_VALUE##*:}"
+(( LOG_SHIPPING_PORT >= 1 && LOG_SHIPPING_PORT <= 65535 )) \
+  || fail "LOG_SHIPPING_ADDRESS port must be 1-65535"
+case "${LOG_SHIPPING_ADDRESS_VALUE,,}" in
+  localhost:*|127.*|*.invalid:*) fail "LOG_SHIPPING_ADDRESS points at a local/development collector" ;;
+esac
+pass "off-box logging collector coordinate is configured"
+
+# Render the exact production blue/green compose graph INCLUDING the logging
+# overlays. Secrets may be consumed by Compose internally but the rendered config
+# is discarded and never printed.
 docker compose \
   --env-file "${ENV_FILE}" \
   -f "${BASE}" \
   -f "${PROXY}" \
+  -f "${LOGGING}" \
   config --quiet >/dev/null \
-  || fail "production proxy compose configuration is invalid"
+  || fail "production proxy/logging compose configuration is invalid"
 
 docker compose \
   --env-file "${ENV_FILE}" \
   -f "${SLOTS}" \
+  -f "${SLOTS_LOGGING}" \
   config --quiet >/dev/null \
-  || fail "blue/green slot compose configuration is invalid"
-pass "production Compose graphs render successfully"
+  || fail "blue/green slot/logging compose configuration is invalid"
+pass "production Compose graphs including off-box logging render successfully"
 
 FREE_KB="$(df -Pk "${ROOT_DIR}" | awk 'NR==2 {print $4}')"
 [[ "${FREE_KB}" =~ ^[0-9]+$ ]] || fail "could not determine free disk space"
@@ -156,9 +172,9 @@ if [[ "${NOFILE}" != "unlimited" ]]; then
 fi
 pass "deployment user open-file limit is sufficient"
 
-# Optional immutable release coordinate check. This proves the caller did not
-# accidentally pass a branch/tag name as the deployment coordinate, without
-# pulling any images or consuming registry bandwidth.
+# Optional immutable release coordinate check. The preferred production wrapper
+# always supplies it; retaining optionality keeps this read-only script useful for
+# host-only diagnostics before a release SHA has been selected.
 if [[ $# -gt 0 ]]; then
   TARGET_SHA="$1"
   [[ "${TARGET_SHA}" =~ ^[0-9a-f]{40}$ ]] || fail "target release must be a full 40-character lowercase Git SHA"
