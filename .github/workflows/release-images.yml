@@ -1,0 +1,178 @@
+name: Release production images
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: Public HTTPS API base baked into the dashboard image
+        required: true
+        default: https://signage.wizer.sa/api
+        type: string
+      promote_latest:
+        description: Also move the mutable latest tag to this release
+        required: true
+        default: false
+        type: boolean
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-images.yml'
+      - 'scripts/deploy-release.sh'
+      - 'scripts/pull-release-images.sh'
+      - 'scripts/tests/pull-release-images.test.sh'
+
+# Normal PR CI already builds all three images. This workflow does not push on a
+# pull request: it runs only the cheap registry-helper regression there. Durable
+# registry artifacts are built only when an operator deliberately starts a
+# production release, preserving the repository's Actions-minute optimisation.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-images-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/wizer-signage-api
+  DASHBOARD_IMAGE: ghcr.io/${{ github.repository_owner }}/wizer-signage-dashboard
+  MAINTENANCE_IMAGE: ghcr.io/${{ github.repository_owner }}/wizer-signage-maintenance
+
+jobs:
+  registry-helper-test:
+    name: Registry pull/deploy checks
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Shell syntax
+        run: bash -n scripts/pull-release-images.sh scripts/deploy-release.sh scripts/tests/pull-release-images.test.sh
+      - name: Verify pull/retag fail-closed behaviour
+        run: bash scripts/tests/pull-release-images.test.sh
+
+  publish:
+    name: Build and publish immutable images
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout selected revision
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Refuse an untrusted API URL
+        shell: bash
+        env:
+          RELEASE_API_URL: ${{ inputs.api_url }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const raw = process.env.RELEASE_API_URL;
+          let url;
+          try {
+            url = new URL(raw);
+          } catch {
+            console.error('api_url must be a valid absolute URL.');
+            process.exit(1);
+          }
+          if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
+            console.error('api_url must be an absolute HTTPS URL with no credentials, query, or fragment.');
+            process.exit(1);
+          }
+          if (['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(url.hostname)) {
+            console.error('api_url must not point at a loopback/local address.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Resolve immutable image tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          short_sha="$(git rev-parse --short=12 HEAD)"
+          echo "IMAGE_TAG=${short_sha}" >> "$GITHUB_ENV"
+          echo "FULL_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "Release tag: ${short_sha}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.API_IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ inputs.promote_latest && format('{0}:latest', env.API_IMAGE) || '' }}
+          labels: |
+            org.opencontainers.image.revision=${{ env.FULL_SHA }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=release-api
+          cache-to: type=gha,mode=max,scope=release-api
+
+      - name: Build and push dashboard
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/dashboard/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ inputs.api_url }}
+          tags: |
+            ${{ env.DASHBOARD_IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ inputs.promote_latest && format('{0}:latest', env.DASHBOARD_IMAGE) || '' }}
+          labels: |
+            org.opencontainers.image.revision=${{ env.FULL_SHA }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=release-dashboard
+          cache-to: type=gha,mode=max,scope=release-dashboard
+
+      - name: Build and push maintenance
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/Dockerfile.maintenance
+          push: true
+          tags: |
+            ${{ env.MAINTENANCE_IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ inputs.promote_latest && format('{0}:latest', env.MAINTENANCE_IMAGE) || '' }}
+          labels: |
+            org.opencontainers.image.revision=${{ env.FULL_SHA }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=release-maintenance
+          cache-to: type=gha,mode=max,scope=release-maintenance
+
+      - name: Publish release coordinates
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '### Wizer Signage production images'
+            echo
+            echo "Commit: \`${FULL_SHA}\`"
+            echo "Immutable tag: \`${IMAGE_TAG}\`"
+            echo
+            echo '| Service | Image |'
+            echo '|---|---|'
+            echo "| API | \`${API_IMAGE}:${IMAGE_TAG}\` |"
+            echo "| Dashboard | \`${DASHBOARD_IMAGE}:${IMAGE_TAG}\` |"
+            echo "| Maintenance | \`${MAINTENANCE_IMAGE}:${IMAGE_TAG}\` |"
+            echo
+            echo 'Production should deploy the immutable SHA tag, not `latest`.'
+          } >> "$GITHUB_STEP_SUMMARY"
