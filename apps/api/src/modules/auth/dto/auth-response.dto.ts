@@ -8,13 +8,15 @@ import { UserViewDto } from '../../../common/dto/api-response.dto';
  * interfaces the service already returns.
  */
 
-/** A completed login: tokens plus the signed-in user. */
+/**
+ * A completed browser login. The refresh token is deliberately NOT part of the
+ * JSON response: AuthController writes it to an HttpOnly, Secure (production),
+ * SameSite=Strict cookie scoped to /api/auth/refresh. JavaScript only receives
+ * the short-lived access token.
+ */
 export class AuthTokensDto {
   @ApiProperty({ description: 'Short-lived bearer token for the Authorization header.' })
   accessToken!: string;
-
-  @ApiProperty({ description: 'Rotated on every use; reuse is treated as theft.' })
-  refreshToken!: string;
 
   @ApiProperty({ type: UserViewDto })
   user!: UserViewDto;
