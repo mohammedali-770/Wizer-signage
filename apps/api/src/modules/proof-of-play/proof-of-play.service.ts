@@ -84,7 +84,7 @@ export class ProofOfPlayService {
     // the system, and it is serialised on the device's request.
     const sessionIds = usable.map((u) => u.event.playbackSessionId);
     const existingRows = await this.prisma.proofOfPlay.findMany({
-      where: { playbackSessionId: { in: sessionIds } },
+      where: { companyId: device.companyId, playbackSessionId: { in: sessionIds } },
       select: { playbackSessionId: true, status: true, companyId: true, screenId: true },
     });
     const existingBySession = new Map(existingRows.map((r) => [r.playbackSessionId, r]));
@@ -187,13 +187,11 @@ export class ProofOfPlayService {
     const status = EVENT_STATUS[event.eventType] as ProofOfPlayStatus;
     const { durationMs, endedAt } = this.normaliseInterval(event, startedAt);
 
-    // playbackSessionId is CLIENT-SUPPLIED and globally unique across all
-    // tenants, so a lookup by it alone can resolve to another company's row.
-    // The tenant of any pre-existing row is therefore checked before anything
-    // is written: without this, any device-token holder could rewrite another
-    // company's playback record (the advertiser-billing and compliance trail)
-    // by replaying a session id — and session ids are printed in plaintext in
-    // every proof-of-play CSV export.
+    // playbackSessionId is CLIENT-SUPPLIED. Database uniqueness is scoped to
+    // (companyId, playbackSessionId), and the batch pre-read above is scoped to
+    // device.companyId, so one tenant cannot pre-claim or resolve another
+    // tenant's idempotency key. Keep the screen check as a second boundary: a
+    // session id must not be reused across two screens inside the same company.
     if (
       existing &&
       (existing.companyId !== device.companyId || existing.screenId !== device.screenId)

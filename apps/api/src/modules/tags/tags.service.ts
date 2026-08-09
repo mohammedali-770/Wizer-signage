@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, TagType } from '@prisma/client';
 
 import { resolvePagination } from '../../common/dto/pagination.dto';
@@ -29,9 +29,19 @@ export class TagsService {
   }
 
   async list(companyId: string, query: ListTagsQueryDto) {
+    if (query.type && query.applicableTo) {
+      throw new BadRequestException('Use either type or applicableTo when filtering tags, not both.');
+    }
+
     const { skip, take, meta } = resolvePagination(query);
     const where: Prisma.TagWhereInput = { companyId };
-    if (query.type) where.type = query.type;
+    if (query.type) {
+      where.type = query.type;
+    } else if (query.applicableTo === 'SCREEN') {
+      where.type = { in: [TagType.SCREEN, TagType.BOTH] };
+    } else if (query.applicableTo === 'CONTENT') {
+      where.type = { in: [TagType.CONTENT, TagType.BOTH] };
+    }
     if (query.search) where.name = { contains: query.search, mode: 'insensitive' };
 
     const [rows, total] = await this.prisma.$transaction([

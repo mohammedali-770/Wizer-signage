@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Plus, Trash2 } from 'lucide-react';
 
+import { ServerSearchSelect } from '@/components/server-search-select';
 import { api, ApiError } from '@/lib/api';
-import { useAllPages, useApiResource } from '@/lib/use-api';
+import { useApiResource } from '@/lib/use-api';
 import { formatCurrency, formatDate } from '@/lib/format';
-import type { Company, Invoice, InvoiceStatus, Paginated } from '@/lib/types';
+import type { Invoice, InvoiceStatus, Paginated } from '@/lib/types';
 import {
   Button,
   Dialog,
@@ -217,12 +218,6 @@ function CreateInvoiceDialog({
   const te = useTranslations('enums');
   const { toast } = useToast();
 
-  // Only fetch companies when the dialog is open.
-  const { data: companiesData, loading: companiesLoading } = useAllPages<Company>(
-    open ? '/companies' : null,
-  );
-  const companies = companiesData?.items ?? [];
-
   const [companyId, setCompanyId] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [status, setStatus] = useState<InvoiceStatus>('DRAFT');
@@ -249,7 +244,7 @@ function CreateInvoiceDialog({
   }
 
   function removeLine(index: number) {
-    setLineItems((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+    setLineItems((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index));
   }
 
   const subtotal = useMemo(
@@ -329,21 +324,15 @@ function CreateInvoiceDialog({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t('company')}>
-            <Select
+            <ServerSearchSelect
+              type="COMPANY"
               value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
-              disabled={companiesLoading}
+              onChange={setCompanyId}
+              emptyLabel={t('selectCompany')}
+              searchPlaceholder={tc('search')}
+              disabled={submitting || !open}
               required
-            >
-              <option value="">
-                {companiesLoading ? t('loadingCompanies') : t('selectCompany')}
-              </option>
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.name}
-                </option>
-              ))}
-            </Select>
+            />
           </Field>
 
           <Field label={t('currency')}>

@@ -6,13 +6,8 @@ import { ArrowLeft } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
-import { useAllPages } from '@/lib/use-api';
-import type {
-  Content,
-  EmergencyBroadcast,
-  EmergencyBroadcastType,
-  PlaylistListItem,
-} from '@/lib/types';
+import type { EmergencyBroadcast, EmergencyBroadcastType } from '@/lib/types';
+import { ServerSearchSelect } from '@/components/server-search-select';
 import { TargetSelector, type SelectedTarget } from '@/components/schedules/target-selector';
 import {
   Button,
@@ -35,8 +30,6 @@ export default function NewEmergencyBroadcastPage() {
   const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
-  const contents = useAllPages<Content>('/content?status=ACTIVE');
-  const playlists = useAllPages<PlaylistListItem>('/playlists?status=ACTIVE');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -166,25 +159,27 @@ export default function NewEmergencyBroadcastPage() {
               </Field>
             ) : broadcastType === 'CONTENT' ? (
               <Field label={t('contentLabel')} hint={t('contentHint')}>
-                <Select value={contentId} onChange={(e) => setContentId(e.target.value)}>
-                  <option value="">{t('selectPlaceholder')}</option>
-                  {contents.data?.items.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title}
-                    </option>
-                  ))}
-                </Select>
+                <ServerSearchSelect
+                  type="CONTENT"
+                  value={contentId}
+                  onChange={setContentId}
+                  emptyLabel={t('selectPlaceholder')}
+                  searchPlaceholder={tc('search')}
+                  disabled={saving}
+                  required
+                />
               </Field>
             ) : (
               <Field label={t('playlistLabel')} hint={t('playlistHint')}>
-                <Select value={playlistId} onChange={(e) => setPlaylistId(e.target.value)}>
-                  <option value="">{t('selectPlaceholder')}</option>
-                  {playlists.data?.items.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title}
-                    </option>
-                  ))}
-                </Select>
+                <ServerSearchSelect
+                  type="PLAYLIST"
+                  value={playlistId}
+                  onChange={setPlaylistId}
+                  emptyLabel={t('selectPlaceholder')}
+                  searchPlaceholder={tc('search')}
+                  disabled={saving}
+                  required
+                />
               </Field>
             )}
           </CardContent>

@@ -4,16 +4,11 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 
+import { ServerSearchSelect } from '@/components/server-search-select';
 import { api, ApiError } from '@/lib/api';
 import { useAllPages, useApiResource } from '@/lib/use-api';
 import { formatDate } from '@/lib/format';
-import type {
-  Paginated,
-  Subscription,
-  SubscriptionStatus,
-  CompanyListItem,
-  Plan,
-} from '@/lib/types';
+import type { Paginated, Subscription, SubscriptionStatus, Plan } from '@/lib/types';
 import {
   Button,
   Dialog,
@@ -68,10 +63,10 @@ export default function SubscriptionsPage() {
 
   const { data, loading, error, reload } = useApiResource<Paginated<Subscription>>(listPath);
 
-  // Lookups for create dialog selects.
-  const { data: companiesData } = useAllPages<CompanyListItem>('/companies');
+  // Plans are a deliberately low-cardinality platform catalog. Companies are
+  // not: the create dialog uses ServerSearchSelect so tenant growth never turns
+  // this screen into a multi-page lookup crawl.
   const { data: plansData } = useAllPages<Plan>('/plans?isActive=true');
-  const companies = companiesData?.items ?? [];
   const plans = plansData?.items ?? [];
 
   // Create dialog state.
@@ -292,14 +287,14 @@ export default function SubscriptionsPage() {
       >
         <div className="space-y-4">
           <Field label={t('company')}>
-            <Select value={createCompanyId} onChange={(e) => setCreateCompanyId(e.target.value)}>
-              <option value="">{t('selectCompany')}</option>
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
+            <ServerSearchSelect
+              type="COMPANY"
+              value={createCompanyId}
+              onChange={setCreateCompanyId}
+              emptyLabel={t('selectCompany')}
+              searchPlaceholder={tc('search')}
+              disabled={creating}
+            />
           </Field>
 
           <Field label={t('plan')}>
