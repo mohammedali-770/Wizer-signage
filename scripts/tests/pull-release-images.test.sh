@@ -8,6 +8,7 @@ PULLER="${ROOT_DIR}/scripts/pull-release-images.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 mkdir -p "${WORK}/bin"
+: > "${WORK}/empty.env"
 
 pass=0
 fail=0
@@ -42,6 +43,7 @@ export PATH="${WORK}/bin:${PATH}"
 run_puller() {
   : > "${WORK}/docker.log"
   DOCKER_LOG="${WORK}/docker.log" \
+  ENV_FILE="${ENV_FILE_OVERRIDE:-${WORK}/empty.env}" \
   IMAGE_REGISTRY_PREFIX="${IMAGE_REGISTRY_PREFIX_OVERRIDE:-ghcr.io/example}" \
   IMAGE_REVISION="${IMAGE_REVISION_OVERRIDE:-${FULL_REV}}" \
   DASHBOARD_API_URL="${DASHBOARD_API_URL_OVERRIDE:-${PROD_API_URL}}" \
@@ -74,6 +76,16 @@ if (( rc == 0 )) && grep -q 'io.wizer.dashboard-api-url' "${WORK}/docker.log"; t
   ok "verifies the dashboard image was baked for the approved production API URL"
 else
   no "accepts a matching dashboard API artifact label" "rc=${rc} out=${out} log=$(cat "${WORK}/docker.log")"
+fi
+
+cat > "${WORK}/prod.env" <<EOF
+NEXT_PUBLIC_API_URL=${PROD_API_URL}
+EOF
+out="$(ENV_FILE_OVERRIDE="${WORK}/prod.env" run_puller "${TAG}")"; rc=$?
+if (( rc == 0 )) && grep -q 'io.wizer.dashboard-api-url' "${WORK}/docker.log"; then
+  ok "loads the approved dashboard API URL from ENV_FILE when no explicit override is exported"
+else
+  no "binds artifact verification to the host env file" "rc=${rc} out=${out} log=$(cat "${WORK}/docker.log")"
 fi
 
 out="$(EXPECTED_DASHBOARD_API_URL_OVERRIDE="${PROD_API_URL}" DASHBOARD_API_URL_OVERRIDE="${STAGING_API_URL}" run_puller "${TAG}")"; rc=$?
