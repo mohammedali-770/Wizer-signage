@@ -6,19 +6,38 @@
 # Usage:
 #   IMAGE_REGISTRY_PREFIX=ghcr.io/<owner> scripts/pull-release-images.sh <12-char-sha>
 #
-# Optional production invariant:
+# Production configuration binding:
 #   EXPECTED_DASHBOARD_API_URL=https://signage.wizer.sa/api
+# or NEXT_PUBLIC_API_URL in the repo-root .env / ENV_FILE.
 #
 # The release workflow stamps org.opencontainers.image.revision=<full git sha>
 # into every image and io.wizer.dashboard-api-url=<baked URL> into the dashboard
-# image. Production supplies EXPECTED_DASHBOARD_API_URL so an immutable image
-# built from the correct commit but with a staging/wrong API URL is rejected.
+# image. An immutable image built from the correct commit but for a staging/wrong
+# API URL is therefore rejected before any local release tag moves.
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 
 TAG="${1:-}"
 PREFIX="${IMAGE_REGISTRY_PREFIX:-}"
 EXPECTED_DASHBOARD_API_URL="${EXPECTED_DASHBOARD_API_URL:-}"
 SERVICES=(api dashboard maintenance)
+
+read_env_value() {
+  local key="$1" raw
+  [[ -r "${ENV_FILE}" ]] || return 0
+  raw="$(grep -E "^${key}=" "${ENV_FILE}" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+  raw="${raw//$'\r'/}"
+  raw="${raw#\"}"; raw="${raw%\"}"
+  raw="${raw#\'}"; raw="${raw%\'}"
+  printf '%s' "${raw}" | xargs
+}
+
+if [[ -z "${EXPECTED_DASHBOARD_API_URL}" ]]; then
+  EXPECTED_DASHBOARD_API_URL="$(read_env_value NEXT_PUBLIC_API_URL)"
+fi
 
 if [[ ! "${TAG}" =~ ^[0-9a-f]{12}$ ]]; then
   echo "ERROR: release tag must be exactly 12 lowercase hexadecimal characters." >&2
@@ -36,8 +55,8 @@ if [[ "${PREFIX}" == *"://"* || "${PREFIX}" =~ [[:space:]] || "${PREFIX}" == */ 
 fi
 
 if [[ -n "${EXPECTED_DASHBOARD_API_URL}" ]]; then
-  if [[ ! "${EXPECTED_DASHBOARD_API_URL}" =~ ^https://[^[:space:]?#]+/api/?$ ]]; then
-    echo "ERROR: EXPECTED_DASHBOARD_API_URL must be a public HTTPS API base ending in /api." >&2
+  if [[ ! "${EXPECTED_DASHBOARD_API_URL}" =~ ^https://[^[:space:]/?#@]+/api$ ]]; then
+    echo "ERROR: EXPECTED_DASHBOARD_API_URL/NEXT_PUBLIC_API_URL must be a public HTTPS API base ending exactly in /api." >&2
     exit 2
   fi
 fi
@@ -66,7 +85,6 @@ for svc in "${SERVICES[@]}"; do
       exit 1
     fi
   fi
-
 done
 
 for svc in "${SERVICES[@]}"; do
