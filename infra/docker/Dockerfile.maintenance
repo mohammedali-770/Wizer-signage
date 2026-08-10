@@ -39,6 +39,11 @@ WORKDIR /app
 # client tools (pg_dump + psql), tzdata and OpenSSL for Prisma/runtime TLS.
 RUN apk add --no-cache openssl su-exec bash postgresql-client tzdata
 
+# Maintenance runs compiled JavaScript and checked-in shell tools directly.
+# npm/npx are build-only tooling and are not needed in the deployed worker.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx
+
 COPY --from=build --chown=node:node /app/deploy/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/apps/api/dist ./dist
 COPY --from=build --chown=node:node /app/apps/api/package.json ./package.json
