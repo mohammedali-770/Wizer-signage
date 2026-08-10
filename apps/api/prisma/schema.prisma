@@ -1,5 +1,30 @@
+// =============================================================================
+// Wizer Signage — Prisma schema
+// Multi-tenant digital signage SaaS. Backing store: Supabase Postgres.
+//
+// DESIGN NOTES
+//  - Shared-database / shared-schema multi-tenancy. Every tenant-owned table
+//    carries `companyId` and is ALWAYS queried scoped by it (see
+//    docs/multi-tenancy.md). Tables marked [GLOBAL] are platform-level.
+//  - Phase 1 implements the runtime modules for Identity/Auth/Tenancy only.
+//    The full product domain (fleet, content, scheduling, telemetry, billing,
+//    integrations) is modelled here so the schema supports the whole product
+//    from day one; those tables get their service/controller layers in later
+//    phases. No data is lost to a future migration.
+//  - "Pointer" columns that reference operational state (current/fallback
+//    content, current playlist) are kept as plain String IDs (soft references)
+//    to avoid a tangle of back-relations; structural ownership uses real FKs.
+//  - Soft delete via `deletedAt` on long-lived tenant entities.
+// =============================================================================
+
 generator client {
   provider = "prisma-client-js"
+  // "native" keeps local dev (Windows/macOS/glibc) working; the explicit
+  // Alpine target is required for the production Docker runtime (node:20-alpine,
+  // musl + OpenSSL 3.0). Without it, build-time detection falls back to the
+  // generic "linux-musl" engine and the client cannot locate the query engine
+  // at runtime ("linux-musl-openssl-3.0.x" not found).
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -9,46 +34,62 @@ datasource db {
 }
 
 // =============================================================================
-// WIZER SIGNAGE — ENUMS
+// Enums
 // =============================================================================
 
-enum CompanyStatus {
-  ACTIVE
-  SUSPENDED
-  ARCHIVED
-}
-
+/// Platform-wide user roles (mirrors @wizer/types UserRole).
 enum UserRole {
   SUPER_ADMIN
   COMPANY_ADMIN
+  LOCATION_MANAGER
   CONTENT_MANAGER
   VIEWER
 }
 
 enum UserStatus {
   ACTIVE
-  SUSPENDED
-  ARCHIVED
+  INVITED
+  DISABLED
+  LOCKED
 }
 
-enum SubscriptionStatus {
-  TRIALING
+enum CompanyStatus {
   ACTIVE
-  PAST_DUE
+  SUSPENDED
+  PENDING
   CANCELLED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
   EXPIRED
 }
 
 enum ScreenStatus {
+  UNPAIRED
+  PAIRING
   ONLINE
   OFFLINE
   WARNING
   DISABLED
   ARCHIVED
-  UNPAIRED
-  PAIRING
 }
 
+enum LocationStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum Orientation {
+  LANDSCAPE
+  PORTRAIT
+  UNKNOWN
+}
+
+/// Intended use of a screen (drives default content/orientation hints).
 enum ScreenUse {
   MENU_LANDSCAPE
   OFFERS_PORTRAIT
@@ -60,23 +101,63 @@ enum ScreenUse {
   GENERIC
 }
 
-enum Orientation {
-  LANDSCAPE
-  PORTRAIT
-  UNKNOWN
+enum PairingStatus {
+  PENDING
+  CLAIMED
+  EXPIRED
+  REVOKED
 }
 
+/// Lifecycle of a paired player Device (Phase 6).
+/// PENDING = dashboard claimed the code, awaiting the device to collect its token;
+/// ACTIVE = token issued and in use; REVOKED = unpaired (token invalidated).
 enum DeviceStatus {
+  PENDING
   ACTIVE
   REVOKED
-  REPLACED
 }
 
-enum LocationStatus {
-  ACTIVE
-  ARCHIVED
+/// Latest offline-cache / smart-sync state a device reports (Phase 7). Not a
+/// heartbeat — just the most recent sync snapshot.
+enum SyncStatus {
+  IDLE
+  SYNCING
+  READY
+  PARTIAL
+  FAILED
+  OFFLINE_PLAYBACK
 }
 
+/// Remote device commands a dashboard issues to a player (Phase 8).
+enum DeviceCommandType {
+  FORCE_SYNC
+  REFRESH_MANIFEST
+  RESTART_PLAYBACK
+  CLEAR_CACHE
+  TAKE_SCREENSHOT
+  REBOOT_DEVICE
+  UNPAIR_DEVICE
+  RELOAD_CONFIG
+}
+
+/// Lifecycle of a remote device command (Phase 8).
+enum DeviceCommandStatus {
+  PENDING
+  DELIVERED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum TagType {
+  SCREEN
+  CONTENT
+  BOTH
+}
+
+/// Content asset kinds. PLAYLIST is modelled as its own table, not here.
 enum ContentType {
   IMAGE
   VIDEO
@@ -89,82 +170,124 @@ enum ContentStatus {
   ACTIVE
   ARCHIVED
   TRASH
+  DELETED
 }
 
+enum ScheduleTargetType {
+  SCREEN
+  SCREEN_GROUP
+  LOCATION
+  COMPANY
+}
+
+/// Conceptual global precedence ladder for what plays on a screen (highest →
+/// lowest): EMERGENCY > HIGH > CAMPAIGN > NORMAL > FALLBACK. Retained for
+/// documentation and the future Emergency Broadcast layer. Phase 5 schedules
+/// use the numeric `Schedule.priority` (higher wins) + `Schedule.scheduleType`
+/// for ordering; see docs/advanced-scheduling.md.
+enum SchedulePriority {
+  EMERGENCY
+  HIGH
+  CAMPAIGN
+  NORMAL
+  FALLBACK
+}
+
+/// Lifecycle of a Playlist (Phase 5).
 enum PlaylistStatus {
   DRAFT
   ACTIVE
   ARCHIVED
 }
 
+/// Lifecycle of a Schedule (Phase 5).
 enum ScheduleStatus {
-  DRAFT
   ACTIVE
   PAUSED
   ARCHIVED
 }
 
+/// Schedule kind. CAMPAIGN outranks NORMAL when two schedules share the same
+/// numeric priority (Phase 5 conflict resolution).
 enum ScheduleType {
   NORMAL
   CAMPAIGN
 }
 
-enum TargetType {
-  COMPANY
-  LOCATION
-  SCREEN
-  SCREEN_GROUP
-  TAG
-}
-
-enum EmergencyStatus {
+/// Lifecycle of an Emergency Broadcast (Phase 9). DRAFT → (ACTIVE | SCHEDULED)
+/// → PAUSED ⇄ ACTIVE → ENDED → ARCHIVED. Only ACTIVE (within its time window)
+/// pre-empts schedules in the resolver.
+enum EmergencyBroadcastStatus {
   DRAFT
+  SCHEDULED
   ACTIVE
+  PAUSED
   ENDED
+  ARCHIVED
 }
 
-enum EmergencyType {
-  FULLSCREEN_CONTENT
-  MESSAGE_BANNER
-  TEXT_OVERLAY
-  BLANK_SCREEN
-}
-
-enum TagType {
-  SCREEN
+/// What an Emergency Broadcast plays (Phase 9).
+enum EmergencyBroadcastType {
   CONTENT
-  BOTH
+  PLAYLIST
+  TEXT
+  URL
 }
 
-enum ImportType {
-  SCREENS
-  CONTENT
-  PLAYLISTS
+enum ScreenshotType {
+  AUTO
+  MANUAL
 }
 
-enum ImportStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  COMPLETED_WITH_ERRORS
-  FAILED
+/// Why an item played (Phase 9 proof-of-play) — mirrors the resolver's manifest
+/// source. EMERGENCY for emergency-broadcast pre-emption; NONE for system/idle.
+enum PlaybackSourceType {
+  SCHEDULE
+  FALLBACK
+  EMERGENCY
+  NONE
 }
 
-enum ReportType {
-  PROOF_OF_PLAY
-  CONTENT_USAGE
-  SCREEN_UPTIME
-  ALERT_SUMMARY
-}
-
-enum ReportFormat {
-  CSV
+/// How the bytes reached the screen (Phase 9 proof-of-play).
+enum PlaybackSourceKind {
+  LOCAL_CACHE
+  STREAMING_SIGNED_URL
+  TEXT
+  URL
   PDF
+  UNKNOWN
 }
 
-enum ReportDeliveryMethod {
-  EMAIL
-  DOWNLOAD
+/// Lifecycle of a single item playback (Phase 9 proof-of-play). STARTED on
+/// open; one terminal state per playback session thereafter.
+enum ProofOfPlayStatus {
+  STARTED
+  COMPLETED
+  FAILED
+  SKIPPED
+  INTERRUPTED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  EXPIRED
+  SUSPENDED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  UNPAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum BillingInterval {
+  MONTHLY
+  QUARTERLY
+  YEARLY
 }
 
 enum NotificationSeverity {
@@ -173,301 +296,478 @@ enum NotificationSeverity {
   CRITICAL
 }
 
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum ApkChannel {
+  STABLE
+  BETA
+}
+
+enum BackupType {
+  DATABASE
+  STORAGE
+  FULL
+}
+
+enum BackupStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+// --- Phase 10: notifications, alerts, imports, reports ----------------------
+
+/// Lifecycle of an operational Alert (Phase 10).
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+/// Delivery channel for a user's notification preference (Phase 10).
 enum NotificationChannel {
   DASHBOARD
   EMAIL
 }
 
-enum AlertStatus {
-  OPEN
-  RESOLVED
-}
-
-enum DeviceCommandStatus {
+/// Outcome of an outbound email send (Phase 10 EmailDeliveryLog).
+enum EmailDeliveryStatus {
   PENDING
-  DELIVERED
-  RUNNING
-  SUCCEEDED
+  SENT
   FAILED
 }
 
-enum DeviceCommandType {
-  FORCE_SYNC
-  REFRESH_MANIFEST
-  RESTART_PLAYBACK
-  CLEAR_CACHE
-  TAKE_SCREENSHOT
-  REBOOT
-}
-
-enum ScreenshotType {
-  MANUAL
-  AUTO
-}
-
-enum BackupType {
-  DATABASE
-  OBJECT_STORAGE
-}
-
-enum BackupStatus {
-  SUCCESS
-  FAILED
-}
-
-enum ActivityActorType {
+/// Administrative entity a bulk import targets (Phase 10).
+enum ImportType {
+  COMPANY
+  LOCATION
+  SCREEN
   USER
-  SYSTEM
-  DEVICE
+  SCREEN_GROUP
+  TAG
+}
+
+/// Lifecycle of a bulk ImportJob (Phase 10).
+enum ImportStatus {
+  UPLOADED
+  VALIDATED
+  COMMITTED
+  FAILED
+  CANCELLED
+}
+
+/// Dataset a scheduled/export report covers (Phase 10).
+enum ReportType {
+  PROOF_OF_PLAY
+  SCREEN_HEALTH
+  ALERTS
+  ACTIVITY_LOGS
+  BILLING
+}
+
+/// Output format for a report (Phase 10). PDF renders as print-optimized HTML.
+enum ReportFormat {
+  CSV
+  XLSX
+  PDF
+}
+
+/// Cadence of a scheduled report (Phase 10).
+enum ReportFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+/// Outcome of a scheduled-report delivery (Phase 10).
+enum ReportDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
 }
 
 // =============================================================================
-// PLATFORM / TENANCY
+// Identity, tenancy & access  (Phase 1 — implemented)
 // =============================================================================
 
+/// [GLOBAL] Future reseller / partner account that owns a set of companies.
+/// Designed-for but not active in v1 (white-label readiness).
+model Reseller {
+  id        String        @id @default(uuid())
+  name      String
+  slug      String        @unique
+  status    CompanyStatus @default(ACTIVE)
+  companies Company[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("resellers")
+}
+
+/// The tenant root: one customer organization. `id` is the `companyId` used
+/// for scoping across every tenant-owned table.
 model Company {
-  id             String        @id @default(uuid())
-  name           String
-  slug           String        @unique
-  status         CompanyStatus @default(ACTIVE)
-  defaultLocale  String        @default("en") @map("default_locale")
-  timezone       String        @default("UTC")
-  logoUrl        String?       @map("logo_url")
-  primaryColor   String?       @map("primary_color")
-  customDomain   String?       @unique @map("custom_domain")
-  settings       Json          @default("{}")
-  fallbackContentId String?    @map("fallback_content_id")
-  defaultKioskPinHash String?  @map("default_kiosk_pin_hash")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
-  deletedAt      DateTime?     @map("deleted_at")
+  id     String        @id @default(uuid())
+  name   String
+  slug   String        @unique
+  status CompanyStatus @default(ACTIVE)
 
-  users                User[]
-  locations            Location[]
-  screens              Screen[]
-  screenGroups         ScreenGroup[]
-  content              Content[]
-  playlists            Playlist[]
-  schedules            Schedule[]
-  emergencyBroadcasts  EmergencyBroadcast[]
-  tags                 Tag[]
-  importJobs           ImportJob[]
-  reportSchedules      ScheduledReport[]
-  notifications        Notification[]
-  alerts               Alert[]
-  activityLogs         ActivityLog[]
-  subscription         Subscription?
-  billingInvoices      BillingInvoice[]
-  proofOfPlays         ProofOfPlay[]
-  backupRecords        BackupRecord[]
+  // Localization defaults.
+  defaultLocale String @default("en")
+  timezone      String @default("UTC")
 
+  // White-label / branding (future-ready; not active in v1).
+  logoUrl          String?
+  primaryColor     String?
+  customDomain     String? @unique
+  brandedEmailFrom String?
+
+  // Reseller / partner ownership (future-ready).
+  resellerId String?
+  reseller   Reseller? @relation(fields: [resellerId], references: [id], onDelete: SetNull)
+
+  // Operational defaults.
+  defaultKioskPinHash String? // Argon2 hash of the company default kiosk PIN (never raw)
+  fallbackContentId   String? // soft reference -> Content (company-level fallback)
+  settings            Json    @default("{}")
+
+  // Suspension (Super Admin action; Phase 2 UI).
+  suspendedAt     DateTime?
+  suspendedReason String?
+
+  // Relations.
+  users               User[]
+  invitations         Invitation[]
+  sessions            Session[]
+  activityLogs        ActivityLog[]
+  locations           Location[]
+  screenGroups        ScreenGroup[]
+  tags                Tag[]
+  pairingCodes        PairingCode[]
+  devices             Device[]
+  deviceCommands      DeviceCommand[]
+  screens             Screen[]
+  contents            Content[]
+  playlists           Playlist[]
+  schedules           Schedule[]
+  emergencyBroadcasts EmergencyBroadcast[]
+  heartbeats          Heartbeat[]
+  screenshots         Screenshot[]
+  proofOfPlays        ProofOfPlay[]
+  subscription        Subscription?
+  invoices            Invoice[]
+  notifications       Notification[]
+  apiKeys             ApiKey[]
+  webhooks            Webhook[]
+  alerts              Alert[]
+  emailDeliveryLogs   EmailDeliveryLog[]
+  importJobs          ImportJob[]
+  scheduledReports    ScheduledReport[]
+  scheduledReportDeliveries ScheduledReportDelivery[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([resellerId])
+  @@index([status])
   @@map("companies")
 }
 
+/// A dashboard user. SUPER_ADMIN users are platform-level (companyId = null).
 model User {
-  id                 String     @id @default(uuid())
-  companyId          String?    @map("company_id")
-  email              String     @unique
-  name               String
-  passwordHash       String     @map("password_hash")
-  role               UserRole
-  status             UserStatus @default(ACTIVE)
-  locale             String     @default("en")
-  twoFactorSecret    String?    @map("two_factor_secret")
-  twoFactorEnabled   Boolean    @default(false) @map("two_factor_enabled")
-  twoFactorVerifiedAt DateTime? @map("two_factor_verified_at")
-  failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
-  lockedUntil        DateTime?  @map("locked_until")
-  lastLoginAt        DateTime?  @map("last_login_at")
-  createdAt          DateTime   @default(now()) @map("created_at")
-  updatedAt          DateTime   @updatedAt @map("updated_at")
-  deletedAt          DateTime?  @map("deleted_at")
+  id        String   @id @default(uuid())
+  companyId String? // null only for SUPER_ADMIN (platform-level)
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  company                 Company?                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  emergencyBroadcasts     EmergencyBroadcast[]     @relation("EmergencyCreatedBy")
-  reportSchedules         ScheduledReport[]        @relation("ReportCreatedBy")
-  notifications           Notification[]
-  notificationPreferences NotificationPreference[]
-  activityLogs            ActivityLog[]
-  createdImports          ImportJob[]               @relation("ImportCreatedBy")
+  email        String     @unique
+  name         String
+  passwordHash String? // null while INVITED (set on invite acceptance)
+  role         UserRole   @default(VIEWER)
+  status       UserStatus @default(INVITED)
+  locale       String?
+
+  // Security / lifecycle.
+  emailVerifiedAt   DateTime?
+  lastLoginAt       DateTime?
+  failedLoginCount  Int       @default(0)
+  lockedUntil       DateTime?
+  mustResetPassword Boolean   @default(false)
+
+  // Two-factor authentication.
+  twoFactorEnabled       Boolean @default(false)
+  twoFactorSecret        String? // AES-256-GCM encrypted TOTP secret
+  twoFactorPendingSecret String? // encrypted secret during enrollment
+  twoFactorEnforced      Boolean @default(false) // company-enforced for this user
+
+  // Relations.
+  sessions            Session[]
+  invitationsSent     Invitation[]         @relation("InvitationInvitedBy")
+  backupCodes         BackupCode[]
+  twoFactorChallenges TwoFactorChallenge[]
+  passwordHistory     PasswordHistory[]
+  passwordResetTokens PasswordResetToken[]
+  loginEvents         LoginEvent[]
+  activityLogs        ActivityLog[]        @relation("ActivityLogActor")
+  locations           UserLocation[]
+  notifications       Notification[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([companyId])
+  @@index([role])
   @@index([status])
   @@map("users")
 }
 
-model RolePermission {
+/// Location-scoping for LOCATION_MANAGER users (assigned locations only).
+model UserLocation {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@id([userId, locationId])
+  @@index([locationId])
+  @@map("user_locations")
+}
+
+/// An authenticated session. Drives inactivity timeout, active-sessions view,
+/// remote termination, and refresh-token rotation.
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Super-admin impersonation (see SuperAdminService.startImpersonation).
+  /// Set ONLY on the short-lived, non-refreshable session created when a Super
+  /// Admin acts inside a tenant. `impersonatorId` is the real human; `userId`
+  /// is the same person, and `companyId` is the tenant being acted in — so
+  /// every tenant-scoped query works unchanged while the audit trail can still
+  /// name who was really at the keyboard.
+  impersonatorId    String?
+  impersonationNote String?
+
+  refreshTokenHash String // sha256(refresh token); rotated on refresh
+  /// sha256 of the refresh token this session held BEFORE the last rotation,
+  /// accepted for a short grace window after `refreshRotatedAt` (see
+  /// AuthService.refresh). Without it, a client that never receives the rotated
+  /// token — dropped response, app killed mid-request, two tabs refreshing at
+  /// once — retries with the old one and gets its whole session destroyed as
+  /// suspected theft.
+  previousRefreshTokenHash String?
+  refreshRotatedAt         DateTime?
+  userAgent        String?
+  ip               String?
+  mfaSatisfied     Boolean @default(false)
+
+  lastActiveAt  DateTime  @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([refreshTokenHash])
+  @@index([expiresAt])
+  // Retention: purge of revoked sessions (previously stamped, never removed).
+  @@index([revokedAt])
+  @@map("sessions")
+}
+
+/// Login attempts (success + failure) for lockout counting, audit and
+/// suspicious-login detection.
+model LoginEvent {
   id         String   @id @default(uuid())
-  role       UserRole
-  permission String
-  createdAt  DateTime @default(now()) @map("created_at")
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  companyId  String?
+  email      String
+  success    Boolean
+  reason     String?
+  ip         String?
+  userAgent  String?
+  suspicious Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
-  @@unique([role, permission])
-  @@map("role_permissions")
+  @@index([userId])
+  @@index([email])
+  @@index([createdAt])
+  @@map("login_events")
 }
 
-model Plan {
-  id          String   @id @default(uuid())
-  code        String   @unique
-  name        String
-  description String?
-  priceMonthly Decimal? @db.Decimal(12, 2) @map("price_monthly")
-  priceAnnual  Decimal? @db.Decimal(12, 2) @map("price_annual")
-  currency    String   @default("SAR")
-  limits      Json     @default("{}")
-  features    Json     @default("{}")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+/// Recent password hashes to prevent immediate password reuse.
+model PasswordHistory {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordHash String
+  createdAt    DateTime @default(now())
 
-  subscriptions Subscription[]
-
-  @@map("plans")
+  @@index([userId])
+  @@map("password_history")
 }
 
-model Subscription {
-  id                  String             @id @default(uuid())
-  companyId           String             @unique @map("company_id")
-  planId              String             @map("plan_id")
-  status              SubscriptionStatus @default(TRIALING)
-  currentPeriodStart  DateTime?          @map("current_period_start")
-  currentPeriodEnd    DateTime?          @map("current_period_end")
-  trialEndsAt         DateTime?          @map("trial_ends_at")
-  gracePeriodEndsAt   DateTime?          @map("grace_period_ends_at")
-  customLimits        Json?              @map("custom_limits")
-  notes               String?
-  createdAt           DateTime           @default(now()) @map("created_at")
-  updatedAt           DateTime           @updatedAt @map("updated_at")
+/// Single-use, time-limited password reset token (stored hashed).
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  plan    Plan    @relation(fields: [planId], references: [id])
-
-  @@index([planId])
-  @@index([status])
-  @@index([currentPeriodEnd])
-  @@map("subscriptions")
+  @@index([userId])
+  // Retention: purge of consumed/expired single-use reset tokens.
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
-model BillingInvoice {
-  id             String   @id @default(uuid())
-  companyId      String   @map("company_id")
-  amount         Decimal  @db.Decimal(12, 2)
-  currency       String   @default("SAR")
-  status         String   @default("DRAFT")
-  dueDate        DateTime? @map("due_date")
-  paidAt         DateTime? @map("paid_at")
-  description    String?
-  externalRef    String?  @map("external_ref")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+/// One-time 2FA backup recovery code (stored hashed).
+model BackupCode {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@map("backup_codes")
+}
+
+/// Server-side state for the 2FA login step-up challenge. Makes the short-lived
+/// challenge token genuinely single-use: it is consumed on the first successful
+/// verification so a replayed (challengeToken, code) pair is rejected even
+/// within the token's lifetime.
+model TwoFactorChallenge {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("two_factor_challenges")
+}
+
+/// A pending invite to join a company (3-day expiry, single-use token).
+model Invitation {
+  id          String           @id @default(uuid())
+  companyId   String?
+  company     Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  email       String
+  role        UserRole
+  invitedById String?
+  invitedBy   User?            @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  tokenHash   String           @unique
+  status      InvitationStatus @default(PENDING)
+  locationIds String[] // optional location scope for LOCATION_MANAGER invites
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([companyId])
+  @@index([email])
   @@index([status])
-  @@index([dueDate])
-  @@map("billing_invoices")
+  @@map("invitations")
+}
+
+/// Audit / activity trail. companyId is null for platform-level Super Admin
+/// actions; otherwise tenant-scoped.
+model ActivityLog {
+  id          String   @id @default(uuid())
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?    @relation("ActivityLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+  action      String // e.g. "auth.login", "user.created"
+  category    String // e.g. "AUTH", "USER", "COMPANY", "SECURITY"
+  targetType  String?
+  targetId    String?
+  description String?
+  metadata    Json     @default("{}")
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@index([actorId])
+  @@index([action])
+  @@index([category])
+  @@index([createdAt])
+  // Perf: tenant-scoped audit views order by time within a company.
+  @@index([companyId, createdAt])
+  @@map("activity_logs")
 }
 
 // =============================================================================
-// LOCATIONS & SCREENS
+// Fleet hierarchy  (Phase 3 — schema only)
 // =============================================================================
 
 model Location {
-  id          String         @id @default(uuid())
-  companyId   String         @map("company_id")
-  name        String
-  code        String?
-  description String?
-  address     String?
-  city        String?
-  region      String?
-  country     String?
-  latitude    Decimal?       @db.Decimal(10, 7)
-  longitude   Decimal?       @db.Decimal(10, 7)
-  timezone    String?
-  notes       String?
-  status      LocationStatus @default(ACTIVE)
-  workingHours Json?         @map("working_hours")
-  fallbackContentId String?  @map("fallback_content_id")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
-  deletedAt   DateTime?      @map("deleted_at")
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name              String
+  code              String?
+  description       String?
+  address           String?
+  city              String?
+  region            String?
+  country           String?
+  latitude          Float?
+  longitude         Float?
+  timezone          String?
+  notes             String?
+  status            LocationStatus @default(ACTIVE)
+  workingHours      Json? // weekly active-hours + outside-hours behaviour
+  fallbackContentId String? // soft reference -> Content (location-level fallback)
+
   screens Screen[]
+  users   UserLocation[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@unique([companyId, code])
-  @@index([companyId, status])
+  @@index([companyId])
+  @@index([status])
   @@map("locations")
 }
 
-model Screen {
-  id                       String       @id @default(uuid())
-  companyId                String       @map("company_id")
-  locationId               String?      @map("location_id")
-  name                     String
-  code                     String?
-  description              String?
-  use                      ScreenUse?
-  orientation              Orientation  @default(LANDSCAPE)
-  status                   ScreenStatus @default(UNPAIRED)
-  audioEnabled             Boolean      @default(false) @map("audio_enabled")
-  volume                   Int          @default(50)
-  muted                    Boolean      @default(false)
-  muteSchedule             Json?        @map("mute_schedule")
-  workingHours             Json?        @map("working_hours")
-  kioskEnabled             Boolean      @default(false) @map("kiosk_enabled")
-  kioskPinHash             String?      @map("kiosk_pin_hash")
-  autoStartEnabled         Boolean      @default(false) @map("auto_start_enabled")
-  powerControlMode         String?      @map("power_control_mode")
-  heartbeatIntervalSeconds Int          @default(60) @map("heartbeat_interval_seconds")
-  fallbackContentId        String?      @map("fallback_content_id")
-  appVersion               String?      @map("app_version")
-  lastHeartbeatAt          DateTime?    @map("last_heartbeat_at")
-  lastSyncAt               DateTime?    @map("last_sync_at")
-  currentContentId         String?      @map("current_content_id")
-  storageUsedBytes         BigInt?      @map("storage_used_bytes")
-  storageTotalBytes        BigInt?      @map("storage_total_bytes")
-  notes                    String?
-  capabilities             Json         @default("{}")
-  createdAt                DateTime     @default(now()) @map("created_at")
-  updatedAt                DateTime     @updatedAt @map("updated_at")
-  deletedAt                DateTime?    @map("deleted_at")
-
-  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  location     Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  device       Device?
-  groups       ScreenGroupMember[]
-  tags         ScreenTag[]
-  scheduleTargets ScheduleTarget[]
-  emergencyTargets EmergencyTarget[]
-  heartbeats   Heartbeat[]
-  events       DeviceEvent[]
-  commands     DeviceCommand[]
-  screenshots  Screenshot[]
-  alerts       Alert[]
-  proofOfPlays ProofOfPlay[]
-
-  @@unique([companyId, code])
-  @@index([companyId, status])
-  @@index([companyId, locationId])
-  @@index([lastHeartbeatAt])
-  @@map("screens")
-}
-
 model ScreenGroup {
-  id          String   @id @default(uuid())
-  companyId   String   @map("company_id")
+  id          String  @id @default(uuid())
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  category    String? // optional grouping category (e.g. "Drive-thru", "Lobby")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  members ScreenGroupMember[]
-  scheduleTargets ScheduleTarget[]
-  emergencyTargets EmergencyTarget[]
+  members   ScreenGroupMember[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
   @@unique([companyId, name])
   @@index([companyId])
@@ -475,606 +775,958 @@ model ScreenGroup {
 }
 
 model ScreenGroupMember {
-  id        String   @id @default(uuid())
-  groupId   String   @map("group_id")
-  screenId  String   @map("screen_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  screenId String
+  screen   Screen      @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  groupId  String
+  group    ScreenGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
-  group  ScreenGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  screen Screen      @relation(fields: [screenId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, screenId])
-  @@index([screenId])
+  @@id([screenId, groupId])
+  @@index([groupId])
   @@map("screen_group_members")
 }
 
-model Device {
-  id             String       @id @default(uuid())
-  screenId       String       @unique @map("screen_id")
-  deviceId       String       @unique @map("device_id")
-  tokenHash      String       @map("token_hash")
-  platform       String?
-  modelName      String?      @map("model_name")
-  osVersion      String?      @map("os_version")
-  appVersion     String?      @map("app_version")
-  status         DeviceStatus @default(ACTIVE)
-  pairedAt       DateTime     @default(now()) @map("paired_at")
-  lastSeenAt     DateTime?    @map("last_seen_at")
-  syncStatus     String?
-  syncProgress   Int?         @map("sync_progress")
-  lastSyncAt     DateTime?    @map("last_sync_at")
-  lastSyncError  String?      @map("last_sync_error")
-  manifestVersion String?     @map("manifest_version")
-  manifestSource String?      @map("manifest_source")
-  cachedAssets   Int?         @map("cached_assets")
-  requiredAssets Int?         @map("required_assets")
-  failedDownloads Int?        @map("failed_downloads")
-  cacheSizeBytes BigInt?      @map("cache_size_bytes")
-  availableStorageBytes BigInt? @map("available_storage_bytes")
-  playbackState  String?      @map("playback_state")
-  networkStatus  String?      @map("network_status")
-  currentContentId String?    @map("current_content_id")
-  lastHeartbeatAt DateTime?   @map("last_heartbeat_at")
-  capabilities   Json         @default("{}")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-
-  screen Screen @relation(fields: [screenId], references: [id], onDelete: Cascade)
-
-  @@index([status])
-  @@index([lastSeenAt])
-  @@map("devices")
-}
-
-model PairingCode {
-  id         String   @id @default(uuid())
-  code       String   @unique
-  screenId   String?  @map("screen_id")
-  deviceId   String   @map("device_id")
-  secretHash String   @map("secret_hash")
-  expiresAt  DateTime @map("expires_at")
-  consumedAt DateTime? @map("consumed_at")
-  createdAt  DateTime @default(now()) @map("created_at")
-
-  @@index([expiresAt])
-  @@map("pairing_codes")
-}
-
-// =============================================================================
-// CONTENT LIBRARY
-// =============================================================================
-
-model Content {
-  id               String        @id @default(uuid())
-  companyId        String        @map("company_id")
-  title            String
-  description      String?
-  type             ContentType
-  status           ContentStatus @default(ACTIVE)
-  orientation      Orientation   @default(UNKNOWN)
-  storageKey       String?       @map("storage_key")
-  originalFileName String?       @map("original_file_name")
-  fileSize         BigInt?       @map("file_size")
-  mimeType         String?       @map("mime_type")
-  checksum         String?
-  url              String?
-  textBody         String?       @map("text_body")
-  durationSeconds  Int?          @map("duration_seconds")
-  pageCount        Int?          @map("page_count")
-  thumbnailKey     String?       @map("thumbnail_key")
-  metadata         Json          @default("{}")
-  expiresAt        DateTime?     @map("expires_at")
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
-  deletedAt        DateTime?     @map("deleted_at")
-
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  tags ContentTag[]
-  playlistItems PlaylistItem[]
-  emergencyBroadcasts EmergencyBroadcast[]
-  proofOfPlays ProofOfPlay[]
-
-  @@index([companyId, status])
-  @@index([companyId, type])
-  @@index([expiresAt])
-  @@map("content")
-}
-
-// =============================================================================
-// PLAYLISTS
-// =============================================================================
-
-model Playlist {
-  id               String         @id @default(uuid())
-  companyId        String         @map("company_id")
-  title            String
-  description      String?
-  status           PlaylistStatus @default(DRAFT)
-  defaultDurationSeconds Int       @default(10) @map("default_duration_seconds")
-  loop             Boolean        @default(true)
-  shuffle          Boolean        @default(false)
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
-  deletedAt        DateTime?      @map("deleted_at")
-
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  items PlaylistItem[]
-  schedules Schedule[]
-  emergencyBroadcasts EmergencyBroadcast[]
-  proofOfPlays ProofOfPlay[]
-
-  @@index([companyId, status])
-  @@map("playlists")
-}
-
-model PlaylistItem {
-  id              String   @id @default(uuid())
-  playlistId      String   @map("playlist_id")
-  contentId       String   @map("content_id")
-  position        Int
-  durationSeconds Int?     @map("duration_seconds")
-  playFullVideo   Boolean  @default(false) @map("play_full_video")
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  content  Content  @relation(fields: [contentId], references: [id])
-
-  @@unique([playlistId, position])
-  @@index([contentId])
-  @@map("playlist_items")
-}
-
-// =============================================================================
-// SCHEDULING
-// =============================================================================
-
-model Schedule {
-  id           String         @id @default(uuid())
-  companyId    String         @map("company_id")
-  playlistId   String?        @map("playlist_id")
-  name         String
-  description  String?
-  status       ScheduleStatus @default(DRAFT)
-  scheduleType ScheduleType   @default(NORMAL) @map("schedule_type")
-  priority     Int            @default(0)
-  startDate    DateTime?      @map("start_date")
-  endDate      DateTime?      @map("end_date")
-  startTime    String?        @map("start_time")
-  endTime      String?        @map("end_time")
-  daysOfWeek   Int[]          @default([]) @map("days_of_week")
-  isAllDay     Boolean        @default(true) @map("is_all_day")
-  timezone     String?
-  metadata     Json           @default("{}")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
-  deletedAt    DateTime?      @map("deleted_at")
-
-  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  playlist Playlist? @relation(fields: [playlistId], references: [id], onDelete: SetNull)
-  targets  ScheduleTarget[]
-  proofOfPlays ProofOfPlay[]
-
-  @@index([companyId, status])
-  @@index([companyId, priority])
-  @@index([startDate, endDate])
-  @@map("schedules")
-}
-
-model ScheduleTarget {
-  id         String     @id @default(uuid())
-  scheduleId String     @map("schedule_id")
-  targetType TargetType @map("target_type")
-  targetId   String?    @map("target_id")
-  createdAt  DateTime   @default(now()) @map("created_at")
-
-  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-
-  @@index([scheduleId])
-  @@index([targetType, targetId])
-  @@map("schedule_targets")
-}
-
-// =============================================================================
-// EMERGENCY BROADCASTS
-// =============================================================================
-
-model EmergencyBroadcast {
-  id               String          @id @default(uuid())
-  companyId        String          @map("company_id")
-  createdById      String          @map("created_by_id")
-  title            String
-  description      String?
-  type             EmergencyType   @default(FULLSCREEN_CONTENT)
-  status           EmergencyStatus @default(DRAFT)
-  contentId        String?         @map("content_id")
-  playlistId       String?         @map("playlist_id")
-  message          String?
-  priority         Int             @default(1000)
-  startAt          DateTime?       @map("start_at")
-  endAt            DateTime?       @map("end_at")
-  activatedAt      DateTime?       @map("activated_at")
-  endedAt          DateTime?       @map("ended_at")
-  requireConfirmation Boolean      @default(false) @map("require_confirmation")
-  createdAt        DateTime        @default(now()) @map("created_at")
-  updatedAt        DateTime        @updatedAt @map("updated_at")
-
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy User     @relation("EmergencyCreatedBy", fields: [createdById], references: [id])
-  content   Content? @relation(fields: [contentId], references: [id], onDelete: SetNull)
-  playlist  Playlist? @relation(fields: [playlistId], references: [id], onDelete: SetNull)
-  targets   EmergencyTarget[]
-  proofOfPlays ProofOfPlay[]
-
-  @@index([companyId, status])
-  @@index([startAt, endAt])
-  @@map("emergency_broadcasts")
-}
-
-model EmergencyTarget {
-  id                   String     @id @default(uuid())
-  emergencyBroadcastId String     @map("emergency_broadcast_id")
-  targetType           TargetType @map("target_type")
-  targetId             String?    @map("target_id")
-  createdAt            DateTime   @default(now()) @map("created_at")
-
-  emergencyBroadcast EmergencyBroadcast @relation(fields: [emergencyBroadcastId], references: [id], onDelete: Cascade)
-
-  @@index([emergencyBroadcastId])
-  @@index([targetType, targetId])
-  @@map("emergency_targets")
-}
-
-// =============================================================================
-// TAGS
-// =============================================================================
-
 model Tag {
   id          String  @id @default(uuid())
-  companyId   String  @map("company_id")
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name        String
-  type        TagType @default(BOTH)
+  type        TagType @default(SCREEN)
   color       String?
   description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  screens ScreenTag[]
-  content ContentTag[]
+  contents ContentTag[]
+  screens  ScreenTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([companyId, name, type])
   @@index([companyId])
   @@map("tags")
 }
 
+model Screen {
+  id         String    @id @default(uuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  name             String
+  code             String?
+  description      String?
+  use              ScreenUse?   @default(GENERIC)
+  orientation      Orientation  @default(UNKNOWN)
+  status           ScreenStatus @default(UNPAIRED)
+  /// Physical device currently bound to this screen. Uniqueness is enforced by a
+  /// PARTIAL unique index (`WHERE "deletedAt" IS NULL`) created in the
+  /// 20260803130000 migration, NOT by `@unique` here — a globally unique column
+  /// meant a soft-deleted screen kept its identifier reserved forever, so the TV
+  /// could never be paired to any other screen. Prisma cannot express a partial
+  /// unique index, hence the raw migration.
+  deviceIdentifier String?
+
+  // Pairing & sync state.
+  pairedAt        DateTime?
+  lastHeartbeatAt DateTime?
+  lastSyncAt      DateTime?
+  appVersion      String?
+
+  // Audio.
+  audioEnabled Boolean @default(true)
+  volume       Int     @default(50)
+  muted        Boolean @default(false)
+  muteSchedule Json? // optional mute windows (placeholder; enforced device-side later)
+
+  // Active hours / kiosk / device.
+  workingHours     Json?
+  kioskEnabled     Boolean @default(true)
+  kioskPinHash     String? // Argon2 hash of the screen-specific kiosk exit PIN (never raw)
+  autoStartEnabled Boolean @default(false)
+  powerControlMode String? // desired power behaviour (placeholder)
+
+  // Operational pointers (soft references -> Content / Playlist).
+  fallbackContentId String?
+  currentContentId  String?
+  currentPlaylistId String?
+
+  // Health & capability reporting.
+  storageUsedBytes         BigInt?
+  storageTotalBytes        BigInt?
+  capabilities             Json? // { kiosk, autoStart, powerControl, screenshot }
+  heartbeatIntervalSeconds Int     @default(60)
+
+  latitude  Float?
+  longitude Float?
+  notes     String?
+
+  groups         ScreenGroupMember[]
+  tags           ScreenTag[]
+  pairingCodes   PairingCode[]
+  device         Device?
+  deviceCommands DeviceCommand[]
+  heartbeats     Heartbeat[]
+  screenshots    Screenshot[]
+  proofOfPlays   ProofOfPlay[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([companyId])
+  @@index([locationId])
+  @@index([status])
+  @@map("screens")
+}
+
 model ScreenTag {
-  id        String   @id @default(uuid())
-  screenId  String   @map("screen_id")
-  tagId     String   @map("tag_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  screenId String
+  screen   Screen @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  tagId    String
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-  screen Screen @relation(fields: [screenId], references: [id], onDelete: Cascade)
-  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@unique([screenId, tagId])
+  @@id([screenId, tagId])
   @@index([tagId])
   @@map("screen_tags")
 }
 
+/// Short-lived pairing code shown by an unpaired device and entered by an admin
+/// to bind it to a company/screen. Device-initiated (Phase 6): the player calls
+/// /device/pairing/start to mint a code + private pairing secret; an admin enters
+/// the code against a screen profile; the device collects its token via the
+/// secret. companyId/screenId stay null until an admin claims the code.
+model PairingCode {
+  id                String        @id @default(uuid())
+  code              String        @unique
+  companyId         String?
+  company           Company?      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  screenId          String?
+  screen            Screen?       @relation(fields: [screenId], references: [id], onDelete: SetNull)
+  status            PairingStatus @default(PENDING)
+  deviceId          String? // device-generated stable id (claims back to this Device)
+  pairingSecretHash String? // sha256 of the device's private pairing secret (status polling)
+  deviceInfo        Json? // hardware/model info reported by the device
+  createdById       String?
+  expiresAt         DateTime
+  claimedAt         DateTime?
+  createdAt         DateTime      @default(now())
+
+  @@index([companyId])
+  @@index([status])
+  // Retention: purge of expired codes. Written by an UNAUTHENTICATED endpoint,
+  // so without pruning this table grows from pairing spam alone.
+  @@index([expiresAt])
+  @@map("pairing_codes")
+}
+
+/// A paired Android TV player bound to exactly one screen (Phase 6). The device
+/// token is stored only as a sha256 hash; the raw token is shown to the device
+/// once when it collects it. Unpairing revokes the token.
+model Device {
+  id              String       @id @default(uuid())
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  screenId        String       @unique // one active device per screen
+  screen          Screen       @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  deviceId        String // device-generated stable id (from the pairing code)
+  deviceTokenHash String? // sha256 of the issued device token (never the raw token)
+  status          DeviceStatus @default(PENDING)
+  platform        String?
+  modelName       String?
+  osVersion       String?
+  appVersion      String?
+  pairedAt        DateTime?
+  unpairedAt      DateTime?
+  lastSeenAt      DateTime?
+
+  // Phase 7 — latest offline-cache / smart-sync status reported by the device.
+  syncStatus            SyncStatus?
+  manifestSource        String? // REMOTE | LOCAL_CACHE
+  manifestVersion       String? // manifest generatedAt / hash the device last synced
+  requiredAssets        Int?
+  cachedAssets          Int?
+  failedDownloads       Int?
+  cacheSizeBytes        BigInt?
+  availableStorageBytes BigInt?
+  lastSyncAt            DateTime?
+  lastSyncError         String?
+  syncMetadata          Json? // e.g. { failedAssetIds: [...] }
+
+  // Phase 8 — latest telemetry snapshot reported via heartbeat (fast dashboard read).
+  playbackState     String? // PLAYING | IDLE | BUFFERING | ERROR | OFFLINE_PLAYBACK
+  networkStatus     String? // ONLINE | OFFLINE | METERED
+  currentContentId  String?
+  currentPlaylistId String?
+  currentScheduleId String?
+  uptimeSeconds     Int?
+  lastHeartbeatAt   DateTime?
+
+  commands DeviceCommand[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([deviceId])
+  @@index([deviceTokenHash])
+  @@map("devices")
+}
+
+/// A remote command issued by the dashboard and collected by the device (Phase 8).
+model DeviceCommand {
+  id          String              @id @default(uuid())
+  companyId   String
+  company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  screenId    String
+  screen      Screen              @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  deviceId    String? // null for a screen-level command (any device on the screen)
+  device      Device?             @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  commandType DeviceCommandType
+  status      DeviceCommandStatus @default(PENDING)
+  payload     Json? // command parameters
+  result      Json? // device-reported result
+  error       String?
+  issuedById  String?
+  deliveredAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([companyId])
+  @@index([screenId, status])
+  // Retention: purge of terminal-state commands past the cutoff.
+  @@index([status, createdAt])
+  @@index([deviceId])
+  @@map("device_commands")
+}
+
+// =============================================================================
+// Content & scheduling  (Phases 4-5 — schema only)
+// =============================================================================
+
+model Content {
+  id          String      @id @default(uuid())
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type        ContentType
+  title       String
+  description String?
+
+  // Storage (Supabase Storage) / payload.
+  storageKey       String? // companies/{companyId}/content/{contentId}/{filename}
+  url              String? // external URL content, or public URL of stored asset
+  fileSize         BigInt?
+  mimeType         String?
+  originalFileName String?
+  checksum         String? // sha256 of the uploaded file
+  pageCount        Int? // for PDFs (when available)
+  textBody         String? // for TEXT announcements
+  textStyle        Json? // optional display styling for TEXT content
+  meta             Json    @default("{}")
+
+  orientation     Orientation   @default(UNKNOWN)
+  durationSeconds Int? // default display duration
+  status          ContentStatus @default(ACTIVE)
+  expiresAt       DateTime? // stops displaying after this instant
+  archivedAt      DateTime?
+  trashedAt       DateTime?
+  createdById     String?
+  updatedById     String?
+
+  tags          ContentTag[]
+  playlistItems PlaylistItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([companyId])
+  @@index([type])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("contents")
+}
+
 model ContentTag {
-  id        String   @id @default(uuid())
-  contentId String   @map("content_id")
-  tagId     String   @map("tag_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  contentId String
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@unique([contentId, tagId])
+  @@id([contentId, tagId])
   @@index([tagId])
   @@map("content_tags")
 }
 
-// =============================================================================
-// IMPORTS
-// =============================================================================
+model Playlist {
+  id          String         @id @default(uuid())
+  companyId   String
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      PlaylistStatus @default(ACTIVE)
+  createdById String?
+  updatedById String?
 
-model ImportJob {
-  id             String       @id @default(uuid())
-  companyId      String       @map("company_id")
-  createdById    String       @map("created_by_id")
-  type           ImportType
-  status         ImportStatus @default(PENDING)
-  fileName       String       @map("file_name")
-  fileStorageKey String?      @map("file_storage_key")
-  totalRows      Int          @default(0) @map("total_rows")
-  processedRows  Int          @default(0) @map("processed_rows")
-  successRows    Int          @default(0) @map("success_rows")
-  failedRows     Int          @default(0) @map("failed_rows")
-  errorReportKey String?      @map("error_report_key")
-  metadata       Json         @default("{}")
-  startedAt      DateTime?    @map("started_at")
-  completedAt    DateTime?    @map("completed_at")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
+  items     PlaylistItem[]
+  schedules Schedule[]
 
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy User    @relation("ImportCreatedBy", fields: [createdById], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+  deletedAt  DateTime?
 
-  @@index([companyId, status])
-  @@map("import_jobs")
-}
-
-// =============================================================================
-// REPORTING
-// =============================================================================
-
-model ScheduledReport {
-  id             String               @id @default(uuid())
-  companyId      String               @map("company_id")
-  createdById    String               @map("created_by_id")
-  name           String
-  reportType     ReportType           @map("report_type")
-  format         ReportFormat         @default(CSV)
-  deliveryMethod ReportDeliveryMethod @default(EMAIL) @map("delivery_method")
-  recipients     String[]             @default([])
-  schedule       String
-  timezone       String               @default("UTC")
-  filters        Json                 @default("{}")
-  isActive       Boolean              @default(true) @map("is_active")
-  lastRunAt      DateTime?            @map("last_run_at")
-  nextRunAt      DateTime?            @map("next_run_at")
-  createdAt      DateTime             @default(now()) @map("created_at")
-  updatedAt      DateTime             @updatedAt @map("updated_at")
-
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy User    @relation("ReportCreatedBy", fields: [createdById], references: [id])
-  runs      ReportRun[]
-
-  @@index([companyId, isActive])
-  @@index([nextRunAt])
-  @@map("scheduled_reports")
-}
-
-model ReportRun {
-  id                String   @id @default(uuid())
-  scheduledReportId String   @map("scheduled_report_id")
-  status            String
-  fileKey           String?  @map("file_key")
-  error             String?
-  startedAt         DateTime @default(now()) @map("started_at")
-  completedAt       DateTime? @map("completed_at")
-
-  scheduledReport ScheduledReport @relation(fields: [scheduledReportId], references: [id], onDelete: Cascade)
-
-  @@index([scheduledReportId])
+  @@index([companyId])
   @@index([status])
-  @@map("report_runs")
+  @@map("playlists")
 }
 
+model PlaylistItem {
+  id                     String   @id @default(uuid())
+  playlistId             String
+  playlist               Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  contentId              String
+  content                Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  position               Int // 0-based playback order within the playlist
+  durationSeconds        Int? // null => use content default (images/text/url/pdf)
+  playFullVideo          Boolean  @default(false) // video: play full length (ignore durationSeconds)
+  pdfPageDurationSeconds Int? // per-page dwell time for multi-page PDFs
+  transitionType         String? // future-ready (e.g. "none", "fade")
+  settings               Json     @default("{}") // per-item extras (itemSettings)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([playlistId])
+  @@index([contentId])
+  @@map("playlist_items")
+}
+
+model Schedule {
+  id          String    @id @default(uuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  playlistId  String?
+  playlist    Playlist? @relation(fields: [playlistId], references: [id], onDelete: SetNull)
+
+  status       ScheduleStatus @default(ACTIVE)
+  scheduleType ScheduleType   @default(NORMAL)
+  priority     Int            @default(0) // higher wins; CAMPAIGN breaks ties over NORMAL
+
+  startDate  DateTime?
+  endDate    DateTime?
+  startTime  String? // "HH:mm" local (omitted when isAllDay)
+  endTime    String? // "HH:mm" local; endTime < startTime ⇒ overnight window
+  isAllDay   Boolean   @default(false)
+  daysOfWeek Int[] // 0=Sun .. 6=Sat (empty ⇒ every day)
+  recurrence Json? // advanced recurrence rules (future-ready)
+  timezone   String?
+
+  createdById String?
+  updatedById String?
+
+  targets ScheduleTarget[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+  deletedAt  DateTime?
+
+  @@index([companyId])
+  @@index([playlistId])
+  @@index([status])
+  @@index([priority])
+  @@map("schedules")
+}
+
+model ScheduleTarget {
+  id         String             @id @default(uuid())
+  scheduleId String
+  schedule   Schedule           @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  targetType ScheduleTargetType
+  targetId   String // soft reference (screen/group/location/company id)
+
+  @@unique([scheduleId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@map("schedule_targets")
+}
+
+model EmergencyBroadcast {
+  id            String                   @id @default(uuid())
+  companyId     String
+  company       Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  message       String? // TEXT body when broadcastType = TEXT
+  url           String? // external URL when broadcastType = URL
+  contentId     String? // soft reference -> Content (broadcastType = CONTENT)
+  playlistId    String? // soft reference -> Playlist (broadcastType = PLAYLIST)
+  contentType   ContentType?
+  broadcastType EmergencyBroadcastType   @default(CONTENT)
+  /// Orders simultaneous emergencies (higher wins). Any emergency still
+  /// out-ranks every schedule; this only breaks ties between emergencies.
+  priority      Int                      @default(100)
+  status        EmergencyBroadcastStatus @default(DRAFT)
+  startAt       DateTime?
+  endAt         DateTime?
+  stoppedAt     DateTime? // when manually/automatically ENDED
+  createdById   String?
+  updatedById   String?
+
+  targets EmergencyBroadcastTarget[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([companyId, status])
+  @@map("emergency_broadcasts")
+}
+
+model EmergencyBroadcastTarget {
+  id          String             @id @default(uuid())
+  broadcastId String
+  broadcast   EmergencyBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  targetType  ScheduleTargetType
+  targetId    String
+
+  @@unique([broadcastId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@map("emergency_broadcast_targets")
+}
+
+// =============================================================================
+// Telemetry & reporting  (Phases 8-9 — schema only)
+// =============================================================================
+
+/// Heartbeat history (Phase 8). One row per heartbeat (90-day retention policy;
+/// the cleanup job is Phase 10). The latest snapshot is also denormalized onto
+/// Device/Screen for fast dashboard reads.
+model Heartbeat {
+  id                    String      @id @default(uuid())
+  screenId              String
+  screen                Screen      @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  companyId             String
+  company               Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  deviceId              String?
+  online                Boolean     @default(true)
+  playbackState         String? // PLAYING | IDLE | BUFFERING | ERROR | OFFLINE_PLAYBACK
+  networkStatus         String? // ONLINE | OFFLINE | METERED
+  appVersion            String?
+  deviceModel           String?
+  osVersion             String?
+  uptimeSeconds         Int?
+  currentContentId      String?
+  currentPlaylistId     String?
+  currentScheduleId     String?
+  manifestVersion       String?
+  syncStatus            SyncStatus?
+  cacheSizeBytes        BigInt?
+  availableStorageBytes BigInt?
+  storageUsedBytes      BigInt?
+  storageTotalBytes     BigInt?
+  lastError             String?
+  payload               Json        @default("{}")
+  createdAt             DateTime    @default(now())
+
+  @@index([screenId])
+  @@index([companyId])
+  @@index([createdAt])
+  // Perf: "latest heartbeat per screen" seek (monitoring reads, every request)
+  // and time-range cleanup, without scanning+sorting all of a screen's rows.
+  @@index([screenId, createdAt])
+  @@map("heartbeats")
+}
+
+model Screenshot {
+  id            String         @id @default(uuid())
+  screenId      String
+  screen        Screen         @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  deviceId      String?
+  commandId     String? // the TAKE_SCREENSHOT command that produced it, if any
+  storageKey    String
+  url           String?
+  fileSizeBytes BigInt?
+  mimeType      String?
+  type          ScreenshotType @default(MANUAL)
+  metadata      Json?
+  takenAt       DateTime       @default(now())
+  createdAt     DateTime       @default(now())
+
+  // The gallery is always "one screen, newest first" (screenshot.service.ts
+  // list()), and retention sweeps by takenAt. A composite (screenId, takenAt
+  // DESC) serves both the filter and the sort from one index and subsumes the
+  // former screenId-only index.
+  @@index([screenId, takenAt(sort: Desc)])
+  @@index([companyId, takenAt(sort: Desc)])
+  @@index([takenAt])
+  @@map("screenshots")
+}
+
+/// Proof-of-Play (Phase 9). ONE row per actual item playback, keyed by a
+/// device-generated `playbackSessionId` (idempotent upsert). Derived ONLY from
+/// real player events — never from heartbeat, sync status, or manifest
+/// generation. companyId/screenId/deviceId/locationId are server-derived from
+/// the device token; the Android payload is never trusted for tenancy.
 model ProofOfPlay {
-  id                   String   @default(uuid())
-  companyId            String   @map("company_id")
-  screenId             String   @map("screen_id")
-  contentId            String?  @map("content_id")
-  playlistId           String?  @map("playlist_id")
-  scheduleId           String?  @map("schedule_id")
-  emergencyBroadcastId String?  @map("emergency_broadcast_id")
-  startedAt            DateTime @map("started_at")
-  endedAt              DateTime? @map("ended_at")
-  durationMs            Int?     @map("duration_ms")
-  completed             Boolean  @default(false)
-  playbackSessionId     String?  @map("playback_session_id")
-  metadata              Json     @default("{}")
-  createdAt             DateTime @default(now()) @map("created_at")
+  id                   String             @id @default(uuid())
+  companyId            String
+  // RESTRICT: proof-of-play is the billing/compliance playback record. A bare
+  // `DELETE FROM companies` (the natural operator reflex for a churned tenant)
+  // must not silently erase it — purge deliberately via an audited procedure.
+  company              Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  screenId             String
+  // RESTRICT: deleting one screen must not erase that screen's billing-grade
+  // playback history (screens.service soft-deletes; hard deletes are operator SQL).
+  screen               Screen             @relation(fields: [screenId], references: [id], onDelete: Restrict)
+  deviceId             String?
+  locationId           String? // soft reference, derived from the screen
+  // All content/playlist/schedule/emergency refs are SOFT (no FK): proof-of-play
+  // is an immutable audit log, so a buffered event must still be accepted even if
+  // the referenced content was later hard-purged. Titles are resolved at read time.
+  contentId            String?
+  playlistId           String? // soft reference
+  playlistItemId       String? // soft reference
+  scheduleId           String? // soft reference
+  emergencyBroadcastId String? // soft reference -> EmergencyBroadcast
+  sourceType           PlaybackSourceType @default(NONE)
+  playbackSource       PlaybackSourceKind @default(UNKNOWN)
+  contentType          ContentType?
+  startedAt            DateTime
+  endedAt              DateTime?
+  durationMs           Int?
+  expectedDurationMs   Int?
+  status               ProofOfPlayStatus  @default(STARTED)
+  failureReason        String?
+  manifestVersion      String?
+  /// Device-generated id, unique per item playback — the idempotency key.
+  playbackSessionId    String
+  itemSequence         Int?
+  offlinePlayback      Boolean            @default(false)
+  metadata             Json               @default("{}")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
-  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  screen             Screen              @relation(fields: [screenId], references: [id], onDelete: Cascade)
-  content            Content?            @relation(fields: [contentId], references: [id], onDelete: SetNull)
-  playlist           Playlist?           @relation(fields: [playlistId], references: [id], onDelete: SetNull)
-  schedule           Schedule?           @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
-  emergencyBroadcast EmergencyBroadcast? @relation(fields: [emergencyBroadcastId], references: [id], onDelete: SetNull)
-
-  @@id([id, startedAt])
+  @@unique([companyId, playbackSessionId])
   @@index([companyId, startedAt])
   @@index([screenId, startedAt])
-  @@index([contentId, startedAt])
-  @@index([playlistId, startedAt])
-  @@index([scheduleId, startedAt])
-  @@index([emergencyBroadcastId, startedAt])
+  // Retention: the nightly purge filters on startedAt alone; the composite
+  // indexes above lead with companyId/screenId so they cannot serve it.
+  @@index([startedAt])
+  @@index([contentId])
+  @@index([emergencyBroadcastId])
+  @@index([status])
   @@map("proof_of_plays")
 }
 
 // =============================================================================
-// MONITORING, ALERTS, NOTIFICATIONS
+// Billing  (Phase 2/10 — schema only; no payment gateway in v1)
 // =============================================================================
 
-model Heartbeat {
-  id              String   @default(uuid())
-  screenId        String   @map("screen_id")
-  deviceId        String?  @map("device_id")
-  ipAddress       String?  @map("ip_address")
-  appVersion      String?  @map("app_version")
-  osVersion       String?  @map("os_version")
-  deviceModel     String?  @map("device_model")
-  cpuUsage        Float?   @map("cpu_usage")
-  memoryUsage     Float?   @map("memory_usage")
-  storageUsed     BigInt?  @map("storage_used")
-  storageTotal    BigInt?  @map("storage_total")
-  temperature     Float?
-  networkStatus   String?  @map("network_status")
-  playbackState   String?  @map("playback_state")
-  currentContentId String? @map("current_content_id")
-  metadata        Json     @default("{}")
-  createdAt       DateTime @default(now()) @map("created_at")
+/// [GLOBAL] Subscription plan/tier definition.
+model Plan {
+  id              String          @id @default(uuid())
+  name            String
+  code            String          @unique
+  description     String?
+  priceMonthly    Decimal         @default(0) @db.Decimal(12, 2)
+  priceYearly     Decimal?        @db.Decimal(12, 2)
+  currency        String          @default("USD")
+  billingInterval BillingInterval @default(MONTHLY)
+  trialDays       Int             @default(0)
+  isActive        Boolean         @default(true)
+  isPublic        Boolean         @default(true)
+  /// Plan limits: maxCompanies (reseller-ready), maxScreens, maxLocations,
+  /// maxUsers, storageGb, maxFileSizeMb, autoScreenshotsPerDay,
+  /// scheduledReports, dataRetentionDays, apiRequestsPerDay, webhooks.
+  /// Stored as JSON; a value of null means "unlimited". Typed via PlanLimitsDto.
+  limits          Json            @default("{}")
 
-  screen Screen @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
 
-  @@id([id, createdAt])
-  @@index([screenId, createdAt])
-  @@index([createdAt])
-  @@map("heartbeats")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("plans")
 }
 
-model DeviceEvent {
-  id        String   @id @default(uuid())
-  screenId  String   @map("screen_id")
-  eventType String   @map("event_type")
-  severity  NotificationSeverity @default(INFO)
-  message   String?
-  payload   Json     @default("{}")
-  createdAt DateTime @default(now()) @map("created_at")
+model Subscription {
+  id        String             @id @default(uuid())
+  companyId String             @unique
+  // RESTRICT: financial record — see the note on ProofOfPlay.company.
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  planId    String
+  plan      Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
+  status    SubscriptionStatus @default(TRIALING)
 
-  screen Screen @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  gracePeriodEndsAt  DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
 
-  @@index([screenId, createdAt])
-  @@index([eventType, createdAt])
-  @@map("device_events")
+  invoices Invoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([planId])
+  @@index([status])
+  @@map("subscriptions")
 }
 
-model DeviceCommand {
-  id          String              @id @default(uuid())
-  screenId    String              @map("screen_id")
-  commandType DeviceCommandType   @map("command_type")
-  status      DeviceCommandStatus @default(PENDING)
-  payload     Json                @default("{}")
-  requestedAt DateTime            @default(now()) @map("requested_at")
-  deliveredAt DateTime?           @map("delivered_at")
-  startedAt   DateTime?           @map("started_at")
-  completedAt DateTime?           @map("completed_at")
-  error       String?
-  createdAt   DateTime            @default(now()) @map("created_at")
+model Invoice {
+  id             String        @id @default(uuid())
+  companyId      String
+  // RESTRICT: financial record — retention never deletes invoices, and neither
+  // should a cascade from a company row.
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  number         String        @unique
+  status         InvoiceStatus @default(DRAFT)
+  currency       String        @default("USD")
+  subtotal       Decimal       @default(0) @db.Decimal(12, 2)
+  tax            Decimal?      @db.Decimal(12, 2)
+  total          Decimal       @default(0) @db.Decimal(12, 2)
+  lineItems      Json          @default("[]")
+  issuedAt       DateTime?
+  dueAt          DateTime?
+  paidAt         DateTime?
 
-  screen Screen @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([screenId, status])
-  @@index([createdAt])
-  @@map("device_commands")
+  @@index([companyId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@map("invoices")
 }
 
-model Screenshot {
-  id          String         @id @default(uuid())
-  screenId    String         @map("screen_id")
-  commandId   String?        @map("command_id")
-  type        ScreenshotType @default(MANUAL)
-  storageKey  String         @map("storage_key")
-  fileSize    BigInt?        @map("file_size")
-  width       Int?
-  height      Int?
-  capturedAt  DateTime       @map("captured_at")
-  createdAt   DateTime       @default(now()) @map("created_at")
-
-  screen Screen @relation(fields: [screenId], references: [id], onDelete: Cascade)
-
-  @@index([screenId, capturedAt])
-  @@map("screenshots")
-}
-
-model Alert {
-  id         String               @id @default(uuid())
-  companyId  String               @map("company_id")
-  screenId   String?              @map("screen_id")
-  type       String
-  severity   NotificationSeverity @default(WARNING)
-  status     AlertStatus          @default(OPEN)
-  title      String
-  message    String?
-  metadata   Json                 @default("{}")
-  dedupeKey  String?              @unique @map("dedupe_key")
-  openedAt   DateTime             @default(now()) @map("opened_at")
-  resolvedAt DateTime?            @map("resolved_at")
-  createdAt  DateTime             @default(now()) @map("created_at")
-  updatedAt  DateTime             @updatedAt @map("updated_at")
-
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  screen  Screen?  @relation(fields: [screenId], references: [id], onDelete: SetNull)
-
-  @@index([companyId, status])
-  @@index([screenId])
-  @@index([severity])
-  @@map("alerts")
-}
+// =============================================================================
+// Platform & integration  (Phase 10 — schema only)
+// =============================================================================
 
 model Notification {
-  id         String               @id @default(uuid())
-  companyId  String               @map("company_id")
-  userId     String               @map("user_id")
-  type       String
-  severity   NotificationSeverity @default(INFO)
-  title      String
-  message    String?
-  metadata   Json                 @default("{}")
-  channels   String[]             @default([])
-  readAt     DateTime?            @map("read_at")
-  createdAt  DateTime             @default(now()) @map("created_at")
+  id        String               @id @default(uuid())
+  companyId String?
+  company   Company?             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  severity  NotificationSeverity @default(INFO)
+  title     String
+  body      String?
+  data      Json                 @default("{}")
+  channels  String[] // e.g. ["in_app", "email"]
+  readAt    DateTime?
+  emailedAt DateTime?
+  createdAt DateTime             @default(now())
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([companyId, createdAt])
-  @@index([userId, readAt])
+  @@index([companyId])
+  // The bell polls unreadCount on every dashboard page, and the list is always
+  // "my notifications, newest first" — both were doing a userId index scan and
+  // then sorting. A partial index for the unread count is added alongside this
+  // one in the migration (Prisma has no syntax for `WHERE readAt IS NULL`).
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([createdAt])
   @@map("notifications")
 }
 
-model NotificationPreference {
-  id        String              @id @default(uuid())
-  userId    String              @map("user_id")
-  eventType String              @map("event_type")
-  channel   NotificationChannel
-  enabled   Boolean             @default(true)
-  createdAt DateTime            @default(now()) @map("created_at")
-  updatedAt DateTime            @updatedAt @map("updated_at")
+model ApiKey {
+  id          String    @id @default(uuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  prefix      String    @unique
+  hashedKey   String
+  scopes      String[]
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  disabledAt  DateTime?
+  createdById String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
-  @@unique([userId, eventType, channel])
-  @@map("notification_preferences")
+  @@index([companyId])
+  @@map("api_keys")
 }
 
-// =============================================================================
-// BACKUPS & ACTIVITY LOGS
-// =============================================================================
+model Webhook {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  url         String
+  secret      String
+  events      String[]
+  description String?
+  isActive    Boolean  @default(true)
 
+  deliveries WebhookDelivery[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id           String                @id @default(uuid())
+  webhookId    String
+  webhook      Webhook               @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  companyId    String
+  event        String
+  payload      Json                  @default("{}")
+  status       WebhookDeliveryStatus @default(PENDING)
+  attempts     Int                   @default(0)
+  responseCode Int?
+  responseBody String?
+  nextRetryAt  DateTime?
+  deliveredAt  DateTime?
+  createdAt    DateTime              @default(now())
+
+  @@index([webhookId])
+  @@index([companyId])
+  @@index([status])
+  @@map("webhook_deliveries")
+}
+
+/// [GLOBAL] Released Android TV player build (managed by Super Admin).
+model ApkVersion {
+  id           String     @id @default(uuid())
+  versionName  String
+  versionCode  Int        @unique
+  channel      ApkChannel @default(STABLE)
+  storageKey   String?
+  url          String?
+  fileSize     BigInt?
+  checksum     String?
+  releaseNotes String?
+  isMandatory  Boolean    @default(false)
+  minSupported Boolean    @default(false)
+  createdById  String?
+  createdAt    DateTime   @default(now())
+
+  @@index([channel])
+  @@map("apk_versions")
+}
+
+/// [GLOBAL] Operational record of a database/storage backup run.
 model BackupRecord {
-  id          String       @id @default(uuid())
-  companyId   String?      @map("company_id")
-  type        BackupType
-  status      BackupStatus
-  location    String?
-  sizeBytes   BigInt?      @map("size_bytes")
-  error       String?
-  startedAt   DateTime     @default(now()) @map("started_at")
-  completedAt DateTime?    @map("completed_at")
-  createdAt   DateTime     @default(now()) @map("created_at")
+  id         String       @id @default(uuid())
+  type       BackupType   @default(DATABASE)
+  status     BackupStatus @default(RUNNING)
+  location   String?
+  sizeBytes  BigInt?
+  startedAt  DateTime     @default(now())
+  finishedAt DateTime?
+  error      String?
+  metadata   Json         @default("{}")
+  createdAt  DateTime     @default(now())
 
-  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([status, createdAt])
+  @@index([type])
+  @@index([status])
+  @@index([startedAt])
   @@map("backup_records")
 }
 
-model ActivityLog {
-  id          String            @id @default(uuid())
-  companyId   String?           @map("company_id")
-  userId      String?           @map("user_id")
-  actorType   ActivityActorType @default(USER) @map("actor_type")
-  actorId     String?           @map("actor_id")
-  action      String
-  category    String
-  targetType  String?           @map("target_type")
-  targetId    String?           @map("target_id")
-  description String?
-  metadata    Json              @default("{}")
-  ipAddress   String?           @map("ip_address")
-  userAgent   String?           @map("user_agent")
-  createdAt   DateTime          @default(now()) @map("created_at")
+// =============================================================================
+// Operational automation  (Phase 10 — notifications, alerts, imports, reports)
+// =============================================================================
 
-  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+/// An operational alert (Phase 10). companyId is null for platform/system-wide
+/// alerts (Super Admin). Deduplicated while unresolved via `dedupeKey`; resolved
+/// automatically when the underlying condition clears (e.g. screen back online).
+model Alert {
+  id               String               @id @default(uuid())
+  companyId        String?
+  company          Company?             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  screenId         String? // soft reference
+  deviceId         String? // soft reference
+  type             String // e.g. screen.offline, sync.failed, subscription.expiring
+  severity         NotificationSeverity @default(WARNING)
+  status           AlertStatus          @default(OPEN)
+  title            String
+  message          String?
+  /// Stable key for dedup while OPEN/ACKNOWLEDGED: companyId:screenId:type.
+  dedupeKey        String?
+  metadata         Json                 @default("{}")
+  triggeredAt      DateTime             @default(now())
+  /// Last time this alert actually fanned out a notification/email. Drives the
+  /// CRITICAL re-notification cadence: dedup keeps an unresolved alert quiet,
+  /// but a persistent CRITICAL must page again rather than notify exactly once
+  /// and then stay silent forever.
+  lastNotifiedAt   DateTime?
+  acknowledgedAt   DateTime?
+  acknowledgedById String? // soft reference -> User
+  resolvedAt       DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
-  @@index([companyId, createdAt])
+  @@index([companyId, status])
+  @@index([dedupeKey])
+  // Perf: dedup lookup on every condition event resolves to (dedupeKey, status).
+  @@index([dedupeKey, status])
+  @@index([severity])
+  // Retention: purge of RESOLVED/DISMISSED alerts past the cutoff.
+  @@index([status, resolvedAt])
+  @@index([createdAt])
+  @@map("alerts")
+}
+
+/// Per-user opt in/out for a notification channel + event type (Phase 10).
+/// Absence of a row = the system default for that channel/event.
+model NotificationPreference {
+  id        String              @id @default(uuid())
+  userId    String // soft reference -> User
+  companyId String? // soft reference
+  channel   NotificationChannel
+  eventType String
+  enabled   Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([userId, channel, eventType])
   @@index([userId])
-  @@index([action])
-  @@index([category])
-  @@map("activity_logs")
+  @@map("notification_preferences")
+}
+
+/// Audit trail of every outbound email (Phase 10). A send failure must never
+/// break the originating action — it is logged here, not thrown.
+model EmailDeliveryLog {
+  id                String              @id @default(uuid())
+  companyId         String?
+  company           Company?            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recipientEmail    String
+  subject           String
+  type              String? // event type / category
+  status            EmailDeliveryStatus @default(PENDING)
+  providerMessageId String?
+  error             String?
+  metadata          Json                @default("{}")
+  sentAt            DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("email_delivery_logs")
+}
+
+/// A bulk CSV/XLSX import job (Phase 10). companyId is null for Super Admin
+/// Company imports (which mint fresh companies); otherwise tenant-scoped.
+model ImportJob {
+  id          String       @id @default(uuid())
+  companyId   String?
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type        ImportType
+  status      ImportStatus @default(UPLOADED)
+  fileName    String
+  totalRows   Int          @default(0)
+  validRows   Int          @default(0)
+  invalidRows Int          @default(0)
+  errors      Json         @default("[]")
+  previewData Json         @default("[]")
+  createdById String? // soft reference -> User
+  committedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([companyId])
+  @@index([type])
+  @@index([status])
+  @@map("import_jobs")
+}
+
+/// A recurring report definition (Phase 10). The maintenance runner generates +
+/// emails it when `nextRunAt` is due; a simple CLI/cron drives execution.
+model ScheduledReport {
+  id          String          @id @default(uuid())
+  companyId   String
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  reportType  ReportType
+  format      ReportFormat    @default(CSV)
+  frequency   ReportFrequency @default(WEEKLY)
+  recipients  Json            @default("[]") // array of email strings
+  filters     Json            @default("{}")
+  enabled     Boolean         @default(true)
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  createdById String? // soft reference -> User
+
+  deliveries ScheduledReportDelivery[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([enabled, nextRunAt])
+  @@map("scheduled_reports")
+}
+
+/// One run/delivery of a scheduled report (Phase 10).
+model ScheduledReportDelivery {
+  id                String               @id @default(uuid())
+  companyId         String
+  company           Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  scheduledReportId String
+  scheduledReport   ScheduledReport      @relation(fields: [scheduledReportId], references: [id], onDelete: Cascade)
+  status            ReportDeliveryStatus @default(PENDING)
+  fileStorageKey    String?
+  recipientEmails   Json                 @default("[]")
+  error             String?
+  sentAt            DateTime?
+  createdAt         DateTime             @default(now())
+
+  @@index([companyId])
+  @@index([scheduledReportId])
+  @@index([createdAt])
+  @@map("scheduled_report_deliveries")
+}
+
+// =============================================================================
+// Marketing site (public, no tenant) [GLOBAL]
+// =============================================================================
+
+/// Lifecycle of a "Book a Demo" / contact-sales lead from the marketing site.
+enum DemoRequestStatus {
+  NEW
+  CONTACTED
+  SCHEDULED
+  CLOSED
+}
+
+/// A public "Book a Demo" submission from the marketing website. Not tenant
+/// scoped — captured before an account exists. Reviewed in the Super Admin
+/// console (/admin/demo-requests).
+model DemoRequest {
+  id          String            @id @default(uuid())
+  name        String
+  companyName String?
+  email       String
+  phone       String?
+  screens     Int?
+  message     String?
+  locale      String?
+  status      DemoRequestStatus @default(NEW)
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
+  @@map("demo_requests")
 }
