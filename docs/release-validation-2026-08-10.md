@@ -16,6 +16,7 @@ This file records the final repository-level production-readiness validation pas
 - Prisma telemetry models now match the intentional PostgreSQL partition design:
   - `Heartbeat` physical primary key: `(id, createdAt)`.
   - `ProofOfPlay` physical primary key: `(id, startedAt)`.
+  - `ProofOfPlay` retains the non-unique `(companyId, playbackSessionId)` lookup index created by the partition migration.
   - Cross-partition proof-of-play session idempotency remains PostgreSQL registry/trigger-owned rather than an impossible direct partition-parent unique constraint.
 
 ## Release policy
