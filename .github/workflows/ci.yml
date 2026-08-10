@@ -209,7 +209,7 @@ jobs:
             -e DATABASE_URL=postgresql://postgres:docker_ci_postgres_password@127.0.0.1:5432/wizer_docker_ci \
             -e DIRECT_URL=postgresql://postgres:docker_ci_postgres_password@127.0.0.1:5432/wizer_docker_ci \
             wizer-signage/api:ci \
-            npx prisma migrate deploy --schema prisma/schema.prisma
+            ./node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
 
       # Boots the actual Alpine production image, not `nest start` on the runner.
       # This catches missing Prisma/musl/OpenSSL/native runtime artifacts that a

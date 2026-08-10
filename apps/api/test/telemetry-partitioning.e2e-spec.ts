@@ -59,7 +59,7 @@ describe('telemetry partitioning (real PostgreSQL)', () => {
   });
 
   it('has current and next-month children for both high-volume parents', async () => {
-    await prisma.$queryRaw`SELECT public.wizer_ensure_telemetry_partitions(2)`;
+    await prisma.$executeRaw`SELECT public.wizer_ensure_telemetry_partitions(2)`;
 
     const rows = await prisma.$queryRaw<Array<{ parent: string; child: string }>>`
       SELECT parent.relname AS parent, child.relname AS child
@@ -86,7 +86,7 @@ describe('telemetry partitioning (real PostgreSQL)', () => {
       SELECT c.relkind::text AS relkind
         FROM pg_class c
         JOIN pg_namespace n ON n.oid = c.relnamespace
-       WHERE n.nspname = 'public'
+       WHERE n.nspname = 'wizer_telemetry'
          AND c.relname = 'proof_of_play_session_keys'
     `;
     expect(registry).toEqual([{ relkind: 'r' }]);
@@ -94,7 +94,7 @@ describe('telemetry partitioning (real PostgreSQL)', () => {
     const pk = await prisma.$queryRaw<Array<{ definition: string }>>`
       SELECT pg_get_constraintdef(con.oid) AS definition
         FROM pg_constraint con
-       WHERE con.conrelid = 'public.proof_of_play_session_keys'::regclass
+       WHERE con.conrelid = 'wizer_telemetry.proof_of_play_session_keys'::regclass
          AND con.contype = 'p'
     `;
     expect(pk).toHaveLength(1);
@@ -176,7 +176,7 @@ describe('telemetry partitioning (real PostgreSQL)', () => {
     const [row] = await prisma.$queryRaw<Array<{ events: bigint; keys: bigint }>>`
       SELECT
         (SELECT COUNT(*) FROM public.proof_of_plays) AS events,
-        (SELECT COUNT(*) FROM public.proof_of_play_session_keys) AS keys
+        (SELECT COUNT(*) FROM wizer_telemetry.proof_of_play_session_keys) AS keys
     `;
     expect(row).toBeDefined();
     expect(row!.keys).toBe(row!.events);

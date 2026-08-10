@@ -131,7 +131,7 @@ if [[ "${PREVIOUS_SHA}" =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "${PREVIOUS_SHA}
 fi
 
 echo "==> [blue-green] Applying migrations while the old slot continues serving..."
-"${BASE_COMPOSE[@]}" run --rm --no-deps api npx prisma migrate deploy
+"${BASE_COMPOSE[@]}" run --rm --no-deps api ./node_modules/.bin/prisma migrate deploy
 
 # First adoption only: recreate nginx with the blue/green template/runtime volume.
 # The entrypoint writes a legacy-safe upstream file before nginx starts, so it

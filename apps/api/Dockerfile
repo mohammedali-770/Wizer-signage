@@ -81,6 +81,13 @@ WORKDIR /app
 # deploy` / the client fail with "failed to detect the libssl/openssl version".
 RUN apk add --no-cache openssl
 
+# The runtime launches compiled JavaScript directly and uses Prisma's bundled
+# executable, so npm/npx are unnecessary in production. Remove the package
+# manager shipped by the Node base image to keep its dependency tree (and any
+# package-manager-only CVEs) out of the deployable API image.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx
+
 # Run as the unprivileged "node" user shipped in the base image.
 COPY --from=build --chown=node:node /app/deploy/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/apps/api/dist ./dist

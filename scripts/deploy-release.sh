@@ -98,7 +98,7 @@ fi
 
 # --- 4. Apply migrations from the exact pulled API image ---------------------
 echo "==> [release] Applying database migrations from ${IMAGE_TAG} ..."
-${COMPOSE} run --rm --no-deps api npx prisma migrate deploy
+${COMPOSE} run --rm --no-deps api ./node_modules/.bin/prisma migrate deploy
 
 # --- 5. Replace services without allowing an accidental host build -----------
 echo "==> [release] Starting immutable release with --no-build ..."
