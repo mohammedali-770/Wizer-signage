@@ -4,7 +4,7 @@ const device = {
   id: 'device-1',
   companyId: 'company-1',
   screenId: '11111111-1111-4111-8111-111111111111',
-} as never;
+};
 
 describe('AndroidUpdateService result telemetry', () => {
   it('stores the exact authorizing policy revision with the attempt', async () => {
@@ -18,7 +18,7 @@ describe('AndroidUpdateService result telemetry', () => {
     const revision = '2026-08-09T09:00:00.000Z';
 
     await expect(
-      service.recordResult(device, {
+      service.recordResult(device as never, {
         state: 'INSTALLING',
         policyRevision: revision,
         targetVersionCode: 42,
