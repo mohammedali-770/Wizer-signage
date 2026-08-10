@@ -7,6 +7,7 @@ import { LocationsModule } from '../locations/locations.module';
 import { ScreenGroupsModule } from '../screen-groups/screen-groups.module';
 import { ScreensModule } from '../screens/screens.module';
 import { TagsModule } from '../tags/tags.module';
+import { ImportCancelGuard, ImportCommitGuard } from './import-commit.guard';
 import { ImportService } from './import.service';
 import { ImportsController } from './imports.controller';
 
@@ -25,7 +26,7 @@ import { ImportsController } from './imports.controller';
     CompaniesModule,
   ],
   controllers: [ImportsController],
-  providers: [ImportService],
+  providers: [ImportService, ImportCommitGuard, ImportCancelGuard],
   exports: [ImportService],
 })
 export class ImportsModule {}
