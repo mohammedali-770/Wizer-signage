@@ -65,8 +65,8 @@ REGISTRY_PK="$(q "
   || fail "unexpected PoP registry PK: ${REGISTRY_PK:-<none>}"
 
 # Every custom PoP trigger function that references the registry must resolve the
-# internal schema before public. This catches a registry move that leaves INSERT
-# or DELETE trigger code pointing at a now-missing public table.
+# internal schema before public. This catches a registry move that leaves
+# claim/release trigger code pointing at a now-missing internal table.
 TRIGGER_CONFIG_BAD="$(q "
   SELECT count(*)
   FROM pg_trigger t

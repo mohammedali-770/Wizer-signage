@@ -1014,8 +1014,8 @@ describe('OpenAPI response coverage', () => {
       if (v.annotated < v.total) incomplete.push(`${tag} ${v.annotated}/${v.total}`);
     }
     expect(incomplete).toEqual([]);
-    // 31 tags. Pinned so a whole tag vanishing (a controller excluded by
+    // 32 tags. Pinned so a whole tag vanishing (a controller excluded by
     // mistake) is a failure rather than a silently smaller, still-green set.
-    expect(Object.keys(perTag).length).toBe(31);
+    expect(Object.keys(perTag).length).toBe(32);
   });
 });

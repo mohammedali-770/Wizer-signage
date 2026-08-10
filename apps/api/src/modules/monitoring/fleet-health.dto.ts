@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Length } from 'class-validator';
 
 export class FleetVersionDistributionDto {
   @ApiProperty({ example: '1.4.2' })
@@ -27,6 +28,7 @@ export class FleetRecentCrashDto {
   @ApiProperty({ example: 1786260000000 })
   crashedAtMillis!: number;
 
+  @Length(24, 24)
   @ApiProperty({ example: 'a1b2c3d4e5f60718293a4b5c', minLength: 24, maxLength: 24 })
   fingerprint!: string;
 
