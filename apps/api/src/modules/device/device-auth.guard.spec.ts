@@ -24,8 +24,12 @@ function contextWith(headers: Record<string, string>) {
 
 describe('DeviceAuthGuard', () => {
   const device = { id: 'd1', deviceId: 'dev1', screenId: 's1', companyId: 'comp1' };
-  /** The row as the guard now selects it — device fields plus the two gates. */
-  const row = { ...device, screen: { deletedAt: null }, company: { status: 'ACTIVE' } };
+  const row = {
+    ...device,
+    lastSeenAt: null,
+    screen: { deletedAt: null },
+    company: { status: 'ACTIVE' },
+  };
 
   it('accepts a valid token via Authorization: Bearer and scopes the request', async () => {
     const t = build();
@@ -44,6 +48,32 @@ describe('DeviceAuthGuard', () => {
     const { ctx, req } = contextWith({ 'x-device-token': 'tok123' });
     await expect(t.guard.canActivate(ctx)).resolves.toBe(true);
     expect(req.device).toEqual(device);
+  });
+
+  it('does not write lastSeenAt again while the existing stamp is fresh', async () => {
+    const t = build();
+    t.prisma.device.findFirst.mockResolvedValue({ ...row, lastSeenAt: new Date() });
+    const { ctx } = contextWith({ authorization: 'Bearer tok123' });
+
+    await expect(t.guard.canActivate(ctx)).resolves.toBe(true);
+
+    expect(t.prisma.device.update).not.toHaveBeenCalled();
+  });
+
+  it('refreshes a missing or stale lastSeenAt without blocking authentication', async () => {
+    const t = build();
+    t.prisma.device.findFirst.mockResolvedValue({
+      ...row,
+      lastSeenAt: new Date(Date.now() - 6 * 60 * 1000),
+    });
+    const { ctx } = contextWith({ authorization: 'Bearer tok123' });
+
+    await expect(t.guard.canActivate(ctx)).resolves.toBe(true);
+
+    expect(t.prisma.device.update).toHaveBeenCalledWith({
+      where: { id: device.id },
+      data: { lastSeenAt: expect.any(Date) },
+    });
   });
 
   it('rejects a missing token', async () => {
@@ -68,11 +98,6 @@ describe('DeviceAuthGuard', () => {
     expect(Object.keys(req.device)).not.toContain('deviceTokenHash');
   });
 
-  /**
-   * A live token is not enough — what it points AT must still exist. Deleting a
-   * screen now revokes its device, but tokens issued before that fix are still
-   * in the field, and this guard is the only thing that can stop them.
-   */
   describe('the token target must still be valid', () => {
     it('rejects a device whose screen has been deleted', async () => {
       const t = build();
@@ -82,7 +107,6 @@ describe('DeviceAuthGuard', () => {
       });
       const { ctx } = contextWith({ authorization: 'Bearer tok123' });
       await expect(t.guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
-      // ...and does not stamp lastSeenAt for a screen that no longer exists.
       expect(t.prisma.device.update).not.toHaveBeenCalled();
     });
 
@@ -94,10 +118,6 @@ describe('DeviceAuthGuard', () => {
     });
 
     it('KEEPS a suspended company authenticated — suspension is recoverable', async () => {
-      // The resolver already serves a suspended company an empty manifest with
-      // a warning. Failing auth instead would put the player into an error loop
-      // and drop the screen off the fleet view, exactly when an operator needs
-      // to see it in order to resolve the suspension.
       const t = build();
       t.prisma.device.findFirst.mockResolvedValue({ ...row, company: { status: 'SUSPENDED' } });
       const { ctx, req } = contextWith({ authorization: 'Bearer tok123' });

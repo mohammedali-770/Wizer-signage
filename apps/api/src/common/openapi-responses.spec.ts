@@ -27,7 +27,7 @@ import {
  * and pointing `@ApiOkResponse` at it. That is mechanical but not free, and it
  * lands controller by controller.
  *
- * That work is now DONE: all 209 operations declare a response, across 31 tags.
+ * That work is now DONE: all 211 operations declare a response, across 31 tags.
  * The floor that used to be a ratchet is a completeness assertion, so this spec
  * has changed job — from "make sure it keeps going up" to "make sure it never
  * comes back down". A route added without a response type fails immediately,
@@ -87,7 +87,7 @@ function operationsWithResponseSchema(): { annotated: string[]; total: number } 
   for (const [path, methods] of Object.entries(paths)) {
     for (const [method, op] of Object.entries(methods)) {
       total += 1;
-      const success = op.responses?.['200'] ?? op.responses?.['201'];
+      const success = op.responses?.['200'] ?? op.responses?.['201'] ?? op.responses?.['202'];
       const described = Object.values(success?.content ?? {}).some(
         (media) => media.schema && Object.keys(media.schema as object).length > 0,
       );
@@ -977,17 +977,17 @@ describe('OpenAPI response coverage', () => {
 
   it('EVERY operation in the contract declares what it returns', () => {
     // This started as a ratchet — 8 of ~180, raise it as you go. It is now a
-    // completeness assertion: all 209 operations declare a response schema.
+    // completeness assertion: all 211 operations declare a response schema.
     //
     // The floor stayed useful the whole way up, but it could never have
     // finished the job on its own. It cannot notice one new unannotated route
-    // among 209, which is why the per-tag test above exists and why two
+    // among 211, which is why the per-tag test above exists and why two
     // modules sat at 8/19 and 22/29 while being reported as done. Now that the
     // number is total, the strict equality is the guard: a route added without
     // a response type fails here immediately, and there is no "raise the
     // number" escape.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(total).toBe(209);
+    expect(total).toBe(211);
     expect(annotated.length).toBe(total);
   });
 
@@ -1001,7 +1001,7 @@ describe('OpenAPI response coverage', () => {
     for (const methods of Object.values(paths)) {
       for (const op of Object.values(methods)) {
         const tag = (op as { tags?: string[] }).tags?.[0] ?? '?';
-        const success = op.responses?.['200'] ?? op.responses?.['201'];
+        const success = op.responses?.['200'] ?? op.responses?.['201'] ?? op.responses?.['202'];
         const described = Object.values(success?.content ?? {}).some(
           (media) => media.schema && Object.keys(media.schema as object).length > 0,
         );
@@ -1014,8 +1014,8 @@ describe('OpenAPI response coverage', () => {
       if (v.annotated < v.total) incomplete.push(`${tag} ${v.annotated}/${v.total}`);
     }
     expect(incomplete).toEqual([]);
-    // 31 tags. Pinned so a whole tag vanishing (a controller excluded by
+    // 32 tags. Pinned so a whole tag vanishing (a controller excluded by
     // mistake) is a failure rather than a silently smaller, still-green set.
-    expect(Object.keys(perTag).length).toBe(31);
+    expect(Object.keys(perTag).length).toBe(32);
   });
 });

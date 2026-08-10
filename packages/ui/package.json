@@ -19,7 +19,8 @@
   ],
   "scripts": {
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit"
   },
   "peerDependencies": {
     "react": "^18",

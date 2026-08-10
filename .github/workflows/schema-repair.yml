@@ -1,0 +1,103 @@
+name: One-shot Prisma schema repair
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout final integration history
+        uses: actions/checkout@v4
+        with:
+          ref: codex/production-readiness-final
+          fetch-depth: 0
+
+      - name: Restore rich schema and apply only telemetry partition keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          SCHEMA='apps/api/prisma/schema.prisma'
+          BASE='90cc8cccd81d959984d38de90174c989ad03979d'
+          EXPECTED_BASE_BLOB='d77601a56b8492c7a1acec4405cbae0d6311de3c'
+          actual_blob="$(git rev-parse "${BASE}:${SCHEMA}")"
+          test "$actual_blob" = "$EXPECTED_BASE_BLOB"
+          git show "${BASE}:${SCHEMA}" > "$SCHEMA"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('apps/api/prisma/schema.prisma')
+          text = path.read_text()
+
+          def transform_model(text: str, name: str, transform):
+              marker = f'model {name} {{'
+              start = text.index(marker)
+              end = text.index('\n}\n', start) + 3
+              block = text[start:end]
+              new_block = transform(block)
+              if new_block == block:
+                  raise SystemExit(f'{name}: intended telemetry transform made no change')
+              return text[:start] + new_block + text[end:]
+
+          def heartbeat(block: str) -> str:
+              old = '  id                    String      @id @default(uuid())'
+              new = '  id                    String      @default(uuid())'
+              if block.count(old) != 1:
+                  raise SystemExit('Heartbeat id shape changed unexpectedly')
+              block = block.replace(old, new, 1)
+              anchor = '  @@index([screenId])'
+              if block.count(anchor) != 1:
+                  raise SystemExit('Heartbeat index anchor changed unexpectedly')
+              return block.replace(anchor, '  @@id([id, createdAt])\n' + anchor, 1)
+
+          def proof(block: str) -> str:
+              old = '  id                   String             @id @default(uuid())'
+              new = '  id                   String             @default(uuid())'
+              if block.count(old) != 1:
+                  raise SystemExit('ProofOfPlay id shape changed unexpectedly')
+              block = block.replace(old, new, 1)
+              unique = '  @@unique([companyId, playbackSessionId])\n'
+              if block.count(unique) != 1:
+                  raise SystemExit('ProofOfPlay tenant unique anchor changed unexpectedly')
+              return block.replace(unique, '  @@id([id, startedAt])\n  @@index([companyId, playbackSessionId])\n', 1)
+
+          text = transform_model(text, 'Heartbeat', heartbeat)
+          text = transform_model(text, 'ProofOfPlay', proof)
+          path.write_text(text)
+          PY
+
+          python3 - <<'PY'
+          import subprocess
+          from pathlib import Path
+          base = subprocess.check_output(['git', 'show', '90cc8cccd81d959984d38de90174c989ad03979d:apps/api/prisma/schema.prisma'], text=True)
+          current = Path('apps/api/prisma/schema.prisma').read_text()
+          required = ['LOCATION_MANAGER','REBOOT_DEVICE','UNPAIR_DEVICE','RELOAD_CONFIG','EXPIRED','model DeviceCommand {','companyId String','deviceId String?','issuedById String?','expiresAt DateTime?','@@id([id, createdAt])','@@id([id, startedAt])']
+          missing = [needle for needle in required if needle not in current]
+          if missing:
+              raise SystemExit(f'repaired schema missing required contract markers: {missing}')
+          def strip_model(text, name):
+              marker = f'model {name} {{'
+              start = text.index(marker)
+              end = text.index('\n}\n', start) + 3
+              return text[:start] + f'model {name} {{\n<TELEMETRY MODEL NORMALIZED>\n}}\n' + text[end:]
+          for name in ('Heartbeat', 'ProofOfPlay'):
+              base = strip_model(base, name)
+              current = strip_model(current, name)
+          if base != current:
+              raise SystemExit('schema repair changed text outside Heartbeat/ProofOfPlay')
+          PY
+
+      - name: Commit repair and remove this one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/schema-repair.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/api/prisma/schema.prisma .github/workflows/schema-repair.yml
+          git diff --cached --check
+          git commit -m 'fix(db): restore rich Prisma schema with partition keys'
+          git push origin HEAD:codex/production-readiness-final

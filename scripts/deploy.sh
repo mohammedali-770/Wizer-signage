@@ -107,7 +107,7 @@ fi
 # The migration files are baked into the freshly-built api image above, so this
 # must run AFTER build and BEFORE bringing the stack up. Idempotent.
 echo "==> [deploy] Applying database migrations (prisma migrate deploy)..."
-${COMPOSE} run --rm api npx prisma migrate deploy
+${COMPOSE} run --rm api ./node_modules/.bin/prisma migrate deploy
 
 # --- 5. Bring the stack up ---------------------------------------------------
 echo "==> [deploy] Starting stack (docker compose up -d)..."

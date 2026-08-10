@@ -140,6 +140,7 @@ jobs:
           labels: |
             org.opencontainers.image.revision=${{ env.FULL_SHA }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            io.wizer.dashboard-api-url=${{ inputs.api_url }}
           cache-from: type=gha,scope=release-dashboard
           cache-to: type=gha,mode=max,scope=release-dashboard
 
@@ -167,6 +168,7 @@ jobs:
             echo
             echo "Commit: \`${FULL_SHA}\`"
             echo "Immutable tag: \`${IMAGE_TAG}\`"
+            echo "Dashboard API: \`${{ inputs.api_url }}\`"
             echo
             echo '| Service | Image |'
             echo '|---|---|'

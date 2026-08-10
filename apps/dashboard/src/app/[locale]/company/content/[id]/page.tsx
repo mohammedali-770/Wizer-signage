@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import {
@@ -14,11 +14,12 @@ import {
 } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
-import { useAllPages, useApiResource } from '@/lib/use-api';
+import { useApiResource } from '@/lib/use-api';
 import { formatBytes, formatDate, formatDateTime } from '@/lib/format';
-import type { Content, ContentType, Orientation, Tag } from '@/lib/types';
+import type { Content, ContentType, Orientation } from '@/lib/types';
 import { Link } from '@/i18n/navigation';
 import { ContentPreview } from '@/components/content/content-preview';
+import { ServerSearchIdMultiSelect } from '@/components/server-search-id-multi-select';
 import {
   Badge,
   Button,
@@ -92,11 +93,6 @@ export default function ContentDetailPage() {
     error,
     reload,
   } = useApiResource<Content>(id ? `/content/${id}` : null);
-  const tagsRes = useAllPages<Tag>('/tags');
-  const contentTags = useMemo(
-    () => (tagsRes.data?.items ?? []).filter((t) => t.type === 'CONTENT' || t.type === 'BOTH'),
-    [tagsRes.data],
-  );
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
@@ -122,19 +118,6 @@ export default function ContentDetailPage() {
   };
   const closeEdit = () => {
     if (!saving) setEditOpen(false);
-  };
-
-  const toggleTag = (tagId: string) => {
-    setForm((f) =>
-      f
-        ? {
-            ...f,
-            tagIds: f.tagIds.includes(tagId)
-              ? f.tagIds.filter((t) => t !== tagId)
-              : [...f.tagIds, tagId],
-          }
-        : f,
-    );
   };
 
   const submitEdit = async (e: React.FormEvent) => {
@@ -538,35 +521,18 @@ export default function ContentDetailPage() {
 
                 <div>
                   <Label>{tc('tags')}</Label>
-                  {contentTags.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {contentTags.map((tag) => {
-                        const selected = form.tagIds.includes(tag.id);
-                        return (
-                          <button
-                            type="button"
-                            key={tag.id}
-                            onClick={() => toggleTag(tag.id)}
-                            aria-pressed={selected}
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
-                              selected
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-border text-muted-foreground hover:bg-muted'
-                            }`}
-                          >
-                            <span
-                              aria-hidden
-                              className="border-border inline-block size-2.5 shrink-0 rounded-full border"
-                              style={{ backgroundColor: tag.color ?? 'transparent' }}
-                            />
-                            {tag.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-xs">{t('noContentTags')}</p>
-                  )}
+                  <ServerSearchIdMultiSelect
+                    type="TAG"
+                    valueIds={form.tagIds}
+                    initialItems={content.tags.map((tag) => ({ id: tag.id, name: tag.name }))}
+                    onChangeIds={(tagIds) =>
+                      setForm((f) => (f ? { ...f, tagIds } : f))
+                    }
+                    tagApplicability="CONTENT"
+                    searchPlaceholder={locale === 'ar' ? 'بحث عن الوسوم…' : 'Search tags…'}
+                    emptyText={t('noContentTags')}
+                    disabled={saving}
+                  />
                 </div>
 
                 <div className="border-border flex justify-end gap-2 border-t pt-4">

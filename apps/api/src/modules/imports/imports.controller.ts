@@ -8,31 +8,33 @@ import {
   Query,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiAcceptedResponse,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ImportType } from '@prisma/client';
 import type { Response } from 'express';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
 import { ListImportsQueryDto } from './dto/import.dto';
-import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
-import { ImportCommitResultDto, ImportJobDetailDto, ImportJobDto } from './dto/import-response.dto';
+import { ImportJobDetailDto, ImportJobDto } from './dto/import-response.dto';
+import { ImportCancelGuard, ImportCommitGuard } from './import-commit.guard';
 import { ImportService } from './import.service';
 
-// 15 MB cap on import uploads.
 const IMPORT_LIMIT = { limits: { fileSize: 15 * 1024 * 1024 } };
 
-/**
- * Bulk import API (Phase 10). All routes require `import:run` (Company Admin;
- * Super Admin implicitly). The service enforces type-level scoping (COMPANY
- * imports are Super Admin only) and tenant safety (companyId from the token,
- * never the file).
- */
 @ApiTags('imports')
 @ApiBearerAuth()
 @Controller('imports')
@@ -53,7 +55,6 @@ export class ImportsController {
   @Get('templates/:type')
   @RequirePermissions(Permission.ImportRun)
   @ApiOperation({ summary: 'Download a CSV template for an import type.' })
-  // Streams a CSV. No JSON body exists to document — the response is the file.
   @ApiOkResponse({
     description: 'A CSV template with the expected header row.',
     content: { 'text/csv': { schema: { type: 'string' } } },
@@ -100,20 +101,34 @@ export class ImportsController {
   }
 
   @Post(':id/commit')
-  @HttpCode(200)
+  @HttpCode(202)
   @RequirePermissions(Permission.ImportRun)
+  @UseGuards(ImportCommitGuard)
   @ApiOperation({
     summary:
-      'Commit a validated import (creates the rows, reusing entity validation + plan limits).',
+      'Queue a validated import for background commit. The maintenance worker performs the row writes.',
   })
-  @ApiOkResponse({ type: ImportCommitResultDto })
-  commit(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.imports.commit(this.scope(user), user, id);
+  @ApiAcceptedResponse({
+    schema: {
+      type: 'object',
+      required: ['accepted', 'importJobId'],
+      properties: {
+        accepted: { type: 'boolean', example: true },
+        importJobId: { type: 'string', format: 'uuid' },
+      },
+    },
+  })
+  commit(@Param('id') id: string) {
+    // ImportCommitGuard already atomically verified ownership/status and changed
+    // the job to its queued marker. Never perform row writes in this HTTP request:
+    // a proxy/client timeout must not make a retry duplicate a 5,000-row import.
+    return { accepted: true, importJobId: id };
   }
 
   @Post(':id/cancel')
   @HttpCode(200)
   @RequirePermissions(Permission.ImportRun)
+  @UseGuards(ImportCancelGuard)
   @ApiOperation({ summary: 'Cancel an uncommitted import.' })
   @ApiOkResponse({ type: ImportJobDto })
   cancel(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {

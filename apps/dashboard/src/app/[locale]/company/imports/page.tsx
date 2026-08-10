@@ -33,7 +33,7 @@ import { API_BASE_URL } from '@/lib/api-base';
 const BASE = API_BASE_URL;
 const TYPES: ImportType[] = ['LOCATION', 'SCREEN', 'SCREEN_GROUP', 'TAG', 'USER'];
 const STATUS_TONE: Record<string, 'neutral' | 'info' | 'success' | 'danger' | 'warning'> = {
-  UPLOADED: 'neutral',
+  UPLOADED: 'info',
   VALIDATED: 'info',
   COMMITTED: 'success',
   FAILED: 'danger',
@@ -90,19 +90,18 @@ export default function ImportsPage() {
     if (!job) return;
     setBusy(true);
     try {
-      const result = await api.post<ImportJob & { committed: number; failed: number }>(
-        `/imports/${job.id}/commit`,
-      );
+      await api.post<{ accepted: true; importJobId: string }>(`/imports/${job.id}/commit`);
+      // UPLOADED is the server's queue state for a validated import waiting on
+      // the maintenance worker. Do not invent committed/failed row counts in the
+      // browser — the history/detail endpoint becomes authoritative when the
+      // worker reaches a terminal COMMITTED/FAILED state.
+      setJob({ ...job, status: 'UPLOADED' });
       toast(
-        result.failed
-          ? t('toast.importedWithFailures', {
-              committed: result.committed,
-              failed: result.failed,
-            })
-          : t('toast.imported', { committed: result.committed }),
-        result.failed ? 'info' : 'success',
+        locale.toLowerCase().startsWith('ar')
+          ? 'تمت إضافة عملية الاستيراد إلى قائمة الانتظار وستتم معالجتها تلقائياً.'
+          : 'Import queued and will be processed automatically.',
+        'success',
       );
-      setJob(result);
       history.reload();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : t('toast.commitFailed'), 'error');
@@ -182,6 +181,13 @@ export default function ImportsPage() {
                 </span>
                 <Badge tone={STATUS_TONE[job.status] ?? 'neutral'}>{job.status}</Badge>
               </div>
+              {job.status === 'UPLOADED' ? (
+                <p className="text-muted-foreground mt-2 text-xs">
+                  {locale.toLowerCase().startsWith('ar')
+                    ? 'قيد الانتظار للمعالجة في الخلفية. ستظهر النتيجة النهائية في سجل عمليات الاستيراد.'
+                    : 'Queued for background processing. The final result will appear in import history.'}
+                </p>
+              ) : null}
               {Array.isArray(job.errors) && job.errors.length > 0 ? (
                 <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs text-red-600">
                   {job.errors.slice(0, 50).map((e, i) => (

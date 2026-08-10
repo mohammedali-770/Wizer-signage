@@ -7,17 +7,12 @@ import { ArrowLeft, Pause, Play, Trash2 } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
-import { useAllPages, useApiResource } from '@/lib/use-api';
-import type {
-  PlaybackManifest,
-  Schedule,
-  ScheduleType,
-  ScheduleValidation,
-  Screen,
-} from '@/lib/types';
+import { useApiResource } from '@/lib/use-api';
+import type { PlaybackManifest, Schedule, ScheduleType, ScheduleValidation } from '@/lib/types';
 import { formatDate, formatDateTime, formatDuration } from '@/lib/format';
 import { DaysOfWeekField } from '@/components/schedules/days-of-week-field';
 import { TargetSelector, type SelectedTarget } from '@/components/schedules/target-selector';
+import { ServerSearchSelect } from '@/components/server-search-select';
 import {
   Badge,
   Button,
@@ -53,7 +48,6 @@ export default function ScheduleDetailPage() {
     reload,
   } = useApiResource<Schedule>(id ? `/schedules/${id}` : null);
   const validation = useApiResource<ScheduleValidation>(id ? `/schedules/${id}/validate` : null);
-  const screens = useAllPages<Screen>('/screens');
 
   const [busy, setBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -311,19 +305,16 @@ export default function ScheduleDetailPage() {
           <CardTitle>{t('preview.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Select
-              value={previewScreenId}
-              onChange={(e) => setPreviewScreenId(e.target.value)}
-              className="w-64"
-            >
-              <option value="">{t('preview.selectScreen')}</option>
-              {screens.data?.items.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="w-72 max-w-full">
+              <ServerSearchSelect
+                type="SCREEN"
+                value={previewScreenId}
+                onChange={setPreviewScreenId}
+                emptyLabel={t('preview.selectScreen')}
+                searchPlaceholder={t('preview.selectScreen')}
+              />
+            </div>
             <Button
               variant="outline"
               onClick={loadManifest}

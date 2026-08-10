@@ -1,21 +1,43 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Search, X } from 'lucide-react';
 
-import { useAllPages } from '@/lib/use-api';
-import type { LocationListItem, Screen, ScheduleTargetType, ScreenGroup } from '@/lib/types';
-import { Badge, Button, Select } from '@/components/ui';
+import { api } from '@/lib/api';
+import { useApiResource } from '@/lib/use-api';
+import {
+  SELECTOR_RESULT_LIMIT,
+  selectorEntityPath,
+  selectorSearchPath,
+  type SearchableSelectorType,
+} from '@/lib/selector-search';
+import type {
+  LocationListItem,
+  Paginated,
+  Screen,
+  ScheduleTargetType,
+  ScreenGroup,
+} from '@/lib/types';
+import { Badge, Button, Input, Select } from '@/components/ui';
 
 export interface SelectedTarget {
   targetType: ScheduleTargetType;
   targetId: string;
 }
 
+type SelectorEntity =
+  | Pick<Screen, 'id' | 'name'>
+  | Pick<ScreenGroup, 'id' | 'name'>
+  | Pick<LocationListItem, 'id' | 'name'>;
+
 /**
- * Picks schedule targets (screens / groups / locations / company-wide). Renders
- * the current targets as removable chips and an "add" row. The parent owns the
- * list (local state for create, API calls for an existing schedule).
+ * Picks schedule targets (screens / groups / locations / company-wide).
+ *
+ * Large tenants are searched SERVER-SIDE rather than downloading every page.
+ * Only one bounded list is requested for the currently selected target type,
+ * while existing selected targets are resolved individually when their label is
+ * outside the current search result. Tenant size therefore never creates a
+ * hidden "first 2,000" correctness ceiling.
  */
 export function TargetSelector({
   targets,
@@ -30,43 +52,79 @@ export function TargetSelector({
 }) {
   const [type, setType] = useState<ScheduleTargetType>('SCREEN');
   const [entityId, setEntityId] = useState('');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [resolvedLabels, setResolvedLabels] = useState<Record<string, string>>({});
 
-  const screens = useAllPages<Screen>('/screens');
-  const groups = useAllPages<ScreenGroup>('/screen-groups');
-  const locations = useAllPages<LocationListItem>('/locations');
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
-  const labelFor = useMemo(() => {
-    const map = new Map<string, string>();
-    screens.data?.items.forEach((s) => map.set(`SCREEN:${s.id}`, s.name));
-    groups.data?.items.forEach((g) => map.set(`SCREEN_GROUP:${g.id}`, g.name));
-    locations.data?.items.forEach((l) => map.set(`LOCATION:${l.id}`, l.name));
-    return (t: SelectedTarget) =>
-      t.targetType === 'COMPANY'
+  const searchableType = type === 'COMPANY' ? null : (type as SearchableSelectorType);
+  const searchPath = searchableType ? selectorSearchPath(searchableType, debouncedSearch) : null;
+  const resource = useApiResource<Paginated<SelectorEntity>>(searchPath);
+  const options = useMemo(() => resource.data?.items ?? [], [resource.data]);
+
+  // Cache labels from every search response we see. That means changing the
+  // query never turns already-selected chips back into raw UUIDs.
+  useEffect(() => {
+    if (options.length === 0 || !searchableType) return;
+    setResolvedLabels((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const option of options) {
+        const key = `${searchableType}:${option.id}`;
+        if (next[key] !== option.name) {
+          next[key] = option.name;
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [options, searchableType]);
+
+  // A selected target may not be in the current 50-result search page (or the
+  // selector may open later on an existing schedule). Resolve only those few
+  // missing labels individually instead of falling back to an all-pages crawl.
+  useEffect(() => {
+    let active = true;
+    const missing = targets.filter((target) => {
+      if (target.targetType === 'COMPANY') return false;
+      return !resolvedLabels[`${target.targetType}:${target.targetId}`];
+    });
+    if (missing.length === 0) return;
+
+    void Promise.all(
+      missing.map(async (target) => {
+        try {
+          const entity = await api.get<SelectorEntity>(
+            selectorEntityPath(target.targetType as SearchableSelectorType, target.targetId),
+          );
+          return [`${target.targetType}:${target.targetId}`, entity.name] as const;
+        } catch {
+          return null;
+        }
+      }),
+    ).then((entries) => {
+      if (!active) return;
+      const valid = entries.filter((entry) => entry !== null);
+      if (valid.length === 0) return;
+      setResolvedLabels((current) => ({ ...current, ...Object.fromEntries(valid) }));
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [resolvedLabels, targets]);
+
+  const labelFor = useMemo(
+    () => (target: SelectedTarget) =>
+      target.targetType === 'COMPANY'
         ? 'Company-wide'
-        : (map.get(`${t.targetType}:${t.targetId}`) ?? t.targetId);
-  }, [screens.data, groups.data, locations.data]);
-
-  const options =
-    type === 'SCREEN'
-      ? (screens.data?.items.map((s) => ({ id: s.id, name: s.name })) ?? [])
-      : type === 'SCREEN_GROUP'
-        ? (groups.data?.items.map((g) => ({ id: g.id, name: g.name })) ?? [])
-        : type === 'LOCATION'
-          ? (locations.data?.items.map((l) => ({ id: l.id, name: l.name })) ?? [])
-          : [];
-
-  // The span of whichever list is on screen. A capped list that does not admit
-  // it is the actual defect: a screen missing from this dropdown is
-  // indistinguishable from a screen that was never created, and the user has no
-  // way to find out which.
-  const span =
-    type === 'SCREEN'
-      ? screens.span
-      : type === 'SCREEN_GROUP'
-        ? groups.span
-        : type === 'LOCATION'
-          ? locations.span
-          : null;
+        : (resolvedLabels[`${target.targetType}:${target.targetId}`] ?? target.targetId),
+    [resolvedLabels],
+  );
 
   const add = () => {
     if (type === 'COMPANY') {
@@ -74,29 +132,27 @@ export function TargetSelector({
       return;
     }
     if (!entityId) return;
-    if (targets.some((t) => t.targetType === type && t.targetId === entityId)) return;
+    if (targets.some((target) => target.targetType === type && target.targetId === entityId)) return;
     onAdd({ targetType: type, targetId: entityId });
     setEntityId('');
   };
 
   return (
     <div className="space-y-3">
-      {span?.truncated && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-          Showing the first {span.loaded} of {span.total}. Narrow the list from the main page to
-          reach the rest.
-        </div>
-      )}
       <div className="flex flex-wrap gap-2">
         {targets.length === 0 ? (
           <span className="text-muted-foreground text-sm">No targets yet.</span>
         ) : (
-          targets.map((t, i) => (
-            <Badge key={`${t.targetType}:${t.targetId}`} tone="info" className="gap-1">
-              <span className="opacity-70">{t.targetType.replace('_', ' ').toLowerCase()}:</span>{' '}
-              {labelFor(t)}
+          targets.map((target, index) => (
+            <Badge key={`${target.targetType}:${target.targetId}`} tone="info" className="gap-1">
+              <span className="opacity-70">{target.targetType.replace('_', ' ').toLowerCase()}:</span>{' '}
+              {labelFor(target)}
               {!busy ? (
-                <button onClick={() => onRemove(t, i)} aria-label="Remove target" className="ms-1">
+                <button
+                  onClick={() => onRemove(target, index)}
+                  aria-label="Remove target"
+                  className="ms-1"
+                >
                   <X className="size-3" />
                 </button>
               ) : null}
@@ -108,9 +164,11 @@ export function TargetSelector({
       <div className="flex flex-wrap gap-2">
         <Select
           value={type}
-          onChange={(e) => {
-            setType(e.target.value as ScheduleTargetType);
+          onChange={(event) => {
+            setType(event.target.value as ScheduleTargetType);
             setEntityId('');
+            setSearch('');
+            setDebouncedSearch('');
           }}
           className="w-44"
         >
@@ -119,16 +177,51 @@ export function TargetSelector({
           <option value="LOCATION">Location</option>
           <option value="COMPANY">Company-wide</option>
         </Select>
+
         {type !== 'COMPANY' ? (
-          <Select value={entityId} onChange={(e) => setEntityId(e.target.value)} className="flex-1">
-            <option value="">Select…</option>
-            {options.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
+          <div className="min-w-56 flex-1 space-y-2">
+            <div className="relative">
+              <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
+              <Input
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setEntityId('');
+                }}
+                placeholder={`Search ${type.replace('_', ' ').toLowerCase()}s…`}
+                className="ps-9"
+                aria-label={`Search ${type.replace('_', ' ').toLowerCase()}s`}
+              />
+            </div>
+            <Select
+              value={entityId}
+              onChange={(event) => setEntityId(event.target.value)}
+              disabled={resource.loading || !!resource.error}
+              className="w-full"
+            >
+              <option value="">
+                {resource.loading
+                  ? 'Searching…'
+                  : resource.error
+                    ? 'Search failed — try again'
+                    : options.length === 0
+                      ? 'No matches'
+                      : 'Select…'}
               </option>
-            ))}
-          </Select>
+              {options.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              {resource.data?.meta?.total && resource.data.meta.total > SELECTOR_RESULT_LIMIT
+                ? `${resource.data.meta.total} matches — refine your search to find any target.`
+                : `Showing up to ${SELECTOR_RESULT_LIMIT} server matches.`}
+            </p>
+          </div>
         ) : null}
+
         <Button
           variant="outline"
           onClick={add}

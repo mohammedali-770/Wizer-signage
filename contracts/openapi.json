@@ -3600,7 +3600,44 @@
       },
       "get": {
         "operationId": "TagsController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive tag-name search.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Exact stored tag type. Mutually exclusive with applicableTo.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SCREEN",
+                "CONTENT",
+                "BOTH"
+              ]
+            }
+          },
+          {
+            "name": "applicableTo",
+            "required": false,
+            "in": "query",
+            "description": "Selector-oriented applicability filter. SCREEN returns SCREEN+BOTH; CONTENT returns CONTENT+BOTH. Mutually exclusive with exact `type`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SCREEN",
+                "CONTENT"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -3803,6 +3840,43 @@
           }
         ],
         "summary": "The company's usage vs plan limits (with grace status).",
+        "tags": [
+          "company-settings"
+        ]
+      }
+    },
+    "/company-settings/android-ota": {
+      "put": {
+        "operationId": "CompanySettingsController_updateAndroidOta",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AndroidOtaSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySettingsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace the staged Android OTA rollout policy (target/canaries/percentage/halt).",
         "tags": [
           "company-settings"
         ]
@@ -6162,7 +6236,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MonitoringOverviewDto"
+                  "$ref": "#/components/schemas/MonitoringOverviewPaginatedDto"
                 }
               }
             }
@@ -6173,9 +6247,36 @@
             "bearer": []
           }
         ],
-        "summary": "Fleet status counts, sync breakdown, alerts, and per-screen status.",
+        "summary": "Whole-fleet status counts plus a paginated screen list and bounded live alert candidates.",
         "tags": [
           "monitoring"
+        ]
+      }
+    },
+    "/monitoring/fleet-health": {
+      "get": {
+        "operationId": "FleetHealthController_summary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FleetHealthSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get company player-version distribution and recent crash diagnostics",
+        "tags": [
+          "Monitoring"
         ]
       }
     },
@@ -7296,12 +7397,26 @@
           }
         ],
         "responses": {
-          "200": {
+          "202": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ImportCommitResultDto"
+                  "type": "object",
+                  "required": [
+                    "accepted",
+                    "importJobId"
+                  ],
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "importJobId": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
                 }
               }
             }
@@ -7312,7 +7427,7 @@
             "bearer": []
           }
         ],
-        "summary": "Commit a validated import (creates the rows, reusing entity validation + plan limits).",
+        "summary": "Queue a validated import for background commit. The maintenance worker performs the row writes.",
         "tags": [
           "imports"
         ]
@@ -7647,12 +7762,31 @@
           }
         ],
         "responses": {
-          "200": {
+          "202": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReportDeliveryDto"
+                  "type": "object",
+                  "required": [
+                    "accepted",
+                    "scheduledReportId",
+                    "queuedAt"
+                  ],
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "scheduledReportId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "queuedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
                 }
               }
             }
@@ -7663,7 +7797,7 @@
             "bearer": []
           }
         ],
-        "summary": "Run the report now and email it.",
+        "summary": "Queue an enabled report for the maintenance worker to generate and email.",
         "tags": [
           "scheduled-reports"
         ]
@@ -11528,6 +11662,117 @@
           }
         }
       },
+      "AndroidOtaAutoRollbackDto": {
+        "type": "object",
+        "properties": {
+          "triggeredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fromVersionName": {
+            "type": "string"
+          },
+          "fromVersionCode": {
+            "type": "number"
+          },
+          "toVersionName": {
+            "type": "string"
+          },
+          "toVersionCode": {
+            "type": "number"
+          },
+          "failedScreenIds": {
+            "description": "Bounded sample of screens that failed the rollout health gate.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "triggeredAt",
+          "fromVersionName",
+          "fromVersionCode",
+          "toVersionName",
+          "toVersionCode",
+          "failedScreenIds"
+        ]
+      },
+      "AndroidOtaSettingsResponseDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "policyRevision": {
+            "type": "object",
+            "nullable": true,
+            "description": "Opaque revision changed on every explicit or automatic policy transition; devices use it to bound terminal retries."
+          },
+          "targetVersionName": {
+            "type": "object",
+            "nullable": true
+          },
+          "targetVersionCode": {
+            "type": "object",
+            "nullable": true
+          },
+          "rollbackVersionName": {
+            "type": "object",
+            "nullable": true,
+            "description": "Pre-published known-good forward rollback release."
+          },
+          "rollbackVersionCode": {
+            "type": "object",
+            "nullable": true,
+            "description": "Must be greater than the candidate versionCode."
+          },
+          "rolloutPercent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "screenIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groupIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "checkIntervalSeconds": {
+            "type": "number",
+            "minimum": 900,
+            "maximum": 86400
+          },
+          "healthWindowSeconds": {
+            "type": "number",
+            "minimum": 300,
+            "maximum": 3600
+          },
+          "lastAutoRollback": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AndroidOtaAutoRollbackDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "rolloutPercent",
+          "screenIds",
+          "groupIds",
+          "checkIntervalSeconds",
+          "healthWindowSeconds"
+        ]
+      },
       "CompanyPlanSummaryDto": {
         "type": "object",
         "properties": {
@@ -11615,6 +11860,14 @@
             "type": "boolean",
             "description": "Whether a default kiosk PIN is set. The HASH is never returned — same substitution ScreenDto.hasKioskPin makes."
           },
+          "androidOta": {
+            "description": "Staged Android update policy. Publishing a binary does not modify it.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AndroidOtaSettingsResponseDto"
+              }
+            ]
+          },
           "plan": {
             "nullable": true,
             "description": "Read-only; a Super Admin manages the subscription. null when there is none.",
@@ -11635,7 +11888,8 @@
           "timezone",
           "defaultHeartbeatIntervalSeconds",
           "notificationEmails",
-          "hasDefaultKioskPin"
+          "hasDefaultKioskPin",
+          "androidOta"
         ]
       },
       "UpdateCompanySettingsDto": {
@@ -11684,6 +11938,76 @@
             "description": "Company-wide fallback content. Existence and ownership are checked server-side."
           }
         }
+      },
+      "AndroidOtaSettingsDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Emergency master switch. false halts new installs immediately."
+          },
+          "targetVersionName": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+            "description": "Exact candidate versionName. Required with targetVersionCode when enabled=true; used to address the immutable per-version manifest."
+          },
+          "targetVersionCode": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Exact candidate versionCode allowed to install. Required when enabled=true."
+          },
+          "rollbackVersionName": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+            "description": "Pre-published known-good rollback versionName. Required when enabled=true. The rollback build must contain known-good code under a higher versionCode because Android does not allow an unattended downgrade."
+          },
+          "rollbackVersionCode": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Pre-published known-good rollback versionCode. Required when enabled=true and must be greater than targetVersionCode."
+          },
+          "rolloutPercent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Stable deterministic fleet cohort percentage."
+          },
+          "screenIds": {
+            "maxItems": 200,
+            "description": "Explicit same-company screen canaries. Eligible regardless of rolloutPercent.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groupIds": {
+            "maxItems": 100,
+            "description": "Explicit same-company screen-group canaries. Eligible regardless of rolloutPercent.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "checkIntervalSeconds": {
+            "type": "number",
+            "minimum": 900,
+            "maximum": 86400,
+            "default": 21600
+          },
+          "healthWindowSeconds": {
+            "type": "number",
+            "minimum": 300,
+            "maximum": 3600,
+            "default": 900,
+            "description": "Maximum time after an INSTALLING/INSTALLED report for the candidate to prove a healthy ONLINE heartbeat from the exact candidate version before maintenance automatically switches this rollout cohort to the pre-staged rollback build."
+          }
+        },
+        "required": [
+          "enabled",
+          "rolloutPercent"
+        ]
       },
       "SetDefaultKioskPinDto": {
         "type": "object",
@@ -14276,7 +14600,30 @@
           "paired"
         ]
       },
-      "MonitoringOverviewDto": {
+      "MonitoringScreenPageMetaDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "totalPages"
+        ]
+      },
+      "MonitoringOverviewPaginatedDto": {
         "type": "object",
         "properties": {
           "totals": {
@@ -14312,6 +14659,13 @@
             "items": {
               "$ref": "#/components/schemas/FleetScreenDto"
             }
+          },
+          "screenMeta": {
+            "$ref": "#/components/schemas/MonitoringScreenPageMetaDto"
+          },
+          "alertsTruncated": {
+            "type": "boolean",
+            "description": "True when more than 200 live OFFLINE/WARNING alert candidates exist; use screen pagination/export for the remainder."
           }
         },
         "required": [
@@ -14320,7 +14674,107 @@
           "withFailedDownloads",
           "missingHeartbeat",
           "alerts",
-          "screens"
+          "screens",
+          "screenMeta",
+          "alertsTruncated"
+        ]
+      },
+      "FleetVersionDistributionDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "example": "1.4.2"
+          },
+          "count": {
+            "type": "number",
+            "example": 12,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "version",
+          "count"
+        ]
+      },
+      "FleetRecentCrashDto": {
+        "type": "object",
+        "properties": {
+          "screenId": {
+            "type": "string"
+          },
+          "screenName": {
+            "type": "string"
+          },
+          "screenStatus": {
+            "type": "string",
+            "example": "ONLINE"
+          },
+          "appVersion": {
+            "type": "object",
+            "nullable": true,
+            "example": "1.4.2"
+          },
+          "lastHeartbeatAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "crashedAtMillis": {
+            "type": "number",
+            "example": 1786260000000
+          },
+          "fingerprint": {
+            "type": "string",
+            "example": "a1b2c3d4e5f60718293a4b5c",
+            "minLength": 24,
+            "maxLength": 24
+          },
+          "crashCount": {
+            "type": "number",
+            "example": 2,
+            "minimum": 1
+          },
+          "reportedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "screenId",
+          "screenName",
+          "screenStatus",
+          "crashedAtMillis",
+          "fingerprint",
+          "crashCount"
+        ]
+      },
+      "FleetHealthSummaryDto": {
+        "type": "object",
+        "properties": {
+          "totalScreens": {
+            "type": "number",
+            "minimum": 0
+          },
+          "versionDistribution": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetVersionDistributionDto"
+            }
+          },
+          "recentCrashes": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetRecentCrashDto"
+            }
+          }
+        },
+        "required": [
+          "totalScreens",
+          "versionDistribution",
+          "recentCrashes"
         ]
       },
       "NotificationDto": {
@@ -15333,104 +15787,6 @@
           "errors",
           "createdAt",
           "updatedAt"
-        ]
-      },
-      "ImportCommitResultDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "companyId": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "COMPANY",
-              "LOCATION",
-              "SCREEN",
-              "USER",
-              "SCREEN_GROUP",
-              "TAG"
-            ]
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "UPLOADED",
-              "VALIDATED",
-              "COMMITTED",
-              "FAILED",
-              "CANCELLED"
-            ]
-          },
-          "fileName": {
-            "type": "string",
-            "description": "The uploaded filename, as given."
-          },
-          "totalRows": {
-            "type": "number"
-          },
-          "validRows": {
-            "type": "number"
-          },
-          "invalidRows": {
-            "type": "number"
-          },
-          "errors": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "description": "Per-row validation errors found during upload. `[]` when the file was clean."
-          },
-          "committedAt": {
-            "type": "object",
-            "nullable": true,
-            "format": "date-time"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "committed": {
-            "type": "number",
-            "description": "Rows successfully created."
-          },
-          "failed": {
-            "type": "number",
-            "description": "Rows that failed AT COMMIT time — distinct from `invalidRows`, which counts what upload validation rejected. A row can pass upload and still fail here, on a plan limit or a uniqueness clash created since."
-          },
-          "rowErrors": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "description": "The commit-time failures, one entry each."
-          }
-        },
-        "required": [
-          "id",
-          "companyId",
-          "type",
-          "status",
-          "fileName",
-          "totalRows",
-          "validRows",
-          "invalidRows",
-          "errors",
-          "createdAt",
-          "updatedAt",
-          "committed",
-          "failed",
-          "rowErrors"
         ]
       },
       "ScheduledReportDto": {

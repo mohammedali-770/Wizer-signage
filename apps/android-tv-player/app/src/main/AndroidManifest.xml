@@ -2,9 +2,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Network access for content sync, pairing, and playback. -->
+    <!-- Network access for content sync, pairing, playback, and OTA releases. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- OTA self-update. REQUEST_INSTALL_PACKAGES must be allowlisted once by
+         device provisioning / the operator on normal Android TV. Wizer never
+         opens the unknown-sources Settings UI itself. Android 12+ then supports
+         requesting a no-user-action self-update; PackageInstaller can still
+         refuse and Wizer records BLOCKED without interrupting playback. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <!-- Keep the screen on / device awake while signage is playing. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -33,7 +41,9 @@
 
     <application
         android:name=".SignageApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:banner="@mipmap/ic_launcher"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -89,6 +99,11 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".update.UpdateInstallReceiver"
+            android:enabled="true"
+            android:exported="false" />
 
     </application>
 

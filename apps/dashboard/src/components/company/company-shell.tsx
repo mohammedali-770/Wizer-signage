@@ -36,11 +36,19 @@ import { Logo } from '@/components/brand/logo';
 import { isImpersonating } from '@/lib/impersonation';
 import { ImpersonationBanner } from '@/components/company/impersonation-banner';
 
-type NavItem = { href: string; tkey: string; icon: typeof LayoutDashboard; exact?: boolean };
+type NavItem = {
+  href: string;
+  tkey?: string;
+  labels?: { en: string; ar: string };
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+};
 
 // Grouped navigation — sections keep a 17-item list scannable instead of one
 // long flat column. Labels resolve via the `nav` i18n namespace (en/ar). Routes
-// are unchanged.
+// are unchanged except for production-only operator surfaces that use a small
+// bilingual inline label to avoid expanding the large shared catalogue for one
+// isolated control page.
 const NAV_SECTIONS: { titleKey?: string; items: NavItem[] }[] = [
   { items: [{ href: '/company', tkey: 'overview', icon: LayoutDashboard, exact: true }] },
   {
@@ -76,7 +84,12 @@ const NAV_SECTIONS: { titleKey?: string; items: NavItem[] }[] = [
       { href: '/company/users', tkey: 'items.users', icon: UserCog },
       { href: '/company/tags', tkey: 'items.tags', icon: Tags },
       { href: '/company/map', tkey: 'items.map', icon: MapPin },
-      { href: '/company/settings', tkey: 'items.settings', icon: Settings },
+      { href: '/company/settings', tkey: 'items.settings', icon: Settings, exact: true },
+      {
+        href: '/company/settings/android-ota',
+        labels: { en: 'Android OTA', ar: 'تحديثات Android' },
+        icon: Settings,
+      },
       { href: '/company/activity-logs', tkey: 'items.activityLogs', icon: ScrollText },
     ],
   },
@@ -85,6 +98,7 @@ const NAV_SECTIONS: { titleKey?: string; items: NavItem[] }[] = [
 /** Grouped nav links, shared by the desktop sidebar and the mobile drawer. */
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const locale = useLocale();
   const tNav = useTranslations('nav');
   return (
     <nav className="flex-1 space-y-4 overflow-y-auto p-3">
@@ -100,6 +114,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               ? pathname === item.href
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
+            const label = item.tkey
+              ? tNav(item.tkey)
+              : item.labels?.[locale === 'ar' ? 'ar' : 'en'] ?? item.href;
             return (
               <Link
                 key={item.href}
@@ -114,7 +131,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                 )}
               >
                 <Icon className="size-4 shrink-0" aria-hidden />
-                {tNav(item.tkey)}
+                {label}
               </Link>
             );
           })}

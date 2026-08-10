@@ -1,31 +1,19 @@
 # =============================================================================
-# Wizer Signage maintenance worker — runs the Phase 10 maintenance CLI on a cron
-# schedule (busybox crond) plus the nightly pg_dump backup.
+# Wizer Signage maintenance worker — runs the maintenance CLI on cron plus
+# database backup, TLS checks and telemetry partition preparation.
 #
 # BUILD CONTEXT MUST BE THE REPOSITORY ROOT:
 #   docker build -f infra/docker/Dockerfile.maintenance -t wizer-signage/maintenance .
-#
-# It reuses the API's build (the CLI is apps/api/dist/maintenance/maintenance.cli.js)
-# and adds: busybox crond, su-exec (drop to non-root for jobs), bash + the backup
-# script, and postgresql-client (pg_dump). NO HTTP server is exposed.
 # =============================================================================
 
-# --- Base --------------------------------------------------------------------
 FROM node:26-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-# Corepack is NOT shipped in node:26-alpine — Node removed it from the
-# distribution after 24, so `corepack enable` exits 127. pnpm is installed
-# directly instead, pinned to the exact version in the root package.json
-# `packageManager` field so the image resolves the lockfile identically to
-# local development. Keep this in step with that field.
 RUN npm install -g pnpm@9.12.0
 WORKDIR /app
 
-# --- Dependencies ------------------------------------------------------------
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-# Shared TS base config — extended by the API build and the internal packages.
 COPY tsconfig.base.json ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY packages/types/package.json ./packages/types/package.json
@@ -33,53 +21,50 @@ COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
 RUN pnpm install --filter @wizer/api... --frozen-lockfile
 
-# --- Build -------------------------------------------------------------------
 FROM base AS build
 COPY --from=deps /app /app
 COPY apps/api ./apps/api
 COPY packages ./packages
 RUN pnpm --filter @wizer/api db:generate
-# Build the API plus the internal workspace packages it consumes (see
-# apps/api/Dockerfile) so the runtime image ships compiled JS, not TS source.
 RUN pnpm --filter "@wizer/api..." build
-# Single-project deploy (see apps/api/Dockerfile): a trailing `...` would make
-# pnpm try to deploy the workspace deps as separate projects and fail with
-# ERR_PNPM_CANNOT_DEPLOY_MANY. deploy bundles the workspace deps on its own.
 RUN pnpm --filter @wizer/api --prod deploy /app/deploy
-# Re-generate the Prisma client into the pruned deploy tree (see apps/api/Dockerfile).
 RUN cd /app/deploy && ./node_modules/.bin/prisma generate --schema /app/apps/api/prisma/schema.prisma
 
-# --- Runtime -----------------------------------------------------------------
 FROM node:26-alpine AS runtime
 ENV NODE_ENV=production
-# The backup script records runs through the CLI at this path.
 ENV MAINTENANCE_CLI=/app/dist/maintenance/maintenance.cli.js
 WORKDIR /app
 
-# crond (busybox, bundled), su-exec (drop privileges for jobs), bash + pg_dump
-# (the backup script), tzdata (cron in local time when TZ is set), and openssl
-# (libssl) which the Prisma engines need at runtime for the maintenance CLI.
+# crond (busybox, bundled), su-exec for unprivileged jobs, bash, PostgreSQL
+# client tools (pg_dump + psql), tzdata and OpenSSL for Prisma/runtime TLS.
 RUN apk add --no-cache openssl su-exec bash postgresql-client tzdata
 
-# App runtime (built CLI + pruned prod node_modules incl. the Prisma client).
+# Maintenance runs compiled JavaScript and checked-in shell tools directly.
+# npm/npx are build-only tooling and are not needed in the deployed worker.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx
+
 COPY --from=build --chown=node:node /app/deploy/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/apps/api/dist ./dist
 COPY --from=build --chown=node:node /app/apps/api/package.json ./package.json
 COPY --from=build --chown=node:node /app/apps/api/prisma ./prisma
-# Backup script (+ its Postgres URL helper), the TLS expiry check, and crontab.
+
+# Every shell command referenced by infra/docker/crontab must be physically
+# present in this runtime image. Keep these COPY/chmod lines synchronized with
+# the crontab; the static maintenance-runtime test pins that invariant.
 COPY --chown=node:node scripts/backup-db.sh ./scripts/backup-db.sh
 COPY --chown=node:node scripts/lib/pg-url.sh ./scripts/lib/pg-url.sh
 COPY --chown=node:node scripts/check-cert-expiry.sh ./scripts/check-cert-expiry.sh
+COPY --chown=node:node scripts/ensure-telemetry-partitions.sh ./scripts/ensure-telemetry-partitions.sh
 COPY infra/docker/crontab /etc/crontabs/root
-RUN chmod +x ./scripts/backup-db.sh ./scripts/check-cert-expiry.sh
+RUN chmod +x \
+  ./scripts/backup-db.sh \
+  ./scripts/check-cert-expiry.sh \
+  ./scripts/ensure-telemetry-partitions.sh
 
-# Entrypoint (root) makes the freshly-mounted /backups volume writable by node
-# before crond starts, then execs crond. Jobs still su-exec down to node.
 COPY infra/docker/maintenance-entrypoint.sh /usr/local/bin/maintenance-entrypoint.sh
 RUN chmod +x /usr/local/bin/maintenance-entrypoint.sh
 
-# crond must start as root to schedule + su-exec down to "node" per job; the jobs
-# themselves never run as root. A persistent backup volume is mounted at /backups.
 HEALTHCHECK --interval=60s --timeout=5s --start-period=15s --retries=3 \
   CMD pgrep crond >/dev/null || exit 1
 

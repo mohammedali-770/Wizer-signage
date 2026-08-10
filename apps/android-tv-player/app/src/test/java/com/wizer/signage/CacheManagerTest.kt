@@ -94,4 +94,17 @@ class CacheManagerTest {
         assertTrue(reopened.isReady("c1", "v1"))
         assertEquals(1, reopened.cachedCount())
     }
+
+    @Test
+    fun corruptIndexFailsClosedInsteadOfTrustingOrphanedAssets() {
+        val assetFile = commit("c1")
+        assertTrue(assetFile.exists())
+        File(baseDir, "cache_index.json").writeText("{\"assets\":")
+
+        val reopened = CacheManager(baseDir)
+
+        assertEquals(0, reopened.cachedCount())
+        assertFalse("an unindexed orphan must not become playable", reopened.isReady("c1", "v1"))
+        assertNull(reopened.readyFile("c1", "v1"))
+    }
 }

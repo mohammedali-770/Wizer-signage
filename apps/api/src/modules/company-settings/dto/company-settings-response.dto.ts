@@ -18,17 +18,74 @@ export class CompanyPlanSummaryDto {
   limits!: PlanLimitsViewDto;
 }
 
+export class AndroidOtaAutoRollbackDto {
+  @ApiProperty({ format: 'date-time' })
+  triggeredAt!: string;
+
+  @ApiProperty()
+  fromVersionName!: string;
+
+  @ApiProperty()
+  fromVersionCode!: number;
+
+  @ApiProperty()
+  toVersionName!: string;
+
+  @ApiProperty()
+  toVersionCode!: number;
+
+  @ApiProperty({ type: [String], description: 'Bounded sample of screens that failed the rollout health gate.' })
+  failedScreenIds!: string[];
+}
+
+export class AndroidOtaSettingsResponseDto {
+  @ApiProperty()
+  enabled!: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Opaque revision changed on every explicit or automatic policy transition; devices use it to bound terminal retries.',
+  })
+  policyRevision?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  targetVersionName?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  targetVersionCode?: number | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Pre-published known-good forward rollback release.' })
+  rollbackVersionName?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Must be greater than the candidate versionCode.' })
+  rollbackVersionCode?: number | null;
+
+  @ApiProperty({ minimum: 0, maximum: 100 })
+  rolloutPercent!: number;
+
+  @ApiProperty({ type: [String] })
+  screenIds!: string[];
+
+  @ApiProperty({ type: [String] })
+  groupIds!: string[];
+
+  @ApiProperty({ minimum: 900, maximum: 86400 })
+  checkIntervalSeconds!: number;
+
+  @ApiProperty({ minimum: 300, maximum: 3600 })
+  healthWindowSeconds!: number;
+
+  @ApiPropertyOptional({ type: AndroidOtaAutoRollbackDto, nullable: true })
+  lastAutoRollback?: AndroidOtaAutoRollbackDto | null;
+}
+
 /**
- * GET /company-settings, and what PATCH returns (it re-reads).
+ * GET /company-settings, and what PATCH/PUT android-ota returns (it re-reads).
  *
  * Assembled from two rows — the Company and its settings JSON — with defaults
  * applied at read time, so several fields are never null even though nothing
  * was ever written: `defaultHeartbeatIntervalSeconds` falls back to 60 and
  * `notificationEmails` to `[]`.
- *
- * `hasDefaultKioskPin` replaces `defaultKioskPinHash`, exactly as
- * `ScreenDto.hasKioskPin` replaces `kioskPinHash`. The hash must never appear
- * here; the boolean is all a settings page needs.
  */
 export class CompanySettingsDto {
   @ApiProperty()
@@ -72,6 +129,12 @@ export class CompanySettingsDto {
       'ScreenDto.hasKioskPin makes.',
   })
   hasDefaultKioskPin!: boolean;
+
+  @ApiProperty({
+    type: AndroidOtaSettingsResponseDto,
+    description: 'Staged Android update policy. Publishing a binary does not modify it.',
+  })
+  androidOta!: AndroidOtaSettingsResponseDto;
 
   @ApiPropertyOptional({
     type: CompanyPlanSummaryDto,

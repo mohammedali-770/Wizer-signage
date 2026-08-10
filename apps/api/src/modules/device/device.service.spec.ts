@@ -12,17 +12,22 @@ function build() {
       findUnique: jest.fn(),
       create: jest.fn().mockResolvedValue({}),
       update: jest.fn().mockResolvedValue({}),
-      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     device: {
       findUnique: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       upsert: jest.fn().mockResolvedValue({}),
       update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     screen: {
       findFirst: jest.fn().mockResolvedValue({ id: 's1', status: 'UNPAIRED' }),
-      findUnique: jest.fn().mockResolvedValue({ name: 'Lobby', orientation: 'LANDSCAPE' }),
+      findUnique: jest
+        .fn()
+        .mockResolvedValue({ name: 'Lobby', orientation: 'LANDSCAPE', deletedAt: null }),
       update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
   };
   prisma.$transaction = jest.fn((arg: any) =>
@@ -50,7 +55,7 @@ function build() {
 describe('DeviceService.startPairing', () => {
   it('mints a unique code + private secret and logs', async () => {
     const t = build();
-    t.prisma.pairingCode.findUnique.mockResolvedValue(null); // code is unique
+    t.prisma.pairingCode.findUnique.mockResolvedValue(null);
     const result = await t.service.startPairing({ deviceId: 'dev1', appVersion: '1.0' });
     expect(result.code).toBe('ABC123');
     expect(result.pairingSecret).toBe('rawtoken');
@@ -82,7 +87,7 @@ describe('DeviceService.pairingStatus', () => {
     );
   });
 
-  it('marks an expired PENDING code expired', async () => {
+  it('marks an expired PENDING code expired with a conditional update', async () => {
     const t = build();
     t.prisma.pairingCode.findUnique.mockResolvedValue({
       id: 'pc1',
@@ -92,8 +97,11 @@ describe('DeviceService.pairingStatus', () => {
     });
     const res = await t.service.pairingStatus('ABC123', 's');
     expect(res.status).toBe('expired');
-    expect(t.prisma.pairingCode.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: 'EXPIRED' } }),
+    expect(t.prisma.pairingCode.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'pc1', status: 'PENDING' }),
+        data: { status: 'EXPIRED' },
+      }),
     );
   });
 
@@ -122,6 +130,7 @@ describe('DeviceService.pairingStatus', () => {
     });
     t.prisma.device.findUnique.mockResolvedValue({
       id: 'd1',
+      screenId: 's1',
       deviceId: 'dev1',
       status: 'PENDING',
       deviceTokenHash: null,
@@ -131,12 +140,44 @@ describe('DeviceService.pairingStatus', () => {
     expect(res.status).toBe('paired');
     expect(res.deviceToken).toBe('rawtoken');
     expect(res.screenId).toBe('s1');
-    expect(t.prisma.device.update).toHaveBeenCalledWith(
+    expect(t.prisma.device.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: expect.objectContaining({ id: 'd1', deviceTokenHash: null }),
         data: expect.objectContaining({ deviceTokenHash: 'h:rawtoken', status: 'ACTIVE' }),
       }),
     );
     expect(t.activityLog.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'device.token_issued' }),
+    );
+  });
+
+  it('does not return a token when another simultaneous poll wins token issuance', async () => {
+    const t = build();
+    t.prisma.pairingCode.findUnique.mockResolvedValue({
+      id: 'pc1',
+      status: 'CLAIMED',
+      screenId: 's1',
+      deviceId: 'dev1',
+      pairingSecretHash: 'h:s',
+      expiresAt: new Date(Date.now() + 60_000),
+      deviceInfo: {},
+    });
+    t.prisma.device.findUnique.mockResolvedValue({
+      id: 'd1',
+      screenId: 's1',
+      deviceId: 'dev1',
+      status: 'PENDING',
+      deviceTokenHash: null,
+      companyId: 'comp1',
+    });
+    t.prisma.device.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    const res: any = await t.service.pairingStatus('ABC123', 's');
+
+    expect(res.status).toBe('paired');
+    expect(res.deviceToken).toBeUndefined();
+    expect(t.prisma.screen.updateMany).not.toHaveBeenCalled();
+    expect(t.activityLog.log).not.toHaveBeenCalledWith(
       expect.objectContaining({ action: 'device.token_issued' }),
     );
   });
@@ -154,6 +195,7 @@ describe('DeviceService.pairingStatus', () => {
     });
     t.prisma.device.findUnique.mockResolvedValue({
       id: 'd1',
+      screenId: 's1',
       deviceId: 'dev1',
       status: 'ACTIVE',
       deviceTokenHash: 'h:existing',
@@ -163,34 +205,130 @@ describe('DeviceService.pairingStatus', () => {
     expect(res.status).toBe('paired');
     expect(res.deviceToken).toBeUndefined();
   });
+
+  it('refuses to issue a token if the paired screen was deleted before collection', async () => {
+    const t = build();
+    t.prisma.pairingCode.findUnique.mockResolvedValue({
+      id: 'pc1',
+      status: 'CLAIMED',
+      screenId: 's1',
+      deviceId: 'dev1',
+      pairingSecretHash: 'h:s',
+      expiresAt: new Date(Date.now() + 60_000),
+      deviceInfo: {},
+    });
+    t.prisma.device.findUnique.mockResolvedValue({
+      id: 'd1',
+      screenId: 's1',
+      deviceId: 'dev1',
+      status: 'PENDING',
+      deviceTokenHash: null,
+      companyId: 'comp1',
+    });
+    t.prisma.screen.findUnique.mockResolvedValue({
+      name: 'Lobby',
+      orientation: 'LANDSCAPE',
+      deletedAt: new Date(),
+    });
+
+    const res = await t.service.pairingStatus('ABC123', 's');
+
+    expect(res.status).toBe('revoked');
+    expect(t.prisma.device.updateMany).not.toHaveBeenCalled();
+  });
 });
 
 describe('DeviceService.pairScreen', () => {
-  it('binds a PENDING code to a same-company screen and logs', async () => {
-    const t = build();
-    t.prisma.pairingCode.findUnique.mockResolvedValue({
+  function pendingCode(overrides: Record<string, unknown> = {}) {
+    return {
       id: 'pc1',
       status: 'PENDING',
       expiresAt: new Date(Date.now() + 60_000),
       deviceId: 'dev1',
       deviceInfo: {},
-    });
+      ...overrides,
+    };
+  }
+
+  it('claims a PENDING code atomically, binds it to a same-company screen, and logs', async () => {
+    const t = build();
+    t.prisma.pairingCode.findUnique.mockResolvedValue(pendingCode());
     t.prisma.device.findUnique.mockResolvedValue({
       deviceId: 'dev1',
       status: 'PENDING',
       pairedAt: null,
       lastSeenAt: null,
     });
+
     await t.service.pairScreen('comp1', actor, 's1', { pairingCode: 'abc123' });
-    expect(t.prisma.pairingCode.update).toHaveBeenCalledWith(
+
+    expect(t.prisma.pairingCode.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: expect.objectContaining({ id: 'pc1', status: 'PENDING' }),
         data: expect.objectContaining({ status: 'CLAIMED', companyId: 'comp1', screenId: 's1' }),
       }),
     );
-    expect(t.prisma.device.upsert).toHaveBeenCalled();
+    expect(t.prisma.device.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ deviceTokenHash: null, pairedAt: null }),
+      }),
+    );
     expect(t.activityLog.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'screen.paired' }),
     );
+  });
+
+  it('rejects a code lost to a concurrent claimant before binding any device', async () => {
+    const t = build();
+    t.prisma.pairingCode.findUnique.mockResolvedValue(pendingCode());
+    t.prisma.pairingCode.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      t.service.pairScreen('comp1', actor, 's1', { pairingCode: 'abc123' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(t.prisma.device.upsert).not.toHaveBeenCalled();
+    expect(t.activityLog.log).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'screen.paired' }),
+    );
+  });
+
+  it('atomically revokes an old binding when the same physical TV moves screens', async () => {
+    const t = build();
+    t.prisma.pairingCode.findUnique.mockResolvedValue(pendingCode());
+    t.prisma.device.findMany.mockResolvedValue([{ id: 'old-device-row', screenId: 'old-screen' }]);
+    t.prisma.device.findUnique.mockResolvedValue({
+      deviceId: 'dev1',
+      status: 'PENDING',
+      pairedAt: null,
+      lastSeenAt: null,
+    });
+
+    await t.service.pairScreen('comp1', actor, 's1', { pairingCode: 'abc123' });
+
+    expect(t.prisma.device.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['old-device-row'] } },
+      data: expect.objectContaining({ status: 'REVOKED', deviceTokenHash: null }),
+    });
+    expect(t.prisma.screen.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['old-screen'] }, deletedAt: null },
+      data: { status: 'UNPAIRED', deviceIdentifier: null },
+    });
+    expect(t.prisma.device.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ screenId: 's1', deviceId: 'dev1' }),
+      }),
+    );
+  });
+
+  it('maps the cross-replica physical-device unique race to a safe 400', async () => {
+    const t = build();
+    t.prisma.pairingCode.findUnique.mockResolvedValue(pendingCode());
+    t.prisma.device.upsert.mockRejectedValue(Object.assign(new Error('unique'), { code: 'P2002' }));
+
+    await expect(
+      t.service.pairScreen('comp1', actor, 's1', { pairingCode: 'abc123' }),
+    ).rejects.toThrow(/already being paired/i);
   });
 
   it('rejects pairing a screen from another company (404)', async () => {
@@ -215,14 +353,15 @@ describe('DeviceService.pairScreen', () => {
 
   it('rejects an expired code', async () => {
     const t = build();
-    t.prisma.pairingCode.findUnique.mockResolvedValue({
-      id: 'pc1',
-      status: 'PENDING',
-      expiresAt: new Date(Date.now() - 1000),
-    });
+    t.prisma.pairingCode.findUnique.mockResolvedValue(
+      pendingCode({ expiresAt: new Date(Date.now() - 1000) }),
+    );
     await expect(
       t.service.pairScreen('comp1', actor, 's1', { pairingCode: 'abc123' }),
     ).rejects.toThrow(/expired/i);
+    expect(t.prisma.pairingCode.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'EXPIRED' } }),
+    );
   });
 });
 
@@ -239,6 +378,15 @@ describe('DeviceService.unpairScreen', () => {
     expect(t.prisma.screen.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'UNPAIRED', deviceIdentifier: null }),
+      }),
+    );
+    expect(t.prisma.pairingCode.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          screenId: 's1',
+          status: { in: ['PENDING', 'CLAIMED'] },
+        }),
+        data: { status: 'REVOKED' },
       }),
     );
     expect(t.activityLog.log).toHaveBeenCalledWith(

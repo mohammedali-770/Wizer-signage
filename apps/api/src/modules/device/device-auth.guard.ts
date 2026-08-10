@@ -7,13 +7,22 @@ import type { AuthenticatedDevice } from '../../common/types/device.types';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
+ * `lastSeenAt` is an operational hint, not an event log. Device-auth runs on
+ * manifest, sync-plan, heartbeat, proof-of-play and command requests, so writing
+ * it on every authenticated request turns one healthy TV into many DB writes per
+ * minute. Five minutes is comfortably below the fleet-health/offline window but
+ * removes the write amplification from normal polling.
+ */
+const LAST_SEEN_WRITE_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
  * Authenticates a request with a device token (Phase 6 player). The raw token is
  * accepted via `Authorization: Bearer <token>` or `X-Device-Token`; only its
  * sha256 hash is ever compared against the stored `Device.deviceTokenHash`.
  *
  * On success it attaches a strictly-scoped {@link AuthenticatedDevice} (one
  * screen / one company) to the request — never user/dashboard authority — and
- * best-effort stamps `lastSeenAt`. Device routes are marked `@Public()` so the
+ * periodically stamps `lastSeenAt`. Device routes are marked `@Public()` so the
  * global JWT/tenant/2FA guards stand down and this guard governs access.
  */
 @Injectable()
@@ -35,6 +44,7 @@ export class DeviceAuthGuard implements CanActivate {
         deviceId: true,
         screenId: true,
         companyId: true,
+        lastSeenAt: true,
         screen: { select: { deletedAt: true } },
         company: { select: { status: true } },
       },
@@ -68,12 +78,20 @@ export class DeviceAuthGuard implements CanActivate {
       companyId: row.companyId,
     };
     request.device = device;
-    // Best-effort liveness stamp; never block the request on it. Swallowed
-    // deliberately and without logging: this fires on every device request in
-    // the fleet, so logging a transient failure here would be its own outage.
-    this.prisma.device
-      .update({ where: { id: device.id }, data: { lastSeenAt: new Date() } })
-      .catch(() => undefined);
+
+    const now = new Date();
+    const shouldStampLastSeen =
+      !row.lastSeenAt || now.getTime() - row.lastSeenAt.getTime() >= LAST_SEEN_WRITE_INTERVAL_MS;
+
+    if (shouldStampLastSeen) {
+      // Best-effort liveness stamp; never block the device request on it. The
+      // authentication read above is already mandatory, so using its lastSeenAt
+      // value avoids issuing even a no-op UPDATE on normal high-frequency polls.
+      this.prisma.device
+        .update({ where: { id: device.id }, data: { lastSeenAt: now } })
+        .catch(() => undefined);
+    }
+
     return true;
   }
 

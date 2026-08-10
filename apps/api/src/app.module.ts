@@ -50,6 +50,8 @@ import { ScheduledReportsModule } from './modules/scheduled-reports/scheduled-re
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { DownloadsModule } from './modules/downloads/downloads.module';
 import { PublicModule } from './modules/public/public.module';
+import { MetricsMiddleware } from './modules/observability/metrics.middleware';
+import { ObservabilityModule } from './modules/observability/observability.module';
 
 /**
  * Root application module (Phase 1).
@@ -59,6 +61,9 @@ import { PublicModule } from './modules/public/public.module';
  * rate limiting -> authentication -> roles -> permissions -> tenant presence ->
  * mandatory-2FA, then populate the request-scoped tenant context and normalize
  * all errors into the platform envelope.
+ *
+ * Observability is intentionally cross-cutting: request metrics are middleware
+ * so rejected throttled/auth requests are counted as well as successful ones.
  */
 @Module({
   imports: [
@@ -72,6 +77,7 @@ import { PublicModule } from './modules/public/public.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     CommonModule,
+    ObservabilityModule,
     MailModule,
     HealthModule,
     DownloadsModule,
@@ -120,11 +126,11 @@ import { PublicModule } from './modules/public/public.module';
 })
 export class AppModule implements NestModule {
   /**
-   * Correlation IDs must be assigned before ANY guard, interceptor, or filter
-   * runs — a request rejected by the throttler or the auth guard is exactly the
-   * kind of failure a user reports — so this is middleware, not an interceptor.
+   * Correlation IDs and request metrics must be assigned before ANY guard,
+   * interceptor, or filter runs — a request rejected by the throttler or auth
+   * guard is exactly the kind of failure operators need to diagnose.
    */
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestIdMiddleware).forRoutes('*');
+    consumer.apply(RequestIdMiddleware, MetricsMiddleware).forRoutes('*');
   }
 }

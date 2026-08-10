@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, FileText, Link2, Upload } from 'lucide-react';
 
+import { ServerSearchMultiSelect } from '@/components/server-search-multi-select';
 import { api, ApiError } from '@/lib/api';
-import { useAllPages } from '@/lib/use-api';
-import type { Content, Orientation, Tag } from '@/lib/types';
+import type { Content, Orientation } from '@/lib/types';
+import type { SelectorEntity } from '@/lib/selector-search';
 import { Link, useRouter } from '@/i18n/navigation';
 import {
   Button,
@@ -72,7 +73,8 @@ export default function NewContentPage() {
   const [orientation, setOrientation] = useState<Orientation>('UNKNOWN');
   const [expiresAt, setExpiresAt] = useState('');
   const [durationSeconds, setDurationSeconds] = useState('');
-  const [tagIds, setTagIds] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<SelectorEntity[]>([]);
+  const tagIds = selectedTags.map((tag) => tag.id);
 
   // Upload-specific.
   const [file, setFile] = useState<File | null>(null);
@@ -82,17 +84,6 @@ export default function NewContentPage() {
   const [textBody, setTextBody] = useState('');
 
   const [busy, setBusy] = useState(false);
-
-  // Content tags (CONTENT or BOTH) for the multi-select.
-  const tagsResource = useAllPages<Tag>('/tags');
-  const contentTags = useMemo(
-    () => (tagsResource.data?.items ?? []).filter((t) => t.type === 'CONTENT' || t.type === 'BOTH'),
-    [tagsResource.data],
-  );
-
-  const toggleTag = (id: string) => {
-    setTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
-  };
 
   const parsedDuration = (): number | null => {
     const trimmed = durationSeconds.trim();
@@ -336,42 +327,15 @@ export default function NewContentPage() {
 
             <div>
               <Label>{tc('tags')}</Label>
-              {tagsResource.loading ? (
-                <div className="text-muted-foreground flex items-center gap-2 py-2 text-sm">
-                  <Spinner className="size-4" />
-                  {t('tagsLoading')}
-                </div>
-              ) : contentTags.length === 0 ? (
-                <p className="text-muted-foreground py-1 text-sm">{t('tagsEmpty')}</p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {contentTags.map((tag) => {
-                    const selected = tagIds.includes(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() => toggleTag(tag.id)}
-                        disabled={busy}
-                        aria-pressed={selected}
-                        className={
-                          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition disabled:pointer-events-none disabled:opacity-50 ' +
-                          (selected
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border text-muted-foreground hover:bg-muted')
-                        }
-                      >
-                        <span
-                          aria-hidden
-                          className="border-border inline-block size-2.5 rounded-full border"
-                          style={{ backgroundColor: tag.color ?? 'transparent' }}
-                        />
-                        {tag.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              <ServerSearchMultiSelect
+                type="TAG"
+                tagApplicability="CONTENT"
+                value={selectedTags}
+                onChange={setSelectedTags}
+                searchPlaceholder={tc('search')}
+                emptyText={t('tagsEmpty')}
+                disabled={busy}
+              />
               <p className="text-muted-foreground mt-1.5 text-xs">{t('tagsHint')}</p>
             </div>
 

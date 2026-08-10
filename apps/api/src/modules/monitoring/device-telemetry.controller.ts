@@ -17,17 +17,14 @@ import { Public } from '../../common/decorators/public.decorator';
 import type { AuthenticatedDevice } from '../../common/types/device.types';
 import { DeviceAuthGuard } from '../device/device-auth.guard';
 import { DeviceCommandService } from './device-command.service';
+import { DeviceCrashService } from './device-crash.service';
 import { HeartbeatService } from './heartbeat.service';
 import { ScreenshotService } from './screenshot.service';
+import { DeviceCrashReportDto } from './dto/crash-report.dto';
 import { CommandResultDto, HeartbeatDto, ScreenshotUploadDto } from './dto/monitoring.dto';
 
-// 12 MB cap on screenshot uploads.
 const SCREENSHOT_LIMIT = { limits: { fileSize: 12 * 1024 * 1024 } };
 
-/**
- * Device-facing monitoring API (Phase 8). All routes are `@Public()` + governed
- * by {@link DeviceAuthGuard}; each is strictly scoped to the device's own screen.
- */
 @ApiExcludeController()
 @Public()
 @UseGuards(DeviceAuthGuard)
@@ -37,12 +34,19 @@ export class DeviceTelemetryController {
     private readonly heartbeat: HeartbeatService,
     private readonly commands: DeviceCommandService,
     private readonly screenshots: ScreenshotService,
+    private readonly crashes: DeviceCrashService,
   ) {}
 
   @Post('heartbeat')
   @HttpCode(200)
   reportHeartbeat(@CurrentDevice() device: AuthenticatedDevice, @Body() dto: HeartbeatDto) {
     return this.heartbeat.record(device, dto);
+  }
+
+  @Post('crash-report')
+  @HttpCode(200)
+  reportCrash(@CurrentDevice() device: AuthenticatedDevice, @Body() dto: DeviceCrashReportDto) {
+    return this.crashes.record(device, dto);
   }
 
   @Get('commands/pending')

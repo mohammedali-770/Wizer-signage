@@ -6,8 +6,8 @@ import { ArrowLeft } from 'lucide-react';
 
 import { Link, useRouter } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
-import { useAllPages } from '@/lib/use-api';
-import type { PlaylistListItem, Schedule, ScheduleStatus, ScheduleType } from '@/lib/types';
+import type { Schedule, ScheduleStatus, ScheduleType } from '@/lib/types';
+import { ServerSearchSelect } from '@/components/server-search-select';
 import { DaysOfWeekField } from '@/components/schedules/days-of-week-field';
 import { TargetSelector, type SelectedTarget } from '@/components/schedules/target-selector';
 import {
@@ -35,7 +35,6 @@ export default function NewSchedulePage() {
   const tc = useTranslations('common');
   const router = useRouter();
   const { toast } = useToast();
-  const playlists = useAllPages<PlaylistListItem>('/playlists?status=ACTIVE');
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -106,14 +105,14 @@ export default function NewSchedulePage() {
               <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
             </Field>
             <Field label={t('fields.playlist')}>
-              <Select value={playlistId} onChange={(e) => setPlaylistId(e.target.value)}>
-                <option value="">{t('fields.noneYet')}</option>
-                {playlists.data?.items.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.title}
-                  </option>
-                ))}
-              </Select>
+              <ServerSearchSelect
+                type="PLAYLIST"
+                value={playlistId}
+                onChange={setPlaylistId}
+                emptyLabel={t('fields.noneYet')}
+                searchPlaceholder={tc('search')}
+                disabled={saving}
+              />
             </Field>
             <Field label={tc('description')} hint={t('hints.optional')}>
               <Textarea

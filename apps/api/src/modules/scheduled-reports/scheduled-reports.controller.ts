@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import {
+  ApiAcceptedResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
@@ -18,22 +19,18 @@ import {
   ListScheduledReportsQueryDto,
   UpdateScheduledReportDto,
 } from './dto/scheduled-report.dto';
-import {
-  ScheduledReportDetailDto,
-  ScheduledReportDto,
-  ReportDeliveryDto,
-} from './dto/scheduled-report-response.dto';
+import { ScheduledReportDetailDto, ScheduledReportDto } from './dto/scheduled-report-response.dto';
+import { ScheduledReportQueueService } from './scheduled-report-queue.service';
 import { ScheduledReportService } from './scheduled-report.service';
 
-/**
- * Scheduled reports (Phase 10). Reads require `report:read`; create/manage/run
- * require `report:schedule` (Company Admin). Company-scoped throughout.
- */
 @ApiTags('scheduled-reports')
 @ApiBearerAuth()
 @Controller('scheduled-reports')
 export class ScheduledReportsController {
-  constructor(private readonly reports: ScheduledReportService) {}
+  constructor(
+    private readonly reports: ScheduledReportService,
+    private readonly queue: ScheduledReportQueueService,
+  ) {}
 
   @Get()
   @RequirePermissions(Permission.ReportRead)
@@ -103,18 +100,28 @@ export class ScheduledReportsController {
   }
 
   @Post(':id/run')
-  @HttpCode(200)
+  @HttpCode(202)
   @RequirePermissions(Permission.ReportSchedule)
-  @ApiOperation({ summary: 'Run the report now and email it.' })
-  // Returns the DELIVERY, not the report — the caller wants to know whether
-  // this run reached anyone.
-  @ApiOkResponse({ type: ReportDeliveryDto })
+  @ApiOperation({
+    summary: 'Queue an enabled report for the maintenance worker to generate and email.',
+  })
+  @ApiAcceptedResponse({
+    schema: {
+      type: 'object',
+      required: ['accepted', 'scheduledReportId', 'queuedAt'],
+      properties: {
+        accepted: { type: 'boolean', example: true },
+        scheduledReportId: { type: 'string', format: 'uuid' },
+        queuedAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
   run(
     @CurrentCompany() companyId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
   ) {
-    return this.reports.runNow(companyId, user, id);
+    return this.queue.queue(companyId, user, id);
   }
 
   @Delete(':id')

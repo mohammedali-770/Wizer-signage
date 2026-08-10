@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
-import { useAllPages, useApiResource } from '@/lib/use-api';
+import { useApiResource } from '@/lib/use-api';
 import { formatBytes, formatDate, formatNumber } from '@/lib/format';
 import type {
   Content,
@@ -28,9 +28,9 @@ import type {
   ContentUsage,
   Orientation,
   Paginated,
-  Tag,
 } from '@/lib/types';
 import { Link } from '@/i18n/navigation';
+import { ServerSearchSelect } from '@/components/server-search-select';
 import {
   Badge,
   Button,
@@ -141,12 +141,6 @@ export default function ContentLibraryPage() {
   const [busy, setBusy] = useState(false);
 
   const usage = useApiResource<ContentUsage>('/content/usage');
-  const tags = useAllPages<Tag>('/tags');
-
-  const contentTags = useMemo(
-    () => (tags.data?.items ?? []).filter((t) => t.type === 'CONTENT' || t.type === 'BOTH'),
-    [tags.data],
-  );
 
   const path = useMemo(() => {
     const params = new URLSearchParams();
@@ -412,22 +406,19 @@ export default function ContentLibraryPage() {
           ))}
         </Select>
 
-        <Select
-          value={tagId}
-          onChange={(e) => {
-            setTagId(e.target.value);
-            resetPage();
-          }}
-          className="w-40"
-          aria-label={t('filterTagAria')}
-        >
-          <option value="">{t('allTags')}</option>
-          {contentTags.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </Select>
+        <div className="w-48">
+          <ServerSearchSelect
+            type="TAG"
+            value={tagId}
+            onChange={(value) => {
+              setTagId(value);
+              resetPage();
+            }}
+            emptyLabel={t('allTags')}
+            searchPlaceholder={locale === 'ar' ? 'بحث عن الوسوم…' : 'Search tags…'}
+            tagApplicability="CONTENT"
+          />
+        </div>
 
         <Select
           value={expiry}
@@ -642,23 +633,18 @@ export default function ContentLibraryPage() {
       >
         <div className="space-y-4">
           <Field label={t('tagDialog.contentTag')}>
-            <Select
+            <ServerSearchSelect
+              type="TAG"
               value={tagDialog?.tagId ?? ''}
-              onChange={(e) =>
-                setTagDialog((prev) => (prev ? { ...prev, tagId: e.target.value } : prev))
+              onChange={(value) =>
+                setTagDialog((prev) => (prev ? { ...prev, tagId: value } : prev))
               }
-            >
-              <option value="">{t('tagDialog.selectTag')}</option>
-              {contentTags.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {tag.name}
-                </option>
-              ))}
-            </Select>
+              emptyLabel={t('tagDialog.selectTag')}
+              searchPlaceholder={locale === 'ar' ? 'بحث عن الوسوم…' : 'Search tags…'}
+              tagApplicability="CONTENT"
+              disabled={busy}
+            />
           </Field>
-          {contentTags.length === 0 ? (
-            <p className="text-muted-foreground text-xs">{t('tagDialog.noTags')}</p>
-          ) : null}
           <div className="border-border flex justify-end gap-2 border-t pt-4">
             <Button
               type="button"

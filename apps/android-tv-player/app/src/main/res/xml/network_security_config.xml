@@ -1,27 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Wizer Signage TV Player — network security configuration (Phase 0).
-
-    Production traffic (API + Supabase) is always HTTPS. Cleartext is permitted only
-    for local development pairing/testing against a dev machine on the LAN. Tighten or
-    remove the cleartext allowances before shipping to real devices.
+    Production/default network posture. The Wizer API and content/storage
+    endpoints are HTTPS-only; no release build carries a loopback/LAN HTTP
+    exception. Development-only cleartext exceptions live under src/debug and
+    therefore cannot be packaged into a release APK.
 -->
 <network-security-config>
-
-    <!-- Default: disallow cleartext everywhere (production posture). -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-
-    <!-- Allow cleartext to local dev hosts only (loopback + common LAN ranges). -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">10.0.2.2</domain>      <!-- Android emulator host -->
-        <domain includeSubdomains="true">127.0.0.1</domain>
-        <domain includeSubdomains="true">192.168.0.0</domain>
-        <domain includeSubdomains="true">192.168.1.0</domain>
-    </domain-config>
-
 </network-security-config>

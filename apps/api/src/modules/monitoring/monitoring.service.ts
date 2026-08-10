@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import { resolvePagination } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ScreenshotService } from './screenshot.service';
+import type { MonitoringOverviewQueryDto } from './dto/monitoring-query.dto';
 import { deriveScreenStatus, type LiveScreenStatus } from './monitoring.constants';
+import { ScreenshotService } from './screenshot.service';
 
 const SCREEN_INCLUDE = {
   device: true,
@@ -12,11 +14,61 @@ const SCREEN_INCLUDE = {
 
 type ScreenWithDevice = Prisma.ScreenGetPayload<{ include: typeof SCREEN_INCLUDE }>;
 
-/**
- * Read-side monitoring (Phase 8). Live screen status is DERIVED from the last
- * heartbeat on every read (no scheduler needed): a paired screen with no fresh
- * heartbeat is OFFLINE. Provides a fleet overview + per-screen telemetry.
- */
+type StatusScreen = {
+  status: string;
+  lastHeartbeatAt: Date | null;
+  heartbeatIntervalSeconds: number | null;
+  device: null | {
+    lastHeartbeatAt: Date | null;
+    syncStatus: string | null;
+    lastSyncError: string | null;
+    playbackState: string | null;
+  };
+};
+
+const OVERVIEW_SELECT = {
+  id: true,
+  name: true,
+  status: true,
+  lastHeartbeatAt: true,
+  heartbeatIntervalSeconds: true,
+  appVersion: true,
+  location: { select: { name: true } },
+  device: {
+    select: {
+      status: true,
+      lastHeartbeatAt: true,
+      playbackState: true,
+      currentContentId: true,
+      syncStatus: true,
+      lastSyncError: true,
+      appVersion: true,
+      cacheSizeBytes: true,
+      failedDownloads: true,
+    },
+  },
+} satisfies Prisma.ScreenSelect;
+
+type FleetAggregate = {
+  total: bigint;
+  online: bigint;
+  offline: bigint;
+  warning: bigint;
+  unpaired: bigint;
+  pairing: bigint;
+  disabled: bigint;
+  archived: bigint;
+  with_failed_downloads: bigint;
+  missing_heartbeat: bigint;
+};
+
+type AlertRow = {
+  id: string;
+  name: string;
+  live_status: 'OFFLINE' | 'WARNING';
+  warning_reason: string | null;
+};
+
 @Injectable()
 export class MonitoringService {
   constructor(
@@ -83,7 +135,6 @@ export class MonitoringService {
           }
         : null,
       latestScreenshot,
-      // Capabilities are best-effort: device-reported where available, else placeholder.
       capabilities: {
         screenshot: reportedCaps.screenshot ?? true,
         reboot: reportedCaps.reboot ?? false,
@@ -94,15 +145,116 @@ export class MonitoringService {
     };
   }
 
-  async overview(companyId: string) {
-    const screens = await this.prisma.screen.findMany({
-      where: { companyId, deletedAt: null },
-      include: SCREEN_INCLUDE,
-      orderBy: { name: 'asc' },
-    });
+  async overview(companyId: string, query: MonitoringOverviewQueryDto = {}) {
+    const { skip, take, meta } = resolvePagination(query);
+
+    const [aggregateRows, screens, syncGroups, alertRows] = await Promise.all([
+      this.prisma.$queryRaw<FleetAggregate[]>`
+        WITH fleet AS (
+          SELECT
+            s."id",
+            CASE
+              WHEN s."status"::text IN ('DISABLED', 'ARCHIVED', 'UNPAIRED', 'PAIRING')
+                THEN s."status"::text
+              WHEN COALESCE(d."lastHeartbeatAt", s."lastHeartbeatAt") IS NULL
+                OR COALESCE(d."lastHeartbeatAt", s."lastHeartbeatAt") <
+                  CURRENT_TIMESTAMP - make_interval(
+                    secs => COALESCE(NULLIF(s."heartbeatIntervalSeconds", 0), 60) * 3
+                  )
+                THEN 'OFFLINE'
+              WHEN d."playbackState"::text = 'ERROR'
+                OR d."syncStatus"::text IN ('FAILED', 'PARTIAL')
+                OR NULLIF(d."lastSyncError", '') IS NOT NULL
+                THEN 'WARNING'
+              ELSE 'ONLINE'
+            END AS live_status,
+            (d."status"::text = 'ACTIVE') AS paired,
+            COALESCE(d."failedDownloads", 0) AS failed_downloads
+          FROM "screens" s
+          LEFT JOIN "devices" d ON d."screenId" = s."id"
+          WHERE s."companyId" = ${companyId} AND s."deletedAt" IS NULL
+        )
+        SELECT
+          COUNT(*)::bigint AS total,
+          COUNT(*) FILTER (WHERE live_status = 'ONLINE')::bigint AS online,
+          COUNT(*) FILTER (WHERE live_status = 'OFFLINE')::bigint AS offline,
+          COUNT(*) FILTER (WHERE live_status = 'WARNING')::bigint AS warning,
+          COUNT(*) FILTER (WHERE live_status = 'UNPAIRED')::bigint AS unpaired,
+          COUNT(*) FILTER (WHERE live_status = 'PAIRING')::bigint AS pairing,
+          COUNT(*) FILTER (WHERE live_status = 'DISABLED')::bigint AS disabled,
+          COUNT(*) FILTER (WHERE live_status = 'ARCHIVED')::bigint AS archived,
+          COUNT(*) FILTER (WHERE failed_downloads > 0)::bigint AS with_failed_downloads,
+          COUNT(*) FILTER (WHERE paired AND live_status = 'OFFLINE')::bigint AS missing_heartbeat
+        FROM fleet
+      `,
+      this.prisma.screen.findMany({
+        where: { companyId, deletedAt: null },
+        select: OVERVIEW_SELECT,
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip,
+        take,
+      }),
+      this.prisma.device.groupBy({
+        by: ['syncStatus'],
+        where: { companyId, screen: { deletedAt: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.$queryRaw<AlertRow[]>`
+        WITH fleet AS (
+          SELECT
+            s."id",
+            s."name",
+            (d."status"::text = 'ACTIVE') AS paired,
+            CASE
+              WHEN s."status"::text IN ('DISABLED', 'ARCHIVED', 'UNPAIRED', 'PAIRING')
+                THEN s."status"::text
+              WHEN COALESCE(d."lastHeartbeatAt", s."lastHeartbeatAt") IS NULL
+                OR COALESCE(d."lastHeartbeatAt", s."lastHeartbeatAt") <
+                  CURRENT_TIMESTAMP - make_interval(
+                    secs => COALESCE(NULLIF(s."heartbeatIntervalSeconds", 0), 60) * 3
+                  )
+                THEN 'OFFLINE'
+              WHEN d."playbackState"::text = 'ERROR'
+                OR d."syncStatus"::text IN ('FAILED', 'PARTIAL')
+                OR NULLIF(d."lastSyncError", '') IS NOT NULL
+                THEN 'WARNING'
+              ELSE 'ONLINE'
+            END AS live_status,
+            CASE
+              WHEN d."playbackState"::text = 'ERROR' THEN 'Player reported an error.'
+              WHEN d."syncStatus"::text = 'FAILED' THEN 'Sync failed.'
+              WHEN d."syncStatus"::text = 'PARTIAL' THEN 'Some assets failed to download.'
+              WHEN NULLIF(d."lastSyncError", '') IS NOT NULL THEN d."lastSyncError"
+              ELSE NULL
+            END AS warning_reason
+          FROM "screens" s
+          LEFT JOIN "devices" d ON d."screenId" = s."id"
+          WHERE s."companyId" = ${companyId} AND s."deletedAt" IS NULL
+        )
+        SELECT id, name, live_status, warning_reason
+        FROM fleet
+        WHERE (paired AND live_status = 'OFFLINE') OR live_status = 'WARNING'
+        ORDER BY CASE WHEN live_status = 'OFFLINE' THEN 0 ELSE 1 END, name ASC, id ASC
+        LIMIT 201
+      `,
+    ]);
+
+    const aggregate = aggregateRows[0] ?? {
+      total: 0n,
+      online: 0n,
+      offline: 0n,
+      warning: 0n,
+      unpaired: 0n,
+      pairing: 0n,
+      disabled: 0n,
+      archived: 0n,
+      with_failed_downloads: 0n,
+      missing_heartbeat: 0n,
+    };
+    const total = Number(aggregate.total);
 
     const items = screens.map((s) => {
-      const { status, warningReason } = this.statusFor(s);
+      const { status, warningReason } = this.statusFor(s as StatusScreen);
       const d = s.device;
       return {
         id: s.id,
@@ -121,53 +273,50 @@ export class MonitoringService {
       };
     });
 
-    const byStatus = (st: LiveScreenStatus) => items.filter((i) => i.status === st).length;
-    const totals = {
-      total: items.length,
-      online: byStatus('ONLINE'),
-      offline: byStatus('OFFLINE'),
-      warning: byStatus('WARNING'),
-      unpaired: byStatus('UNPAIRED'),
-      pairing: byStatus('PAIRING'),
-      disabled: byStatus('DISABLED'),
-      archived: byStatus('ARCHIVED'),
-    };
-    const syncBreakdown = items.reduce<Record<string, number>>((acc, i) => {
-      const k = i.syncStatus ?? 'NONE';
-      acc[k] = (acc[k] ?? 0) + 1;
-      return acc;
-    }, {});
-    const withFailedDownloads = items.filter((i) => i.failedDownloads > 0).length;
-    const missingHeartbeat = items.filter((i) => i.paired && i.status === 'OFFLINE').length;
-
-    const alerts: {
-      severity: 'WARNING' | 'CRITICAL';
-      screenId: string;
-      name: string;
-      message: string;
-    }[] = [];
-    for (const i of items) {
-      if (i.paired && i.status === 'OFFLINE') {
-        alerts.push({
-          severity: 'CRITICAL',
-          screenId: i.id,
-          name: i.name,
-          message: 'Screen is offline (no recent heartbeat).',
-        });
-      } else if (i.status === 'WARNING') {
-        alerts.push({
-          severity: 'WARNING',
-          screenId: i.id,
-          name: i.name,
-          message: i.warningReason ?? 'Warning.',
-        });
-      }
+    const syncBreakdown: Record<string, number> = {};
+    let devicesOnLiveScreens = 0;
+    for (const group of syncGroups) {
+      const count = group._count._all;
+      devicesOnLiveScreens += count;
+      syncBreakdown[group.syncStatus ?? 'NONE'] =
+        (syncBreakdown[group.syncStatus ?? 'NONE'] ?? 0) + count;
     }
+    const noDevice = Math.max(0, total - devicesOnLiveScreens);
+    if (noDevice > 0) syncBreakdown.NONE = (syncBreakdown.NONE ?? 0) + noDevice;
 
-    return { totals, syncBreakdown, withFailedDownloads, missingHeartbeat, alerts, screens: items };
+    const alertsTruncated = alertRows.length > 200;
+    const alerts = alertRows.slice(0, 200).map((row) => ({
+      severity: row.live_status === 'OFFLINE' ? ('CRITICAL' as const) : ('WARNING' as const),
+      screenId: row.id,
+      name: row.name,
+      message:
+        row.live_status === 'OFFLINE'
+          ? 'Screen is offline (no recent heartbeat).'
+          : row.warning_reason ?? 'Warning.',
+    }));
+
+    return {
+      totals: {
+        total,
+        online: Number(aggregate.online),
+        offline: Number(aggregate.offline),
+        warning: Number(aggregate.warning),
+        unpaired: Number(aggregate.unpaired),
+        pairing: Number(aggregate.pairing),
+        disabled: Number(aggregate.disabled),
+        archived: Number(aggregate.archived),
+      },
+      syncBreakdown,
+      withFailedDownloads: Number(aggregate.with_failed_downloads),
+      missingHeartbeat: Number(aggregate.missing_heartbeat),
+      alerts,
+      alertsTruncated,
+      screens: items,
+      screenMeta: meta(total),
+    };
   }
 
-  private statusFor(screen: ScreenWithDevice): {
+  private statusFor(screen: StatusScreen | ScreenWithDevice): {
     status: LiveScreenStatus;
     warningReason: string | null;
   } {

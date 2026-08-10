@@ -12,14 +12,16 @@ function build(screenStatus = 'OFFLINE', previousDevice: any = null) {
       findFirst: jest.fn().mockResolvedValue({
         id: 's1',
         status: screenStatus,
-        heartbeatIntervalSeconds: 60,
+        currentContentId: null,
+        currentPlaylistId: null,
+        appVersion: null,
         device: previousDevice,
       }),
       update: jest.fn().mockResolvedValue({}),
     },
     device: { update: jest.fn().mockResolvedValue({}) },
     heartbeat: { create: jest.fn().mockResolvedValue({}) },
-    deviceCommand: { count: jest.fn().mockResolvedValue(2) },
+    deviceCommand: { findFirst: jest.fn().mockResolvedValue({ id: 'cmd1' }) },
   };
   prisma.$transaction = jest.fn((arg: any) =>
     Array.isArray(arg) ? Promise.all(arg) : arg(prisma),
@@ -34,7 +36,7 @@ function build(screenStatus = 'OFFLINE', previousDevice: any = null) {
 }
 
 describe('HeartbeatService.record', () => {
-  it('updates the device snapshot, flips the screen ONLINE, writes history, and reports pending commands', async () => {
+  it('updates the device snapshot, flips the screen ONLINE, writes history, and reports command existence', async () => {
     const t = build('OFFLINE');
     const res = await t.service.record(device, {
       playbackState: 'PLAYING',
@@ -53,13 +55,31 @@ describe('HeartbeatService.record', () => {
     expect(t.prisma.screen.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 's1' },
-        data: expect.objectContaining({ status: 'ONLINE' }),
+        data: expect.objectContaining({ status: 'ONLINE', currentContentId: 'c1' }),
       }),
     );
     expect(t.prisma.heartbeat.create).toHaveBeenCalled();
-    expect(res).toEqual(
-      expect.objectContaining({ ok: true, status: 'ONLINE', pendingCommands: 2 }),
+    expect(t.prisma.deviceCommand.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ select: { id: true } }),
     );
+    expect(res).toEqual(
+      expect.objectContaining({ ok: true, status: 'ONLINE', pendingCommands: 1 }),
+    );
+  });
+
+  it('returns zero without COUNT when no command exists', async () => {
+    const t = build('ONLINE', {
+      playbackState: 'PLAYING',
+      syncStatus: null,
+      lastSyncError: null,
+      lastHeartbeatAt: new Date(),
+    });
+    t.prisma.deviceCommand.findFirst.mockResolvedValue(null);
+
+    const res = await t.service.record(device, { playbackState: 'PLAYING' });
+
+    expect(res.pendingCommands).toBe(0);
+    expect(t.prisma.deviceCommand.count).toBeUndefined();
   });
 
   it('reports WARNING when the heartbeat carries an error/partial sync', async () => {
@@ -84,53 +104,58 @@ describe('HeartbeatService.record', () => {
     );
   });
 
-  it('never resurrects a DISABLED screen', async () => {
-    const t = build('DISABLED');
+  it('never resurrects or rewrites a steady DISABLED screen', async () => {
+    const t = build('DISABLED', {
+      playbackState: 'PLAYING',
+      syncStatus: null,
+      lastSyncError: null,
+      lastHeartbeatAt: new Date(),
+    });
     const res = await t.service.record(device, { playbackState: 'PLAYING' });
     expect(res.status).toBe('DISABLED');
-    expect(t.prisma.screen.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: 'DISABLED' }) }),
-    );
+    expect(t.prisma.screen.update).not.toHaveBeenCalled();
   });
 
-  it('rejects a heartbeat for a screen not in the device’s company', async () => {
+  it('rejects a heartbeat for a screen not in the device’s company inside the transaction', async () => {
     const t = build();
     t.prisma.screen.findFirst.mockResolvedValue(null);
     await expect(t.service.record(device, {})).rejects.toBeInstanceOf(NotFoundException);
+    expect(t.prisma.$transaction).toHaveBeenCalledWith(expect.any(Function));
   });
 });
 
-/**
- * Heartbeat history sampling.
- *
- * `heartbeats` is one row per screen per beat: 1,440/screen/day at a 60s
- * interval, ~1.4M/day across a 1,000-screen fleet, almost all identical to the
- * row before. Current state already lives on the Device row (written every beat
- * regardless), so a dense timeline buys nothing — but every state TRANSITION
- * must still be recorded exactly.
- */
-describe('HeartbeatService history sampling', () => {
+describe('HeartbeatService history sampling and screen write suppression', () => {
   const steady = {
     playbackState: 'PLAYING',
     syncStatus: 'SYNCED',
     lastSyncError: null,
-    lastHeartbeatAt: new Date(Date.now() - 60_000), // one beat ago
+    lastHeartbeatAt: new Date(Date.now() - 60_000),
   };
   const beat = { playbackState: 'PLAYING', syncStatus: 'SYNCED' } as any;
 
-  it('skips the history row when nothing has changed since the last beat', async () => {
+  it('skips history and the denormalized screen write when nothing changed', async () => {
     const t = build('ONLINE', steady);
     await t.service.record(device, beat);
     expect(t.prisma.heartbeat.create).not.toHaveBeenCalled();
-    // The live snapshot is still written every single beat.
     expect(t.prisma.device.update).toHaveBeenCalled();
-    expect(t.prisma.screen.update).toHaveBeenCalled();
+    expect(t.prisma.screen.update).not.toHaveBeenCalled();
   });
 
-  it('records a row when the screen status changes', async () => {
-    const t = build('OFFLINE', steady); // OFFLINE -> ONLINE
+  it('records history and updates screen when screen status changes', async () => {
+    const t = build('OFFLINE', steady);
     await t.service.record(device, beat);
     expect(t.prisma.heartbeat.create).toHaveBeenCalled();
+    expect(t.prisma.screen.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'ONLINE' }) }),
+    );
+  });
+
+  it('updates the screen snapshot when current content changes even if status is steady', async () => {
+    const t = build('ONLINE', steady);
+    await t.service.record(device, { ...beat, currentContentId: 'content-new' });
+    expect(t.prisma.screen.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ currentContentId: 'content-new' }) }),
+    );
   });
 
   it('records a row when playback state changes', async () => {
@@ -155,10 +180,11 @@ describe('HeartbeatService history sampling', () => {
     expect(clearing.prisma.heartbeat.create).toHaveBeenCalled();
   });
 
-  it('takes a keepalive sample once the interval has elapsed', async () => {
+  it('takes a keepalive sample once the interval has elapsed without rewriting Screen', async () => {
     const t = build('ONLINE', { ...steady, lastHeartbeatAt: new Date(Date.now() - 10 * 60_000) });
     await t.service.record(device, beat);
     expect(t.prisma.heartbeat.create).toHaveBeenCalled();
+    expect(t.prisma.screen.update).not.toHaveBeenCalled();
   });
 
   it('always records the very first beat from a device', async () => {

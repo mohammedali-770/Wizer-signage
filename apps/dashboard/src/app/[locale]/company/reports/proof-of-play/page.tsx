@@ -4,14 +4,14 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Download } from 'lucide-react';
 
+import { ServerSearchSelect } from '@/components/server-search-select';
 import { getAccessToken } from '@/lib/api';
-import { useAllPages, useApiResource } from '@/lib/use-api';
+import { useApiResource } from '@/lib/use-api';
 import type {
   Paginated,
   ProofOfPlayEvent,
   ProofOfPlayStatus,
   ProofOfPlaySummary,
-  Screen,
 } from '@/lib/types';
 import { formatDateTime } from '@/lib/format';
 import {
@@ -60,7 +60,6 @@ export default function ProofOfPlayReportPage() {
   const t = useTranslations('pages.proofOfPlay');
   const tc = useTranslations('common');
   const { toast } = useToast();
-  const screens = useAllPages<Screen>('/screens');
 
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -133,14 +132,13 @@ export default function ProofOfPlayReportPage() {
           <Input type="date" value={to} onChange={(e) => onFilter(setTo)(e.target.value)} />
         </Field>
         <Field label={t('filters.screen')}>
-          <Select value={screenId} onChange={(e) => onFilter(setScreenId)(e.target.value)}>
-            <option value="">{t('filters.allScreens')}</option>
-            {screens.data?.items.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </Select>
+          <ServerSearchSelect
+            type="SCREEN"
+            value={screenId}
+            onChange={onFilter(setScreenId)}
+            emptyLabel={t('filters.allScreens')}
+            searchPlaceholder={t('filters.screen')}
+          />
         </Field>
         <Field label={tc('status')}>
           <Select value={status} onChange={(e) => onFilter(setStatus)(e.target.value)}>

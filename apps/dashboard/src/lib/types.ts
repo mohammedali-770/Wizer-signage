@@ -1,3 +1,5 @@
+import type { ContractMeResponse, ContractUserView } from './api-contract';
+
 /** API response shapes used by the Super Admin dashboard (Phase 2). */
 
 export type UserRole =
@@ -50,20 +52,8 @@ export interface Paginated<T> {
   meta: PageMeta;
 }
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  status: UserStatus;
-  companyId: string | null;
-}
-export interface MeResponse {
-  user: AuthUser;
-  permissions: string[];
-  mfaSatisfied: boolean;
-  twoFactorRequired: boolean;
-}
+export type AuthUser = ContractUserView;
+export type MeResponse = ContractMeResponse;
 
 export interface PlanLimits {
   maxCompanies?: number | null;
