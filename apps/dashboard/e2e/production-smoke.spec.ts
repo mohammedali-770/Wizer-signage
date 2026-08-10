@@ -34,6 +34,28 @@ const EMPTY_PAGE = {
   meta: { page: 1, pageSize: 50, total: 0, totalPages: 0 },
 };
 
+const E2E_SCHEDULE = {
+  id: 'schedule-e2e',
+  companyId: 'company-e2e',
+  playlistId: null,
+  name: 'Smoke Schedule E2E',
+  description: null,
+  scheduleType: 'NORMAL',
+  status: 'ACTIVE',
+  priority: 0,
+  startDate: '2026-08-10T00:00:00.000Z',
+  endDate: null,
+  isAllDay: true,
+  startTime: null,
+  endTime: null,
+  daysOfWeek: [],
+  timezone: null,
+  playlist: null,
+  targets: [],
+  createdAt: '2026-08-10T00:00:00.000Z',
+  updatedAt: '2026-08-10T00:00:00.000Z',
+};
+
 async function mockAuthenticatedApi(page: Page) {
   await page.route(`${API_ORIGIN}/api/**`, async (route) => {
     const url = new URL(route.request().url());
@@ -106,6 +128,12 @@ async function mockOperatorJourneyApi(page: Page) {
     }
     if (url.pathname === '/api/schedules' && method === 'POST') {
       return json(route, { id: 'schedule-e2e' }, 201);
+    }
+    if (url.pathname === '/api/schedules/schedule-e2e' && method === 'GET') {
+      return json(route, E2E_SCHEDULE);
+    }
+    if (url.pathname === '/api/schedules/schedule-e2e/validate' && method === 'GET') {
+      return json(route, { schedulable: true, warnings: [], conflicts: [] });
     }
 
     // All selectors in this smoke intentionally start empty. Creation itself is
@@ -257,6 +285,12 @@ for (const locale of ['en', 'ar'] as const) {
     expect(scheduleResponse.request().postDataJSON()).toEqual(
       expect.objectContaining({ name: scheduleName, status: 'ACTIVE', scheduleType: 'NORMAL' }),
     );
+
+    // The create form redirects to the schedule detail route. Keep that route
+    // fully rendered before judging runtime errors so the smoke covers the
+    // post-create destination rather than only the POST response.
+    await expect(page).toHaveURL(new RegExp(`/${locale}/company/schedules/schedule-e2e$`));
+    await expect(page.getByText('Smoke Schedule E2E')).toBeVisible();
 
     // CSP/runtime errors would make this flow unreliable in production even if
     // each API request itself succeeded.
