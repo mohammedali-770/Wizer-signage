@@ -8,20 +8,8 @@ import { AlertEvent } from '../notifications/notifications.constants';
 import type { HeartbeatDto } from './dto/monitoring.dto';
 
 /**
- * Records a device heartbeat (Phase 8): writes a heartbeat-history row, updates
- * the latest telemetry snapshot on Device, and recomputes the screen's live
- * status (ONLINE/WARNING — never overriding DISABLED/ARCHIVED). Heartbeats are
- * NOT written to the activity log (too noisy) and are NOT proof-of-play.
- *
- * Phase 10: a heartbeat reconciles alerts — a clean one resolves the screen's
- * offline/warning alerts (and emits a one-time recovery notification), a
- * problem one raises a deduplicated warning alert. The offline alert itself is
- * raised by the maintenance sweep (no-heartbeat detection), not here.
- */
-/**
- * How often a heartbeat is sampled into the `heartbeats` timeline when nothing
- * has changed. State TRANSITIONS are always recorded regardless — this only
- * governs the keepalive samples in between.
+ * How often a heartbeat is sampled into the append-only timeline when nothing
+ * has changed. State transitions are always recorded.
  */
 export const HEARTBEAT_HISTORY_INTERVAL_MS = Number(
   process.env.HEARTBEAT_HISTORY_INTERVAL_MS ?? 5 * 60_000,
@@ -37,154 +25,170 @@ export class HeartbeatService {
   ) {}
 
   async record(device: AuthenticatedDevice, dto: HeartbeatDto) {
-    const screen = await this.prisma.screen.findFirst({
-      where: { id: device.screenId, companyId: device.companyId, deletedAt: null },
-      select: {
-        id: true,
-        status: true,
-        heartbeatIntervalSeconds: true,
-        // Previous reported state, for the history-sampling decision below. Read
-        // through the existing relation so this costs no extra round trip.
-        device: {
-          select: {
-            playbackState: true,
-            syncStatus: true,
-            lastSyncError: true,
-            lastHeartbeatAt: true,
-          },
-        },
-      },
-    });
-    if (!screen) throw new NotFoundException('Screen not found.');
-
     const now = new Date();
-    // A heartbeat is positive proof the device is online — flip PAIRING/UNPAIRED/
-    // OFFLINE → ONLINE (or WARNING on a reported issue). Only manually held
-    // DISABLED/ARCHIVED screens are left untouched.
-    const hasIssue =
-      dto.playbackState === 'ERROR' ||
-      dto.syncStatus === 'FAILED' ||
-      dto.syncStatus === 'PARTIAL' ||
-      !!dto.lastError;
-    const screenStatus =
-      screen.status === ScreenStatus.DISABLED || screen.status === ScreenStatus.ARCHIVED
-        ? screen.status
-        : hasIssue
-          ? ScreenStatus.WARNING
-          : ScreenStatus.ONLINE;
-
     const toBigInt = (v?: number) => (v !== undefined ? BigInt(Math.round(v)) : undefined);
 
-    const deviceData: Prisma.DeviceUpdateInput = { lastHeartbeatAt: now, lastSeenAt: now };
-    if (dto.appVersion !== undefined) deviceData.appVersion = dto.appVersion;
-    if (dto.deviceModel !== undefined) deviceData.modelName = dto.deviceModel;
-    if (dto.osVersion !== undefined) deviceData.osVersion = dto.osVersion;
-    if (dto.platform !== undefined) deviceData.platform = dto.platform;
-    if (dto.uptimeSeconds !== undefined) deviceData.uptimeSeconds = dto.uptimeSeconds;
-    if (dto.playbackState !== undefined) deviceData.playbackState = dto.playbackState;
-    if (dto.networkStatus !== undefined) deviceData.networkStatus = dto.networkStatus;
-    deviceData.currentContentId = dto.currentContentId ?? null;
-    deviceData.currentPlaylistId = dto.currentPlaylistId ?? null;
-    deviceData.currentScheduleId = dto.currentScheduleId ?? null;
-    if (dto.manifestVersion !== undefined) deviceData.manifestVersion = dto.manifestVersion;
-    if (dto.syncStatus !== undefined) deviceData.syncStatus = dto.syncStatus;
-    if (dto.cacheSizeBytes !== undefined) deviceData.cacheSizeBytes = toBigInt(dto.cacheSizeBytes);
-    if (dto.availableStorageBytes !== undefined)
-      deviceData.availableStorageBytes = toBigInt(dto.availableStorageBytes);
-    if (dto.requiredAssets !== undefined) deviceData.requiredAssets = dto.requiredAssets;
-    if (dto.cachedAssets !== undefined) deviceData.cachedAssets = dto.cachedAssets;
-    if (dto.failedDownloads !== undefined) deviceData.failedDownloads = dto.failedDownloads;
-    // Persist the reported error to the snapshot so the read-side status derivation
-    // sees it (a clean heartbeat clears it). The syncStatus path still flags
-    // failed/partial sync independently.
-    deviceData.lastSyncError = dto.lastError ?? null;
-
-    // --- History sampling ---------------------------------------------------
-    //
-    // The `heartbeats` table is an append-only timeline, one row per screen per
-    // beat. At a 60s interval that is 1,440 rows per screen per day — 1.4M/day
-    // across a 1,000-screen fleet — and almost every row is identical to the one
-    // before it. The CURRENT state already lives on the Device row (updated
-    // every beat regardless), and the only thing read back out of the history is
-    // the latest payload, so a dense timeline buys nothing.
-    //
-    // A row is written when the reported state CHANGES — which is what anyone
-    // reading the timeline is actually looking for — or when the last beat is
-    // old enough that a keepalive sample is due. Steady-state insert volume
-    // drops by the ratio of the sampling interval to the beat interval while
-    // every transition is still recorded exactly.
-    const previous = screen.device;
-    const stateChanged =
-      screen.status !== screenStatus ||
-      (previous?.playbackState ?? null) !== (dto.playbackState ?? null) ||
-      (previous?.syncStatus ?? null) !== (dto.syncStatus ?? null) ||
-      (previous?.lastSyncError ?? null) !== (dto.lastError ?? null);
-    const sinceLastBeat = previous?.lastHeartbeatAt
-      ? now.getTime() - previous.lastHeartbeatAt.getTime()
-      : Number.POSITIVE_INFINITY;
-    const writeHistory = stateChanged || sinceLastBeat >= HEARTBEAT_HISTORY_INTERVAL_MS;
-
-    await this.prisma.$transaction([
-      this.prisma.device.update({ where: { id: device.id }, data: deviceData }),
-      this.prisma.screen.update({
-        where: { id: screen.id },
-        data: {
-          lastHeartbeatAt: now,
-          status: screenStatus,
-          currentContentId: dto.currentContentId ?? null,
-          currentPlaylistId: dto.currentPlaylistId ?? null,
-          ...(dto.appVersion !== undefined ? { appVersion: dto.appVersion } : {}),
+    const txResult = await this.prisma.$transaction(async (tx) => {
+      // Read the previous screen/device state INSIDE the same transaction that
+      // applies this heartbeat. The old path read first and then opened a
+      // separate write transaction, allowing concurrent beats to make the
+      // history/status decision from a stale snapshot.
+      const screen = await tx.screen.findFirst({
+        where: { id: device.screenId, companyId: device.companyId, deletedAt: null },
+        select: {
+          id: true,
+          status: true,
+          currentContentId: true,
+          currentPlaylistId: true,
+          appVersion: true,
+          device: {
+            select: {
+              playbackState: true,
+              syncStatus: true,
+              lastSyncError: true,
+              lastHeartbeatAt: true,
+            },
+          },
         },
-      }),
-      ...(writeHistory
-        ? [
-            this.prisma.heartbeat.create({
-              data: {
-                screenId: device.screenId,
-                companyId: device.companyId,
-                deviceId: device.deviceId,
-                online: true,
-                playbackState: dto.playbackState,
-                networkStatus: dto.networkStatus,
-                appVersion: dto.appVersion,
-                deviceModel: dto.deviceModel,
-                osVersion: dto.osVersion,
-                uptimeSeconds: dto.uptimeSeconds,
-                currentContentId: dto.currentContentId,
-                currentPlaylistId: dto.currentPlaylistId,
-                currentScheduleId: dto.currentScheduleId,
-                manifestVersion: dto.manifestVersion,
-                syncStatus: dto.syncStatus,
-                cacheSizeBytes: toBigInt(dto.cacheSizeBytes),
-                availableStorageBytes: toBigInt(dto.availableStorageBytes),
-                lastError: dto.lastError,
-                payload: {
-                  capabilities: (dto.capabilities ?? {}) as Prisma.InputJsonValue,
-                  requiredAssets: dto.requiredAssets ?? null,
-                  cachedAssets: dto.cachedAssets ?? null,
-                  failedDownloads: dto.failedDownloads ?? null,
-                } as Prisma.InputJsonValue,
-              },
-            }),
-          ]
-        : []),
-    ]);
+      });
+      if (!screen) throw new NotFoundException('Screen not found.');
 
-    // Reconcile alerts (best-effort — never break the heartbeat).
-    await this.reconcileAlerts(device, screen.id, screenStatus, hasIssue, dto).catch((e) =>
+      const hasIssue =
+        dto.playbackState === 'ERROR' ||
+        dto.syncStatus === 'FAILED' ||
+        dto.syncStatus === 'PARTIAL' ||
+        !!dto.lastError;
+      const screenStatus =
+        screen.status === ScreenStatus.DISABLED || screen.status === ScreenStatus.ARCHIVED
+          ? screen.status
+          : hasIssue
+            ? ScreenStatus.WARNING
+            : ScreenStatus.ONLINE;
+
+      const deviceData: Prisma.DeviceUpdateInput = { lastHeartbeatAt: now, lastSeenAt: now };
+      if (dto.appVersion !== undefined) deviceData.appVersion = dto.appVersion;
+      if (dto.deviceModel !== undefined) deviceData.modelName = dto.deviceModel;
+      if (dto.osVersion !== undefined) deviceData.osVersion = dto.osVersion;
+      if (dto.platform !== undefined) deviceData.platform = dto.platform;
+      if (dto.uptimeSeconds !== undefined) deviceData.uptimeSeconds = dto.uptimeSeconds;
+      if (dto.playbackState !== undefined) deviceData.playbackState = dto.playbackState;
+      if (dto.networkStatus !== undefined) deviceData.networkStatus = dto.networkStatus;
+      deviceData.currentContentId = dto.currentContentId ?? null;
+      deviceData.currentPlaylistId = dto.currentPlaylistId ?? null;
+      deviceData.currentScheduleId = dto.currentScheduleId ?? null;
+      if (dto.manifestVersion !== undefined) deviceData.manifestVersion = dto.manifestVersion;
+      if (dto.syncStatus !== undefined) deviceData.syncStatus = dto.syncStatus;
+      if (dto.cacheSizeBytes !== undefined) deviceData.cacheSizeBytes = toBigInt(dto.cacheSizeBytes);
+      if (dto.availableStorageBytes !== undefined)
+        deviceData.availableStorageBytes = toBigInt(dto.availableStorageBytes);
+      if (dto.requiredAssets !== undefined) deviceData.requiredAssets = dto.requiredAssets;
+      if (dto.cachedAssets !== undefined) deviceData.cachedAssets = dto.cachedAssets;
+      if (dto.failedDownloads !== undefined) deviceData.failedDownloads = dto.failedDownloads;
+      deviceData.lastSyncError = dto.lastError ?? null;
+
+      const previous = screen.device;
+      const stateChanged =
+        screen.status !== screenStatus ||
+        (previous?.playbackState ?? null) !== (dto.playbackState ?? null) ||
+        (previous?.syncStatus ?? null) !== (dto.syncStatus ?? null) ||
+        (previous?.lastSyncError ?? null) !== (dto.lastError ?? null);
+      const sinceLastBeat = previous?.lastHeartbeatAt
+        ? now.getTime() - previous.lastHeartbeatAt.getTime()
+        : Number.POSITIVE_INFINITY;
+      const writeHistory = stateChanged || sinceLastBeat >= HEARTBEAT_HISTORY_INTERVAL_MS;
+
+      await tx.device.update({ where: { id: device.id }, data: deviceData });
+
+      // Screen is a denormalized operator/read model; Device owns the high-rate
+      // live snapshot. Do not rewrite Screen once per beat. Keep only values that
+      // are useful to ordinary screen-list/detail reads, and write them only when
+      // they actually change.
+      const screenContentId = dto.currentContentId ?? null;
+      const screenPlaylistId = dto.currentPlaylistId ?? null;
+      const screenAppVersion = dto.appVersion ?? screen.appVersion;
+      const screenSnapshotChanged =
+        screen.status !== screenStatus ||
+        screen.currentContentId !== screenContentId ||
+        screen.currentPlaylistId !== screenPlaylistId ||
+        screen.appVersion !== screenAppVersion;
+
+      if (screenSnapshotChanged) {
+        await tx.screen.update({
+          where: { id: screen.id },
+          data: {
+            lastHeartbeatAt: now,
+            status: screenStatus,
+            currentContentId: screenContentId,
+            currentPlaylistId: screenPlaylistId,
+            ...(dto.appVersion !== undefined ? { appVersion: dto.appVersion } : {}),
+          },
+        });
+      }
+
+      if (writeHistory) {
+        await tx.heartbeat.create({
+          data: {
+            screenId: device.screenId,
+            companyId: device.companyId,
+            deviceId: device.deviceId,
+            online: true,
+            playbackState: dto.playbackState,
+            networkStatus: dto.networkStatus,
+            appVersion: dto.appVersion,
+            deviceModel: dto.deviceModel,
+            osVersion: dto.osVersion,
+            uptimeSeconds: dto.uptimeSeconds,
+            currentContentId: dto.currentContentId,
+            currentPlaylistId: dto.currentPlaylistId,
+            currentScheduleId: dto.currentScheduleId,
+            manifestVersion: dto.manifestVersion,
+            syncStatus: dto.syncStatus,
+            cacheSizeBytes: toBigInt(dto.cacheSizeBytes),
+            availableStorageBytes: toBigInt(dto.availableStorageBytes),
+            lastError: dto.lastError,
+            payload: {
+              capabilities: (dto.capabilities ?? {}) as Prisma.InputJsonValue,
+              requiredAssets: dto.requiredAssets ?? null,
+              cachedAssets: dto.cachedAssets ?? null,
+              failedDownloads: dto.failedDownloads ?? null,
+            } as Prisma.InputJsonValue,
+          },
+        });
+      }
+
+      return { screenId: screen.id, screenStatus, hasIssue };
+    });
+
+    // Reconcile alerts outside the telemetry write transaction. Notification
+    // delivery/provider latency must never hold a DB transaction open.
+    await this.reconcileAlerts(
+      device,
+      txResult.screenId,
+      txResult.screenStatus,
+      txResult.hasIssue,
+      dto,
+    ).catch((e) =>
       this.logger.warn(
-        `Heartbeat alert reconcile failed for ${screen.id}: ${e instanceof Error ? e.message : String(e)}`,
+        `Heartbeat alert reconcile failed for ${txResult.screenId}: ${e instanceof Error ? e.message : String(e)}`,
       ),
     );
 
-    // Tell the device whether to poll for commands now.
-    const pendingCommands = await this.prisma.deviceCommand.count({
+    // The player only needs to know whether polling commands is worthwhile.
+    // COUNT(*) scans every pending row for the screen; an indexed existence
+    // lookup stops at the first match and preserves the existing numeric 0/1 API.
+    const pending = await this.prisma.deviceCommand.findFirst({
       where: {
         screenId: device.screenId,
         status: { in: [DeviceCommandStatus.PENDING, DeviceCommandStatus.DELIVERED] },
       },
+      select: { id: true },
     });
-    return { ok: true, status: screenStatus, pendingCommands };
+
+    return {
+      ok: true,
+      status: txResult.screenStatus,
+      pendingCommands: pending ? 1 : 0,
+    };
   }
 
   private async reconcileAlerts(
@@ -198,9 +202,6 @@ export class HeartbeatService {
     const offlineKey = this.alerts.screenKey(companyId, screenId, AlertEvent.ScreenOffline);
     const warningKey = this.alerts.screenKey(companyId, screenId, AlertEvent.ScreenWarning);
 
-    // The device is reporting, so it is not offline. Clear any offline alert; a
-    // genuine recovery (an offline alert was actually open) emits a one-time
-    // "back online" notification.
     const recovered = await this.alerts.resolveByKey(offlineKey);
     if (recovered > 0 && !hasIssue) {
       await this.alerts.raise({
@@ -211,9 +212,8 @@ export class HeartbeatService {
         severity: NotificationSeverity.INFO,
         title: 'Screen back online',
         message: 'The screen resumed reporting heartbeats.',
-        // Unique key per recovery so it is an independent notification, not deduped.
         dedupeKey: `${companyId}:${screenId}:${AlertEvent.ScreenOnline}:${Date.now()}`,
-        informational: true, // notify, but don't linger in the OPEN alerts list
+        informational: true,
       });
     }
 
