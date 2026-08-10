@@ -16,10 +16,25 @@ const isolationMigration = readFileSync(
 const verifier = readFileSync(resolve(root, 'scripts/assert-telemetry-partition-isolation.sh'), 'utf8');
 const schema = readFileSync(resolve(root, 'apps/api/prisma/schema.prisma'), 'utf8');
 
+function modelBlock(name: string): string {
+  const marker = `model ${name} {`;
+  const start = schema.indexOf(marker);
+  if (start < 0) throw new Error(`${name} is missing from Prisma schema`);
+  let depth = 0;
+  for (let i = schema.indexOf('{', start); i < schema.length; i += 1) {
+    if (schema[i] === '{') depth += 1;
+    else if (schema[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return schema.slice(start, i + 1);
+    }
+  }
+  throw new Error(`${name} model block is unterminated`);
+}
+
 describe('telemetry partition Prisma/PostgreSQL ownership boundary', () => {
   it('keeps only parent telemetry models in Prisma with physical composite primary keys', () => {
-    const proof = schema.slice(schema.indexOf('model ProofOfPlay {'), schema.indexOf('model Heartbeat {'));
-    const heartbeat = schema.slice(schema.indexOf('model Heartbeat {'), schema.indexOf('model DeviceEvent {'));
+    const proof = modelBlock('ProofOfPlay');
+    const heartbeat = modelBlock('Heartbeat');
 
     expect(proof).toContain('@@id([id, startedAt])');
     expect(proof).not.toContain('@@unique([companyId, playbackSessionId])');

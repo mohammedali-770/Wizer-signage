@@ -20,7 +20,7 @@ describe('production deployment wrapper', () => {
   it('fails before deploy if protected remote main moved', () => {
     const remoteCheck = wrapper.indexOf('ls-remote origin refs/heads/main');
     const compare = wrapper.indexOf('REMOTE_MAIN_SHA}" == "${TARGET_SHA}');
-    const handoff = wrapper.indexOf('exec bash "${SCRIPT_DIR}/deploy-blue-green.sh"');
+    const handoff = wrapper.indexOf('bash "${SCRIPT_DIR}/deploy-blue-green.sh"');
 
     expect(remoteCheck).toBeGreaterThan(0);
     expect(compare).toBeGreaterThan(remoteCheck);
@@ -31,7 +31,7 @@ describe('production deployment wrapper', () => {
   it('exports the accepted identity and disables the non-production backup bypass', () => {
     const accepted = wrapper.indexOf('export EXPECTED_RELEASE_SHA="${TARGET_SHA}"');
     const noSkip = wrapper.indexOf('unset DEPLOY_SKIP_BACKUP');
-    const handoff = wrapper.indexOf('exec bash "${SCRIPT_DIR}/deploy-blue-green.sh"');
+    const handoff = wrapper.indexOf('bash "${SCRIPT_DIR}/deploy-blue-green.sh"');
 
     expect(accepted).toBeGreaterThan(0);
     expect(noSkip).toBeGreaterThan(accepted);

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Production/default network posture. The Wizer API and content/storage
-    endpoints are HTTPS-only; no release build carries a localhost/LAN HTTP
+    endpoints are HTTPS-only; no release build carries a loopback/LAN HTTP
     exception. Development-only cleartext exceptions live under src/debug and
     therefore cannot be packaged into a release APK.
 -->

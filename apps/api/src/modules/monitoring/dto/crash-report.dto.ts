@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Length, Matches, MaxLength, Min } from 'class-validator';
 
 /** Raw exception/stack data is intentionally not accepted. */
 export class DeviceCrashReportDto {
@@ -6,6 +6,7 @@ export class DeviceCrashReportDto {
   @Min(0)
   crashedAtMillis!: number;
 
+  @Length(24, 24)
   @Matches(/^[a-f0-9]{24}$/)
   fingerprint!: string;
 

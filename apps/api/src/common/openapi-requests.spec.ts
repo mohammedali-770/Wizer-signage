@@ -109,7 +109,7 @@ describe('OpenAPI request-body coverage', () => {
    * deliberately, which is a reviewable act rather than an omission.
    */
   it('measures every operation that takes a request body', () => {
-    expect(requestBodies()).toHaveLength(71);
+    expect(requestBodies()).toHaveLength(72);
   });
 
   /**
@@ -117,7 +117,7 @@ describe('OpenAPI request-body coverage', () => {
    *
    * It started as a floor at 4 and was raised as modules landed. A floor was
    * right while the number was climbing and useless at the end: it structurally
-   * cannot notice one undocumented body among 71, which is exactly how
+   * cannot notice one undocumented body among 72, which is exactly how
    * CreateUrlContentDto stayed half-annotated with every test green. There is no
    * longer a number to raise instead of fixing something.
    */
@@ -125,7 +125,7 @@ describe('OpenAPI request-body coverage', () => {
     const bodies = requestBodies();
     const undocumented = bodies.filter((o) => !o.documented).map((o) => o.key);
     expect(undocumented).toEqual([]);
-    expect(bodies).toHaveLength(71);
+    expect(bodies).toHaveLength(72);
   });
 
   /**

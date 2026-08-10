@@ -4,35 +4,45 @@ import { resolve } from 'node:path';
 
 const root = resolve(__dirname, '..', '..', '..', '..', '..');
 const checkPath = resolve(root, 'scripts/assert-telemetry-partitions.sh');
+const isolationPath = resolve(root, 'scripts/assert-telemetry-partition-isolation.sh');
 const check = readFileSync(checkPath, 'utf8');
+const isolation = readFileSync(isolationPath, 'utf8');
 
 describe('telemetry physical-schema verifier', () => {
-  it('is syntactically valid bash and read-only SQL', () => {
+  it('is syntactically valid bash and read-only SQL across both verifier layers', () => {
     expect(() => execFileSync('bash', ['-n', checkPath])).not.toThrow();
-    expect(check).not.toMatch(/\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE)\b/);
+    expect(() => execFileSync('bash', ['-n', isolationPath])).not.toThrow();
+    for (const source of [check, isolation]) {
+      expect(source).not.toMatch(/\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE)\b/);
+    }
   });
 
   it('verifies both telemetry parents are RANGE partitioned', () => {
     expect(check).toContain('heartbeats proof_of_plays');
     expect(check).toContain('pg_partitioned_table');
-    expect(check).toContain('is not a RANGE-partitioned parent');
+    expect(check).toContain('is not RANGE partitioned');
   });
 
-  it('verifies global proof-of-play idempotency infrastructure', () => {
-    expect(check).toContain('proof_of_play_session_keys');
-    expect(check).toContain('"companyId", "playbackSessionId"');
-    expect(check).toContain('proof_of_plays_claim_session');
-    expect(check).toContain('proof_of_plays_release_session');
+  it('delegates and verifies global proof-of-play idempotency infrastructure', () => {
+    expect(check).toContain('assert-telemetry-partition-isolation.sh');
+    expect(isolation).toContain('proof_of_play_session_keys');
+    expect(isolation).toContain('companyId,playbackSessionId');
+    expect(isolation).toContain('TRIGGER_CONFIG_BAD');
+    expect(isolation).toContain('search_path=wizer_telemetry, public');
   });
 
   it('requires rolling maintenance plus current and next-month children', () => {
-    expect(check).toContain('wizer_ensure_telemetry_partitions');
-    expect(check).toContain("interval '1 month'");
-    expect(check).toContain('missing current/next telemetry partition');
+    expect(check).toContain('assert-telemetry-partition-isolation.sh');
+    expect(isolation).toContain('wizer_ensure_telemetry_partitions');
+    expect(isolation).toContain("interval '1 month'");
+    expect(isolation).toContain('CURRENT_SUFFIX');
+    expect(isolation).toContain('NEXT_SUFFIX');
+    expect(isolation).toContain('missing wizer_telemetry.heartbeats_');
+    expect(isolation).toContain('missing wizer_telemetry.proof_of_plays_');
   });
 
   it('rejects temporary swap-era parent object names', () => {
+    expect(check).toContain('BAD_NAMES');
     expect(check).toContain('_partitioned_');
-    expect(check).toContain('canonical names');
   });
 });
