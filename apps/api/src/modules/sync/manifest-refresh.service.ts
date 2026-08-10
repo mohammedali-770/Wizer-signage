@@ -20,30 +20,26 @@ import { COMMAND_TTL_SECONDS } from '../monitoring/monitoring.constants';
  *    originating content/playlist/schedule write.
  *  - Idempotent on the device: a REFRESH_MANIFEST just makes the player re-fetch
  *    the manifest and compare its hash; if nothing changed it is a no-op.
- *  - Deduped server-side: skips screens that already have a queued (PENDING)
- *    refresh, so rapid edits don't pile up commands.
+ *  - Replica-safe dedup: PostgreSQL owns the invariant that a screen may have at
+ *    most one PENDING REFRESH_MANIFEST command. createMany(skipDuplicates)
+ *    therefore collapses races across API replicas instead of relying on an
+ *    in-process read-before-write check.
  *  - Debounced in-process: a burst of edits collapses into ONE dispatch (see
  *    REFRESH_DEBOUNCE_MS).
  *  - Tenant-scoped: only ever targets screens in the given company.
  */
+
 /**
  * How long a dispatch waits so that a burst of edits becomes one refresh.
- *
- * Editing is bursty by nature — reordering a playlist, bulk-tagging content,
- * saving a schedule then immediately fixing it. Each write triggered its own
- * dispatch, and each dispatch reads every device and every pending command in
- * the company. The PENDING dedup already stopped duplicate COMMANDS from being
- * created, but the two SELECTs ran every time regardless.
- *
  * Two seconds is far below the ~12s command-poll cycle, so the device sees no
- * added latency; it only removes work the device would never have observed.
+ * meaningful added latency while a local burst avoids repeated fleet scans.
  */
 export const REFRESH_DEBOUNCE_MS = Number(process.env.MANIFEST_REFRESH_DEBOUNCE_MS ?? 2_000);
 
 @Injectable()
 export class ManifestRefreshService implements OnModuleDestroy {
   private readonly logger = new Logger(ManifestRefreshService.name);
-  /** Companies with a dispatch already scheduled. */
+  /** Companies with a dispatch already scheduled in this process. */
   private readonly pending = new Map<string, NodeJS.Timeout>();
 
   constructor(private readonly prisma: PrismaService) {}
@@ -53,9 +49,8 @@ export class ManifestRefreshService implements OnModuleDestroy {
    * dispatch runs on a timer and never throws (see refreshCompany).
    *
    * The FIRST call in a burst wins the timer and later ones are dropped rather
-   * than pushing it out. Trailing-edge debouncing would let a long stream of
-   * edits postpone the refresh indefinitely, which is the opposite of what an
-   * operator watching a screen wants.
+   * than pushing it out. Trailing-edge debouncing could postpone a refresh
+   * indefinitely during a long edit stream.
    */
   scheduleRefresh(companyId: string): void {
     if (this.pending.has(companyId)) return;
@@ -64,7 +59,6 @@ export class ManifestRefreshService implements OnModuleDestroy {
       this.pending.delete(companyId);
       void this.refreshCompany(companyId);
     }, REFRESH_DEBOUNCE_MS);
-    // Never hold the process open for a pending refresh.
     timer.unref?.();
     this.pending.set(companyId, timer);
   }
@@ -77,11 +71,8 @@ export class ManifestRefreshService implements OnModuleDestroy {
 
   /**
    * Dispatch REFRESH_MANIFEST to every paired+active screen in `companyId`.
-   * Returns the number of commands created (0 if none / on failure).
-   *
-   * Company-wide (not per-resource targeted) on purpose: a refresh is cheap and
-   * idempotent on the device, content/playlist/schedule edits are infrequent
-   * admin actions, and broadcasting guarantees no affected screen is missed.
+   * Returns the number of commands actually inserted (0 if every screen already
+   * has a pending refresh, there are no devices, or dispatch fails).
    */
   async refreshCompany(companyId: string): Promise<number> {
     try {
@@ -95,28 +86,9 @@ export class ManifestRefreshService implements OnModuleDestroy {
       });
       if (devices.length === 0) return 0;
 
-      const screenIds = devices.map((d) => d.screenId);
-
-      // Best-effort dedup: don't queue a second refresh for a screen that already
-      // has one pending and undelivered. (Not transactional — a rare concurrent
-      // edit may still create a duplicate, which is harmless: the device refresh
-      // is idempotent and the command expires after the TTL.)
-      const queued = await this.prisma.deviceCommand.findMany({
-        where: {
-          companyId,
-          screenId: { in: screenIds },
-          commandType: DeviceCommandType.REFRESH_MANIFEST,
-          status: DeviceCommandStatus.PENDING,
-        },
-        select: { screenId: true },
-      });
-      const queuedScreens = new Set(queued.map((q) => q.screenId));
-      const targets = devices.filter((d) => !queuedScreens.has(d.screenId));
-      if (targets.length === 0) return 0;
-
       const expiresAt = new Date(Date.now() + COMMAND_TTL_SECONDS * 1000);
       const result = await this.prisma.deviceCommand.createMany({
-        data: targets.map((d) => ({
+        data: devices.map((d) => ({
           companyId,
           screenId: d.screenId,
           deviceId: d.id,
@@ -125,13 +97,17 @@ export class ManifestRefreshService implements OnModuleDestroy {
           payload: {} as Prisma.InputJsonValue,
           expiresAt,
         })),
+        // Backed by the partial unique index created by
+        // 20260810100000_pending_manifest_refresh_unique. PostgreSQL evaluates
+        // ON CONFLICT DO NOTHING against that index, so this remains safe when
+        // multiple API replicas dispatch the same company concurrently.
+        skipDuplicates: true,
       });
       this.logger.debug(
         `Dispatched REFRESH_MANIFEST to ${result.count} screen(s) in company ${companyId}.`,
       );
       return result.count;
     } catch (err) {
-      // Best-effort only — log and swallow so the caller's write still succeeds.
       this.logger.warn(`REFRESH_MANIFEST dispatch failed for company ${companyId}: ${String(err)}`);
       return 0;
     }
