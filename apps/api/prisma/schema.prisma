@@ -1316,6 +1316,7 @@ model ProofOfPlay {
   updatedAt            DateTime           @updatedAt
 
   @@id([id, startedAt])
+  @@index([companyId, playbackSessionId])
   @@index([companyId, startedAt])
   @@index([screenId, startedAt])
   // Retention: the nightly purge filters on startedAt alone; the composite
