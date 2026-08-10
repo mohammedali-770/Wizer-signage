@@ -108,7 +108,7 @@ export function TargetSelector({
       }),
     ).then((entries) => {
       if (!active) return;
-      const valid = entries.filter((entry): entry is readonly [string, string] => entry !== null);
+      const valid = entries.filter((entry) => entry !== null);
       if (valid.length === 0) return;
       setResolvedLabels((current) => ({ ...current, ...Object.fromEntries(valid) }));
     });
