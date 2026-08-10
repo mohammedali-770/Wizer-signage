@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { connection } from 'next/server';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
@@ -34,6 +35,8 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   // precedence over shipping a cached HTML shell with no usable nonce.
   await connection();
 
+  const requestHeaders = await headers();
+  const nonce = requestHeaders.get('x-nonce') ?? undefined;
   const { locale } = await params;
 
   // Reject unknown locales early.
@@ -66,6 +69,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          nonce={nonce}
         >
           <NextIntlClientProvider messages={messages}>
             <AppProviders>{children}</AppProviders>
