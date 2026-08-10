@@ -1,0 +1,60 @@
+name: One-shot proof-of-play Prisma index reconciliation
+
+on:
+  push:
+    branches: [codex/production-readiness-final]
+    paths:
+      - '.github/workflows/repair-pop-prisma-index.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-pop-prisma-index-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/production-readiness-final
+          fetch-depth: 0
+
+      - name: Align Prisma lookup index with partition migration
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('apps/api/prisma/schema.prisma')
+          text = path.read_text()
+          old = '  @@id([id, startedAt])\n  @@index([companyId, startedAt])'
+          new = '  @@id([id, startedAt])\n  @@index([companyId, playbackSessionId])\n  @@index([companyId, startedAt])'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one ProofOfPlay insertion point, found {count}')
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+
+      - name: Verify intended partition-aware Prisma shape
+        run: |
+          set -euo pipefail
+          grep -F '  @@id([id, startedAt])' apps/api/prisma/schema.prisma
+          grep -F '  @@index([companyId, playbackSessionId])' apps/api/prisma/schema.prisma
+          if grep -F '  @@unique([companyId, playbackSessionId])' apps/api/prisma/schema.prisma; then
+            echo 'ERROR: direct proof-of-play unique constraint must remain PostgreSQL registry-owned.' >&2
+            exit 1
+          fi
+          git diff --check
+
+      - name: Commit reconciliation and remove one-shot workflow
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/repair-pop-prisma-index.yml
+          git config user.name 'wizer-production-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add apps/api/prisma/schema.prisma .github/workflows/repair-pop-prisma-index.yml
+          git commit -m 'fix(db): retain partitioned proof-of-play lookup index'
+          git push origin HEAD:codex/production-readiness-final
