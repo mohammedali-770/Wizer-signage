@@ -3,3 +3,8 @@
 # docker command. Keep the ignore fingerprint exact: do not allowlist the file,
 # rule, or generic SHA-shaped values globally.
 dcd7b340d70b72704d7ac034be964a839f683f4a:scripts/tests/pull-release-images.test.sh:generic-api-key:45
+
+# False positive introduced by client-error telemetry sanitization coverage.
+# The fixture is deliberately secret-shaped so the test can prove that sensitive
+# material is redacted before upload/fingerprinting; it is not a live credential.
+438458b84c1f44727b9ed4d18d7b98c3dabe9db3:apps/dashboard/src/lib/client-error-telemetry.test.ts:generic-api-key:60
