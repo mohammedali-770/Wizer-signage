@@ -6,28 +6,15 @@ on:
   pull_request:
     branches: [main]
 
-# Cancel in-progress runs for the same ref (e.g. successive pushes to a PR)
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# WHY THERE ARE NO `paths:` FILTERS HERE
-#
-# All four jobs below are REQUIRED status checks in branch protection. A
-# workflow skipped by a path filter never reports its check at all — GitHub
-# does not synthesise a passing result — so the PR would sit "Expected —
-# Waiting for status to be reported" forever. Path-filtering a required check
-# does not save minutes, it blocks the merge queue. Filter inside a job if this
-# is ever revisited, so the job still runs and still reports.
 jobs:
   quality:
     name: Lint · Typecheck · Test · Build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    # A real database so migrations are actually exercised. Without one, a broken
-    # migration or schema/migration drift reaches production undetected — the
-    # unit tests all mock Prisma and would stay green.
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16-alpine
@@ -41,12 +28,9 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
-
     env:
-      # Synthetic, throwaway CI database — never a real credential.
       DATABASE_URL: postgresql://postgres:ci_postgres_password@127.0.0.1:5432/wizer_ci
       DIRECT_URL: postgresql://postgres:ci_postgres_password@127.0.0.1:5432/wizer_ci
-
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -65,18 +49,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Prisma client must exist before the API can typecheck / build / test.
       - name: Generate Prisma client
         run: pnpm db:generate
 
-      # Applies every migration to a real Postgres. Catches a migration that
-      # cannot run at all — the unit suite mocks Prisma and would never notice.
       - name: Apply migrations
         run: pnpm --filter @wizer/api exec prisma migrate deploy --schema prisma/schema.prisma
 
-      # Schema/migration drift: the generated SQL must fully reproduce
-      # schema.prisma. Drift means production's shape silently diverges from the
-      # model the code is compiled against. --exit-code makes any diff fail CI.
       - name: Check for schema drift
         run: |
           pnpm --filter @wizer/api exec prisma migrate diff \
@@ -91,18 +69,15 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Test
+      - name: Workspace tests
         run: pnpm test
 
-      # The e2e suite boots the real AppModule against the Postgres service
-      # above and drives it over HTTP. It existed but had NEVER run: the API's
-      # jest config is rooted at src/ with testRegex `.spec.ts$`, which excludes
-      # test/*.e2e-spec.ts on both counts, and nothing invoked the e2e config.
-      #
-      # It carries the auth matrix — every guarded GET route probed without a
-      # token. That is the one check the static route-exposure spec cannot make:
-      # unregister the global JwtAuthGuard and the metadata is unchanged, so the
-      # static test still passes while every route becomes anonymous.
+      # The API carries explicit global + security-sensitive module thresholds in
+      # apps/api/package.json. Plain `jest` does not enforce coverageThreshold;
+      # this invocation does, so coverage cannot silently regress while tests stay green.
+      - name: API coverage thresholds
+        run: pnpm --filter @wizer/api exec jest --coverage --runInBand
+
       - name: E2E (auth matrix, real app + Postgres)
         working-directory: apps/api
         run: pnpm test:e2e
@@ -112,60 +87,27 @@ jobs:
           ENCRYPTION_KEY: ci-only-encryption-key-value
           NODE_ENV: test
 
-      # Deterministic regression for the maintenance DB-backup URL handling
-      # (DIRECT_URL preference + pgbouncer stripping + fail-closed). Mocks
-      # pg_dump; no database, docker, or network required.
       - name: Backup script regression tests
         run: bash scripts/tests/backup-db.test.sh
 
-      # Proves a dump taken by backup-db.sh can actually be RESTORED into a
-      # database that already has the schema — the real disaster-recovery case.
-      # Regression test for pg_dump running without --clean/--if-exists, which
-      # made every restore abort on its first statement.
-      - name: Backup/restore drill (real Postgres)
+      - name: Backup/restore drill (real Postgres + partitioned schema)
         run: bash scripts/tests/backup-restore-drill.sh
 
-      # Rollback is only useful if it is correct the first time it is needed,
-      # in an outage. These cover every decision it makes BEFORE touching the
-      # running stack: tag selection (including not bouncing back into a
-      # release already rolled away from) and refusing pruned images. Docker is
-      # stubbed; no stack is started.
       - name: Rollback decision-logic tests
         run: bash scripts/tests/rollback.test.sh
 
-      # A smoke test that cannot fail is worse than none — it turns "we verified
-      # the deploy" into a sentence nobody checked. Each case breaks one thing in
-      # a stub server and asserts the smoke test notices. No deployment involved.
       - name: Smoke-test self-test
         run: bash scripts/tests/smoke-test.test.sh
 
-      # The deploy's smoke-test gate, and what it writes to the deploy history
-      # when the gate fails. rollback.sh steps back from the last history line,
-      # so a failed release must still be recorded — omit it and a rollback
-      # skips past the last good release. Everything is stubbed; nothing starts.
       - name: Deploy gate tests
         run: bash scripts/tests/deploy-gate.test.sh
 
-      # Which of `nginx -s reload` / `restart nginx` the deploy runs. Both leave
-      # a green deploy log; only one keeps in-flight uploads alive. Stubbed.
       - name: Deploy nginx-reload tests
         run: bash scripts/tests/deploy-nginx-reload.test.sh
 
-      # Validates the production nginx config with the real `nginx -t`, and pins
-      # the directives that are valid-but-inert when they regress — a keepalive
-      # pool with no cleared Connection header, a proxy_cache_valid with no cache
-      # zone. Neither produces a warning from nginx.
       - name: Nginx config tests
         run: bash scripts/tests/nginx-config.test.sh
 
-      # The committed OpenAPI contract must describe the API that is actually
-      # here. Re-emit it and fail on any difference: a route added, renamed or
-      # given a new DTO without regenerating means contracts/openapi.json is
-      # describing an API that no longer exists, and anything generated from it
-      # (starting with the dashboard's hand-copied types) inherits the lie.
-      #
-      # Runs in PREVIEW mode, so no database is involved — a contract check that
-      # needed Postgres is one that gets skipped.
       - name: OpenAPI contract is up to date
         working-directory: apps/api
         run: |
@@ -175,7 +117,6 @@ jobs:
             exit 1
           fi
         env:
-          # Synthetic — the app is never started and never connects to anything.
           DATABASE_URL: postgresql://openapi:openapi@127.0.0.1:5432/openapi
           DIRECT_URL: postgresql://openapi:openapi@127.0.0.1:5432/openapi
           JWT_ACCESS_SECRET: ci-only-access-secret-value
@@ -184,46 +125,30 @@ jobs:
           NODE_ENV: development
 
       - name: Build
-        # The dashboard production build requires an explicit, valid HTTPS
-        # NEXT_PUBLIC_API_URL (see apps/dashboard/next.config.mjs). Use a
-        # synthetic value on the reserved `.invalid` TLD — never a real host or
-        # any secret — purely to exercise the build.
         run: pnpm build
         env:
           NEXT_PUBLIC_API_URL: https://api.ci.invalid/api
 
-  # The three jobs below run on PULL REQUESTS ONLY.
-  #
-  # Every merge to main re-ran the whole matrix on a commit whose content had
-  # just been tested green on the PR, costing ~11 minutes of the ~15 each time.
-  # Branch protection evaluates required checks against the PULL REQUEST's head
-  # commit, so not running these on main cannot affect whether anything merges —
-  # on a PR they still always run, unconditionally.
-  #
-  # THIS DEPENDS ON A BRANCH-PROTECTION SETTING. "Require branches to be up to
-  # date before merging" must stay enabled on main. It forces a PR branch to
-  # contain main's tip before it can merge, which makes the PR's run a test of
-  # exactly the tree that lands. Turn it off and these three jobs stop covering
-  # the merge result at all — see the failure below. If it is ever disabled,
-  # restore `docker` (at least) to the push trigger.
-  #
-  # The specific failure: one PR adds a path to .dockerignore, another adds a
-  # Dockerfile COPY of that path. Both are green alone; combined, the image no
-  # longer builds. `quality` runs `pnpm build`, never `docker build`, so it
-  # cannot see this. `scripts/deploy.sh` builds the images ON THE PRODUCTION
-  # HOST, and its smoke-test gate and rollback both run AFTER that build — so
-  # neither covers a build failure. The deploy simply aborts at step 2 with the
-  # old stack still serving: recoverable, but a failed release on prod.
-  #
-  # `quality` still runs on main regardless, as a cheap backstop for a semantic
-  # merge conflict in application code.
+  # Required on pull requests. Keep this as one job so image build, runtime boot,
+  # and vulnerability scanning share the same local images and runner minutes.
   docker:
     name: Docker image builds
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # Build images on the same context the production compose uses (repo root).
-    # Validates the multi-stage Dockerfiles without pushing anywhere.
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: docker_ci_postgres_password
+          POSTGRES_DB: wizer_docker_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -237,9 +162,10 @@ jobs:
           context: .
           file: apps/api/Dockerfile
           push: false
+          load: true
           tags: wizer-signage/api:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=ci-api
+          cache-to: type=gha,mode=max,scope=ci-api
 
       - name: Build dashboard image
         uses: docker/build-push-action@v7
@@ -247,11 +173,12 @@ jobs:
           context: .
           file: apps/dashboard/Dockerfile
           push: false
+          load: true
           tags: wizer-signage/dashboard:ci
           build-args: |
-            NEXT_PUBLIC_API_URL=https://example.invalid/api
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            NEXT_PUBLIC_API_URL=https://api.ci.invalid/api
+          cache-from: type=gha,scope=ci-dashboard
+          cache-to: type=gha,mode=max,scope=ci-dashboard
 
       - name: Build maintenance image
         uses: docker/build-push-action@v7
@@ -259,19 +186,80 @@ jobs:
           context: .
           file: infra/docker/Dockerfile.maintenance
           push: false
+          load: true
           tags: wizer-signage/maintenance:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=ci-maintenance
+          cache-to: type=gha,mode=max,scope=ci-maintenance
+
+      # Boots the actual Alpine production image, not `nest start` on the runner.
+      # This catches missing Prisma/musl/OpenSSL/native runtime artifacts that a
+      # successful docker build alone cannot detect.
+      - name: Boot built API image against PostgreSQL and probe readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          cleanup() { docker rm -f wizer-api-runtime-ci >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          docker run -d --name wizer-api-runtime-ci --network host \
+            -e NODE_ENV=test \
+            -e API_HOST=0.0.0.0 \
+            -e API_PORT=3001 \
+            -e DATABASE_URL=postgresql://postgres:docker_ci_postgres_password@127.0.0.1:5432/wizer_docker_ci \
+            -e DIRECT_URL=postgresql://postgres:docker_ci_postgres_password@127.0.0.1:5432/wizer_docker_ci \
+            -e JWT_ACCESS_SECRET=ci-only-access-secret-value \
+            -e JWT_REFRESH_SECRET=ci-only-refresh-secret-value \
+            -e ENCRYPTION_KEY=ci-only-encryption-key-value \
+            wizer-signage/api:ci
+
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3001/api/health/ready >/dev/null; then
+              echo 'Built API image readiness: OK'
+              exit 0
+            fi
+            if ! docker inspect -f '{{.State.Running}}' wizer-api-runtime-ci 2>/dev/null | grep -qx true; then
+              break
+            fi
+            sleep 2
+          done
+          docker logs wizer-api-runtime-ci >&2 || true
+          echo 'ERROR: built API image never became ready.' >&2
+          exit 1
+
+      - name: Trivy — API image HIGH/CRITICAL fixed vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: wizer-signage/api:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          vuln-type: os,library
+
+      - name: Trivy — dashboard image HIGH/CRITICAL fixed vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: wizer-signage/dashboard:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          vuln-type: os,library
+
+      - name: Trivy — maintenance image HIGH/CRITICAL fixed vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: wizer-signage/maintenance:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          vuln-type: os,library
 
   android:
     name: Android player (tests · lint · debug build)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    # The player drives physical screens and a bad build strands the fleet (there
-    # is no OTA), yet its ~100 Kotlin tests previously ran ONLY inside the release
-    # script, which requires the production keystore — so they never ran in CI.
-    # Debug build + unit tests need no signing secrets.
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -287,8 +275,6 @@ jobs:
 
       - name: Unit tests · lint · assemble
         working-directory: apps/android-tv-player
-        # A synthetic HTTPS base URL: the build must never silently fall back to
-        # a default host, and CI must not bake a real one in.
         run: |
           ./gradlew --no-daemon \
             -PapiBaseUrl=https://api.ci.invalid/api \
@@ -311,8 +297,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # gitleaks needs the base/head commits and their ancestry, but should
-          # not scan every unrelated branch fetched into the local repository.
           fetch-depth: 0
 
       - name: Setup pnpm
@@ -329,9 +313,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Fails the build on a HIGH/CRITICAL advisory in anything that ships to
-      # production. Moderates are reported but do not block, so the gate stays
-      # actionable rather than permanently red.
       - name: Audit production dependencies
         run: pnpm audit --prod --audit-level=high
 
@@ -339,12 +320,6 @@ jobs:
         if: always()
         run: pnpm audit --prod || true
 
-      # Scan the commits THIS PR introduces. `gitleaks git` delegates to
-      # `git log -p`; --log-opts is its supported mechanism for selecting a
-      # commit range. The old unbounded `detect --source=/repo` walked every
-      # fetched branch, so a false positive on one open feature branch made
-      # every unrelated PR fail even when that commit was not part of its tree.
-      # .gitleaksignore remains fingerprint-specific for audited false positives.
       - name: Scan for committed secrets
         run: |
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
