@@ -1,0 +1,80 @@
+name: One-shot telemetry Prisma reconciliation
+
+on:
+  push:
+    branches: [codex/production-readiness-final]
+    paths:
+      - '.github/workflows/repair-telemetry-prisma.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-telemetry-prisma-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/production-readiness-final
+          fetch-depth: 0
+
+      - name: Reconcile Prisma telemetry keys with partition migrations
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('apps/api/prisma/schema.prisma')
+          text = path.read_text()
+
+          replacements = [
+              (
+                  '  id                    String      @id @default(uuid())',
+                  '  id                    String      @default(uuid())',
+              ),
+              (
+                  '  @@index([screenId])\n  @@index([companyId])\n  @@index([createdAt])',
+                  '  @@id([id, createdAt])\n  @@index([screenId])\n  @@index([companyId])\n  @@index([createdAt])',
+              ),
+              (
+                  '  id                   String             @id @default(uuid())',
+                  '  id                   String             @default(uuid())',
+              ),
+              (
+                  '  @@unique([companyId, playbackSessionId])\n  @@index([companyId, startedAt])',
+                  '  @@id([id, startedAt])\n  @@index([companyId, startedAt])',
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one match, found {count}: {old!r}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text)
+
+      - name: Verify only intended schema shape changed
+        run: |
+          set -euo pipefail
+          grep -F '  @@id([id, createdAt])' apps/api/prisma/schema.prisma
+          grep -F '  @@id([id, startedAt])' apps/api/prisma/schema.prisma
+          if grep -F '  @@unique([companyId, playbackSessionId])' apps/api/prisma/schema.prisma; then
+            echo 'ERROR: direct proof-of-play unique constraint still declared in Prisma.' >&2
+            exit 1
+          fi
+          git diff --check
+
+      - name: Commit reconciliation and remove one-shot workflow
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/repair-telemetry-prisma.yml
+          git config user.name 'wizer-production-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add apps/api/prisma/schema.prisma .github/workflows/repair-telemetry-prisma.yml
+          git commit -m 'fix(db): align Prisma telemetry keys with partitions'
+          git push origin HEAD:codex/production-readiness-final
