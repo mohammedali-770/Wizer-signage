@@ -59,16 +59,27 @@ for file in "${BASE}" "${PROXY}" "${LOGGING}" "${SLOTS}" "${SLOTS_LOGGING}"; do
 done
 
 for key in \
-  APP_DOMAIN DATABASE_URL DIRECT_URL JWT_ACCESS_SECRET JWT_REFRESH_SECRET ENCRYPTION_KEY \
+  APP_DOMAIN NEXT_PUBLIC_API_URL DATABASE_URL DIRECT_URL JWT_ACCESS_SECRET JWT_REFRESH_SECRET ENCRYPTION_KEY \
   IMAGE_REGISTRY_PREFIX METRICS_TOKEN BACKUP_OFFSITE_CMD HEALTHCHECKS_URL LOG_SHIPPING_ADDRESS \
   SMTP_HOST SMTP_PORT SMTP_FROM SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_STORAGE_BUCKET; do
   require_value "${key}"
 done
 
 APP_DOMAIN="$(read_env_value APP_DOMAIN)"
+[[ "${APP_DOMAIN}" =~ ^[A-Za-z0-9.-]+$ && "${APP_DOMAIN}" == *.* ]] \
+  || fail "APP_DOMAIN must be a DNS hostname without scheme, port, credentials or path"
 case "${APP_DOMAIN,,}" in localhost|127.*|10.*|192.168.*|*.local|*.invalid) fail "APP_DOMAIN points at a local/development hostname" ;; esac
-[[ "${APP_DOMAIN}" != *://* && "${APP_DOMAIN}" != */* ]] || fail "APP_DOMAIN must be a hostname without scheme/path"
 pass "APP_DOMAIN looks production-like"
+
+# This topology serves the API at /api on the same public domain as the dashboard.
+# The dashboard URL is compiled into the immutable image, so the host-approved
+# value must be exact; pull-release-images.sh verifies the corresponding image
+# label before any local release tags are moved.
+NEXT_PUBLIC_API_URL_VALUE="$(read_env_value NEXT_PUBLIC_API_URL)"
+EXPECTED_API_URL="https://${APP_DOMAIN}/api"
+[[ "${NEXT_PUBLIC_API_URL_VALUE}" == "${EXPECTED_API_URL}" ]] \
+  || fail "NEXT_PUBLIC_API_URL must equal https://${APP_DOMAIN}/api for the production reverse-proxy topology"
+pass "dashboard build API URL matches the production public API origin"
 
 # configuration.ts resolves APP_URL first, then DASHBOARD_URL. Validate the same
 # winner so password-reset/invitation links cannot silently fall back to localhost
