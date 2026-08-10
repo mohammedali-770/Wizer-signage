@@ -1,7 +1,11 @@
 name: One-shot Prisma schema repair
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - codex/production-readiness-final
+    paths:
+      - .github/workflows/schema-repair.yml
 
 permissions:
   contents: write
@@ -72,7 +76,6 @@ jobs:
           path.write_text(text)
           PY
 
-          # Guard against another accidental whole-schema replacement.
           python3 - <<'PY'
           import subprocess
           from pathlib import Path
@@ -100,7 +103,6 @@ jobs:
           if missing:
               raise SystemExit(f'repaired schema missing required contract markers: {missing}')
 
-          # Only the two telemetry models may differ from the known-good schema.
           def strip_model(text, name):
               marker = f'model {name} {{'
               start = text.index(marker)
