@@ -45,6 +45,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build API workspace dependencies
+        run: |
+          pnpm --filter @wizer/types build
+          pnpm --filter @wizer/shared build
+
       - name: Generate Prisma client
         run: pnpm db:generate
 
