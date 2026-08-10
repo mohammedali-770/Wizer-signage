@@ -4,12 +4,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { RefreshCw } from 'lucide-react';
 
-import { Link } from '@/i18n/navigation';
 import { ExportButton } from '@/components/exports/export-button';
-import { api, ApiError } from '@/lib/api';
-import { useApiResource } from '@/lib/use-api';
-import type { LiveScreenStatus, MonitoringOverview } from '@/lib/types';
-import { formatDateTime } from '@/lib/format';
 import {
   Badge,
   Button,
@@ -26,6 +21,11 @@ import {
   TR,
   useToast,
 } from '@/components/ui';
+import { Link } from '@/i18n/navigation';
+import { api, ApiError } from '@/lib/api';
+import { formatDateTime } from '@/lib/format';
+import type { LiveScreenStatus, MonitoringOverview } from '@/lib/types';
+import { useApiResource } from '@/lib/use-api';
 
 interface FleetHealthSummary {
   totalScreens: number;
@@ -43,6 +43,12 @@ interface FleetHealthSummary {
   }>;
 }
 
+interface PaginatedMonitoringOverview extends MonitoringOverview {
+  screenMeta: { page: number; pageSize: number; total: number; totalPages: number };
+  alertsTruncated: boolean;
+}
+
+const PAGE_SIZE = 50;
 const STATUS_TONE: Record<LiveScreenStatus, 'success' | 'danger' | 'warning' | 'neutral' | 'info'> =
   {
     ONLINE: 'success',
@@ -60,8 +66,12 @@ export default function MonitoringPage() {
   const tc = useTranslations('common');
   const te = useTranslations('enums');
   const { toast } = useToast();
-  const overview = useApiResource<MonitoringOverview>('/monitoring/overview');
-  const fleetHealth = useApiResource<FleetHealthSummary>('/monitoring/fleet-health');
+  const [page, setPage] = useState(1);
+  const overview = useApiResource<PaginatedMonitoringOverview>(
+    `/monitoring/overview?page=${page}&pageSize=${PAGE_SIZE}`,
+    { ttl: 0 },
+  );
+  const fleetHealth = useApiResource<FleetHealthSummary>('/monitoring/fleet-health', { ttl: 0 });
   const [busy, setBusy] = useState<string | null>(null);
 
   const isArabic = locale.toLowerCase().startsWith('ar');
@@ -79,6 +89,12 @@ export default function MonitoringPage() {
         crashCount: 'عدد الأعطال',
         fingerprint: 'البصمة',
         diagnosticsError: 'تعذر تحميل تشخيص إصدارات التطبيق والأعطال.',
+        previous: 'السابق',
+        next: 'التالي',
+        page: 'الصفحة',
+        of: 'من',
+        showing: 'عرض',
+        alertsTruncated: 'يوجد أكثر من 200 تنبيه حي. تعرض القائمة أعلى 200 تنبيه فقط.',
       }
     : {
         diagnostics: 'Player fleet diagnostics',
@@ -93,6 +109,12 @@ export default function MonitoringPage() {
         crashCount: 'Crash count',
         fingerprint: 'Fingerprint',
         diagnosticsError: 'Could not load player version/crash diagnostics.',
+        previous: 'Previous',
+        next: 'Next',
+        page: 'Page',
+        of: 'of',
+        showing: 'Showing',
+        alertsTruncated: 'More than 200 live alerts exist. The list shows the highest-priority 200.',
       };
 
   const action = async (screenId: string, path: string, label: string) => {
@@ -157,6 +179,9 @@ export default function MonitoringPage() {
           {data.alerts.length > 0 ? (
             <Card className="mb-4 p-4">
               <p className="mb-2 text-sm font-semibold">{t('alerts')}</p>
+              {data.alertsTruncated ? (
+                <p className="text-muted-foreground mb-2 text-xs">{labels.alertsTruncated}</p>
+              ) : null}
               <ul className="space-y-1">
                 {data.alerts.map((a) => (
                   <li key={a.screenId + a.message} className="text-sm">
@@ -264,73 +289,100 @@ export default function MonitoringPage() {
           {data.screens.length === 0 ? (
             <EmptyState title={t('noScreensTitle')} description={t('noScreensDescription')} />
           ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>{t('screen')}</TH>
-                  <TH>{tc('status')}</TH>
-                  <TH>{t('playback')}</TH>
-                  <TH>{t('sync')}</TH>
-                  <TH>{t('app')}</TH>
-                  <TH>{t('lastHeartbeat')}</TH>
-                  <TH>{tc('actions')}</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {data.screens.map((s) => (
-                  <TR key={s.id}>
-                    <TD>
-                      <Link
-                        href={`/company/screens/${s.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {s.name}
-                      </Link>
-                      {s.locationName ? (
-                        <p className="text-muted-foreground text-xs">{s.locationName}</p>
-                      ) : null}
-                    </TD>
-                    <TD>
-                      <Badge tone={STATUS_TONE[s.status]}>{s.status}</Badge>
-                    </TD>
-                    <TD className="text-muted-foreground">{s.playbackState ?? '—'}</TD>
-                    <TD className="text-muted-foreground">
-                      {s.syncStatus ?? '—'}
-                      {s.failedDownloads > 0 ? (
-                        <span className="text-red-600">
-                          {' '}
-                          · {t('failedCount', { count: s.failedDownloads })}
-                        </span>
-                      ) : null}
-                    </TD>
-                    <TD className="text-muted-foreground">{s.appVersion ?? '—'}</TD>
-                    <TD className="text-muted-foreground">
-                      {s.lastHeartbeatAt ? formatDateTime(s.lastHeartbeatAt, locale) : t('never')}
-                    </TD>
-                    <TD>
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={!s.paired || busy === s.id + 'force-sync'}
-                          onClick={() => action(s.id, 'force-sync', t('forceSync'))}
-                        >
-                          {t('syncAction')}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={!s.paired || busy === s.id + 'take-screenshot'}
-                          onClick={() => action(s.id, 'take-screenshot', t('screenshot'))}
-                        >
-                          {t('shotAction')}
-                        </Button>
-                      </div>
-                    </TD>
+            <>
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>{t('screen')}</TH>
+                    <TH>{tc('status')}</TH>
+                    <TH>{t('playback')}</TH>
+                    <TH>{t('sync')}</TH>
+                    <TH>{t('app')}</TH>
+                    <TH>{t('lastHeartbeat')}</TH>
+                    <TH>{tc('actions')}</TH>
                   </TR>
-                ))}
-              </TBody>
-            </Table>
+                </THead>
+                <TBody>
+                  {data.screens.map((s) => (
+                    <TR key={s.id}>
+                      <TD>
+                        <Link
+                          href={`/company/screens/${s.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {s.name}
+                        </Link>
+                        {s.locationName ? (
+                          <p className="text-muted-foreground text-xs">{s.locationName}</p>
+                        ) : null}
+                      </TD>
+                      <TD>
+                        <Badge tone={STATUS_TONE[s.status]}>{s.status}</Badge>
+                      </TD>
+                      <TD className="text-muted-foreground">{s.playbackState ?? '—'}</TD>
+                      <TD className="text-muted-foreground">
+                        {s.syncStatus ?? '—'}
+                        {s.failedDownloads > 0 ? (
+                          <span className="text-red-600">
+                            {' '}
+                            · {t('failedCount', { count: s.failedDownloads })}
+                          </span>
+                        ) : null}
+                      </TD>
+                      <TD className="text-muted-foreground">{s.appVersion ?? '—'}</TD>
+                      <TD className="text-muted-foreground">
+                        {s.lastHeartbeatAt ? formatDateTime(s.lastHeartbeatAt, locale) : t('never')}
+                      </TD>
+                      <TD>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={!s.paired || busy === s.id + 'force-sync'}
+                            onClick={() => action(s.id, 'force-sync', t('forceSync'))}
+                          >
+                            {t('syncAction')}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={!s.paired || busy === s.id + 'take-screenshot'}
+                            onClick={() => action(s.id, 'take-screenshot', t('screenshot'))}
+                          >
+                            {t('shotAction')}
+                          </Button>
+                        </div>
+                      </TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-muted-foreground text-xs">
+                  {labels.showing} {data.screens.length} / {data.screenMeta.total} · {labels.page}{' '}
+                  {data.screenMeta.page} {labels.of} {Math.max(1, data.screenMeta.totalPages)}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page <= 1 || overview.loading}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    {labels.previous}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page >= data.screenMeta.totalPages || overview.loading}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    {labels.next}
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </>
       )}
