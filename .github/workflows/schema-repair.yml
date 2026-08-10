@@ -1,11 +1,7 @@
 name: One-shot Prisma schema repair
 
 on:
-  push:
-    branches:
-      - codex/production-readiness-final
-    paths:
-      - .github/workflows/schema-repair.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -27,14 +23,12 @@ jobs:
           SCHEMA='apps/api/prisma/schema.prisma'
           BASE='90cc8cccd81d959984d38de90174c989ad03979d'
           EXPECTED_BASE_BLOB='d77601a56b8492c7a1acec4405cbae0d6311de3c'
-
           actual_blob="$(git rev-parse "${BASE}:${SCHEMA}")"
           test "$actual_blob" = "$EXPECTED_BASE_BLOB"
           git show "${BASE}:${SCHEMA}" > "$SCHEMA"
 
           python3 - <<'PY'
           from pathlib import Path
-
           path = Path('apps/api/prisma/schema.prisma')
           text = path.read_text()
 
@@ -68,8 +62,7 @@ jobs:
               unique = '  @@unique([companyId, playbackSessionId])\n'
               if block.count(unique) != 1:
                   raise SystemExit('ProofOfPlay tenant unique anchor changed unexpectedly')
-              block = block.replace(unique, '  @@id([id, startedAt])\n  @@index([companyId, playbackSessionId])\n', 1)
-              return block
+              return block.replace(unique, '  @@id([id, startedAt])\n  @@index([companyId, playbackSessionId])\n', 1)
 
           text = transform_model(text, 'Heartbeat', heartbeat)
           text = transform_model(text, 'ProofOfPlay', proof)
@@ -79,36 +72,17 @@ jobs:
           python3 - <<'PY'
           import subprocess
           from pathlib import Path
-
-          base = subprocess.check_output(
-              ['git', 'show', '90cc8cccd81d959984d38de90174c989ad03979d:apps/api/prisma/schema.prisma'],
-              text=True,
-          )
+          base = subprocess.check_output(['git', 'show', '90cc8cccd81d959984d38de90174c989ad03979d:apps/api/prisma/schema.prisma'], text=True)
           current = Path('apps/api/prisma/schema.prisma').read_text()
-          required = [
-              'LOCATION_MANAGER',
-              'REBOOT_DEVICE',
-              'UNPAIR_DEVICE',
-              'RELOAD_CONFIG',
-              'EXPIRED',
-              'model DeviceCommand {',
-              'companyId String',
-              'deviceId String?',
-              'issuedById String?',
-              'expiresAt DateTime?',
-              '@@id([id, createdAt])',
-              '@@id([id, startedAt])',
-          ]
+          required = ['LOCATION_MANAGER','REBOOT_DEVICE','UNPAIR_DEVICE','RELOAD_CONFIG','EXPIRED','model DeviceCommand {','companyId String','deviceId String?','issuedById String?','expiresAt DateTime?','@@id([id, createdAt])','@@id([id, startedAt])']
           missing = [needle for needle in required if needle not in current]
           if missing:
               raise SystemExit(f'repaired schema missing required contract markers: {missing}')
-
           def strip_model(text, name):
               marker = f'model {name} {{'
               start = text.index(marker)
               end = text.index('\n}\n', start) + 3
               return text[:start] + f'model {name} {{\n<TELEMETRY MODEL NORMALIZED>\n}}\n' + text[end:]
-
           for name in ('Heartbeat', 'ProofOfPlay'):
               base = strip_model(base, name)
               current = strip_model(current, name)
