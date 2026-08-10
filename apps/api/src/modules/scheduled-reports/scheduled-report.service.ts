@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   Prisma,
   ReportDeliveryStatus,
@@ -29,24 +29,9 @@ import type {
   UpdateScheduledReportDto,
 } from './dto/scheduled-report.dto';
 
-/**
- * Lifetime of the signed report link emailed to recipients.
- *
- * This is an UNAUTHENTICATED bearer URL to a full dataset (audit trail, billing
- * ledger) sitting in an inbox — anyone who obtains the mail, or the link, can
- * fetch it. It was 7 days, which meant a forwarded or leaked email exposed the
- * data for a week with no way to revoke it. Hours is enough for a recipient to
- * open a report they were just emailed; a stale link can be regenerated from the
- * dashboard, which re-checks authority.
- */
 const REPORT_SIGNED_TTL_SECONDS = 4 * 60 * 60;
+const REPORT_EMAIL_CONCURRENCY = 5;
 
-/**
- * Scheduled reports (Phase 10). Definitions are CRUD-managed here; execution is
- * driven by a simple due-runner (`runDue`) invoked by the maintenance CLI/cron —
- * not an in-process scheduler. Each run renders via the shared ExportService,
- * stores the file, emails recipients a signed link, and records a delivery.
- */
 @Injectable()
 export class ScheduledReportService {
   private readonly logger = new Logger(ScheduledReportService.name);
@@ -60,14 +45,10 @@ export class ScheduledReportService {
     private readonly storage: StorageService,
   ) {}
 
-  // --- CRUD --------------------------------------------------------------
-
   async create(companyId: string, actor: AuthenticatedUser, dto: CreateScheduledReportDto) {
-    // Scheduling must not be a way around the interactive permission check: a
-    // role that cannot export ACTIVITY_LOGS or BILLING on demand must not be
-    // able to have them mailed to itself on a timer either.
     const target = REPORT_TYPE_DATASET[dto.reportType];
     if (target) this.exports.assertDatasetAccess(actor, target);
+    await this.assertRecipients(companyId, dto.recipients);
 
     const report = await this.prisma.scheduledReport.create({
       data: {
@@ -117,6 +98,11 @@ export class ScheduledReportService {
     dto: UpdateScheduledReportDto,
   ) {
     const report = await this.loadOwned(companyId, id);
+    const targetType = dto.reportType ?? report.reportType;
+    const target = REPORT_TYPE_DATASET[targetType];
+    if (target) this.exports.assertDatasetAccess(actor, target);
+    if (dto.recipients) await this.assertRecipients(companyId, dto.recipients);
+
     const frequency = dto.frequency ?? report.frequency;
     const updated = await this.prisma.scheduledReport.update({
       where: { id },
@@ -130,7 +116,6 @@ export class ScheduledReportService {
           : undefined,
         filters: dto.filters ? (dto.filters as Prisma.InputJsonValue) : undefined,
         enabled: dto.enabled ?? undefined,
-        // Recompute the next run when cadence changes.
         nextRunAt:
           dto.frequency && dto.frequency !== report.frequency
             ? this.nextRunAt(frequency)
@@ -142,10 +127,16 @@ export class ScheduledReportService {
   }
 
   async setEnabled(companyId: string, actor: AuthenticatedUser, id: string, enabled: boolean) {
-    await this.loadOwned(companyId, id);
+    const report = await this.loadOwned(companyId, id);
+    if (enabled) {
+      await this.assertRecipients(
+        companyId,
+        (report.recipients as unknown as string[]) ?? [],
+      );
+    }
     const updated = await this.prisma.scheduledReport.update({
       where: { id },
-      data: { enabled, nextRunAt: enabled ? this.nextRunAt() : null },
+      data: { enabled, nextRunAt: enabled ? this.nextRunAt(report.frequency) : null },
     });
     await this.log(
       actor,
@@ -164,9 +155,11 @@ export class ScheduledReportService {
     return { ok: true };
   }
 
-  // --- Execution ----------------------------------------------------------
-
-  /** Run a single report now (manual trigger). */
+  /**
+   * Legacy internal helper retained for source compatibility with older test
+   * harnesses. The public controller no longer calls this method; manual HTTP
+   * runs are queued with 202 and executed by runDue() in maintenance.
+   */
   async runNow(companyId: string, actor: AuthenticatedUser, id: string) {
     const report = await this.loadOwned(companyId, id);
     const delivery = await this.run(report);
@@ -181,23 +174,46 @@ export class ScheduledReportService {
   async runDue(now: Date = new Date()): Promise<{ ran: number; failed: number }> {
     const due = await this.prisma.scheduledReport.findMany({
       where: { enabled: true, nextRunAt: { not: null, lte: now } },
+      orderBy: [{ nextRunAt: 'asc' }, { id: 'asc' }],
       take: 200,
     });
     let ran = 0;
     let failed = 0;
     for (const report of due) {
-      // Re-validate the CREATOR on every run. A schedule outlives the person who
-      // made it: disabling their account revokes sessions but did nothing here,
-      // so the platform kept mailing a departed employee the tenant's audit trail
-      // and invoice ledger, week after week, with no way to see or stop it.
       if (!(await this.creatorStillEntitled(report))) {
         await this.prisma.scheduledReport.update({
           where: { id: report.id },
-          data: { enabled: false },
+          data: { enabled: false, nextRunAt: null },
         });
         this.logger.warn(
-          `Disabled scheduled report ${report.id}: its creator is no longer an active member of the company.`,
+          `Disabled scheduled report ${report.id}: creator no longer has active report authority.`,
         );
+        continue;
+      }
+      try {
+        await this.assertRecipients(
+          report.companyId,
+          (report.recipients as unknown as string[]) ?? [],
+        );
+      } catch {
+        await this.prisma.scheduledReport.update({
+          where: { id: report.id },
+          data: { enabled: false, nextRunAt: null },
+        });
+        this.logger.warn(
+          `Disabled scheduled report ${report.id}: recipient list contains a non-active tenant user.`,
+        );
+        await this.alerts
+          .raise({
+            companyId: report.companyId,
+            type: AlertEvent.ReportFailed,
+            title: `Scheduled report disabled: ${report.name}`,
+            message: 'One or more recipients are no longer active users in this company.',
+            metadata: { scheduledReportId: report.id },
+            dedupeKey: `${report.companyId}:report:${report.id}:invalid-recipients`,
+          })
+          .catch(() => undefined);
+        failed++;
         continue;
       }
       const delivery = await this.run(report, now);
@@ -207,30 +223,20 @@ export class ScheduledReportService {
     return { ran, failed };
   }
 
-  /**
-   * Is the report's creator still an ACTIVE member of the owning company who
-   * retains the authority to schedule it — and to read the dataset it produces?
-   *
-   * A report with no creator (legacy rows) is allowed to keep running; the
-   * checks here only ever DISABLE a schedule whose creator has demonstrably lost
-   * access, never one we cannot evaluate.
-   */
   private async creatorStillEntitled(
     report: Prisma.ScheduledReportGetPayload<true>,
   ): Promise<boolean> {
-    if (!report.createdById) return true;
+    // An unowned legacy schedule cannot be re-authorized and therefore must not
+    // keep sending tenant data indefinitely.
+    if (!report.createdById) return false;
 
     const creator = await this.prisma.user.findUnique({
       where: { id: report.createdById },
       select: { id: true, role: true, status: true, companyId: true, deletedAt: true },
     });
-    if (!creator) return false;
-    if (creator.deletedAt) return false;
-    if (creator.status !== UserStatus.ACTIVE) return false;
+    if (!creator || creator.deletedAt || creator.status !== UserStatus.ACTIVE) return false;
 
     const isSuperAdmin = creator.role === UserRole.SUPER_ADMIN;
-    // Moved to another tenant, or removed from this one. Super admins are not
-    // company-scoped (companyId is null by construction), so they are exempt.
     if (!isSuperAdmin && creator.companyId !== report.companyId) return false;
     if (!hasPermission(creator.role, Permission.ReportSchedule)) return false;
 
@@ -253,7 +259,7 @@ export class ScheduledReportService {
     return true;
   }
 
-  /** Render → store → email → record. Never throws (records FAILED + alerts). */
+  /** Render → store → bounded email fan-out → record. Never throws to the runner. */
   private async run(report: Prisma.ScheduledReportGetPayload<true>, now: Date = new Date()) {
     const recipients = (report.recipients as unknown as string[]) ?? [];
     const delivery = await this.prisma.scheduledReportDelivery.create({
@@ -266,6 +272,7 @@ export class ScheduledReportService {
     });
 
     try {
+      if (recipients.length === 0) throw new Error('Scheduled report has no recipients.');
       const dataset = REPORT_TYPE_DATASET[report.reportType];
       if (!dataset) throw new Error(`No dataset mapping for ${report.reportType}.`);
       const data = await this.exports.dataset(
@@ -289,30 +296,33 @@ export class ScheduledReportService {
         .catch(() => null);
 
       let okCount = 0;
-      for (const to of recipients) {
-        const result = await this.email.sendEvent({
-          companyId: report.companyId,
-          to,
-          type: 'report',
-          subject: `Scheduled report: ${report.name}`,
-          text:
-            `Your "${report.name}" report (${report.reportType}, ${report.format}) is ready with ${data.rows.length} rows.\n\n` +
-            (url
-              ? `Download (link valid 7 days):\n${url}\n`
-              : 'The report was generated and stored.'),
-        });
-        if (result.ok) okCount++;
+      for (let i = 0; i < recipients.length; i += REPORT_EMAIL_CONCURRENCY) {
+        const batch = recipients.slice(i, i + REPORT_EMAIL_CONCURRENCY);
+        const results = await Promise.all(
+          batch.map((to) =>
+            this.email.sendEvent({
+              companyId: report.companyId,
+              to,
+              type: 'report',
+              subject: `Scheduled report: ${report.name}`,
+              text:
+                `Your "${report.name}" report (${report.reportType}, ${report.format}) is ready with ${data.rows.length} rows.\n\n` +
+                (url
+                  ? `Download (link valid 4 hours):\n${url}\n`
+                  : 'The report was generated and stored.'),
+            }),
+          ),
+        );
+        okCount += results.filter((result) => result.ok).length;
       }
 
-      // The report rendered + stored, but if every recipient email failed the
-      // delivery did NOT reach anyone — record it FAILED and alert.
-      const allEmailsFailed = recipients.length > 0 && okCount === 0;
+      const allEmailsFailed = okCount === 0;
       const done = await this.prisma.scheduledReportDelivery.update({
         where: { id: delivery.id },
         data: {
           status: allEmailsFailed ? ReportDeliveryStatus.FAILED : ReportDeliveryStatus.SENT,
           fileStorageKey: key,
-          error: allEmailsFailed ? 'All recipient emails failed to send.' : null,
+          error: allEmailsFailed ? 'The report could not be delivered to any active recipient.' : null,
           sentAt: allEmailsFailed ? null : new Date(),
         },
       });
@@ -326,7 +336,7 @@ export class ScheduledReportService {
             companyId: report.companyId,
             type: AlertEvent.ReportFailed,
             title: `Scheduled report not delivered: ${report.name}`,
-            message: 'The report generated but all recipient emails failed.',
+            message: 'The report generated but could not be delivered to an active recipient.',
             metadata: { scheduledReportId: report.id },
             dedupeKey: `${report.companyId}:report:${report.id}:undelivered`,
           })
@@ -334,13 +344,13 @@ export class ScheduledReportService {
       }
       return done;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Scheduled report ${report.id} failed: ${message}`);
+      const detail = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Scheduled report ${report.id} failed: ${detail}`);
+      const safeMessage = 'Scheduled report generation or delivery failed.';
       const failed = await this.prisma.scheduledReportDelivery.update({
         where: { id: delivery.id },
-        data: { status: ReportDeliveryStatus.FAILED, error: message },
+        data: { status: ReportDeliveryStatus.FAILED, error: safeMessage },
       });
-      // Advance nextRunAt so a permanently-broken report does not block the runner.
       await this.prisma.scheduledReport
         .update({
           where: { id: report.id },
@@ -352,7 +362,7 @@ export class ScheduledReportService {
           companyId: report.companyId,
           type: AlertEvent.ReportFailed,
           title: `Scheduled report failed: ${report.name}`,
-          message,
+          message: safeMessage,
           metadata: { scheduledReportId: report.id },
           dedupeKey: `${report.companyId}:report:${report.id}:failed`,
         })
@@ -361,9 +371,30 @@ export class ScheduledReportService {
     }
   }
 
-  // --- Helpers -----------------------------------------------------------
+  private async assertRecipients(companyId: string, recipients: string[]): Promise<void> {
+    const normalized = [...new Set(recipients.map((email) => email.trim().toLowerCase()))];
+    if (normalized.length === 0) {
+      throw new BadRequestException('At least one active company user must receive the report.');
+    }
 
-  /** Next run time for a cadence. Deterministic, no in-process timers. */
+    const users = await this.prisma.user.findMany({
+      where: {
+        companyId,
+        status: UserStatus.ACTIVE,
+        deletedAt: null,
+        OR: normalized.map((email) => ({ email: { equals: email, mode: 'insensitive' } })),
+      },
+      select: { email: true },
+    });
+    const allowed = new Set(users.map((user) => user.email.trim().toLowerCase()));
+    const invalid = normalized.filter((email) => !allowed.has(email));
+    if (invalid.length > 0) {
+      throw new BadRequestException(
+        'Scheduled report recipients must be active users in this company.',
+      );
+    }
+  }
+
   private nextRunAt(
     frequency: ReportFrequency = ReportFrequency.WEEKLY,
     from: Date = new Date(),
