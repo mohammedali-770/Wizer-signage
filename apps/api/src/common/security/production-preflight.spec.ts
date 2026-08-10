@@ -21,9 +21,10 @@ describe('production preflight contract', () => {
     expect(preflight).not.toContain('prisma migrate');
   });
 
-  it('requires production registry, database, auth, metrics, recovery, logging, mail and storage coordinates', () => {
+  it('requires production registry, database, auth, metrics, recovery, logging, mail, storage and dashboard-build coordinates', () => {
     for (const key of [
       'APP_DOMAIN',
+      'NEXT_PUBLIC_API_URL',
       'DATABASE_URL',
       'DIRECT_URL',
       'JWT_ACCESS_SECRET',
@@ -43,6 +44,13 @@ describe('production preflight contract', () => {
     ]) {
       expect(preflight).toContain(key);
     }
+  });
+
+  it('binds the immutable dashboard artifact to the exact production API origin', () => {
+    expect(preflight).toContain('APP_DOMAIN must be a DNS hostname without scheme, port, credentials or path');
+    expect(preflight).toContain('EXPECTED_API_URL="https://${APP_DOMAIN}/api"');
+    expect(preflight).toContain('NEXT_PUBLIC_API_URL must equal https://${APP_DOMAIN}/api');
+    expect(preflight).toContain('dashboard build API URL matches the production public API origin');
   });
 
   it('validates the same APP_URL then DASHBOARD_URL precedence used for email links', () => {
