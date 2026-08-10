@@ -1,7 +1,8 @@
 name: Final production contract generation
 
-# Final frozen-head trigger: 2026-08-10. This workflow removes itself after a
-# successful generation commit so it cannot become recurring Actions spend.
+# Final frozen-head trigger: 2026-08-10 retry after deterministic contract check.
+# This workflow removes itself after a successful generation commit so it cannot
+# become recurring Actions spend.
 on:
   workflow_dispatch:
   push:
