@@ -4,14 +4,6 @@
  * A standalone Nest application context (no HTTP server) that runs a single
  * maintenance job and exits. Intended to be invoked by cron / a Docker worker —
  * NOT an in-process scheduler (see docs/data-retention.md).
- *
- *   node dist/maintenance/maintenance.cli.js all
- *   node dist/maintenance/maintenance.cli.js retention
- *   node dist/maintenance/maintenance.cli.js sweep|reports|emergencies|backup-check
- *   node dist/maintenance/maintenance.cli.js android-ota-health   # internal cron-only job
- *   node dist/maintenance/maintenance.cli.js record-backup --type=DATABASE --status=SUCCESS --location=s3://... --size=12345
- *
- * In dev: `pnpm --filter @wizer/api maintenance all`.
  */
 import { NestFactory } from '@nestjs/core';
 import { BackupStatus, BackupType } from '@prisma/client';
@@ -19,6 +11,7 @@ import { BackupStatus, BackupType } from '@prisma/client';
 import { AppModule } from '../app.module';
 import { AndroidOtaHealthService } from '../modules/maintenance/android-ota-health.service';
 import { BackupService } from '../modules/maintenance/backup.service';
+import { ImportCommitWorkerService } from '../modules/maintenance/import-commit-worker.service';
 import { MaintenanceService } from '../modules/maintenance/maintenance.service';
 
 type Flags = Record<string, string>;
@@ -65,12 +58,17 @@ async function main(): Promise<void> {
       // eslint-disable-next-line no-console
       console.log(JSON.stringify(run));
     } else if (command === 'android-ota-health') {
-      // Deliberately CLI-only. This is a frequent internal reconciliation loop,
-      // not a dashboard/admin API operation. Keeping it out of RunMaintenanceDto
-      // avoids expanding the external OpenAPI contract for scheduler plumbing.
       const result = await app.get(AndroidOtaHealthService).sweep();
       // eslint-disable-next-line no-console
       console.log(JSON.stringify({ job: command, result }));
+    } else if (command === 'imports') {
+      // CLI-only background worker. HTTP requests enqueue validated imports;
+      // entity writes happen here so a reverse-proxy timeout cannot cause a
+      // browser retry to replay thousands of row creations.
+      const result = await app.get(ImportCommitWorkerService).run();
+      // eslint-disable-next-line no-console
+      console.log(JSON.stringify({ job: command, result }));
+      if (result.failed > 0) process.exitCode = 1;
     } else {
       const job = command as
         | 'all'
