@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EmailDeliveryStatus, Prisma } from '@prisma/client';
+import { EmailDeliveryStatus, Prisma, UserStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
@@ -16,10 +16,10 @@ export interface SendEventInput {
 
 /**
  * Outbound email with an audit trail (Phase 10). Every send is recorded in
- * EmailDeliveryLog (PENDING → SENT/FAILED). A failure is logged, never thrown —
- * email delivery must not break the originating action. In dev (no SMTP) the
- * underlying MailService logs the message; the row is still marked SENT so the
- * audit trail reflects what was dispatched.
+ * EmailDeliveryLog. Scheduled-report delivery has an additional hard boundary:
+ * a report may only be mailed to an ACTIVE, non-deleted user in the owning
+ * company. This is checked at SEND TIME so an old schedule cannot keep mailing
+ * a departed employee or arbitrary external address after access changes.
  */
 @Injectable()
 export class EmailService {
@@ -41,6 +41,29 @@ export class EmailService {
         metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
       },
     });
+
+    if (input.type === 'report') {
+      const allowed = input.companyId
+        ? await this.prisma.user.findFirst({
+            where: {
+              companyId: input.companyId,
+              status: UserStatus.ACTIVE,
+              deletedAt: null,
+              email: { equals: input.to.trim(), mode: 'insensitive' },
+            },
+            select: { id: true },
+          })
+        : null;
+      if (!allowed) {
+        const error = 'Scheduled-report recipient is not an active user in the owning company.';
+        this.logger.warn(`Blocked report email to ${input.to}: ${error}`);
+        await this.prisma.emailDeliveryLog.update({
+          where: { id: log.id },
+          data: { status: EmailDeliveryStatus.FAILED, error },
+        });
+        return { ok: false, logId: log.id };
+      }
+    }
 
     try {
       const result = await this.mail.send({
