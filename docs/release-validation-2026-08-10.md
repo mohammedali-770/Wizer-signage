@@ -20,9 +20,10 @@ This file records the final repository-level production-readiness validation pas
   - Cross-partition proof-of-play session idempotency remains PostgreSQL registry/trigger-owned rather than an impossible direct partition-parent unique constraint.
 - OpenAPI response completeness recognizes documented `202 Accepted` asynchronous operations instead of treating them as undocumented.
 - The integrated request-body operation denominator is pinned to the current complete contract rather than the pre-observability count.
+- The integrated OpenAPI tag inventory is pinned to the current 32-tag contract so a missing controller tag still fails closed.
 - Fleet-health Swagger response types have one canonical class declaration; compatibility imports re-export that canonical surface.
-- The 24-character Android crash fingerprint documented in Swagger is now enforced by `class-validator` as well as by its hex pattern.
-- Telemetry partition static tests validate model blocks independently of Prisma model ordering and verify the composed top-level/isolation verifier contract.
+- The 24-character Android crash fingerprint documented in Swagger is enforced on both ingestion and the canonical fleet-health DTO contract.
+- Telemetry partition static tests validate model blocks independently of Prisma model ordering and verify the composed top-level/isolation verifier contract without false positives from explanatory comment text.
 - Android release and production-deploy static invariants now test the current fail-closed implementation without relying on obsolete comment text or `exec` handoff behavior.
 
 ## Release policy
