@@ -92,8 +92,8 @@ export class DeviceService {
     }
 
     if (pc.status === PairingStatus.PENDING && pc.expiresAt.getTime() < Date.now()) {
-      await this.prisma.pairingCode.update({
-        where: { id: pc.id },
+      await this.prisma.pairingCode.updateMany({
+        where: { id: pc.id, status: PairingStatus.PENDING },
         data: { status: PairingStatus.EXPIRED },
       });
       return { status: 'expired' as const };
@@ -113,17 +113,28 @@ export class DeviceService {
 
     const screen = await this.prisma.screen.findUnique({
       where: { id: pc.screenId },
-      select: { name: true, orientation: true },
+      select: { name: true, orientation: true, deletedAt: true },
     });
+    if (!screen || screen.deletedAt) return { status: 'revoked' as const };
 
-    // Issue the device token exactly once (the device persists it on receipt).
+    // Issue the raw device token exactly once. The compare-and-set update lives
+    // inside a transaction so two simultaneous status polls cannot both mint a
+    // different token and return one that is already invalid by the time the TV
+    // persists it. Only the request that changes deviceTokenHash NULL -> hash
+    // is allowed to return the raw token.
     if (!device.deviceTokenHash) {
       const token = this.crypto.randomToken(DEVICE_TOKEN_BYTES);
       const now = new Date();
       const info = (pc.deviceInfo ?? {}) as DeviceInfo;
-      await this.prisma.$transaction([
-        this.prisma.device.update({
-          where: { id: device.id },
+      const issued = await this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.device.updateMany({
+          where: {
+            id: device.id,
+            screenId: pc.screenId!,
+            deviceId: pc.deviceId ?? device.deviceId,
+            status: { in: [DeviceStatus.PENDING, DeviceStatus.ACTIVE] },
+            deviceTokenHash: null,
+          },
           data: {
             deviceTokenHash: this.crypto.sha256(token),
             status: DeviceStatus.ACTIVE,
@@ -134,9 +145,11 @@ export class DeviceService {
             appVersion: info.appVersion,
             lastSeenAt: now,
           },
-        }),
-        this.prisma.screen.update({
-          where: { id: pc.screenId },
+        });
+        if (claimed.count !== 1) return false;
+
+        const updatedScreen = await tx.screen.updateMany({
+          where: { id: pc.screenId!, deletedAt: null },
           data: {
             status: ScreenStatus.ONLINE,
             deviceIdentifier: device.deviceId,
@@ -144,32 +157,42 @@ export class DeviceService {
             appVersion: info.appVersion,
             lastSyncAt: now,
           },
-        }),
-      ]);
-      await this.activityLog.log({
-        action: 'device.token_issued',
-        category: 'DEVICE',
-        companyId: device.companyId,
-        targetType: 'screen',
-        targetId: pc.screenId,
-        metadata: { deviceId: device.deviceId },
+        });
+        if (updatedScreen.count !== 1) {
+          // Throwing rolls back the token hash too; never issue a token for a
+          // screen that disappeared while the device was collecting it.
+          throw new UnauthorizedException('Pairing target is no longer available.');
+        }
+        return true;
       });
-      return {
-        status: 'paired' as const,
-        deviceToken: token,
-        screenId: pc.screenId,
-        companyId: device.companyId,
-        screen: { name: screen?.name ?? null, orientation: screen?.orientation ?? null },
-        refreshIntervalSeconds: MANIFEST_REFRESH_SECONDS,
-      };
+
+      if (issued) {
+        await this.activityLog.log({
+          action: 'device.token_issued',
+          category: 'DEVICE',
+          companyId: device.companyId,
+          targetType: 'screen',
+          targetId: pc.screenId,
+          metadata: { deviceId: device.deviceId },
+        });
+        return {
+          status: 'paired' as const,
+          deviceToken: token,
+          screenId: pc.screenId,
+          companyId: device.companyId,
+          screen: { name: screen.name, orientation: screen.orientation },
+          refreshIntervalSeconds: MANIFEST_REFRESH_SECONDS,
+        };
+      }
     }
 
-    // Already collected — don't re-issue (lost-token recovery requires re-pairing).
+    // Already collected (or another concurrent poll won the compare-and-set) —
+    // never re-issue a raw token. Lost-token recovery requires re-pairing.
     return {
       status: 'paired' as const,
       screenId: pc.screenId,
       companyId: device.companyId,
-      screen: { name: screen?.name ?? null, orientation: screen?.orientation ?? null },
+      screen: { name: screen.name, orientation: screen.orientation },
       refreshIntervalSeconds: MANIFEST_REFRESH_SECONDS,
     };
   }
@@ -274,49 +297,129 @@ export class DeviceService {
     if (!pc || pc.status !== PairingStatus.PENDING) {
       throw new BadRequestException('Invalid or already-used pairing code.');
     }
+    if (!pc.deviceId) {
+      throw new BadRequestException('Pairing code is missing its physical device identity.');
+    }
     if (pc.expiresAt.getTime() < Date.now()) {
-      await this.prisma.pairingCode.update({
-        where: { id: pc.id },
+      await this.prisma.pairingCode.updateMany({
+        where: { id: pc.id, status: PairingStatus.PENDING },
         data: { status: PairingStatus.EXPIRED },
       });
       throw new BadRequestException('Pairing code has expired. Generate a new one on the screen.');
     }
     const info = (pc.deviceInfo ?? {}) as DeviceInfo;
+    const now = new Date();
 
-    await this.prisma.$transaction([
-      this.prisma.pairingCode.update({
-        where: { id: pc.id },
-        data: { status: PairingStatus.CLAIMED, companyId, screenId, claimedAt: new Date() },
-      }),
-      // One active device per screen — re-pairing replaces (and invalidates) any prior token.
-      this.prisma.device.upsert({
-        where: { screenId },
-        create: {
-          companyId,
-          screenId,
-          deviceId: pc.deviceId ?? 'unknown',
-          status: DeviceStatus.PENDING,
-          platform: info.platform,
-          modelName: info.modelName,
-          osVersion: info.osVersion,
-          appVersion: info.appVersion,
-        },
-        update: {
-          deviceId: pc.deviceId ?? 'unknown',
-          status: DeviceStatus.PENDING,
-          deviceTokenHash: null,
-          unpairedAt: null,
-          platform: info.platform,
-          modelName: info.modelName,
-          osVersion: info.osVersion,
-          appVersion: info.appVersion,
-        },
-      }),
-      this.prisma.screen.update({
-        where: { id: screenId },
-        data: { status: ScreenStatus.PAIRING },
-      }),
-    ]);
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Atomic single-use claim. If another admin/replica claimed the same
+        // public code after our initial read, count=0 and this transaction does
+        // not bind the physical device anywhere else.
+        const claimed = await tx.pairingCode.updateMany({
+          where: {
+            id: pc.id,
+            status: PairingStatus.PENDING,
+            expiresAt: { gt: now },
+          },
+          data: { status: PairingStatus.CLAIMED, companyId, screenId, claimedAt: now },
+        });
+        if (claimed.count !== 1) {
+          throw new BadRequestException('Invalid, expired, or already-used pairing code.');
+        }
+
+        // A physical TV may move between screen profiles, but it may never be
+        // live on two at once. Revoke its previous binding and clear the old
+        // screen atomically before binding the new profile. A DB partial unique
+        // index is the final cross-replica guard for two different pairing codes
+        // racing to bind the same deviceId simultaneously.
+        const previousBindings = await tx.device.findMany({
+          where: {
+            deviceId: pc.deviceId!,
+            screenId: { not: screenId },
+            status: { in: [DeviceStatus.PENDING, DeviceStatus.ACTIVE] },
+          },
+          select: { id: true, screenId: true },
+        });
+        if (previousBindings.length > 0) {
+          const oldDeviceIds = previousBindings.map((binding) => binding.id);
+          const oldScreenIds = [...new Set(previousBindings.map((binding) => binding.screenId))];
+          await tx.device.updateMany({
+            where: { id: { in: oldDeviceIds } },
+            data: {
+              status: DeviceStatus.REVOKED,
+              deviceTokenHash: null,
+              unpairedAt: now,
+            },
+          });
+          await tx.screen.updateMany({
+            where: { id: { in: oldScreenIds }, deletedAt: null },
+            data: { status: ScreenStatus.UNPAIRED, deviceIdentifier: null },
+          });
+          await tx.pairingCode.updateMany({
+            where: {
+              screenId: { in: oldScreenIds },
+              status: { in: [PairingStatus.PENDING, PairingStatus.CLAIMED] },
+            },
+            data: { status: PairingStatus.REVOKED },
+          });
+        }
+
+        // Any earlier code for the target profile must stop polling as paired
+        // once this new pairing takes ownership.
+        await tx.pairingCode.updateMany({
+          where: {
+            screenId,
+            id: { not: pc.id },
+            status: { in: [PairingStatus.PENDING, PairingStatus.CLAIMED] },
+          },
+          data: { status: PairingStatus.REVOKED },
+        });
+
+        // One device row per screen. Re-pairing replaces the old physical
+        // identity and invalidates its token before the new TV can collect one.
+        await tx.device.upsert({
+          where: { screenId },
+          create: {
+            companyId,
+            screenId,
+            deviceId: pc.deviceId!,
+            status: DeviceStatus.PENDING,
+            platform: info.platform,
+            modelName: info.modelName,
+            osVersion: info.osVersion,
+            appVersion: info.appVersion,
+          },
+          update: {
+            companyId,
+            deviceId: pc.deviceId!,
+            status: DeviceStatus.PENDING,
+            deviceTokenHash: null,
+            pairedAt: null,
+            unpairedAt: null,
+            platform: info.platform,
+            modelName: info.modelName,
+            osVersion: info.osVersion,
+            appVersion: info.appVersion,
+          },
+        });
+        await tx.screen.update({
+          where: { id: screenId },
+          data: {
+            status: ScreenStatus.PAIRING,
+            deviceIdentifier: null,
+            pairedAt: null,
+          },
+        });
+      });
+    } catch (err) {
+      if ((err as { code?: string })?.code === 'P2002') {
+        throw new BadRequestException(
+          'This physical device is already being paired to another screen. Retry with a fresh code.',
+        );
+      }
+      throw err;
+    }
+
     await this.log(actor, companyId, 'screen.paired', screenId, { deviceId: pc.deviceId });
     return this.getPairingStatus(companyId, screenId);
   }
