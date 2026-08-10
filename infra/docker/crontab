@@ -20,6 +20,11 @@
 # detection latency to roughly one scheduler interval, and flock skips overlap.
 * * * * * flock -n /tmp/wizer-ota-health.lock -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js android-ota-health' >> /proc/1/fd/1 2>&1
 
+# Import commits are queued by the HTTP API and executed outside the request so
+# a proxy/client timeout cannot cause a duplicate 5,000-row retry. The worker
+# itself claims a bounded batch and is fail-closed on interrupted jobs.
+* * * * * flock -n /tmp/wizer-imports.lock -c 'cd /app && su-exec node node dist/maintenance/maintenance.cli.js imports' >> /proc/1/fd/1 2>&1
+
 # Keep current and future telemetry RANGE partitions ahead of the ingest clock.
 # The helper is idempotent; running shortly after midnight UTC leaves ample
 # margin before any configured future month can become an insert outage.
