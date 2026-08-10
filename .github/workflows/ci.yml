@@ -72,9 +72,6 @@ jobs:
       - name: Workspace tests
         run: pnpm test
 
-      # The API carries explicit global + security-sensitive module thresholds in
-      # apps/api/package.json. Plain `jest` does not enforce coverageThreshold;
-      # this invocation does, so coverage cannot silently regress while tests stay green.
       - name: API coverage thresholds
         run: pnpm --filter @wizer/api exec jest --coverage --runInBand
 
@@ -129,8 +126,6 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://api.ci.invalid/api
 
-  # Required on pull requests. Keep this as one job so image build, runtime boot,
-  # and vulnerability scanning share the same local images and runner minutes.
   docker:
     name: Docker image builds
     if: github.event_name == 'pull_request'
@@ -191,10 +186,23 @@ jobs:
           cache-from: type=gha,scope=ci-maintenance
           cache-to: type=gha,mode=max,scope=ci-maintenance
 
+      # Production executes migrations from the immutable API image. Prove that
+      # exact runtime image carries a working Prisma CLI, engines, schema and the
+      # full migration chain before testing its HTTP process.
+      - name: Apply migrations from built API image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network host \
+            -e DATABASE_URL=postgresql://postgres:docker_ci_postgres_password@127.0.0.1:5432/wizer_docker_ci \
+            -e DIRECT_URL=postgresql://postgres:docker_ci_postgres_password@127.0.0.1:5432/wizer_docker_ci \
+            wizer-signage/api:ci \
+            npx prisma migrate deploy --schema prisma/schema.prisma
+
       # Boots the actual Alpine production image, not `nest start` on the runner.
       # This catches missing Prisma/musl/OpenSSL/native runtime artifacts that a
       # successful docker build alone cannot detect.
-      - name: Boot built API image against PostgreSQL and probe readiness
+      - name: Boot built API image against migrated PostgreSQL and probe readiness
         shell: bash
         run: |
           set -euo pipefail
