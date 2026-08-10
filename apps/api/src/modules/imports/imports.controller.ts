@@ -8,6 +8,7 @@ import {
   Query,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -19,8 +20,9 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
 import type { AuthenticatedUser } from '../../common/types/auth.types';
-import { ListImportsQueryDto } from './dto/import.dto';
 import { ApiPaginatedResponse } from '../../common/dto/api-response.dto';
+import { ImportCancelGuard, ImportCommitGuard } from './import-commit.guard';
+import { ListImportsQueryDto } from './dto/import.dto';
 import { ImportCommitResultDto, ImportJobDetailDto, ImportJobDto } from './dto/import-response.dto';
 import { ImportService } from './import.service';
 
@@ -102,6 +104,7 @@ export class ImportsController {
   @Post(':id/commit')
   @HttpCode(200)
   @RequirePermissions(Permission.ImportRun)
+  @UseGuards(ImportCommitGuard)
   @ApiOperation({
     summary:
       'Commit a validated import (creates the rows, reusing entity validation + plan limits).',
@@ -114,6 +117,7 @@ export class ImportsController {
   @Post(':id/cancel')
   @HttpCode(200)
   @RequirePermissions(Permission.ImportRun)
+  @UseGuards(ImportCancelGuard)
   @ApiOperation({ summary: 'Cancel an uncommitted import.' })
   @ApiOkResponse({ type: ImportJobDto })
   cancel(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
