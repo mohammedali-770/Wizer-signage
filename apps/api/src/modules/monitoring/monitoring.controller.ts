@@ -1,11 +1,12 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentCompany } from '../../common/decorators/current-company.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/rbac/permissions';
+import { MonitoringOverviewPaginatedDto } from './dto/monitoring-overview-paginated.dto';
+import { MonitoringOverviewQueryDto } from './dto/monitoring-query.dto';
 import { MonitoringService } from './monitoring.service';
-import { MonitoringOverviewDto } from './dto/monitoring-response.dto';
 
 /** Fleet monitoring overview (Phase 8). Company-scoped, read-only. */
 @ApiTags('monitoring')
@@ -16,9 +17,15 @@ export class MonitoringController {
 
   @Get('overview')
   @RequirePermissions(Permission.ScreenRead)
-  @ApiOperation({ summary: 'Fleet status counts, sync breakdown, alerts, and per-screen status.' })
-  @ApiOkResponse({ type: MonitoringOverviewDto })
-  overview(@CurrentCompany() companyId: string) {
-    return this.monitoring.overview(companyId);
+  @ApiOperation({
+    summary:
+      'Whole-fleet status counts plus a paginated screen list and bounded live alert candidates.',
+  })
+  @ApiOkResponse({ type: MonitoringOverviewPaginatedDto })
+  overview(
+    @CurrentCompany() companyId: string,
+    @Query() query: MonitoringOverviewQueryDto,
+  ) {
+    return this.monitoring.overview(companyId, query);
   }
 }
