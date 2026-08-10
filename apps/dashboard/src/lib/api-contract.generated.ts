@@ -1378,6 +1378,23 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
+  '/company-settings/android-ota': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Replace the staged Android OTA rollout policy (target/canaries/percentage/halt). */
+    put: operations['CompanySettingsController_updateAndroidOta'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/company-settings/kiosk-pin': {
     parameters: {
       query?: never;
@@ -2262,8 +2279,25 @@ export type paths = {
       path?: never;
       cookie?: never;
     };
-    /** Fleet status counts, sync breakdown, alerts, and per-screen status. */
+    /** Whole-fleet status counts plus a paginated screen list and bounded live alert candidates. */
     get: operations['MonitoringController_overview'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/monitoring/fleet-health': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get company player-version distribution and recent crash diagnostics */
+    get: operations['FleetHealthController_summary'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2723,7 +2757,7 @@ export type paths = {
     };
     get?: never;
     put?: never;
-    /** Commit a validated import (creates the rows, reusing entity validation + plan limits). */
+    /** Queue a validated import for background commit. The maintenance worker performs the row writes. */
     post: operations['ImportsController_commit'];
     delete?: never;
     options?: never;
@@ -2828,7 +2862,7 @@ export type paths = {
     };
     get?: never;
     put?: never;
-    /** Run the report now and email it. */
+    /** Queue an enabled report for the maintenance worker to generate and email. */
     post: operations['ScheduledReportsController_run'];
     delete?: never;
     options?: never;
@@ -4276,6 +4310,33 @@ export type components = {
       color?: string;
       description?: string;
     };
+    AndroidOtaAutoRollbackDto: {
+      /** Format: date-time */
+      triggeredAt: string;
+      fromVersionName: string;
+      fromVersionCode: number;
+      toVersionName: string;
+      toVersionCode: number;
+      /** @description Bounded sample of screens that failed the rollout health gate. */
+      failedScreenIds: string[];
+    };
+    AndroidOtaSettingsResponseDto: {
+      enabled: boolean;
+      /** @description Opaque revision changed on every explicit or automatic policy transition; devices use it to bound terminal retries. */
+      policyRevision?: Record<string, never> | null;
+      targetVersionName?: Record<string, never> | null;
+      targetVersionCode?: Record<string, never> | null;
+      /** @description Pre-published known-good forward rollback release. */
+      rollbackVersionName?: Record<string, never> | null;
+      /** @description Must be greater than the candidate versionCode. */
+      rollbackVersionCode?: Record<string, never> | null;
+      rolloutPercent: number;
+      screenIds: string[];
+      groupIds: string[];
+      checkIntervalSeconds: number;
+      healthWindowSeconds: number;
+      lastAutoRollback?: components['schemas']['AndroidOtaAutoRollbackDto'] | null;
+    };
     CompanyPlanSummaryDto: {
       name: string;
       /** @example pro */
@@ -4309,6 +4370,8 @@ export type components = {
       fallbackContentId?: Record<string, never> | null;
       /** @description Whether a default kiosk PIN is set. The HASH is never returned — same substitution ScreenDto.hasKioskPin makes. */
       hasDefaultKioskPin: boolean;
+      /** @description Staged Android update policy. Publishing a binary does not modify it. */
+      androidOta: components['schemas']['AndroidOtaSettingsResponseDto'];
       /** @description Read-only; a Super Admin manages the subscription. null when there is none. */
       plan?: components['schemas']['CompanyPlanSummaryDto'] | null;
     };
@@ -4329,6 +4392,31 @@ export type components = {
       notificationEmails?: string[];
       /** @description Company-wide fallback content. Existence and ownership are checked server-side. */
       fallbackContentId?: string;
+    };
+    AndroidOtaSettingsDto: {
+      /** @description Emergency master switch. false halts new installs immediately. */
+      enabled: boolean;
+      /** @description Exact candidate versionName. Required with targetVersionCode when enabled=true; used to address the immutable per-version manifest. */
+      targetVersionName?: string;
+      /** @description Exact candidate versionCode allowed to install. Required when enabled=true. */
+      targetVersionCode?: number;
+      /** @description Pre-published known-good rollback versionName. Required when enabled=true. The rollback build must contain known-good code under a higher versionCode because Android does not allow an unattended downgrade. */
+      rollbackVersionName?: string;
+      /** @description Pre-published known-good rollback versionCode. Required when enabled=true and must be greater than targetVersionCode. */
+      rollbackVersionCode?: number;
+      /** @description Stable deterministic fleet cohort percentage. */
+      rolloutPercent: number;
+      /** @description Explicit same-company screen canaries. Eligible regardless of rolloutPercent. */
+      screenIds?: string[];
+      /** @description Explicit same-company screen-group canaries. Eligible regardless of rolloutPercent. */
+      groupIds?: string[];
+      /** @default 21600 */
+      checkIntervalSeconds: number;
+      /**
+       * @description Maximum time after an INSTALLING/INSTALLED report for the candidate to prove a healthy ONLINE heartbeat from the exact candidate version before maintenance automatically switches this rollout cohort to the pre-staged rollback build.
+       * @default 900
+       */
+      healthWindowSeconds: number;
     };
     SetDefaultKioskPinDto: {
       /**
@@ -5253,7 +5341,13 @@ export type components = {
       failedDownloads: number;
       paired: boolean;
     };
-    MonitoringOverviewDto: {
+    MonitoringScreenPageMetaDto: {
+      page: number;
+      pageSize: number;
+      total: number;
+      totalPages: number;
+    };
+    MonitoringOverviewPaginatedDto: {
       totals: components['schemas']['FleetTotalsDto'];
       /**
        * @description Screen count per sync status. The keys are whatever the fleet is currently reporting, plus 'NONE' for screens with no device row — so it is an open map, not a fixed set.
@@ -5271,6 +5365,38 @@ export type components = {
       missingHeartbeat: number;
       alerts: components['schemas']['FleetAlertDto'][];
       screens: components['schemas']['FleetScreenDto'][];
+      screenMeta: components['schemas']['MonitoringScreenPageMetaDto'];
+      /** @description True when more than 200 live OFFLINE/WARNING alert candidates exist; use screen pagination/export for the remainder. */
+      alertsTruncated: boolean;
+    };
+    FleetVersionDistributionDto: {
+      /** @example 1.4.2 */
+      version: string;
+      /** @example 12 */
+      count: number;
+    };
+    FleetRecentCrashDto: {
+      screenId: string;
+      screenName: string;
+      /** @example ONLINE */
+      screenStatus: string;
+      /** @example 1.4.2 */
+      appVersion?: Record<string, never> | null;
+      /** Format: date-time */
+      lastHeartbeatAt?: string | null;
+      /** @example 1786260000000 */
+      crashedAtMillis: number;
+      /** @example a1b2c3d4e5f60718293a4b5c */
+      fingerprint: string;
+      /** @example 2 */
+      crashCount: number;
+      /** Format: date-time */
+      reportedAt?: string | null;
+    };
+    FleetHealthSummaryDto: {
+      totalScreens: number;
+      versionDistribution: components['schemas']['FleetVersionDistributionDto'][];
+      recentCrashes: components['schemas']['FleetRecentCrashDto'][];
     };
     NotificationDto: {
       id: string;
@@ -5616,37 +5742,6 @@ export type components = {
             [key: string]: unknown;
           }[]
         | null;
-    };
-    ImportCommitResultDto: {
-      id: string;
-      companyId: string;
-      /** @enum {string} */
-      type: 'COMPANY' | 'LOCATION' | 'SCREEN' | 'USER' | 'SCREEN_GROUP' | 'TAG';
-      /** @enum {string} */
-      status: 'UPLOADED' | 'VALIDATED' | 'COMMITTED' | 'FAILED' | 'CANCELLED';
-      /** @description The uploaded filename, as given. */
-      fileName: string;
-      totalRows: number;
-      validRows: number;
-      invalidRows: number;
-      /** @description Per-row validation errors found during upload. `[]` when the file was clean. */
-      errors: {
-        [key: string]: unknown;
-      }[];
-      /** Format: date-time */
-      committedAt?: Record<string, never> | null;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-      /** @description Rows successfully created. */
-      committed: number;
-      /** @description Rows that failed AT COMMIT time — distinct from `invalidRows`, which counts what upload validation rejected. A row can pass upload and still fail here, on a plan limit or a uniqueness clash created since. */
-      failed: number;
-      /** @description The commit-time failures, one entry each. */
-      rowErrors: {
-        [key: string]: unknown;
-      }[];
     };
     ScheduledReportDto: {
       id: string;
@@ -7997,7 +8092,14 @@ export interface operations {
   };
   TagsController_list: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Case-insensitive tag-name search. */
+        search?: string;
+        /** @description Exact stored tag type. Mutually exclusive with applicableTo. */
+        type?: 'SCREEN' | 'CONTENT' | 'BOTH';
+        /** @description Selector-oriented applicability filter. SCREEN returns SCREEN+BOTH; CONTENT returns CONTENT+BOTH. Mutually exclusive with exact `type`. */
+        applicableTo?: 'SCREEN' | 'CONTENT';
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -8143,6 +8245,29 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['UsageEvaluationDto'];
+        };
+      };
+    };
+  };
+  CompanySettingsController_updateAndroidOta: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AndroidOtaSettingsDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CompanySettingsDto'];
         };
       };
     };
@@ -9512,7 +9637,26 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['MonitoringOverviewDto'];
+          'application/json': components['schemas']['MonitoringOverviewPaginatedDto'];
+        };
+      };
+    };
+  };
+  FleetHealthController_summary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FleetHealthSummaryDto'];
         };
       };
     };
@@ -10175,12 +10319,17 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      200: {
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['ImportCommitResultDto'];
+          'application/json': {
+            /** @example true */
+            accepted: boolean;
+            /** Format: uuid */
+            importJobId: string;
+          };
         };
       };
     };
@@ -10373,12 +10522,19 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      200: {
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['ReportDeliveryDto'];
+          'application/json': {
+            /** @example true */
+            accepted: boolean;
+            /** Format: uuid */
+            scheduledReportId: string;
+            /** Format: date-time */
+            queuedAt: string;
+          };
         };
       };
     };
