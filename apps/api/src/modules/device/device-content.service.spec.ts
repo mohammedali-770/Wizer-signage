@@ -118,6 +118,88 @@ describe('DeviceContentService entitlement scoping', () => {
   });
 });
 
+describe('DeviceContentService entitlement cache', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('reuses one entitlement computation for repeated requests in the same minute', async () => {
+    const t = build();
+    jest.spyOn(Date, 'now').mockReturnValue(1_725_000_000_000);
+
+    await t.service.getSyncPlan(device);
+    await t.service.getSyncPlan(device);
+
+    expect(t.prisma.screen.findFirst).toHaveBeenCalledTimes(1);
+    expect(t.prisma.schedule.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('coalesces concurrent requests onto the same in-flight entitlement promise', async () => {
+    const t = build();
+    jest.spyOn(Date, 'now').mockReturnValue(1_725_000_000_000);
+    let resolveScreen!: (value: any) => void;
+    const screenPromise = new Promise<any>((resolve) => {
+      resolveScreen = resolve;
+    });
+    t.prisma.screen.findFirst.mockReturnValue(screenPromise);
+
+    const first = t.service.getSyncPlan(device);
+    const second = t.service.getSyncPlan(device);
+
+    expect(t.prisma.screen.findFirst).toHaveBeenCalledTimes(1);
+    resolveScreen({
+      id: 's1',
+      companyId: 'comp1',
+      locationId: 'loc1',
+      orientation: 'LANDSCAPE',
+      workingHours: null,
+      fallbackContentId: null,
+      location: { timezone: 'UTC', workingHours: null, fallbackContentId: null },
+      company: { timezone: 'UTC' },
+      groups: [],
+    });
+
+    await Promise.all([first, second]);
+    expect(t.prisma.schedule.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('evicts a failed computation so a retry in the same minute recomputes', async () => {
+    const t = build();
+    jest.spyOn(Date, 'now').mockReturnValue(1_725_000_000_000);
+    t.prisma.screen.findFirst
+      .mockRejectedValueOnce(new Error('temporary database failure'))
+      .mockResolvedValueOnce({
+        id: 's1',
+        companyId: 'comp1',
+        locationId: 'loc1',
+        orientation: 'LANDSCAPE',
+        workingHours: null,
+        fallbackContentId: null,
+        location: { timezone: 'UTC', workingHours: null, fallbackContentId: null },
+        company: { timezone: 'UTC' },
+        groups: [],
+      });
+
+    await expect(t.service.getSyncPlan(device)).rejects.toThrow('temporary database failure');
+    await expect(t.service.getSyncPlan(device)).resolves.toEqual(
+      expect.objectContaining({ screenId: 's1' }),
+    );
+    expect(t.prisma.screen.findFirst).toHaveBeenCalledTimes(2);
+  });
+
+  it('recomputes when the minute bucket changes', async () => {
+    const t = build();
+    const now = jest.spyOn(Date, 'now');
+    now.mockReturnValueOnce(1_725_000_000_000);
+    await t.service.getSyncPlan(device);
+    now.mockReturnValue(1_725_000_061_000);
+    await t.service.getSyncPlan(device);
+
+    expect(t.prisma.screen.findFirst).toHaveBeenCalledTimes(2);
+    expect(t.prisma.schedule.findMany).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('DeviceContentService.getSyncPlan', () => {
   it('includes fallback assets with a download path', async () => {
     const t = build();
@@ -155,7 +237,7 @@ describe('DeviceContentService.getSyncPlan', () => {
     const t = build();
     t.prisma.schedule.findMany.mockResolvedValue([schedule()]);
     t.prisma.playlistItem.findMany.mockResolvedValue([{ contentId: 'expired' }]);
-    t.prisma.content.findMany.mockResolvedValue([]); // 'expired' filtered out by the ACTIVE/non-expired query
+    t.prisma.content.findMany.mockResolvedValue([]);
     const plan = await t.service.getSyncPlan(device);
     expect(plan.items).toHaveLength(0);
   });
@@ -196,7 +278,7 @@ describe('DeviceContentService.download entitlement', () => {
 
   it('rejects a content id not entitled to this screen (404)', async () => {
     const t = build();
-    t.prisma.content.findMany.mockResolvedValue([]); // nothing entitled
+    t.prisma.content.findMany.mockResolvedValue([]);
     await expect(t.service.download(device, 'arbitrary', undefined, res)).rejects.toBeInstanceOf(
       NotFoundException,
     );
