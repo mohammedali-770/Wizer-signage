@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
 # Wizer Signage — preferred production deployment entrypoint.
-#
-# Production release policy freezes protected `main` to one accepted 40-character
-# SHA. This wrapper proves the intended coordinate still equals remote main
-# immediately before handing off to deploy-blue-green.sh. The blue/green script
-# then fetches/pulls protected main and verifies/pulls immutable SHA-tagged images.
-#
-# Keep all application/container mutation in deploy-blue-green.sh. This wrapper's
-# only repository operation before handoff is a read-only `git ls-remote` check.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,6 +17,8 @@ TARGET_SHA="${1:-}"
 
 printf '==> [production] Running mandatory host/config preflight for %s...\n' "${TARGET_SHA}"
 bash "${SCRIPT_DIR}/production-preflight.sh" "${TARGET_SHA}"
+printf '==> [production] Verifying bounded runtime database pools...\n'
+bash "${SCRIPT_DIR}/assert-production-db-pool.sh"
 
 printf '==> [production] Verifying protected remote main is still the accepted release...\n'
 REMOTE_MAIN_SHA="$(git -C "${ROOT_DIR}" ls-remote origin refs/heads/main | awk 'NR==1 {print $1}')"
@@ -39,11 +33,17 @@ REMOTE_MAIN_SHA="$(git -C "${ROOT_DIR}" ls-remote origin refs/heads/main | awk '
 }
 printf '  ok  protected main still equals the accepted immutable release SHA\n'
 
-# Expose the accepted identity for the blue/green script, which rechecks it after
-# its own fetch/pull. Production also removes the non-production backup escape
-# hatch: the mandatory pre-migration backup cannot be skipped through this path.
 export EXPECTED_RELEASE_SHA="${TARGET_SHA}"
 unset DEPLOY_SKIP_BACKUP
 
 printf '==> [production] Preflight + immutable-main check passed; handing off to blue/green deployment...\n'
-exec bash "${SCRIPT_DIR}/deploy-blue-green.sh"
+bash "${SCRIPT_DIR}/deploy-blue-green.sh"
+
+# Only after deploy-blue-green has completed its readiness/cutover gate do we
+# reclaim dangling layers left by older pulls. Tagged current/rollback release
+# images are preserved. Wizer production never builds on-host, so a global
+# `docker builder prune` would only delete caches that may belong to unrelated
+# projects and is intentionally not part of the certified production path.
+printf '==> [production] Healthy cutover confirmed; pruning dangling Docker images...\n'
+docker image prune -f >/dev/null
+printf '  ok  dangling Docker images pruned; tagged rollback releases preserved\n'
