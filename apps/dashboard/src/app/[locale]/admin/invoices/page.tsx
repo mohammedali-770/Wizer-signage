@@ -244,7 +244,7 @@ function CreateInvoiceDialog({
   }
 
   function removeLine(index: number) {
-    setLineItems((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index));
+    setLineItems((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
   }
 
   const subtotal = useMemo(
