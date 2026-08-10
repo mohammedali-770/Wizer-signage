@@ -13,15 +13,9 @@ import type { AuthenticatedDevice } from '../../common/types/device.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 
-/** Default pre-download window — assets scheduled within the next hour are entitled. */
 export const PRE_DOWNLOAD_WINDOW_MS = 60 * 60 * 1000;
-/**
- * Sampling granularity across the window when collecting upcoming schedules.
- * 1 minute matches the schedule time resolution ("HH:mm"), so no minute-long
- * schedule in the window is missed between samples (incl. ones ending on a
- * boundary, which the half-open [start,end) window includes at end−1min).
- */
 const SAMPLE_STEP_MS = 60 * 1000;
+const ENTITLEMENT_CACHE_BUCKET_MS = 60 * 1000;
 
 const ENTITLE_SELECT = {
   id: true,
@@ -43,6 +37,11 @@ const ENTITLE_SELECT = {
 
 type EntitledContent = Prisma.ContentGetPayload<{ select: typeof ENTITLE_SELECT }>;
 
+type EntitlementCacheEntry = {
+  minute: number;
+  promise: Promise<Map<string, EntitledContent>>;
+};
+
 /**
  * Server-side entitlement + offline-asset access for a paired device (Phase 7).
  *
@@ -55,12 +54,22 @@ type EntitledContent = Prisma.ContentGetPayload<{ select: typeof ENTITLE_SELECT 
  */
 @Injectable()
 export class DeviceContentService {
+  /**
+   * One current promise per screen. Range requests for the same large asset often
+   * arrive concurrently; caching the promise coalesces those requests instead of
+   * evaluating up to 500 schedules × 61 minute samples for every range.
+   *
+   * Entries naturally replace once per minute, matching scheduling resolution.
+   * The key includes companyId even though screen IDs are globally unique so the
+   * tenant boundary remains explicit in this security-sensitive cache.
+   */
+  private readonly entitlementCache = new Map<string, EntitlementCacheEntry>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
   ) {}
 
-  /** The flat sync plan: every asset the device should keep cached. */
   async getSyncPlan(device: AuthenticatedDevice) {
     const entitled = await this.entitledContent(device);
     const items = [...entitled.values()].map((c) => this.toSyncItem(c));
@@ -72,7 +81,6 @@ export class DeviceContentService {
     };
   }
 
-  /** Stream an entitled file to the device (range-capable). 404 if not entitled. */
   async download(
     device: AuthenticatedDevice,
     contentId: string,
@@ -92,14 +100,31 @@ export class DeviceContentService {
     });
   }
 
-  // --- Entitlement -------------------------------------------------------
+  private entitledContent(device: AuthenticatedDevice): Promise<Map<string, EntitledContent>> {
+    const minute = Math.floor(Date.now() / ENTITLEMENT_CACHE_BUCKET_MS);
+    const key = `${device.companyId}:${device.screenId}`;
+    const cached = this.entitlementCache.get(key);
+    if (cached?.minute === minute) return cached.promise;
+
+    const promise = this.computeEntitledContent(device);
+    this.entitlementCache.set(key, { minute, promise });
+
+    // A transient DB/storage failure must never poison the screen for the rest
+    // of the minute. Remove only if this exact promise is still the active entry.
+    void promise.catch(() => {
+      if (this.entitlementCache.get(key)?.promise === promise) {
+        this.entitlementCache.delete(key);
+      }
+    });
+
+    return promise;
+  }
 
   /**
-   * The set of content (by id) entitled to the device's screen right now and
-   * within the pre-download window. Always filtered to same-company + ACTIVE +
-   * non-expired.
+   * Compute the set of content entitled to the device's screen right now and
+   * within the pre-download window. Always same-company + ACTIVE + non-expired.
    */
-  private async entitledContent(
+  private async computeEntitledContent(
     device: AuthenticatedDevice,
   ): Promise<Map<string, EntitledContent>> {
     const screen = await this.prisma.screen.findFirst({
@@ -124,7 +149,6 @@ export class DeviceContentService {
       groupIds: screen.groups.map((g) => g.groupId),
     };
 
-    // Playlists of schedules that could play within [now, now + window], sampled.
     const schedules = await this.prisma.schedule.findMany({
       where: {
         companyId: device.companyId,
@@ -137,8 +161,6 @@ export class DeviceContentService {
     });
 
     const now = Date.now();
-    // Precompute the 1-minute sample instants once; cache their local moments per
-    // timezone so a schedule is evaluated against every minute of the window cheaply.
     const samples: Date[] = [];
     for (let offset = 0; offset <= PRE_DOWNLOAD_WINDOW_MS; offset += SAMPLE_STEP_MS) {
       samples.push(new Date(now + offset));
@@ -155,7 +177,6 @@ export class DeviceContentService {
 
     const playlistIds = new Set<string>();
     for (const s of schedules) {
-      // Only ACTIVE (published) playlists are entitled — never DRAFT/ARCHIVED/deleted.
       if (!s.playlistId || !s.playlist || s.playlist.deletedAt || s.playlist.status !== 'ACTIVE')
         continue;
       if (!screenMatchesTargets(indexedScreen, s.targets as TargetRef[])) continue;
@@ -217,7 +238,6 @@ export class DeviceContentService {
       durationSeconds: content.durationSeconds,
       playFullVideo: false,
       pdfPageDurationSeconds: null,
-      // Asset-level playback hints; the manifest carries the authoritative per-item values.
       downloadPath: isFile && content.storageKey ? `/device/content/${content.id}/download` : null,
       url: content.type === ContentType.URL ? content.url : null,
       textBody: content.type === ContentType.TEXT ? content.textBody : null,
