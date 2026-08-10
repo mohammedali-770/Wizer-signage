@@ -1,6 +1,6 @@
 name: Final production contract generation
 
-# Final frozen-head trigger: 2026-08-10 retry after invoice syntax repair.
+# Final frozen-head trigger: 2026-08-10 retry after selector type narrowing.
 # This workflow removes itself after a successful generation commit so it cannot
 # become recurring Actions spend.
 on:
