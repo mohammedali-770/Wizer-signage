@@ -31,6 +31,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:ci_postgres_password@127.0.0.1:5432/wizer_ci
       DIRECT_URL: postgresql://postgres:ci_postgres_password@127.0.0.1:5432/wizer_ci
+      SHADOW_DATABASE_URL: postgresql://postgres:ci_postgres_password@127.0.0.1:5432/wizer_shadow
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -55,12 +56,23 @@ jobs:
       - name: Apply migrations
         run: pnpm --filter @wizer/api exec prisma migrate deploy --schema prisma/schema.prisma
 
+      - name: Create dedicated Prisma shadow database
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network host \
+            -e PGPASSWORD=ci_postgres_password \
+            postgres:16-alpine \
+            psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+              -c 'DROP DATABASE IF EXISTS wizer_shadow WITH (FORCE);' \
+              -c 'CREATE DATABASE wizer_shadow;'
+
       - name: Check for schema drift
         run: |
           pnpm --filter @wizer/api exec prisma migrate diff \
             --from-migrations prisma/migrations \
             --to-schema-datamodel prisma/schema.prisma \
-            --shadow-database-url "$DATABASE_URL" \
+            --shadow-database-url "$SHADOW_DATABASE_URL" \
             --exit-code
 
       - name: Lint
