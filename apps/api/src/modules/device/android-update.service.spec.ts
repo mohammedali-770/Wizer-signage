@@ -4,7 +4,7 @@ const device = {
   id: 'device-1',
   companyId: 'company-1',
   screenId: '11111111-1111-4111-8111-111111111111',
-} as never;
+};
 const revision = '2026-08-09T08:00:00.000Z';
 
 function harness() {
@@ -42,7 +42,7 @@ describe('AndroidUpdateService rollout policy', () => {
       }),
     );
 
-    await expect(service.getPolicy(device)).resolves.toEqual(
+    await expect(service.getPolicy(device as never)).resolves.toEqual(
       expect.objectContaining({
         enabled: true,
         eligible: true,
@@ -93,11 +93,11 @@ describe('AndroidUpdateService rollout policy', () => {
       },
       'missing versionCode',
     ],
-  ])('fails closed for %s', async (policy) => {
+  ])('fails closed for %s (%s)', async (policy, _reason) => {
     const { service, prisma } = harness();
     prisma.screen.findFirst.mockResolvedValue(screenWithPolicy(policy as Record<string, unknown>));
 
-    const result = await service.getPolicy(device);
+    const result = await service.getPolicy(device as never);
     expect(result.enabled).toBe(false);
     expect(result.eligible).toBe(false);
   });
@@ -119,7 +119,7 @@ describe('AndroidUpdateService rollout policy', () => {
       ),
     );
 
-    const result = await service.getPolicy(device);
+    const result = await service.getPolicy(device as never);
     expect(result.enabled).toBe(true);
     expect(result.eligible).toBe(true);
   });
