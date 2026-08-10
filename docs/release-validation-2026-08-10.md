@@ -18,6 +18,12 @@ This file records the final repository-level production-readiness validation pas
   - `ProofOfPlay` physical primary key: `(id, startedAt)`.
   - `ProofOfPlay` retains the non-unique `(companyId, playbackSessionId)` lookup index created by the partition migration.
   - Cross-partition proof-of-play session idempotency remains PostgreSQL registry/trigger-owned rather than an impossible direct partition-parent unique constraint.
+- OpenAPI response completeness recognizes documented `202 Accepted` asynchronous operations instead of treating them as undocumented.
+- The integrated request-body operation denominator is pinned to the current complete contract rather than the pre-observability count.
+- Fleet-health Swagger response types have one canonical class declaration; compatibility imports re-export that canonical surface.
+- The 24-character Android crash fingerprint documented in Swagger is now enforced by `class-validator` as well as by its hex pattern.
+- Telemetry partition static tests validate model blocks independently of Prisma model ordering and verify the composed top-level/isolation verifier contract.
+- Android release and production-deploy static invariants now test the current fail-closed implementation without relying on obsolete comment text or `exec` handoff behavior.
 
 ## Release policy
 
