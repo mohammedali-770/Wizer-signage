@@ -112,6 +112,43 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
+  '/auth/email/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Confirm an email address using the token from the emailed link. */
+    post: operations['EmailVerificationController_confirm'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/email/resend': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Request a fresh confirmation link.
+     * @description Always returns success. Whether an email is actually sent depends on the address existing and still being unverified, which is deliberately not revealed.
+     */
+    post: operations['EmailVerificationController_resend'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/companies/me': {
     parameters: {
       query?: never;
@@ -3086,6 +3123,24 @@ export type components = {
       total: number;
       /** @example 6 */
       totalPages: number;
+    };
+    ConfirmEmailDto: {
+      /** @description The single-use token from the confirmation link. Consumed on first use; requesting a new link invalidates any outstanding one. */
+      token: string;
+    };
+    EmailVerificationResultDto: {
+      /** @description Always true; failures are returned as errors. */
+      success: boolean;
+      /** @description The address that is now confirmed. */
+      email: string;
+    };
+    ResendVerificationDto: {
+      /** @description Always answered identically whether or not the address exists or is already verified — this route is unauthenticated and a truthful answer would make it an account-existence oracle. */
+      email: string;
+    };
+    ResendVerificationResultDto: {
+      /** @description Fixed acknowledgement. Does NOT indicate that an email was sent — see the oracle note on the request shape. */
+      success: boolean;
     };
     CompanyDto: {
       id: string;
@@ -6078,6 +6133,52 @@ export interface operations {
             items: components['schemas']['ActivityLogDto'][];
             meta: components['schemas']['PageMetaDto'];
           };
+        };
+      };
+    };
+  };
+  EmailVerificationController_confirm: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ConfirmEmailDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['EmailVerificationResultDto'];
+        };
+      };
+    };
+  };
+  EmailVerificationController_resend: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ResendVerificationDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ResendVerificationResultDto'];
         };
       };
     };
