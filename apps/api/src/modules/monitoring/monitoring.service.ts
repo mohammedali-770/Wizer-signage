@@ -292,7 +292,7 @@ export class MonitoringService {
       message:
         row.live_status === 'OFFLINE'
           ? 'Screen is offline (no recent heartbeat).'
-          : row.warning_reason ?? 'Warning.',
+          : (row.warning_reason ?? 'Warning.'),
     }));
 
     return {

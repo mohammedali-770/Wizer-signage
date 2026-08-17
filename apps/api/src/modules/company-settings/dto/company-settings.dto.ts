@@ -142,7 +142,11 @@ export class AndroidOtaSettingsDto {
   @Min(1)
   rollbackVersionCode?: number;
 
-  @ApiProperty({ minimum: 0, maximum: 100, description: 'Stable deterministic fleet cohort percentage.' })
+  @ApiProperty({
+    minimum: 0,
+    maximum: 100,
+    description: 'Stable deterministic fleet cohort percentage.',
+  })
   @IsInt()
   @Min(0)
   @Max(100)
@@ -162,7 +166,8 @@ export class AndroidOtaSettingsDto {
   @ApiPropertyOptional({
     type: [String],
     maxItems: 100,
-    description: 'Explicit same-company screen-group canaries. Eligible regardless of rolloutPercent.',
+    description:
+      'Explicit same-company screen-group canaries. Eligible regardless of rolloutPercent.',
   })
   @IsOptional()
   @IsArray()

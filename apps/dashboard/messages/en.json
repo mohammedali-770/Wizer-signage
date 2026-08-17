@@ -1969,7 +1969,7 @@
       "FALLBACK": "Show fallback content",
       "BLACK_SCREEN": "Black screen",
       "CUSTOM_MESSAGE": "Custom message",
-      "BLANK_SCREEN": "Blank screen",
+      "BLANK_SCREEN": "Black screen (retired name)",
       "SLEEP": "Blank screen (legacy name)"
     },
     "importType": {

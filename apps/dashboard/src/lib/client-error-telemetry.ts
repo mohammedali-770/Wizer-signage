@@ -18,7 +18,8 @@ export interface ClientErrorPayload {
  * logs is much worse.
  */
 export function sanitizeClientErrorMessage(value: unknown): string {
-  const text = value instanceof Error ? `${value.name}: ${value.message}` : String(value ?? 'Unknown error');
+  const text =
+    value instanceof Error ? `${value.name}: ${value.message}` : String(value ?? 'Unknown error');
   return text
     .replace(/https?:\/\/\S+/gi, '<url>')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '<email>')

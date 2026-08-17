@@ -78,7 +78,8 @@ export class HeartbeatService {
       deviceData.currentScheduleId = dto.currentScheduleId ?? null;
       if (dto.manifestVersion !== undefined) deviceData.manifestVersion = dto.manifestVersion;
       if (dto.syncStatus !== undefined) deviceData.syncStatus = dto.syncStatus;
-      if (dto.cacheSizeBytes !== undefined) deviceData.cacheSizeBytes = toBigInt(dto.cacheSizeBytes);
+      if (dto.cacheSizeBytes !== undefined)
+        deviceData.cacheSizeBytes = toBigInt(dto.cacheSizeBytes);
       if (dto.availableStorageBytes !== undefined)
         deviceData.availableStorageBytes = toBigInt(dto.availableStorageBytes);
       if (dto.requiredAssets !== undefined) deviceData.requiredAssets = dto.requiredAssets;

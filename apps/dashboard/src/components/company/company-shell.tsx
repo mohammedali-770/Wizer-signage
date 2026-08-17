@@ -116,7 +116,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             const Icon = item.icon;
             const label = item.tkey
               ? tNav(item.tkey)
-              : item.labels?.[locale === 'ar' ? 'ar' : 'en'] ?? item.href;
+              : (item.labels?.[locale === 'ar' ? 'ar' : 'en'] ?? item.href);
             return (
               <Link
                 key={item.href}

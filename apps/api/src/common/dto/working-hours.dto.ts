@@ -24,29 +24,28 @@ import {
  * carried on the manifest as `outsideHours` + `outsideHoursBehavior` and
  * executed DEVICE-side by `NoContentScreen` in the player.
  *
- * `BLANK_SCREEN` was called `SLEEP` until it was renamed for honesty: it never
- * powered the panel down and could not. The player renders it exactly like
- * BLACK_SCREEN — a black composable at full backlight — because nothing calls
- * `PowerManager`, and soft kiosk actively holds `FLAG_KEEP_SCREEN_ON` while it
- * is on. Real display sleep needs device-owner/MDM control the app does not
- * have, so the old name promised hardware behaviour that no code delivered.
+ * THREE VALUES, NOT FOUR. `SLEEP` was renamed to `BLANK_SCREEN` for honesty —
+ * it never powered the panel down and could not, because nothing calls
+ * `PowerManager` and soft kiosk actively holds `FLAG_KEEP_SCREEN_ON`. But that
+ * left `BLANK_SCREEN` and `BLACK_SCREEN` sitting one letter apart doing exactly
+ * the same thing, which is its own trap: an operator picking between them is
+ * being asked a question with no answer, and a reader cannot tell them apart.
  *
- * LEGACY VALUES: `"SLEEP"` is still accepted on read. It is stored in JSON on
- * Location/Screen/Company rows, so existing configurations still carry it and
- * there is no migration to rewrite them; `normalizeBehavior` maps it to
- * `BLANK_SCREEN` (see `working-hours.util.ts`). Without that mapping the value
- * would fall through to `FALLBACK` and every already-configured screen would
- * quietly start showing fallback content instead of going dark.
+ * `BLACK_SCREEN` is the survivor. It predates the others, it holds by far the
+ * most stored configuration, and it has never been renamed — so keeping it
+ * costs no compatibility and describes what actually renders.
+ *
+ * LEGACY VALUES: `"SLEEP"` and `"BLANK_SCREEN"` are both still accepted on read
+ * and map to `BLACK_SCREEN`. Working hours live in a JSON column, so no
+ * migration has ever rewritten a stored value and both strings are still on
+ * disk. Dropping either would send those rows through the `FALLBACK` default
+ * and a venue that went dark outside opening hours would quietly start showing
+ * fallback content instead. See `normalizeBehavior` in `working-hours.util.ts`.
  */
 export enum OutsideHoursBehavior {
   FALLBACK = 'FALLBACK',
   BLACK_SCREEN = 'BLACK_SCREEN',
   CUSTOM_MESSAGE = 'CUSTOM_MESSAGE',
-  /**
-   * Renders black. Identical in effect to {@link BLACK_SCREEN} — the two are
-   * kept separate only because both are already stored in customer data.
-   */
-  BLANK_SCREEN = 'BLANK_SCREEN',
 }
 
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -118,9 +117,10 @@ export class WorkingHoursDto {
   @ApiPropertyOptional({
     enum: Object.values(OutsideHoursBehavior),
     description:
-      'Defaults to FALLBACK when omitted or unrecognised. The legacy value "SLEEP" is still ' +
-      'ACCEPTED and treated as BLANK_SCREEN, but is not listed here because it should not be ' +
-      'sent by new callers — it never slept the display.',
+      'Defaults to FALLBACK when omitted or unrecognised. The legacy values "SLEEP" and ' +
+      '"BLANK_SCREEN" are both still ACCEPTED and treated as BLACK_SCREEN; neither is listed ' +
+      'here because neither should be sent by new callers. They rendered black anyway — SLEEP ' +
+      'never slept the display, and BLANK_SCREEN was an exact duplicate of BLACK_SCREEN.',
   })
   @IsOptional()
   @IsEnum(OutsideHoursBehavior)

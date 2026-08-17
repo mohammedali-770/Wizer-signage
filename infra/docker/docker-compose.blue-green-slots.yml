@@ -19,7 +19,15 @@ x-api-common: &api-common
   restart: unless-stopped
   stop_grace_period: 60s
   healthcheck:
-    test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://127.0.0.1:3001/api/health/ready']
+    test:
+      [
+        'CMD',
+        'wget',
+        '--no-verbose',
+        '--tries=1',
+        '--spider',
+        'http://127.0.0.1:3001/api/health/ready',
+      ]
     interval: 10s
     timeout: 5s
     retries: 12

@@ -25,7 +25,12 @@ export class MetricsService {
     this.activeRequests++;
   }
 
-  requestFinished(method: string, route: string, statusCode: number, durationSeconds: number): void {
+  requestFinished(
+    method: string,
+    route: string,
+    statusCode: number,
+    durationSeconds: number,
+  ): void {
     this.activeRequests = Math.max(0, this.activeRequests - 1);
     const statusClass = statusCode >= 100 ? `${Math.floor(statusCode / 100)}xx` : 'unknown';
     const normalizedMethod = method.toUpperCase().slice(0, 12) || 'UNKNOWN';
@@ -72,7 +77,9 @@ export class MetricsService {
     ];
 
     const metrics = [...this.requests.values()].sort((a, b) =>
-      `${a.method}:${a.route}:${a.statusClass}`.localeCompare(`${b.method}:${b.route}:${b.statusClass}`),
+      `${a.method}:${a.route}:${a.statusClass}`.localeCompare(
+        `${b.method}:${b.route}:${b.statusClass}`,
+      ),
     );
 
     for (const metric of metrics) {

@@ -17,7 +17,9 @@ export class DeviceCrashService {
     if (!screen) throw new NotFoundException('Screen not found.');
 
     const current =
-      screen.capabilities && typeof screen.capabilities === 'object' && !Array.isArray(screen.capabilities)
+      screen.capabilities &&
+      typeof screen.capabilities === 'object' &&
+      !Array.isArray(screen.capabilities)
         ? (screen.capabilities as Record<string, unknown>)
         : {};
 

@@ -235,9 +235,10 @@ export type ScreenUse =
   | 'GENERIC';
 export type Orientation = 'LANDSCAPE' | 'PORTRAIT' | 'UNKNOWN';
 export type TagType = 'SCREEN' | 'CONTENT' | 'BOTH';
-// 'SLEEP' is the legacy name for 'BLANK_SCREEN' (it never slept the display).
-// The API still accepts it on read, so a screen configured before the rename
-// can still send it back to us; it is not offered as a choice.
+// 'SLEEP' and 'BLANK_SCREEN' are retired spellings of 'BLACK_SCREEN'. The API
+// still accepts both on read — working hours live in a JSON column and no
+// migration rewrote them — so a screen configured earlier can still send one
+// back to us. Neither is offered as a choice.
 export type OutsideHoursBehavior =
   | 'FALLBACK'
   | 'BLACK_SCREEN'

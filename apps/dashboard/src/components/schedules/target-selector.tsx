@@ -132,7 +132,8 @@ export function TargetSelector({
       return;
     }
     if (!entityId) return;
-    if (targets.some((target) => target.targetType === type && target.targetId === entityId)) return;
+    if (targets.some((target) => target.targetType === type && target.targetId === entityId))
+      return;
     onAdd({ targetType: type, targetId: entityId });
     setEntityId('');
   };
@@ -145,7 +146,9 @@ export function TargetSelector({
         ) : (
           targets.map((target, index) => (
             <Badge key={`${target.targetType}:${target.targetId}`} tone="info" className="gap-1">
-              <span className="opacity-70">{target.targetType.replace('_', ' ').toLowerCase()}:</span>{' '}
+              <span className="opacity-70">
+                {target.targetType.replace('_', ' ').toLowerCase()}:
+              </span>{' '}
               {labelFor(target)}
               {!busy ? (
                 <button

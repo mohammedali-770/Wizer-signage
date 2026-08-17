@@ -56,7 +56,9 @@ export class CompanySettingsService {
             toVersionName: rollbackRaw.toVersionName,
             toVersionCode: rollbackRaw.toVersionCode,
             failedScreenIds: Array.isArray(rollbackRaw.failedScreenIds)
-              ? rollbackRaw.failedScreenIds.filter((id): id is string => typeof id === 'string').slice(0, 50)
+              ? rollbackRaw.failedScreenIds
+                  .filter((id): id is string => typeof id === 'string')
+                  .slice(0, 50)
               : [],
           }
         : null;
@@ -82,15 +84,21 @@ export class CompanySettingsService {
         targetVersionCode:
           typeof androidOta.targetVersionCode === 'number' ? androidOta.targetVersionCode : null,
         rollbackVersionName:
-          typeof androidOta.rollbackVersionName === 'string' ? androidOta.rollbackVersionName : null,
+          typeof androidOta.rollbackVersionName === 'string'
+            ? androidOta.rollbackVersionName
+            : null,
         rollbackVersionCode:
-          typeof androidOta.rollbackVersionCode === 'number' ? androidOta.rollbackVersionCode : null,
+          typeof androidOta.rollbackVersionCode === 'number'
+            ? androidOta.rollbackVersionCode
+            : null,
         rolloutPercent:
           typeof androidOta.rolloutPercent === 'number' ? androidOta.rolloutPercent : 0,
         screenIds: Array.isArray(androidOta.screenIds) ? androidOta.screenIds : [],
         groupIds: Array.isArray(androidOta.groupIds) ? androidOta.groupIds : [],
         checkIntervalSeconds:
-          typeof androidOta.checkIntervalSeconds === 'number' ? androidOta.checkIntervalSeconds : 21_600,
+          typeof androidOta.checkIntervalSeconds === 'number'
+            ? androidOta.checkIntervalSeconds
+            : 21_600,
         healthWindowSeconds:
           typeof androidOta.healthWindowSeconds === 'number' ? androidOta.healthWindowSeconds : 900,
         lastAutoRollback,
@@ -129,7 +137,8 @@ export class CompanySettingsService {
     }
 
     const settings = { ...((company.settings ?? {}) as Record<string, unknown>) };
-    if (dto.defaultWorkingHours !== undefined) settings.defaultWorkingHours = dto.defaultWorkingHours;
+    if (dto.defaultWorkingHours !== undefined)
+      settings.defaultWorkingHours = dto.defaultWorkingHours;
     if (dto.defaultHeartbeatIntervalSeconds !== undefined) {
       settings.defaultHeartbeatIntervalSeconds = dto.defaultHeartbeatIntervalSeconds;
     }
@@ -169,12 +178,17 @@ export class CompanySettingsService {
 
     if (dto.enabled) {
       const candidatePairComplete = (targetVersionName === null) === (targetVersionCode === null);
-      const rollbackPairComplete = (rollbackVersionName === null) === (rollbackVersionCode === null);
+      const rollbackPairComplete =
+        (rollbackVersionName === null) === (rollbackVersionCode === null);
       if (!candidatePairComplete) {
-        throw new BadRequestException('targetVersionName and targetVersionCode must be supplied together.');
+        throw new BadRequestException(
+          'targetVersionName and targetVersionCode must be supplied together.',
+        );
       }
       if (!rollbackPairComplete) {
-        throw new BadRequestException('rollbackVersionName and rollbackVersionCode must be supplied together.');
+        throw new BadRequestException(
+          'rollbackVersionName and rollbackVersionCode must be supplied together.',
+        );
       }
       if (
         !targetVersionName ||

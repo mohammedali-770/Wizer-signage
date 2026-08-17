@@ -52,7 +52,9 @@ describe('AndroidReleaseCatalogService', () => {
 
   it('accepts a complete immutable release', () => {
     const release = publishFixture(root);
-    expect(new AndroidReleaseCatalogService().find(release.versionName, release.versionCode)).toEqual({
+    expect(
+      new AndroidReleaseCatalogService().find(release.versionName, release.versionCode),
+    ).toEqual({
       versionName: release.versionName,
       versionCode: release.versionCode,
       fileName: release.fileName,

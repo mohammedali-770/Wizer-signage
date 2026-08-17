@@ -56,26 +56,29 @@ export function evaluateWorkingHours(
 }
 
 /**
- * The legacy name for {@link OutsideHoursBehavior.BLANK_SCREEN}, renamed because
- * it never slept the display.
+ * Retired spellings that still mean BLACK_SCREEN.
  *
  * This is not cosmetic. Working hours are stored as JSON on Location, Screen and
- * Company rows, so there is no enum column and no migration ran — every screen
- * configured before the rename still has the literal `"SLEEP"` on disk. Dropping
- * it from the accepted set would send those through the fallback branch below,
- * and a venue that had gone dark outside opening hours would silently start
- * showing fallback content instead.
+ * Company rows — there is no enum column and no migration has ever run — so both
+ * strings are still on disk in customer configuration. Dropping either from the
+ * accepted set would send those rows through the fallback branch below, and a
+ * venue that had gone dark outside opening hours would silently start showing
+ * fallback content instead.
+ *
+ * `SLEEP` was renamed because it never slept the display. `BLANK_SCREEN` was
+ * that rename, retired in turn because it was an exact duplicate of
+ * `BLACK_SCREEN` one letter away from it. All three always rendered black; only
+ * the name ever changed.
  */
-const LEGACY_SLEEP = 'SLEEP';
+const RETIRED_BEHAVIORS = new Set(['SLEEP', 'BLANK_SCREEN']);
 
 function normalizeBehavior(value: unknown): OutsideHoursBehavior {
-  if (value === LEGACY_SLEEP) {
-    return OutsideHoursBehavior.BLANK_SCREEN;
+  if (typeof value === 'string' && RETIRED_BEHAVIORS.has(value)) {
+    return OutsideHoursBehavior.BLACK_SCREEN;
   }
   if (
     value === OutsideHoursBehavior.BLACK_SCREEN ||
     value === OutsideHoursBehavior.CUSTOM_MESSAGE ||
-    value === OutsideHoursBehavior.BLANK_SCREEN ||
     value === OutsideHoursBehavior.FALLBACK
   ) {
     return value;

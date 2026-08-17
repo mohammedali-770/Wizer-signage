@@ -19,7 +19,12 @@ describe('TagsService selector applicability', () => {
   it('maps CONTENT applicability to CONTENT+BOTH at the database boundary', async () => {
     const { service, prisma } = harness();
 
-    await service.list('company-1', { page: 1, pageSize: 50, applicableTo: 'CONTENT', search: 'promo' });
+    await service.list('company-1', {
+      page: 1,
+      pageSize: 50,
+      applicableTo: 'CONTENT',
+      search: 'promo',
+    });
 
     expect(prisma.tag.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

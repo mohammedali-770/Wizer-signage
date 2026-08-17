@@ -3547,7 +3547,30 @@ export type components = {
       /** @description Whether 2FA is mandatory for this account. */
       twoFactorRequired: boolean;
     };
-    PlanLimitsDto: Record<string, never>;
+    PlanLimitsDto: {
+      /** @description Max child companies. Reseller-readiness — not enforced in v1. Null or omitted means unlimited. */
+      maxCompanies?: number | null;
+      /** @description Max locations (branches). Null or omitted means unlimited. */
+      maxLocations?: number | null;
+      /** @description Max paired screens. Null or omitted means unlimited. */
+      maxScreens?: number | null;
+      /** @description Max user accounts in the company. Null or omitted means unlimited. */
+      maxUsers?: number | null;
+      /** @description Content storage cap, in gigabytes. Null or omitted means unlimited. */
+      storageGb?: number | null;
+      /** @description Largest single upload, in megabytes. Null or omitted means unlimited. */
+      maxFileSizeMb?: number | null;
+      /** @description Automatic screenshots per screen per day. Null or omitted means unlimited. */
+      autoScreenshotsPerDay?: number | null;
+      /** @description Max scheduled report definitions. Null or omitted means unlimited. */
+      scheduledReports?: number | null;
+      /** @description Per-plan override of the retention window, in days. Null or omitted means unlimited. */
+      dataRetentionDays?: number | null;
+      /** @description Future-ready. Not enforced in v1. Null or omitted means unlimited. */
+      apiRequestsPerDay?: number | null;
+      /** @description Future-ready. Not enforced in v1. Null or omitted means unlimited. */
+      webhooks?: number | null;
+    };
     CreatePlanDto: {
       name: string;
       /**
@@ -3985,10 +4008,10 @@ export type components = {
       /** @description At most one entry per weekday. An ABSENT day counts as outside hours, so a partial array is not the same as an unset one: omitting `days` entirely means always on (24/7). */
       days?: components['schemas']['DayHoursDto'][];
       /**
-       * @description Defaults to FALLBACK when omitted or unrecognised. The legacy value "SLEEP" is still ACCEPTED and treated as BLANK_SCREEN, but is not listed here because it should not be sent by new callers — it never slept the display.
+       * @description Defaults to FALLBACK when omitted or unrecognised. The legacy values "SLEEP" and "BLANK_SCREEN" are both still ACCEPTED and treated as BLACK_SCREEN; neither is listed here because neither should be sent by new callers. They rendered black anyway — SLEEP never slept the display, and BLANK_SCREEN was an exact duplicate of BLACK_SCREEN.
        * @enum {string}
        */
-      outsideHoursBehavior?: 'FALLBACK' | 'BLACK_SCREEN' | 'CUSTOM_MESSAGE' | 'BLANK_SCREEN';
+      outsideHoursBehavior?: 'FALLBACK' | 'BLACK_SCREEN' | 'CUSTOM_MESSAGE';
       /** @description Shown on the screen only when outsideHoursBehavior is CUSTOM_MESSAGE. */
       outsideHoursMessage?: string;
     };

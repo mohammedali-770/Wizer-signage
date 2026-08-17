@@ -110,13 +110,21 @@ _(Phase: Auth + Audit)_
 - **Audit logs** (`ActivityLog`) record security-relevant and tenant-significant actions
   (user/role changes, content/schedule changes, command dispatch, billing changes,
   cross-tenant Super Admin actions).
-- **Suspicious-login alerts are NOT implemented.** `LoginEvent` carries a
-  `suspicious` column and `recordLogin` takes a `suspicious` parameter, but
-  nothing ever sets it true and nothing reads it — there is no anomaly detection
-  (new device/location, impossible travel) and no alert is raised. Repeated
-  failures ARE handled, but by account lockout (§ Account lockout), not by
-  notification. This entry previously claimed the alerts existed; treat the
-  column as a placeholder, not a control.
+- **Suspicious logins are RECORDED but never surfaced.** `LoginEvent.suspicious`
+  is set to true on three paths — an attempt against a locked account, a password
+  failure that trips the lockout threshold, and a failed second factor — so the
+  data is real. What does not exist is anything that READS it: no alert, no
+  notification, no dashboard view, no export, no query. There is also no anomaly
+  detection of the kind usually meant by the phrase (new device or location,
+  impossible travel); "suspicious" here means only those three mechanical
+  conditions.
+  Repeated failures ARE acted on, by account lockout (§ Account lockout), not by
+  notification. So: the flag is a forensic breadcrumb you can query by hand after
+  an incident, not a control that will tell you an incident is happening.
+  This entry has now been wrong twice. It first claimed the alerts existed; the
+  correction then over-shot and claimed the flag was never set at all. The
+  behaviour above is pinned by tests in `auth.service.spec.ts` so a third version
+  cannot drift unnoticed.
 - Logs are tenant-scoped (except platform-level Super Admin actions) and retained per the
   retention defaults in [database-schema.md](./database-schema.md) (90 days for logs).
 

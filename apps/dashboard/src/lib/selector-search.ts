@@ -89,7 +89,10 @@ export function normalizeSelectorEntity(
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
   const root = payload as Record<string, unknown>;
   const raw =
-    type === 'COMPANY' && root.company && typeof root.company === 'object' && !Array.isArray(root.company)
+    type === 'COMPANY' &&
+    root.company &&
+    typeof root.company === 'object' &&
+    !Array.isArray(root.company)
       ? (root.company as Record<string, unknown>)
       : root;
   const id = typeof raw.id === 'string' ? raw.id : null;

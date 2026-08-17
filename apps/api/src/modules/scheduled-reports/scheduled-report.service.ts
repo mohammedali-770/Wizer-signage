@@ -129,10 +129,7 @@ export class ScheduledReportService {
   async setEnabled(companyId: string, actor: AuthenticatedUser, id: string, enabled: boolean) {
     const report = await this.loadOwned(companyId, id);
     if (enabled) {
-      await this.assertRecipients(
-        companyId,
-        (report.recipients as unknown as string[]) ?? [],
-      );
+      await this.assertRecipients(companyId, (report.recipients as unknown as string[]) ?? []);
     }
     const updated = await this.prisma.scheduledReport.update({
       where: { id },
@@ -322,7 +319,9 @@ export class ScheduledReportService {
         data: {
           status: allEmailsFailed ? ReportDeliveryStatus.FAILED : ReportDeliveryStatus.SENT,
           fileStorageKey: key,
-          error: allEmailsFailed ? 'The report could not be delivered to any active recipient.' : null,
+          error: allEmailsFailed
+            ? 'The report could not be delivered to any active recipient.'
+            : null,
           sentAt: allEmailsFailed ? null : new Date(),
         },
       });

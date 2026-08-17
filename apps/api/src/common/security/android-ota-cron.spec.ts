@@ -3,10 +3,7 @@ import { resolve } from 'node:path';
 
 const root = resolve(__dirname, '..', '..', '..', '..', '..');
 const crontab = readFileSync(resolve(root, 'infra/docker/crontab'), 'utf8');
-const cli = readFileSync(
-  resolve(root, 'apps/api/src/maintenance/maintenance.cli.ts'),
-  'utf8',
-);
+const cli = readFileSync(resolve(root, 'apps/api/src/maintenance/maintenance.cli.ts'), 'utf8');
 
 describe('Android OTA health scheduler', () => {
   it('runs the health reconciliation every minute under a non-overlapping lock', () => {

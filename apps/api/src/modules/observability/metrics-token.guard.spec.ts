@@ -38,9 +38,7 @@ describe('MetricsTokenGuard', () => {
   it('accepts only the exact configured token', () => {
     process.env.METRICS_TOKEN = 'correct-metrics-token-with-more-than-32-chars';
     expect(
-      new MetricsTokenGuard().canActivate(
-        context('correct-metrics-token-with-more-than-32-chars'),
-      ),
+      new MetricsTokenGuard().canActivate(context('correct-metrics-token-with-more-than-32-chars')),
     ).toBe(true);
   });
 });
