@@ -46,6 +46,21 @@ ENV NEXT_OUTPUT=standalone
 # This is NOT a secret (it ships to the browser); never pass secrets this way.
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+# Captcha identity for the public marketing forms. BUILD-TIME, like the API URL:
+# NEXT_PUBLIC_* is inlined into the bundle, so a value supplied at run time does
+# nothing and changing it needs a rebuild.
+#
+# The site key is public by design — it is meant to be in the page. The matching
+# CAPTCHA_SECRET is server-only and must never be passed here.
+#
+# Omitting the site key does not fail the build: the widget renders nothing and
+# the server rejects the submission. That is a broken form, not an insecure one,
+# but it is still a broken form — production must supply it.
+ARG NEXT_PUBLIC_CAPTCHA_SITE_KEY
+ENV NEXT_PUBLIC_CAPTCHA_SITE_KEY=${NEXT_PUBLIC_CAPTCHA_SITE_KEY}
+ARG NEXT_PUBLIC_CAPTCHA_PROVIDER
+ENV NEXT_PUBLIC_CAPTCHA_PROVIDER=${NEXT_PUBLIC_CAPTCHA_PROVIDER}
 # Bring the FULLY-resolved workspace from deps — including the per-package
 # node_modules. pnpm links each app's binaries under its own
 # apps/dashboard/node_modules/.bin (NOT the root node_modules), so copying only

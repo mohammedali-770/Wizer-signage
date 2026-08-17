@@ -8,6 +8,19 @@ on:
         required: true
         default: https://signage.wizer.sa/api
         type: string
+      captcha_site_key:
+        description: >-
+          Public captcha site key baked into the dashboard image. Required in
+          practice: the API refuses public form submissions without a token, so
+          an image built without this ships forms that always fail.
+        required: true
+        type: string
+      captcha_provider:
+        description: Captcha provider the site key belongs to
+        required: true
+        default: turnstile
+        type: choice
+        options: [turnstile, recaptcha, hcaptcha]
       promote_latest:
         description: Also move the mutable latest tag to this release
         required: true
@@ -134,6 +147,8 @@ jobs:
           push: true
           build-args: |
             NEXT_PUBLIC_API_URL=${{ inputs.api_url }}
+            NEXT_PUBLIC_CAPTCHA_SITE_KEY=${{ inputs.captcha_site_key }}
+            NEXT_PUBLIC_CAPTCHA_PROVIDER=${{ inputs.captcha_provider }}
           tags: |
             ${{ env.DASHBOARD_IMAGE }}:${{ env.IMAGE_TAG }}
             ${{ inputs.promote_latest && format('{0}:latest', env.DASHBOARD_IMAGE) || '' }}

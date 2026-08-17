@@ -58,9 +58,17 @@ for file in "${BASE}" "${PROXY}" "${LOGGING}" "${SLOTS}" "${SLOTS_LOGGING}"; do
   [[ -f "${file}" ]] || fail "required production compose file missing: ${file}"
 done
 
+# CAPTCHA_SECRET is in this list because the API's env validation REFUSES TO BOOT
+# without it in production. Without the check here the failure surfaces much
+# later and much more expensively: preflight passes, images pull, the mandatory
+# pre-migration backup runs, migrations apply, and only then does the inactive
+# slot fail its health gate. Blue/green would not switch traffic, so there is no
+# outage — but a whole release cycle is spent to learn about a missing string.
+# Preflight is read-only and runs first; this belongs here.
 for key in \
   APP_DOMAIN NEXT_PUBLIC_API_URL DATABASE_URL DIRECT_URL JWT_ACCESS_SECRET JWT_REFRESH_SECRET ENCRYPTION_KEY \
   IMAGE_REGISTRY_PREFIX METRICS_TOKEN BACKUP_OFFSITE_CMD HEALTHCHECKS_URL LOG_SHIPPING_ADDRESS \
+  CAPTCHA_SECRET \
   SMTP_HOST SMTP_PORT SMTP_FROM SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_STORAGE_BUCKET; do
   require_value "${key}"
 done

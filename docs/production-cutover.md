@@ -6,7 +6,10 @@ This runbook is the mandatory sequence for the first real Wizer Signage producti
 
 - Merge only a protected, green `main` commit.
 - Record its full 40-character SHA and freeze `main` for the cutover window.
-- Publish API, dashboard and maintenance images from that exact SHA to GHCR.
+- Publish API, dashboard and maintenance images from that exact SHA to GHCR via
+  the `Release production images` workflow. It takes `api_url`,
+  `captcha_site_key` and `captcha_provider` as inputs; all three are baked into
+  the dashboard bundle and none can be changed without rebuilding.
 - Never rebuild or replace an image under an existing SHA tag.
 
 ## 2. Prepare the production host
@@ -20,6 +23,18 @@ The production `.env` must contain real values for at least:
 - `METRICS_TOKEN` (32+ characters)
 - `BACKUP_OFFSITE_CMD` — a real off-host copy command, not `true`, `:`, `echo`, or another no-op
 - `HEALTHCHECKS_URL` — an HTTPS dead-man endpoint pinged only after a successful backup
+- `CAPTCHA_SECRET` — the API **refuses to boot** without it in production, because the
+  unauthenticated trial-signup endpoint must not be served without human verification.
+  `CAPTCHA_PROVIDER` selects `turnstile` (default), `recaptcha` or `hcaptcha`.
+
+> **The dashboard's captcha key is NOT set here.** `NEXT_PUBLIC_CAPTCHA_SITE_KEY`
+> is inlined into the dashboard bundle at image build time, exactly like
+> `NEXT_PUBLIC_API_URL`, so it is an input to the release-images workflow in §1
+> and cannot be fixed later by editing `.env`. Get it wrong and the deploy
+> succeeds while every public form submission fails: the widget is absent, so no
+> token is sent, and the API rejects the request. Both halves come from the same
+> provider account — the site key is public, the secret is server-only and must
+> never appear as a `NEXT_PUBLIC_*` variable.
 
 Authenticate Docker to private GHCR with a **read-only** package credential. The application host must not have registry write credentials.
 
