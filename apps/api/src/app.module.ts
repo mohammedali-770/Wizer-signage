@@ -49,6 +49,7 @@ import { ImportsModule } from './modules/imports/imports.module';
 import { ScheduledReportsModule } from './modules/scheduled-reports/scheduled-reports.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { DownloadsModule } from './modules/downloads/downloads.module';
+import { EmailVerificationModule } from './modules/email-verification/email-verification.module';
 import { PublicModule } from './modules/public/public.module';
 import { MetricsMiddleware } from './modules/observability/metrics.middleware';
 import { ObservabilityModule } from './modules/observability/observability.module';
@@ -82,6 +83,7 @@ import { ObservabilityModule } from './modules/observability/observability.modul
     HealthModule,
     DownloadsModule,
     PublicModule,
+    EmailVerificationModule,
     ActivityLogModule,
     CompaniesModule,
     SessionsModule,

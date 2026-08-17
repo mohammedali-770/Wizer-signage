@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 import { PublicService } from './public.service';
 
@@ -51,14 +55,21 @@ function build() {
       return undefined;
     }),
   };
+  // Captcha is OFF in these unit tests (no secret configured), matching a dev
+  // process. The enabled path — including the fail-closed behaviour — is
+  // covered directly in captcha.service.spec.ts.
+  const captcha = { enabled: false, assertValid: jest.fn().mockResolvedValue(undefined) };
+  const emailVerification = { issue: jest.fn().mockResolvedValue(undefined) };
   const service = new PublicService(
     prisma as any,
     password as any,
     activityLog as any,
     mail as any,
     config as any,
+    captcha as any,
+    emailVerification as any,
   );
-  return { service, prisma, password, activityLog, mail, tx };
+  return { service, prisma, password, activityLog, mail, tx, captcha, emailVerification };
 }
 
 describe('PublicService.trialSignup', () => {
@@ -79,8 +90,53 @@ describe('PublicService.trialSignup', () => {
 
     expect(res.companyId).toBe('c1');
     expect(res.email).toBe('owner@acme.test');
-    expect(res.redirectUrl).toBe('https://dash.test/login');
+    // Not /login: the account cannot log in until the emailed link is followed.
+    expect(res.redirectUrl).toBe('https://dash.test/en/verify-email/sent');
+    expect(res.verificationRequired).toBe(true);
     expect(typeof res.trialEndsAt).toBe('string');
+  });
+
+  it('does NOT pre-verify the email, and issues a confirmation token', async () => {
+    const { service, tx, emailVerification } = build();
+    await service.trialSignup(validTrialDto(), META);
+
+    // The whole point. This field used to be stamped at creation, which made
+    // every public signup a pre-trusted COMPANY_ADMIN under an address nobody
+    // had proved they owned.
+    const userArg = tx.user.create.mock.calls[0][0];
+    expect(userArg.data.emailVerifiedAt).toBeUndefined();
+
+    expect(emailVerification.issue).toHaveBeenCalledWith(
+      'u1',
+      'owner@acme.test',
+      'Mohammed Ali',
+      'en',
+    );
+  });
+
+  it('checks the captcha BEFORE touching the database', async () => {
+    const { service, prisma, captcha } = build();
+    captcha.assertValid.mockRejectedValueOnce(new ServiceUnavailableException('nope'));
+
+    await expect(service.trialSignup(validTrialDto(), META)).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+    // Ordering is the point: the duplicate-email probe just below the captcha
+    // check is an account-existence oracle, so it must not be reachable by a
+    // caller that has not passed the human check.
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('fails the signup when the confirmation email cannot be sent', async () => {
+    const { service, emailVerification } = build();
+    emailVerification.issue.mockRejectedValueOnce(new Error('smtp down'));
+
+    // Deliberately NOT best-effort, unlike the welcome email below: a silent
+    // failure here leaves a tenant nobody can ever log into.
+    await expect(service.trialSignup(validTrialDto(), META)).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
   });
 
   it('rejects a duplicate email with 409', async () => {

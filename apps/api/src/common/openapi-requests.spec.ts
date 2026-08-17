@@ -109,7 +109,10 @@ describe('OpenAPI request-body coverage', () => {
    * deliberately, which is a reviewable act rather than an omission.
    */
   it('measures every operation that takes a request body', () => {
-    expect(requestBodies()).toHaveLength(72);
+    // 74 = 72 + the two email-confirmation routes (POST /auth/email/confirm,
+    // POST /auth/email/resend). This number only ever goes UP by the number of
+    // endpoints deliberately added; a drop means a body stopped being emitted.
+    expect(requestBodies()).toHaveLength(74);
   });
 
   /**
@@ -125,7 +128,7 @@ describe('OpenAPI request-body coverage', () => {
     const bodies = requestBodies();
     const undocumented = bodies.filter((o) => !o.documented).map((o) => o.key);
     expect(undocumented).toEqual([]);
-    expect(bodies).toHaveLength(72);
+    expect(bodies).toHaveLength(74);
   });
 
   /**

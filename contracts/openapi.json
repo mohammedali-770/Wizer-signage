@@ -188,6 +188,71 @@
         ]
       }
     },
+    "/auth/email/confirm": {
+      "post": {
+        "operationId": "EmailVerificationController_confirm",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailVerificationResultDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Confirm an email address using the token from the emailed link.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/email/resend": {
+      "post": {
+        "description": "Always returns success. Whether an email is actually sent depends on the address existing and still being unverified, which is deliberately not revealed.",
+        "operationId": "EmailVerificationController_resend",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResendVerificationResultDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Request a fresh confirmation link.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/companies/me": {
       "get": {
         "operationId": "CompaniesController_myCompany",
@@ -8378,6 +8443,62 @@
           "pageSize",
           "total",
           "totalPages"
+        ]
+      },
+      "ConfirmEmailDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The single-use token from the confirmation link. Consumed on first use; requesting a new link invalidates any outstanding one.",
+            "minLength": 16,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "EmailVerificationResultDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Always true; failures are returned as errors."
+          },
+          "email": {
+            "type": "string",
+            "description": "The address that is now confirmed."
+          }
+        },
+        "required": [
+          "success",
+          "email"
+        ]
+      },
+      "ResendVerificationDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "description": "Always answered identically whether or not the address exists or is already verified — this route is unauthenticated and a truthful answer would make it an account-existence oracle."
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ResendVerificationResultDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Fixed acknowledgement. Does NOT indicate that an email was sent — see the oracle note on the request shape."
+          }
+        },
+        "required": [
+          "success"
         ]
       },
       "CompanyDto": {

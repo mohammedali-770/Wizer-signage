@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Check } from 'lucide-react';
 
+import { CaptchaField, type CaptchaFieldHandle } from '@/components/marketing/captcha-field';
 import { Reveal } from '@/components/marketing/reveal';
 import { Container } from '@/components/marketing/ui';
 import { PairingMock, StatusDot } from '@/components/marketing/visuals';
@@ -32,6 +33,8 @@ export default function DemoPage() {
   const [message, setMessage] = useState('');
 
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<CaptchaFieldHandle | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -50,13 +53,12 @@ export default function DemoPage() {
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    // captcha-ready: render reCAPTCHA/Turnstile here and pass captchaToken
-
     const body: Record<string, string | number> = {
       name: name.trim(),
       email: email.trim(),
       locale,
     };
+    if (captchaToken) body.captchaToken = captchaToken;
     if (company.trim()) body.company = company.trim();
     if (phone.trim()) body.phone = `${dialCode} ${phone.trim()}`;
     if (message.trim()) body.message = message.trim();
@@ -68,6 +70,9 @@ export default function DemoPage() {
       setSubmitted(true);
       toast(t('marketing.demo.success.title'), 'success');
     } catch (err) {
+      // A captcha token is single-use; the provider will reject a replay, so a
+      // retry after any failure needs a fresh one.
+      captchaRef.current?.reset();
       toast(err instanceof ApiError ? err.message : t('marketing.demo.errors.generic'), 'error');
     } finally {
       setSubmitting(false);
@@ -208,6 +213,13 @@ export default function DemoPage() {
                       placeholder={t('marketing.demo.placeholders.message')}
                     />
                   </Field>
+
+                  <CaptchaField
+                    onToken={setCaptchaToken}
+                    onResetRef={(h) => {
+                      captchaRef.current = h;
+                    }}
+                  />
 
                   <button
                     type="submit"

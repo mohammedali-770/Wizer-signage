@@ -12,7 +12,9 @@ import { PasswordService } from '../../common/crypto/password.service';
 import type { RequestMeta } from '../../common/decorators/request-meta.decorator';
 import type { AppConfig } from '../../config/configuration';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CaptchaService } from '../../common/security/captcha.service';
 import { ActivityCategory, ActivityLogService } from '../activity-log/activity-log.service';
+import { EmailVerificationService } from '../email-verification/email-verification.service';
 import { MailService } from '../mail/mail.service';
 import type { DemoRequestDto } from './dto/demo-request.dto';
 import type { TrialSignupDto } from './dto/trial-signup.dto';
@@ -49,6 +51,8 @@ export class PublicService {
     private readonly activityLog: ActivityLogService,
     private readonly mail: MailService,
     private readonly config: ConfigService,
+    private readonly captcha: CaptchaService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   /**
@@ -57,6 +61,11 @@ export class PublicService {
    * a default branch (Location). Returns where to send the user to sign in.
    */
   async trialSignup(dto: TrialSignupDto, meta: RequestMeta) {
+    // 0. Human check, BEFORE any database work. Every step below writes or
+    // reads tenant data, and the duplicate-email probe just underneath is an
+    // account-existence oracle — neither should be reachable by a script.
+    await this.captcha.assertValid(dto.captchaToken, meta.ip);
+
     const email = dto.email.toLowerCase().trim();
 
     // 1. Duplicate-email guard (email is globally unique).
@@ -128,7 +137,11 @@ export class PublicService {
             status: UserStatus.ACTIVE,
             locale,
             passwordHash,
-            emailVerifiedAt: new Date(),
+            // NOT verified. Nothing has proved this address belongs to the
+            // person signing up; a confirmation link is sent below and login is
+            // refused until it is followed. This field used to be stamped here,
+            // which made every public signup a pre-trusted COMPANY_ADMIN under
+            // an address the platform had never contacted.
             passwordHistory: { create: { passwordHash } },
           },
         });
@@ -166,20 +179,38 @@ export class PublicService {
       userAgent: meta.userAgent,
     });
 
-    // 6. Welcome email (best-effort — must not fail the signup).
-    void this.sendWelcomeEmail(email, dto.fullName.trim(), locale, trialEndsAt);
+    // 6. Confirmation email. NOT best-effort: the account cannot log in until
+    // this link is followed, so a silent failure would strand the tenant. The
+    // signup itself is already committed, so a send failure is surfaced as a
+    // 503 telling the caller to request a new link rather than rolling back a
+    // company the user may legitimately own.
+    try {
+      await this.emailVerification.issue(result.ownerId, email, dto.fullName.trim(), locale);
+    } catch (err) {
+      this.logger.error(
+        `Trial signup ${result.companyId} created but the confirmation email failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      throw new ServiceUnavailableException(
+        'Your account was created but the confirmation email could not be sent. Request a new link from the sign-in page.',
+      );
+    }
 
     return {
       companyId: result.companyId,
       slug,
       email,
       trialEndsAt: trialEndsAt.toISOString(),
-      redirectUrl: `${this.dashboardUrl()}/login`,
+      verificationRequired: true,
+      redirectUrl: `${this.dashboardUrl()}/${locale}/verify-email/sent`,
     };
   }
 
   /** Store a "Book a Demo" lead and notify sales (best-effort). */
   async demoRequest(dto: DemoRequestDto, meta: RequestMeta) {
+    await this.captcha.assertValid(dto.captchaToken, meta.ip);
+
     const email = dto.email.toLowerCase().trim();
     const created = await this.prisma.demoRequest.create({
       data: {

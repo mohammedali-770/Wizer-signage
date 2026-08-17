@@ -22,6 +22,13 @@ const EXPECTED_PUBLIC_ROUTES: readonly string[] = [
   'POST /auth/forgot-password',
   'POST /auth/reset-password',
   'POST /auth/accept-invitation',
+  // Email confirmation for public trial signups. Necessarily unauthenticated —
+  // the caller cannot log in until the address is confirmed, which is the whole
+  // point. Both are throttled well below the global budget (confirm 10/min,
+  // resend 3/hour) and `resend` answers identically for unknown, verified and
+  // unverified addresses so it cannot be used to enumerate accounts.
+  'POST /auth/email/confirm',
+  'POST /auth/email/resend',
   'GET /public/plans',
   'POST /public/demo-request',
   'POST /public/trial-signup',
@@ -54,6 +61,7 @@ const EXPECTED_CLASS_LEVEL_PUBLIC: readonly string[] = [
   'DeviceProofOfPlayController', // ditto
   'DeviceTelemetryController', // ditto, including bounded crash reports
   'DownloadsController', // Android distribution artifacts, pre-pairing/public
+  'EmailVerificationController', // confirm/resend a signup email; caller cannot log in yet
   'HealthController', // liveness/readiness probes
   'PublicController', // marketing site + self-serve trial signup
 ];

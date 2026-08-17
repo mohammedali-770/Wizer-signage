@@ -30,6 +30,13 @@ export const JWT_TTL_MESSAGE = (name: string): string =>
   `${name} must be a duration with an explicit unit (e.g. 15m, 30d, 2h). ` +
   'A bare number is rejected because it would be read as milliseconds, not seconds.';
 
+/** Mirrors CaptchaProvider in common/security/captcha.service.ts. */
+export enum CaptchaProviderEnum {
+  Turnstile = 'turnstile',
+  Recaptcha = 'recaptcha',
+  Hcaptcha = 'hcaptcha',
+}
+
 export enum Environment {
   Development = 'development',
   Test = 'test',
@@ -197,6 +204,21 @@ export class EnvironmentVariables {
   @IsString()
   SEED_SUPERADMIN_EMAIL?: string;
 
+  /**
+   * Captcha provider for the unauthenticated public endpoints. Defaults to
+   * turnstile when unset; only meaningful alongside CAPTCHA_SECRET.
+   */
+  @IsOptional()
+  @IsEnum(CaptchaProviderEnum, {
+    message: `CAPTCHA_PROVIDER must be one of: ${Object.values(CaptchaProviderEnum).join(', ')}`,
+  })
+  CAPTCHA_PROVIDER?: CaptchaProviderEnum;
+
+  /** Server-side captcha secret. Its presence is what turns captcha on. */
+  @IsOptional()
+  @IsString()
+  CAPTCHA_SECRET?: string;
+
   @IsOptional()
   @IsString()
   SEED_SUPERADMIN_PASSWORD?: string;
@@ -301,6 +323,21 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
         `Invalid environment configuration: ${missingStorage.join(', ')} ${
           missingStorage.length === 1 ? 'is' : 'are'
         } required when NODE_ENV=production (content storage must not fall back to ephemeral local disk).`,
+      );
+    }
+
+    // Fail closed on the unauthenticated signup surface. POST /public/trial-signup
+    // creates a company, an owner and a subscription with no authentication; its
+    // only other defence is a 5/hour/IP throttle, which a rotating-IP script
+    // walks straight through. Booting without a secret would serve an
+    // unprotected signup form and look completely healthy doing it.
+    //
+    // Checked LAST so a production environment missing several things still
+    // reports the older, more familiar causes (dashboard origin, SMTP, storage)
+    // first rather than having this new one mask them.
+    if (!validatedConfig.CAPTCHA_SECRET || validatedConfig.CAPTCHA_SECRET.trim() === '') {
+      throw new Error(
+        'Invalid environment configuration: CAPTCHA_SECRET is required when NODE_ENV=production (the public signup and demo endpoints must not be served without human verification).',
       );
     }
   }
