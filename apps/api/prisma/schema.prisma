@@ -512,6 +512,7 @@ model User {
   twoFactorChallenges TwoFactorChallenge[]
   passwordHistory     PasswordHistory[]
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
   loginEvents         LoginEvent[]
   activityLogs        ActivityLog[]        @relation("ActivityLogActor")
   locations           UserLocation[]
@@ -634,6 +635,30 @@ model PasswordResetToken {
   // Retention: purge of consumed/expired single-use reset tokens.
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+/// Single-use email-confirmation token for a public trial signup.
+///
+/// Structurally identical to PasswordResetToken (sha256 of the token stored,
+/// never the token itself; single-use via consumedAt; expiring) because the
+/// threat is the same: the emailed link is a bearer credential.
+///
+/// Exists because trial signup previously stamped emailVerifiedAt immediately,
+/// so anyone could create a tenant under an address they did not control and it
+/// started out trusted.
+model EmailVerificationToken {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  // Retention: purge of consumed/expired single-use verification tokens.
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }
 
 /// One-time 2FA backup recovery code (stored hashed).

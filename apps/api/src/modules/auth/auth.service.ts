@@ -133,6 +133,23 @@ export class AuthService {
 
     await this.assertCompanyActive(user);
 
+    // Email confirmation. Placed AFTER the password check on purpose: refusing
+    // earlier would answer "does this account exist, and is it unverified?" to
+    // anyone who can type an address, which is most of what an attacker wants
+    // from a signup form.
+    //
+    // Null means an unverified PUBLIC TRIAL SIGNUP and nothing else — every
+    // other path that creates a user proves the address first and stamps the
+    // timestamp (createFromInvitation, the seed), so no pre-existing account is
+    // locked out by this. See EmailVerificationService for the invariant.
+    if (!user.emailVerifiedAt) {
+      await this.recordLogin(email, user.id, false, 'email_unverified', meta);
+      throw new ForbiddenException({
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Confirm your email address to activate your account.',
+      });
+    }
+
     // 2FA step-up: issue a short-lived challenge and DEFER both session creation
     // and the lockout-counter reset until the second factor is verified — so an
     // attacker who knows only the password cannot loop login to clear lockout.

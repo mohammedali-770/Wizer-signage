@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Check, Sparkles, ShieldCheck, Clock } from 'lucide-react';
 
+import { CaptchaField, type CaptchaFieldHandle } from '@/components/marketing/captcha-field';
 import { Reveal } from '@/components/marketing/reveal';
 import { Container } from '@/components/marketing/ui';
 import { DashboardMockup, StatusDot } from '@/components/marketing/visuals';
@@ -53,6 +54,8 @@ export default function TrialPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<CaptchaFieldHandle | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -79,8 +82,6 @@ export default function TrialPage() {
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    // captcha-ready: render reCAPTCHA/Turnstile here and pass captchaToken
-
     const body: Record<string, string | number> = {
       fullName: fullName.trim(),
       companyName: companyName.trim(),
@@ -88,6 +89,7 @@ export default function TrialPage() {
       password,
       preferredLanguage: language,
     };
+    if (captchaToken) body.captchaToken = captchaToken;
     if (phone.trim()) body.phone = `${dialCode} ${phone.trim()}`;
     if (country.trim()) body.country = country.trim();
     if (city.trim()) body.city = city.trim();
@@ -101,6 +103,9 @@ export default function TrialPage() {
       setSubmitted(true);
       toast(t('marketing.trial.success.title'), 'success');
     } catch (err) {
+      // A captcha token is single-use; the provider will reject a replay, so a
+      // retry after any failure needs a fresh one.
+      captchaRef.current?.reset();
       if (err instanceof ApiError && err.status === 409) {
         toast(t('marketing.trial.errors.duplicate'), 'error');
       } else {
@@ -347,6 +352,13 @@ export default function TrialPage() {
                       required
                     />
                   </Field>
+
+                  <CaptchaField
+                    onToken={setCaptchaToken}
+                    onResetRef={(h) => {
+                      captchaRef.current = h;
+                    }}
+                  />
 
                   <button
                     type="submit"

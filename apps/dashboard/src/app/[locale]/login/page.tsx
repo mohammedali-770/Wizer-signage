@@ -90,6 +90,15 @@ export default function LoginPage() {
         router.replace(roleHome(user?.role));
       }
     } catch (e) {
+      // A trial signup that has not confirmed its address gets a 403 with this
+      // code. Without the redirect the user is told "confirm your email" on a
+      // page that offers no way to get another link.
+      // router from @/i18n/navigation is locale-aware, so no prefix here.
+      if (e instanceof ApiError && e.code === 'EMAIL_NOT_VERIFIED') {
+        toast(errorMessage(e), 'error');
+        router.push('/verify-email/sent');
+        return;
+      }
       toast(errorMessage(e), 'error');
     } finally {
       setBusy(false);

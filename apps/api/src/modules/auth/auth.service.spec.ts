@@ -15,6 +15,10 @@ function makeUser(overrides: Partial<any> = {}): any {
     role: UserRole.VIEWER,
     status: UserStatus.ACTIVE,
     companyId: 'company-1',
+    // Verified by default because every real user is: invitation acceptance and
+    // the seed both stamp it. Null means specifically "unverified public trial
+    // signup", which is exercised in its own tests below.
+    emailVerifiedAt: new Date('2026-01-01T00:00:00.000Z'),
     failedLoginCount: 0,
     lockedUntil: null,
     twoFactorEnabled: false,
@@ -288,6 +292,58 @@ describe('AuthService.login', () => {
     expect(t.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({ mfaSatisfied: false }),
     );
+  });
+
+  describe('unverified email', () => {
+    it('refuses login until the address is confirmed', async () => {
+      const t = build();
+      t.users.findByEmail.mockResolvedValue(makeUser({ emailVerifiedAt: null }));
+      t.password.verify.mockResolvedValue(true);
+
+      await expect(
+        t.service.login({ email: 'user@acme.test', password: 'ok' }, meta),
+      ).rejects.toMatchObject({ response: { code: 'EMAIL_NOT_VERIFIED' } });
+    });
+
+    it('checks the password FIRST, so it is not an existence oracle', async () => {
+      const t = build();
+      t.users.findByEmail.mockResolvedValue(makeUser({ emailVerifiedAt: null }));
+      t.password.verify.mockResolvedValue(false);
+
+      // A wrong password on an unverified account must be indistinguishable
+      // from a wrong password anywhere else. Answering EMAIL_NOT_VERIFIED here
+      // would confirm the address exists to anyone who can type it.
+      await expect(
+        t.service.login({ email: 'user@acme.test', password: 'wrong' }, meta),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('issues no session and records the refusal', async () => {
+      const t = build();
+      t.users.findByEmail.mockResolvedValue(makeUser({ emailVerifiedAt: null }));
+      t.password.verify.mockResolvedValue(true);
+
+      await t.service
+        .login({ email: 'user@acme.test', password: 'ok' }, meta)
+        .catch(() => undefined);
+
+      expect(t.sessions.create).not.toHaveBeenCalled();
+      expect(t.prisma.loginEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ success: false, reason: 'email_unverified' }),
+        }),
+      );
+    });
+
+    it('lets a verified account straight through', async () => {
+      const t = build();
+      t.users.findByEmail.mockResolvedValue(makeUser({ emailVerifiedAt: new Date() }));
+      t.password.verify.mockResolvedValue(true);
+
+      await expect(
+        t.service.login({ email: 'user@acme.test', password: 'ok' }, meta),
+      ).resolves.toBeDefined();
+    });
   });
 });
 

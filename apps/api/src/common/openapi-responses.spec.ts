@@ -987,7 +987,9 @@ describe('OpenAPI response coverage', () => {
     // a response type fails here immediately, and there is no "raise the
     // number" escape.
     const { annotated, total } = operationsWithResponseSchema();
-    expect(total).toBe(211);
+    // 213 = 211 + the two email-confirmation routes added with captcha and
+    // signup email verification.
+    expect(total).toBe(213);
     expect(annotated.length).toBe(total);
   });
 

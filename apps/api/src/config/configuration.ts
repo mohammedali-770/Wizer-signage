@@ -11,6 +11,8 @@
 
 import type { JwtSignOptions } from '@nestjs/jwt';
 
+import type { CaptchaProvider } from '../common/security/captcha.service';
+
 import { resolveCorsOrigins } from './cors';
 
 export type NodeEnv = 'development' | 'test' | 'production';
@@ -118,7 +120,22 @@ export interface AppConfig {
   readonly retention: RetentionConfig;
   readonly map: MapConfig;
   readonly trial: TrialConfig;
+  readonly captcha: CaptchaConfig;
   readonly redisUrl?: string;
+}
+
+/**
+ * Human-verification for the unauthenticated public endpoints.
+ *
+ * `enabled` is derived, not a separate switch: captcha is on exactly when a
+ * secret is present. One source of truth means there is no way to configure a
+ * secret and still have it ignored, or to flip a flag on and have it silently
+ * do nothing. Production cannot start without a secret — see env.validation.ts.
+ */
+export interface CaptchaConfig {
+  readonly enabled: boolean;
+  readonly provider: CaptchaProvider;
+  readonly secret?: string;
 }
 
 /** Parse an integer env var, falling back to a default when unset/invalid. */
@@ -193,6 +210,11 @@ export default (): AppConfig => {
     map: {
       provider: env.MAP_PROVIDER,
       apiKey: env.MAP_API_KEY,
+    },
+    captcha: {
+      enabled: Boolean(env.CAPTCHA_SECRET?.trim()),
+      provider: (env.CAPTCHA_PROVIDER?.trim() as CaptchaProvider) || 'turnstile',
+      secret: env.CAPTCHA_SECRET?.trim() || undefined,
     },
     trial: {
       days: parseIntEnv(env.TRIAL_DAYS, 14),

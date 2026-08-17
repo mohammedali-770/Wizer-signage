@@ -29,7 +29,19 @@ describe('validate (environment)', () => {
     SUPABASE_STORAGE_BUCKET: 'wizer-signage',
   };
 
-  const production = { ...base, ...dashboard, ...smtp, ...storage, NODE_ENV: 'production' };
+  // Human verification on the public signup surface is part of a COMPLETE
+  // production environment now, so it belongs in the fixture that means exactly
+  // that. Tests isolating a different missing variable build their own object.
+  const captcha = { CAPTCHA_SECRET: 'captcha-secret-for-production-tests' };
+
+  const production = {
+    ...base,
+    ...dashboard,
+    ...smtp,
+    ...storage,
+    ...captcha,
+    NODE_ENV: 'production',
+  };
 
   describe('required secrets', () => {
     it('accepts a complete development environment without production-only services', () => {
@@ -42,14 +54,15 @@ describe('validate (environment)', () => {
     });
 
     it('rejects a too-short JWT secret', () => {
-      expect(() => validate({ ...base, JWT_ACCESS_SECRET: 'short', NODE_ENV: 'development' })).toThrow(
-        /JWT_ACCESS_SECRET/,
-      );
+      expect(() =>
+        validate({ ...base, JWT_ACCESS_SECRET: 'short', NODE_ENV: 'development' }),
+      ).toThrow(/JWT_ACCESS_SECRET/);
     });
   });
 
   describe('JWT lifetimes', () => {
-    const ttl = (v: Record<string, string>) => () => validate({ ...base, NODE_ENV: 'development', ...v });
+    const ttl = (v: Record<string, string>) => () =>
+      validate({ ...base, NODE_ENV: 'development', ...v });
 
     it('accepts durations carrying an explicit unit', () => {
       for (const v of ['15m', '30d', '900s', '2h', '1w', '250ms', '1.5h', '2 hours']) {
@@ -99,7 +112,14 @@ describe('validate (environment)', () => {
     it('accepts either alias when it is a clean public HTTPS origin', () => {
       expect(() => validate(production)).not.toThrow();
       expect(() =>
-        validate({ ...base, ...smtp, ...storage, NODE_ENV: 'production', APP_URL: 'https://signage.wizer.sa' }),
+        validate({
+          ...base,
+          ...smtp,
+          ...storage,
+          ...captcha,
+          NODE_ENV: 'production',
+          APP_URL: 'https://signage.wizer.sa',
+        }),
       ).not.toThrow();
     });
 
@@ -111,6 +131,45 @@ describe('validate (environment)', () => {
           DASHBOARD_URL: 'https://signage.wizer.sa',
         }),
       ).toThrow(/public HTTPS origin/);
+    });
+  });
+
+  describe('production captcha requirement', () => {
+    it('refuses to boot without CAPTCHA_SECRET', () => {
+      const { CAPTCHA_SECRET: _omitted, ...withoutCaptcha } = production;
+      // The public trial-signup endpoint creates a tenant with no auth. Serving
+      // it with only a per-IP throttle is the state this gate exists to prevent,
+      // and a process that boots looks healthy while doing exactly that.
+      expect(() => validate(withoutCaptcha)).toThrow(
+        /CAPTCHA_SECRET is required when NODE_ENV=production/,
+      );
+    });
+
+    it('rejects a blank or whitespace-only secret', () => {
+      for (const value of ['', '   ', '\t']) {
+        expect(() => validate({ ...production, CAPTCHA_SECRET: value })).toThrow(/CAPTCHA_SECRET/);
+      }
+    });
+
+    it('accepts production once a secret is present', () => {
+      expect(() => validate(production)).not.toThrow();
+    });
+
+    it('does NOT require it outside production', () => {
+      // Development and test must stay runnable without a provider account.
+      const { CAPTCHA_SECRET: _omitted, ...withoutCaptcha } = production;
+      expect(() => validate({ ...withoutCaptcha, NODE_ENV: 'development' })).not.toThrow();
+      expect(() => validate({ ...withoutCaptcha, NODE_ENV: 'test' })).not.toThrow();
+    });
+
+    it('rejects an unknown provider', () => {
+      expect(() => validate({ ...production, CAPTCHA_PROVIDER: 'notaprovider' })).toThrow(
+        /CAPTCHA_PROVIDER must be one of/,
+      );
+    });
+
+    it.each(['turnstile', 'recaptcha', 'hcaptcha'])('accepts the %s provider', (provider) => {
+      expect(() => validate({ ...production, CAPTCHA_PROVIDER: provider })).not.toThrow();
     });
   });
 
