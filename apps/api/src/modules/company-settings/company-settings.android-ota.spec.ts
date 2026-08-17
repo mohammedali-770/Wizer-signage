@@ -104,10 +104,7 @@ describe('CompanySettingsService Android OTA policy', () => {
         rollbackVersionName: '1.4.1-safe',
         rollbackVersionCode: 43,
         rolloutPercent: 0,
-        screenIds: [
-          '11111111-1111-4111-8111-111111111111',
-          '22222222-2222-4222-8222-222222222222',
-        ],
+        screenIds: ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222'],
       }),
     ).rejects.toThrow('Every OTA canary screen must belong to your company.');
 
@@ -115,10 +112,7 @@ describe('CompanySettingsService Android OTA policy', () => {
       where: {
         companyId: 'company-1',
         id: {
-          in: [
-            '11111111-1111-4111-8111-111111111111',
-            '22222222-2222-4222-8222-222222222222',
-          ],
+          in: ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222'],
         },
         deletedAt: null,
       },

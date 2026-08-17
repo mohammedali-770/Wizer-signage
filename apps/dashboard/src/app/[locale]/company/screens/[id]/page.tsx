@@ -1050,9 +1050,7 @@ export default function ScreenDetailPage() {
                   value={moveLocationId}
                   onChange={setMoveLocationId}
                   emptyLabel={t('unassigned')}
-                  searchPlaceholder={
-                    locale === 'ar' ? 'بحث عن موقع…' : 'Search locations…'
-                  }
+                  searchPlaceholder={locale === 'ar' ? 'بحث عن موقع…' : 'Search locations…'}
                   disabled={busy}
                 />
               </Field>
@@ -1121,9 +1119,7 @@ export default function ScreenDetailPage() {
                 valueIds={groupIds}
                 initialItems={screen.groups.map((group) => ({ id: group.id, name: group.name }))}
                 onChangeIds={setGroupIds}
-                searchPlaceholder={
-                  locale === 'ar' ? 'بحث عن المجموعات…' : 'Search screen groups…'
-                }
+                searchPlaceholder={locale === 'ar' ? 'بحث عن المجموعات…' : 'Search screen groups…'}
                 emptyText={t('groupsDialog.empty')}
                 disabled={busy}
               />

@@ -82,9 +82,7 @@ describe('MonitoringService.overview', () => {
     expect(res.missingHeartbeat).toBe(1);
     expect(res.screens).toHaveLength(1);
     expect(res.screenMeta).toEqual({ page: 2, pageSize: 1, total: 3, totalPages: 3 });
-    expect(res.alerts).toEqual([
-      expect.objectContaining({ screenId: 'b', severity: 'CRITICAL' }),
-    ]);
+    expect(res.alerts).toEqual([expect.objectContaining({ screenId: 'b', severity: 'CRITICAL' })]);
     expect(t.prisma.screen.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ skip: 1, take: 1 }),
     );

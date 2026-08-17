@@ -56,19 +56,29 @@ so **the Android player was unaffected** by every one of them.
 | `PATCH /scheduled-reports/{id}`     | `recipients` may no longer be `[]`                                 | #64 |
 | `POST`/`PATCH` emergency broadcasts | `url` must now be an absolute `http(s)` URL                        | #64 |
 | Anything sending `workingHours`     | `outsideHoursBehavior: "SLEEP"` renamed to `"BLANK_SCREEN"`        | #66 |
+| Anything sending `workingHours`     | `"BLANK_SCREEN"` collapsed into `"BLACK_SCREEN"` (duplicate)       | #98 |
 
-`SLEEP` is the one rename on this page that did **not** break callers, and it is
-worth saying why rather than leaving it looking inconsistent. Working hours are
-stored as JSON, not in an enum column, so no migration rewrote existing rows and
-every screen configured before the rename still has the old string on disk.
-`normalizeBehavior` therefore still accepts `"SLEEP"` and maps it to
-`BLANK_SCREEN`. Dropping it instead would have sent those rows through the
+The two `outsideHoursBehavior` rows are the only entries on this page that did
+**not** break callers, and it is worth saying why rather than leaving them
+looking inconsistent.
+
+Working hours are stored as JSON, not in an enum column, so no migration ever
+rewrote a stored value and both retired strings are still on disk.
+`normalizeBehavior` accepts `"SLEEP"` and `"BLANK_SCREEN"` and maps both to
+`BLACK_SCREEN`. Dropping either would have sent those rows through the
 `FALLBACK` default, and screens that went dark outside opening hours would have
 started showing fallback content with nothing logged to explain it.
 
-The name was wrong: it never slept the display and could not. Renaming rather
-than deleting means the operator-facing choice tells the truth while the stored
-data keeps working — the deprecation window this page argues for, applied once.
+Both renames fixed a name that lied, in two steps. `SLEEP` never slept the
+display and could not. `BLANK_SCREEN` was that correction, and it turned out to
+be an exact duplicate of `BLACK_SCREEN` one letter away — two options that
+render identically ask an operator a question with no answer. Retiring the
+spelling while still accepting it is the deprecation window this page argues
+for, applied twice.
+
+The lesson worth keeping: the first rename was announced here as finished when
+it had in fact introduced a second problem. A breaking-change log is only useful
+if the entry is written after looking at the result.
 
 The 2FA routes are a security fix: a bearer token alone could previously enrol an
 authenticator, which turns a stolen session into access that outlives a password

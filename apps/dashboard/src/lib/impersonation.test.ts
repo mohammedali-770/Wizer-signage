@@ -69,7 +69,7 @@ beforeEach(() => {
 });
 
 describe('beginImpersonation', () => {
-  it("stashes the admin access token and installs the tenant-scoped one", () => {
+  it('stashes the admin access token and installs the tenant-scoped one', () => {
     storage.setItem(ACCESS, 'admin-access');
 
     beginImpersonation('tenant-access', tenant);

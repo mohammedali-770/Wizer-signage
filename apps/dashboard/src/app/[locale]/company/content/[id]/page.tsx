@@ -525,9 +525,7 @@ export default function ContentDetailPage() {
                     type="TAG"
                     valueIds={form.tagIds}
                     initialItems={content.tags.map((tag) => ({ id: tag.id, name: tag.name }))}
-                    onChangeIds={(tagIds) =>
-                      setForm((f) => (f ? { ...f, tagIds } : f))
-                    }
+                    onChangeIds={(tagIds) => setForm((f) => (f ? { ...f, tagIds } : f))}
                     tagApplicability="CONTENT"
                     searchPlaceholder={locale === 'ar' ? 'بحث عن الوسوم…' : 'Search tags…'}
                     emptyText={t('noContentTags')}

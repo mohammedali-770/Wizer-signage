@@ -5,14 +5,11 @@ import { useTranslations } from 'next-intl';
 import type { DayHours, OutsideHoursBehavior, WorkingHours } from '@/lib/types';
 import { Input, Label, Select } from '@/components/ui';
 
-// Selectable options. 'SLEEP' is deliberately absent: it is the legacy name for
-// 'BLANK_SCREEN' and is accepted on read only, so it is never offered anew.
-const BEHAVIOR_VALUES: OutsideHoursBehavior[] = [
-  'FALLBACK',
-  'BLACK_SCREEN',
-  'CUSTOM_MESSAGE',
-  'BLANK_SCREEN',
-];
+// Selectable options. 'SLEEP' and 'BLANK_SCREEN' are deliberately absent: both
+// are retired spellings of 'BLACK_SCREEN', accepted on read only and never
+// offered anew. Offering two options that render identically asks the operator
+// a question with no answer.
+const BEHAVIOR_VALUES: OutsideHoursBehavior[] = ['FALLBACK', 'BLACK_SCREEN', 'CUSTOM_MESSAGE'];
 
 function defaultDays(): DayHours[] {
   return Array.from({ length: 7 }, (_, day) => ({

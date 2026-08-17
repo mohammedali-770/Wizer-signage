@@ -30,7 +30,9 @@ export class TagsService {
 
   async list(companyId: string, query: ListTagsQueryDto) {
     if (query.type && query.applicableTo) {
-      throw new BadRequestException('Use either type or applicableTo when filtering tags, not both.');
+      throw new BadRequestException(
+        'Use either type or applicableTo when filtering tags, not both.',
+      );
     }
 
     const { skip, take, meta } = resolvePagination(query);

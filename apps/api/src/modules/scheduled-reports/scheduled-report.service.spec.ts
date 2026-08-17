@@ -67,9 +67,7 @@ function build() {
         deletedAt: null,
       }),
       findMany: jest.fn(({ where }: any) =>
-        Promise.resolve(
-          (where.OR ?? []).map((entry: any) => ({ email: entry.email.equals })),
-        ),
+        Promise.resolve((where.OR ?? []).map((entry: any) => ({ email: entry.email.equals }))),
       ),
     },
     $transaction: (ops: Promise<any>[]) => Promise.all(ops),

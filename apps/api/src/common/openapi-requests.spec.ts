@@ -99,7 +99,71 @@ function requestBodies(): BodyOp[] {
   return out;
 }
 
+/**
+ * Every schema name reachable from a request body, following `$ref` through
+ * nested objects, arrays and composition keywords.
+ *
+ * The coverage measure above only inspects the TOP-LEVEL schema of each body.
+ * That is how `WorkingHoursDto` published as `{"type":"object","properties":{}}`
+ * while being `$ref`'d from five request bodies: every one of those bodies had
+ * properties of its own, so every one counted as documented, and the empty shell
+ * nested inside them was never looked at. A client reading the contract was told
+ * to send `workingHours: {}` with no way to discover `timezone`, `days`,
+ * `outsideHoursBehavior` or `outsideHoursMessage`.
+ */
+function schemasReachableFromRequestBodies(): Set<string> {
+  const { paths, components } = loadContract();
+  const seen = new Set<string>();
+
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    const obj = node as Record<string, unknown>;
+    const ref = obj.$ref;
+    if (typeof ref === 'string' && ref.startsWith('#/components/schemas/')) {
+      const name = ref.replace('#/components/schemas/', '');
+      // Guard against a schema that references itself, directly or in a cycle.
+      if (seen.has(name)) return;
+      seen.add(name);
+      walk(components.schemas[name]);
+      return;
+    }
+    Object.values(obj).forEach(walk);
+  };
+
+  for (const item of Object.values(paths)) {
+    for (const method of HTTP_METHODS) {
+      const body = item[method]?.requestBody;
+      if (body) walk(body);
+    }
+  }
+  return seen;
+}
+
 describe('OpenAPI request-body coverage', () => {
+  it('has no empty shell nested inside a documented request body', () => {
+    const { components } = loadContract();
+    const empty = [...schemasReachableFromRequestBodies()]
+      .filter((name) => {
+        const schema = components.schemas[name] as
+          | { properties?: Record<string, unknown>; enum?: unknown[]; type?: string }
+          | undefined;
+        if (!schema) return false;
+        // A string enum is a complete description without properties.
+        if (Array.isArray(schema.enum)) return false;
+        if (schema.type && schema.type !== 'object') return false;
+        return Object.keys(schema.properties ?? {}).length === 0;
+      })
+      .sort();
+
+    // Names, not a count: a bare number tells the next reader nothing about
+    // which DTO lost its @ApiProperty decorators.
+    expect(empty).toEqual([]);
+  });
+
   /**
    * The denominator is PINNED, not derived.
    *

@@ -57,7 +57,8 @@ export class AndroidReleaseCatalogService {
 
     try {
       const manifestStat = statSync(manifestPath);
-      if (!manifestStat.isFile() || manifestStat.size <= 0 || manifestStat.size > 64 * 1024) return null;
+      if (!manifestStat.isFile() || manifestStat.size <= 0 || manifestStat.size > 64 * 1024)
+        return null;
       const parsed = JSON.parse(readFileSync(manifestPath, 'utf8')) as AndroidReleaseManifest;
       const fileName = `wizer-signage-v${versionName}-${versionCode}.apk`;
       if (
@@ -97,7 +98,8 @@ export class AndroidReleaseCatalogService {
       const checksum = readFileSync(checksumPath, 'utf8').trim();
       const match = checksum.match(/^([0-9a-fA-F]{64})\s+\*?([^/\\\s]+)$/);
       if (!match) return null;
-      if (match[1]?.toLowerCase() !== parsed.sha256.toLowerCase() || match[2] !== fileName) return null;
+      if (match[1]?.toLowerCase() !== parsed.sha256.toLowerCase() || match[2] !== fileName)
+        return null;
 
       return { versionName, versionCode, fileName };
     } catch {

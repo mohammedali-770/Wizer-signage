@@ -38,23 +38,29 @@ function screen(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function harness(screens: ReturnType<typeof screen>[], executeResult = 1, rollbackAvailable = true) {
+function harness(
+  screens: ReturnType<typeof screen>[],
+  executeResult = 1,
+  rollbackAvailable = true,
+) {
   const prisma = {
     company: {
-      findMany: jest.fn().mockResolvedValue([
-        { id: 'company-1', settings: { androidOta: policy } },
-      ]),
+      findMany: jest
+        .fn()
+        .mockResolvedValue([{ id: 'company-1', settings: { androidOta: policy } }]),
     },
     screen: { findMany: jest.fn().mockResolvedValue(screens) },
     $executeRaw: jest.fn().mockResolvedValue(executeResult),
   };
   const alerts = { raise: jest.fn().mockResolvedValue({ alertId: 'a1', created: true }) };
   const releases = {
-    find: jest.fn().mockReturnValue(
-      rollbackAvailable
-        ? { versionName: policy.rollbackVersionName, versionCode: 43, fileName: 'safe.apk' }
-        : null,
-    ),
+    find: jest
+      .fn()
+      .mockReturnValue(
+        rollbackAvailable
+          ? { versionName: policy.rollbackVersionName, versionCode: 43, fileName: 'safe.apk' }
+          : null,
+      ),
   };
   const service = new AndroidOtaHealthService(prisma as never, alerts as never, releases as never);
   return { service, prisma, alerts, releases };

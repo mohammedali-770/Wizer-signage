@@ -108,7 +108,8 @@ export class AndroidOtaHealthService {
         const failing: string[] = [];
         for (const screen of attempts) {
           const attempt = this.parseAttempt(screen.capabilities);
-          if (!attempt || (attempt.state !== 'INSTALLING' && attempt.state !== 'INSTALLED')) continue;
+          if (!attempt || (attempt.state !== 'INSTALLING' && attempt.state !== 'INSTALLED'))
+            continue;
           if (
             attempt.targetVersionCode !== policy.targetVersionCode ||
             attempt.policyRevision !== policy.policyRevision
@@ -245,9 +246,14 @@ export class AndroidOtaHealthService {
   }
 
   private parsePolicy(settingsValue: unknown): Policy | null {
-    if (!settingsValue || typeof settingsValue !== 'object' || Array.isArray(settingsValue)) return null;
+    if (!settingsValue || typeof settingsValue !== 'object' || Array.isArray(settingsValue))
+      return null;
     const settings = settingsValue as Record<string, unknown>;
-    if (!settings.androidOta || typeof settings.androidOta !== 'object' || Array.isArray(settings.androidOta)) {
+    if (
+      !settings.androidOta ||
+      typeof settings.androidOta !== 'object' ||
+      Array.isArray(settings.androidOta)
+    ) {
       return null;
     }
     const raw = settings.androidOta as Record<string, unknown>;
@@ -303,11 +309,19 @@ export class AndroidOtaHealthService {
   private parseAttempt(
     capabilitiesValue: unknown,
   ): (Attempt & { policyRevision: string; reportedAt: string }) | null {
-    if (!capabilitiesValue || typeof capabilitiesValue !== 'object' || Array.isArray(capabilitiesValue)) {
+    if (
+      !capabilitiesValue ||
+      typeof capabilitiesValue !== 'object' ||
+      Array.isArray(capabilitiesValue)
+    ) {
       return null;
     }
     const capabilities = capabilitiesValue as Record<string, unknown>;
-    if (!capabilities.androidOta || typeof capabilities.androidOta !== 'object' || Array.isArray(capabilities.androidOta)) {
+    if (
+      !capabilities.androidOta ||
+      typeof capabilities.androidOta !== 'object' ||
+      Array.isArray(capabilities.androidOta)
+    ) {
       return null;
     }
     const raw = capabilities.androidOta as Attempt;

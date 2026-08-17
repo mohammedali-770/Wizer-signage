@@ -137,10 +137,7 @@ export class AuthController {
     summary: 'Rotate the HttpOnly refresh cookie and return a new access token.',
   })
   @ApiOkResponse({ type: AuthTokensDto })
-  async refresh(
-    @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     this.assertBrowserRefreshOrigin(request);
     const refreshToken = this.readRefreshCookie(request);
     if (!refreshToken) {

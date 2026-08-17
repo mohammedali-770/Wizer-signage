@@ -9,7 +9,8 @@ import { PrismaService } from '../src/prisma/prisma.service';
 
 const PASSWORD = 'Correct-Horse9!';
 const SUFFIX = 'refresh-cookie-e2e';
-const DASHBOARD_ORIGIN = process.env.APP_URL ?? process.env.DASHBOARD_URL ?? 'http://localhost:3000';
+const DASHBOARD_ORIGIN =
+  process.env.APP_URL ?? process.env.DASHBOARD_URL ?? 'http://localhost:3000';
 
 function setCookieHeader(res: request.Response): string {
   const raw = res.headers['set-cookie'];
@@ -28,7 +29,9 @@ describe('browser refresh cookie (e2e)', () => {
   let email: string;
 
   beforeAll(async () => {
-    const moduleRef: TestingModule = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
     app.useGlobalPipes(

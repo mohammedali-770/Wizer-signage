@@ -86,7 +86,8 @@ export function ServerSearchSelect({
   }, [options, selectedEntity?.id, type, value]);
 
   const selectOptions = useMemo(() => {
-    if (!selectedEntity || options.some((option) => option.id === selectedEntity.id)) return options;
+    if (!selectedEntity || options.some((option) => option.id === selectedEntity.id))
+      return options;
     return [selectedEntity, ...options];
   }, [options, selectedEntity]);
 

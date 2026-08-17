@@ -8,17 +8,14 @@ describe('ClientErrorService', () => {
     const service = new ClientErrorService();
 
     expect(
-      service.record(
-        { userId: 'user-1', companyId: 'company-1' } as never,
-        {
-          kind: 'WINDOW_ERROR',
-          fingerprint: '0123456789abcdef01234567',
-          message: 'render failed',
-          source: '/_next/static/chunk.js',
-          line: 42,
-          column: 7,
-        },
-      ),
+      service.record({ userId: 'user-1', companyId: 'company-1' } as never, {
+        kind: 'WINDOW_ERROR',
+        fingerprint: '0123456789abcdef01234567',
+        message: 'render failed',
+        source: '/_next/static/chunk.js',
+        line: 42,
+        column: 7,
+      }),
     ).toEqual({ accepted: true });
 
     expect(spy).toHaveBeenCalledWith({

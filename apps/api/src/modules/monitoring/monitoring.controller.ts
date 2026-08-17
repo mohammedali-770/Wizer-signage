@@ -22,10 +22,7 @@ export class MonitoringController {
       'Whole-fleet status counts plus a paginated screen list and bounded live alert candidates.',
   })
   @ApiOkResponse({ type: MonitoringOverviewPaginatedDto })
-  overview(
-    @CurrentCompany() companyId: string,
-    @Query() query: MonitoringOverviewQueryDto,
-  ) {
+  overview(@CurrentCompany() companyId: string, @Query() query: MonitoringOverviewQueryDto) {
     return this.monitoring.overview(companyId, query);
   }
 }

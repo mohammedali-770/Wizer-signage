@@ -154,7 +154,9 @@ describe('HeartbeatService history sampling and screen write suppression', () =>
     const t = build('ONLINE', steady);
     await t.service.record(device, { ...beat, currentContentId: 'content-new' });
     expect(t.prisma.screen.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ currentContentId: 'content-new' }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ currentContentId: 'content-new' }),
+      }),
     );
   });
 

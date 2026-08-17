@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import {
-  requestRefreshedAccessToken,
-  shouldAttemptBrowserRefresh,
-} from './refresh-client.ts';
+import { requestRefreshedAccessToken, shouldAttemptBrowserRefresh } from './refresh-client.ts';
 
 describe('cookie-backed refresh transport', () => {
   it('uses browser credentials and sends no refresh-token body', async () => {

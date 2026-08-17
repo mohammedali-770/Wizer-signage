@@ -294,6 +294,61 @@ describe('AuthService.login', () => {
     );
   });
 
+  /**
+   * LoginEvent.suspicious is written on three paths and read by nothing. That
+   * asymmetry is deliberate and documented (docs/security.md), but it makes the
+   * flag easy to break silently: nothing downstream would notice if it stopped
+   * being set. These pin the three writers, and the fact that ordinary events
+   * are NOT flagged — a flag set on everything carries no information.
+   */
+  describe('suspicious flag', () => {
+    const suspiciousOf = (t: ReturnType<typeof build>) =>
+      t.prisma.loginEvent.create.mock.calls.map(
+        (c: unknown[]) => (c[0] as { data: { suspicious?: boolean } }).data.suspicious,
+      );
+
+    it('flags an attempt against a locked account', async () => {
+      const t = build();
+      t.users.findByEmail.mockResolvedValue(
+        makeUser({ status: UserStatus.LOCKED, lockedUntil: new Date(Date.now() + 60_000) }),
+      );
+      await t.service
+        .login({ email: 'user@acme.test', password: 'x' }, meta)
+        .catch(() => undefined);
+      expect(suspiciousOf(t)).toContain(true);
+    });
+
+    it('flags the password failure that trips the lockout', async () => {
+      const t = build();
+      t.users.findByEmail.mockResolvedValue(makeUser());
+      t.password.verify.mockResolvedValue(false);
+      t.users.recordFailedLogin.mockResolvedValue({ locked: true });
+      await t.service
+        .login({ email: 'user@acme.test', password: 'x' }, meta)
+        .catch(() => undefined);
+      expect(suspiciousOf(t)).toContain(true);
+    });
+
+    it('does NOT flag an ordinary wrong password', async () => {
+      const t = build();
+      t.users.findByEmail.mockResolvedValue(makeUser());
+      t.password.verify.mockResolvedValue(false);
+      t.users.recordFailedLogin.mockResolvedValue({ locked: false });
+      await t.service
+        .login({ email: 'user@acme.test', password: 'x' }, meta)
+        .catch(() => undefined);
+      expect(suspiciousOf(t)).not.toContain(true);
+    });
+
+    it('does NOT flag a clean login', async () => {
+      const t = build();
+      t.users.findByEmail.mockResolvedValue(makeUser());
+      t.password.verify.mockResolvedValue(true);
+      await t.service.login({ email: 'user@acme.test', password: 'ok' }, meta);
+      expect(suspiciousOf(t)).not.toContain(true);
+    });
+  });
+
   describe('unverified email', () => {
     it('refuses login until the address is confirmed', async () => {
       const t = build();

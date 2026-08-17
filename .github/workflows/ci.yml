@@ -78,6 +78,14 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Formatting was never gated, so it drifted: 54 files were unformatted by
+      # the time anyone checked. The lint-staged hook only touches files a commit
+      # already stages, so a file nobody edits never gets fixed and the set only
+      # grows. This runs inside the existing required job rather than adding a
+      # new required check, so branch protection needs no change.
+      - name: Format check
+        run: pnpm format:check
+
       - name: Typecheck
         run: pnpm typecheck
 

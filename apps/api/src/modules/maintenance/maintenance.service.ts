@@ -102,9 +102,7 @@ export class MaintenanceService {
     // Run before retention/report work so a failing player rollout is reverted
     // at the first maintenance opportunity even when a later unrelated job is
     // slow. A missing optional dependency exists only in legacy unit harnesses.
-    const androidOtaHealth = this.androidOtaHealth
-      ? await this.androidOtaHealth.sweep(now)
-      : null;
+    const androidOtaHealth = this.androidOtaHealth ? await this.androidOtaHealth.sweep(now) : null;
     const retention = await this.retention.run({ retentionDays: this.retentionDays(), now });
     const autoEndedEmergencies = await this.emergency.endExpired(now);
     const scheduledReports = await this.scheduledReports.runDue(now);

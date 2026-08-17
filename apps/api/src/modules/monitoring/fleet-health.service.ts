@@ -45,7 +45,9 @@ export class FleetHealthService {
       versions.set(version, (versions.get(version) ?? 0) + 1);
 
       const capabilities =
-        screen.capabilities && typeof screen.capabilities === 'object' && !Array.isArray(screen.capabilities)
+        screen.capabilities &&
+        typeof screen.capabilities === 'object' &&
+        !Array.isArray(screen.capabilities)
           ? (screen.capabilities as Record<string, unknown>)
           : {};
       const crash = capabilities.deviceCrash as CrashSnapshot | undefined;
@@ -60,7 +62,9 @@ export class FleetHealthService {
           ? crash.fingerprint
           : null;
       const crashCount =
-        typeof crash.crashCount === 'number' && Number.isInteger(crash.crashCount) && crash.crashCount >= 1
+        typeof crash.crashCount === 'number' &&
+        Number.isInteger(crash.crashCount) &&
+        crash.crashCount >= 1
           ? crash.crashCount
           : null;
       if (crashedAtMillis === null || fingerprint === null || crashCount === null) continue;

@@ -518,7 +518,9 @@ function ManageScreensDialog({
                   <button
                     key={screen.id}
                     type="button"
-                    onClick={() => setSelected((prev) => prev.filter((item) => item.id !== screen.id))}
+                    onClick={() =>
+                      setSelected((prev) => prev.filter((item) => item.id !== screen.id))
+                    }
                     className="focus-visible:ring-primary/40 rounded-full focus-visible:outline-none focus-visible:ring-2"
                     title={tc('remove')}
                   >

@@ -82,7 +82,8 @@ export default function AndroidOtaSettingsPage() {
   const text = ar
     ? {
         title: 'تحديث مشغل Android',
-        description: 'تحكم تدريجي وآمن في تحديث أجهزة Wizer Signage مع رجوع تلقائي عند فشل صحة الإصدار.',
+        description:
+          'تحكم تدريجي وآمن في تحديث أجهزة Wizer Signage مع رجوع تلقائي عند فشل صحة الإصدار.',
         back: 'إعدادات الشركة',
         release: 'سياسة الإصدار والاستعادة',
         candidate: 'الإصدار المرشح',
@@ -123,7 +124,8 @@ export default function AndroidOtaSettingsPage() {
       }
     : {
         title: 'Android player updates',
-        description: 'Safely control staged Wizer Signage updates with heartbeat-based automatic recovery.',
+        description:
+          'Safely control staged Wizer Signage updates with heartbeat-based automatic recovery.',
         back: 'Company settings',
         release: 'Release and recovery policy',
         candidate: 'Candidate release',
@@ -131,7 +133,8 @@ export default function AndroidOtaSettingsPage() {
         versionName: 'Version name',
         versionCode: 'Version code',
         enabled: 'Enable new update attempts',
-        enabledHint: 'Turning this off stops new install attempts after a device fetches the policy again.',
+        enabledHint:
+          'Turning this off stops new install attempts after a device fetches the policy again.',
         rollout: 'Rollout percentage',
         cadence: 'Check interval (minutes)',
         healthWindow: 'Healthy-heartbeat window (minutes)',
@@ -254,9 +257,7 @@ export default function AndroidOtaSettingsPage() {
         enabled: forceEnabled,
         ...(versionName.trim() ? { targetVersionName: versionName.trim() } : {}),
         ...(Number.isInteger(code) && code > 0 ? { targetVersionCode: code } : {}),
-        ...(rollbackVersionName.trim()
-          ? { rollbackVersionName: rollbackVersionName.trim() }
-          : {}),
+        ...(rollbackVersionName.trim() ? { rollbackVersionName: rollbackVersionName.trim() } : {}),
         ...(Number.isInteger(recoveryCode) && recoveryCode > 0
           ? { rollbackVersionCode: recoveryCode }
           : {}),
@@ -491,9 +492,10 @@ export default function AndroidOtaSettingsPage() {
                   <strong>{lastRollback.toVersionName}</strong> / {lastRollback.toVersionCode}
                 </p>
                 <p className="text-muted-foreground text-xs">
-                  {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }).format(
-                    new Date(lastRollback.triggeredAt),
-                  )}
+                  {new Intl.DateTimeFormat(locale, {
+                    dateStyle: 'medium',
+                    timeStyle: 'medium',
+                  }).format(new Date(lastRollback.triggeredAt))}
                 </p>
                 {lastRollback.failedScreenIds.length > 0 && (
                   <div>

@@ -114,7 +114,8 @@ export default function MonitoringPage() {
         page: 'Page',
         of: 'of',
         showing: 'Showing',
-        alertsTruncated: 'More than 200 live alerts exist. The list shows the highest-priority 200.',
+        alertsTruncated:
+          'More than 200 live alerts exist. The list shows the highest-priority 200.',
       };
 
   const action = async (screenId: string, path: string, label: string) => {
@@ -257,7 +258,9 @@ export default function MonitoringPage() {
                         </THead>
                         <TBody>
                           {fleetHealth.data.recentCrashes.map((crash) => (
-                            <TR key={`${crash.screenId}-${crash.fingerprint}-${crash.crashedAtMillis}`}>
+                            <TR
+                              key={`${crash.screenId}-${crash.fingerprint}-${crash.crashedAtMillis}`}
+                            >
                               <TD>
                                 <Link
                                   href={`/company/screens/${crash.screenId}`}

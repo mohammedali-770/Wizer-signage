@@ -60,9 +60,7 @@ export function ServerSearchMultiSelect({
 
   const toggle = (item: SelectorEntity) => {
     if (disabled) return;
-    onChange(
-      selectedIds.has(item.id) ? value.filter((v) => v.id !== item.id) : [...value, item],
-    );
+    onChange(selectedIds.has(item.id) ? value.filter((v) => v.id !== item.id) : [...value, item]);
   };
 
   return (

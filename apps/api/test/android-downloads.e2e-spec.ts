@@ -38,7 +38,9 @@ describe('Android release downloads (e2e)', () => {
     writeFileSync(join(root, 'android', 'wizer-signage-v1.2.3-123.json'), '{"versionCode":123}\n');
 
     process.env.APK_DOWNLOAD_DIR = root;
-    const moduleRef: TestingModule = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
     await app.init();

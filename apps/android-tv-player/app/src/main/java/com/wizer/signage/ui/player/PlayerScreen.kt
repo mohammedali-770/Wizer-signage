@@ -222,15 +222,14 @@ fun PlaybackItem(
 /**
  * Outside-hours behaviours that render nothing at all.
  *
- * BLANK_SCREEN and BLACK_SCREEN are identical in effect; both are accepted
- * because both exist in stored customer configuration.
+ * BLACK_SCREEN is the only current spelling. SLEEP and BLANK_SCREEN are retired
+ * names for the same behaviour and the API normalises both away before emitting
+ * a manifest, so neither should ever arrive.
  *
- * SLEEP is the old name for BLANK_SCREEN. The current API normalises it away
- * before emitting a manifest, so it should never arrive — it is listed purely
- * for version skew, since a player updates independently of the server and may
- * for a while be talking to an API released before the rename. Getting this
- * wrong fails silently and visibly: the screen would show the neutral "no
- * content" panel in a dark venue instead of going black.
+ * They are listed anyway, for version skew: a player updates independently of
+ * the server and may for a while be talking to an API released before either
+ * rename. Getting this wrong fails silently and visibly — the screen would show
+ * the neutral "no content" panel in a dark venue instead of going black.
  *
  * Note that none of these power the panel down — this composable only draws
  * black, and the app holds FLAG_KEEP_SCREEN_ON while soft kiosk is active.

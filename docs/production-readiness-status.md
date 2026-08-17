@@ -19,22 +19,22 @@ The remaining work is no longer feature development. It is validation of the exa
 
 ## Final integrated readiness work
 
-| Area | Repository status | Evidence |
-| --- | --- | --- |
-| Original 19 ship blockers | COMPLETE | Earlier merged readiness PRs through #71 |
-| HttpOnly refresh session | COMPLETE | PR #69 |
-| Nonce-backed production CSP | COMPLETE | PR #70 |
-| Tenant-scoped proof-of-play idempotency | COMPLETE | PR #71 |
-| Full EN/AR Playwright production journey | INTEGRATED | PR #72 — login → screens → create screen → upload → schedule, RTL + nonce CSP |
-| Generated dashboard OpenAPI types | INTEGRATED, FINAL REGEN PENDING | PR #73 merged into final integration with exact pinned generator; final generated file must be refreshed from the exact final OpenAPI tree |
-| Android staged OTA + automatic health recovery | INTEGRATED | PR #74 — immutable candidate/recovery artifacts, canaries/percentage, policy revision, one-minute health reconciliation, automatic forward recovery |
-| Blue/green zero-downtime deployment | INTEGRATED | PR #75 — preflight, immutable images, inactive-slot health gate, atomic Nginx switch, drain, public smoke, state-aware rollback |
-| Monthly telemetry partitioning | INTEGRATED | PR #76 — public Prisma parents, `wizer_telemetry` internals, global PoP registry, future-partition maintenance, real-Postgres tests |
-| Android failure-path depth | INTEGRATED | PR #77 — timeout/401/429/5xx/malformed/truncation, cache recovery, playback/watchdog tests, stale-download cleanup |
-| First-party observability | INTEGRATED | PR #78 — JSON logs, private Prometheus metrics, bounded browser/Android error telemetry, fleet version/crash diagnostics |
-| Scalable server-side selectors | INTEGRATED | PR #81 (replacement integration PR for former draft #79) — bounded search across the remaining high-cardinality selectors |
-| Immutable GHCR release path | CODE COMPLETE | PR #67 — production activation still required |
-| Per-plan retention / k6 / backup drills / i18n / complete OpenAPI | COMPLETE | Earlier merged P1/P2 PRs tracked in issue #68 |
+| Area                                                              | Repository status               | Evidence                                                                                                                                            |
+| ----------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Original 19 ship blockers                                         | COMPLETE                        | Earlier merged readiness PRs through #71                                                                                                            |
+| HttpOnly refresh session                                          | COMPLETE                        | PR #69                                                                                                                                              |
+| Nonce-backed production CSP                                       | COMPLETE                        | PR #70                                                                                                                                              |
+| Tenant-scoped proof-of-play idempotency                           | COMPLETE                        | PR #71                                                                                                                                              |
+| Full EN/AR Playwright production journey                          | INTEGRATED                      | PR #72 — login → screens → create screen → upload → schedule, RTL + nonce CSP                                                                       |
+| Generated dashboard OpenAPI types                                 | INTEGRATED, FINAL REGEN PENDING | PR #73 merged into final integration with exact pinned generator; final generated file must be refreshed from the exact final OpenAPI tree          |
+| Android staged OTA + automatic health recovery                    | INTEGRATED                      | PR #74 — immutable candidate/recovery artifacts, canaries/percentage, policy revision, one-minute health reconciliation, automatic forward recovery |
+| Blue/green zero-downtime deployment                               | INTEGRATED                      | PR #75 — preflight, immutable images, inactive-slot health gate, atomic Nginx switch, drain, public smoke, state-aware rollback                     |
+| Monthly telemetry partitioning                                    | INTEGRATED                      | PR #76 — public Prisma parents, `wizer_telemetry` internals, global PoP registry, future-partition maintenance, real-Postgres tests                 |
+| Android failure-path depth                                        | INTEGRATED                      | PR #77 — timeout/401/429/5xx/malformed/truncation, cache recovery, playback/watchdog tests, stale-download cleanup                                  |
+| First-party observability                                         | INTEGRATED                      | PR #78 — JSON logs, private Prometheus metrics, bounded browser/Android error telemetry, fleet version/crash diagnostics                            |
+| Scalable server-side selectors                                    | INTEGRATED                      | PR #81 (replacement integration PR for former draft #79) — bounded search across the remaining high-cardinality selectors                           |
+| Immutable GHCR release path                                       | CODE COMPLETE                   | PR #67 — production activation still required                                                                                                       |
+| Per-plan retention / k6 / backup drills / i18n / complete OpenAPI | COMPLETE                        | Earlier merged P1/P2 PRs tracked in issue #68                                                                                                       |
 
 ## Important final-integration corrections
 

@@ -34,7 +34,10 @@ export class AndroidOtaAutoRollbackDto {
   @ApiProperty()
   toVersionCode!: number;
 
-  @ApiProperty({ type: [String], description: 'Bounded sample of screens that failed the rollout health gate.' })
+  @ApiProperty({
+    type: [String],
+    description: 'Bounded sample of screens that failed the rollout health gate.',
+  })
   failedScreenIds!: string[];
 }
 
@@ -44,7 +47,8 @@ export class AndroidOtaSettingsResponseDto {
 
   @ApiPropertyOptional({
     nullable: true,
-    description: 'Opaque revision changed on every explicit or automatic policy transition; devices use it to bound terminal retries.',
+    description:
+      'Opaque revision changed on every explicit or automatic policy transition; devices use it to bound terminal retries.',
   })
   policyRevision?: string | null;
 
@@ -54,10 +58,16 @@ export class AndroidOtaSettingsResponseDto {
   @ApiPropertyOptional({ nullable: true })
   targetVersionCode?: number | null;
 
-  @ApiPropertyOptional({ nullable: true, description: 'Pre-published known-good forward rollback release.' })
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Pre-published known-good forward rollback release.',
+  })
   rollbackVersionName?: string | null;
 
-  @ApiPropertyOptional({ nullable: true, description: 'Must be greater than the candidate versionCode.' })
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Must be greater than the candidate versionCode.',
+  })
   rollbackVersionCode?: number | null;
 
   @ApiProperty({ minimum: 0, maximum: 100 })

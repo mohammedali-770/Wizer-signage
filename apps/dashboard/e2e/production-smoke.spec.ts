@@ -174,7 +174,11 @@ function scriptDirective(csp: string): string {
   );
 }
 
-async function expectProductionDocument(response: Response | null, page: Page, locale: 'en' | 'ar') {
+async function expectProductionDocument(
+  response: Response | null,
+  page: Page,
+  locale: 'en' | 'ar',
+) {
   expect(response?.ok()).toBeTruthy();
   await expect(page.locator('html')).toHaveAttribute('dir', locale === 'ar' ? 'rtl' : 'ltr');
   const csp = response?.headers()['content-security-policy'] ?? '';
@@ -195,9 +199,11 @@ for (const locale of ['en', 'ar'] as const) {
     await expect(page.locator('input[type="password"]')).toBeVisible();
     await expect(page.getByRole('button')).toBeVisible();
 
-    const frameworkNonces = await page.locator('script[src*="/_next/"]').evaluateAll((scripts) =>
-      scripts.map((script) => (script as HTMLScriptElement).nonce).filter(Boolean),
-    );
+    const frameworkNonces = await page
+      .locator('script[src*="/_next/"]')
+      .evaluateAll((scripts) =>
+        scripts.map((script) => (script as HTMLScriptElement).nonce).filter(Boolean),
+      );
     expect(frameworkNonces.length).toBeGreaterThan(0);
     expect(new Set(frameworkNonces).size).toBe(1);
 
@@ -299,7 +305,9 @@ for (const locale of ['en', 'ar'] as const) {
   });
 }
 
-test('authenticated Arabic company shell hydrates and keeps RTL content under nonce CSP', async ({ page }) => {
+test('authenticated Arabic company shell hydrates and keeps RTL content under nonce CSP', async ({
+  page,
+}) => {
   const runtimeErrors = collectRuntimeErrors(page);
   await mockAuthenticatedApi(page);
 

@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { Public } from '../../common/decorators/public.decorator';
 
 const LEGACY_APK = /^[A-Za-z0-9._-]+\.apk$/;
-const ANDROID_RELEASE_FILE = /^(?:latest\.json|wizer-signage-v[A-Za-z0-9._-]+-\d+\.(?:apk|json)|wizer-signage-v[A-Za-z0-9._-]+-\d+\.apk\.sha256)$/;
+const ANDROID_RELEASE_FILE =
+  /^(?:latest\.json|wizer-signage-v[A-Za-z0-9._-]+-\d+\.(?:apk|json)|wizer-signage-v[A-Za-z0-9._-]+-\d+\.apk\.sha256)$/;
 
 /**
  * Public Android release downloads served from the host-mounted directory

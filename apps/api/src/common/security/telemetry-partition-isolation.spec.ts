@@ -13,7 +13,10 @@ const isolationMigration = readFileSync(
   ),
   'utf8',
 );
-const verifier = readFileSync(resolve(root, 'scripts/assert-telemetry-partition-isolation.sh'), 'utf8');
+const verifier = readFileSync(
+  resolve(root, 'scripts/assert-telemetry-partition-isolation.sh'),
+  'utf8',
+);
 const schema = readFileSync(resolve(root, 'apps/api/prisma/schema.prisma'), 'utf8');
 
 function modelBlock(name: string): string {
@@ -60,7 +63,9 @@ describe('telemetry partition Prisma/PostgreSQL ownership boundary', () => {
   it('uses the conversion helper canonical yYYYYmMM child naming everywhere', () => {
     expect(conversionMigration).toContain("format('heartbeats_y%sm%s'");
     expect(conversionMigration).toContain("format('proof_of_plays_y%sm%s'");
-    expect(verifier).toContain("SELECT 'y' || to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC','YYYY')");
+    expect(verifier).toContain(
+      "SELECT 'y' || to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC','YYYY')",
+    );
     expect(verifier).toContain('wizer_telemetry.heartbeats_${suffix}');
     expect(verifier).toContain('wizer_telemetry.proof_of_plays_${suffix}');
   });

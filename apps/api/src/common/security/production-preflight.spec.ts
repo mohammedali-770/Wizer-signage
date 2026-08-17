@@ -47,7 +47,9 @@ describe('production preflight contract', () => {
   });
 
   it('binds the immutable dashboard artifact to the exact production API origin', () => {
-    expect(preflight).toContain('APP_DOMAIN must be a DNS hostname without scheme, port, credentials or path');
+    expect(preflight).toContain(
+      'APP_DOMAIN must be a DNS hostname without scheme, port, credentials or path',
+    );
     expect(preflight).toContain('EXPECTED_API_URL="https://${APP_DOMAIN}/api"');
     expect(preflight).toContain('NEXT_PUBLIC_API_URL must equal https://${APP_DOMAIN}/api');
     expect(preflight).toContain('dashboard build API URL matches the production public API origin');

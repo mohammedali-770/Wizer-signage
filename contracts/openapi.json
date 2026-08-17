@@ -9586,7 +9586,74 @@
       },
       "PlanLimitsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "maxCompanies": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Max child companies. Reseller-readiness — not enforced in v1. Null or omitted means unlimited."
+          },
+          "maxLocations": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Max locations (branches). Null or omitted means unlimited."
+          },
+          "maxScreens": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Max paired screens. Null or omitted means unlimited."
+          },
+          "maxUsers": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Max user accounts in the company. Null or omitted means unlimited."
+          },
+          "storageGb": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Content storage cap, in gigabytes. Null or omitted means unlimited."
+          },
+          "maxFileSizeMb": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Largest single upload, in megabytes. Null or omitted means unlimited."
+          },
+          "autoScreenshotsPerDay": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Automatic screenshots per screen per day. Null or omitted means unlimited."
+          },
+          "scheduledReports": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Max scheduled report definitions. Null or omitted means unlimited."
+          },
+          "dataRetentionDays": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Per-plan override of the retention window, in days. Null or omitted means unlimited."
+          },
+          "apiRequestsPerDay": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Future-ready. Not enforced in v1. Null or omitted means unlimited."
+          },
+          "webhooks": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Future-ready. Not enforced in v1. Null or omitted means unlimited."
+          }
+        }
       },
       "CreatePlanDto": {
         "type": "object",
@@ -10781,10 +10848,9 @@
             "enum": [
               "FALLBACK",
               "BLACK_SCREEN",
-              "CUSTOM_MESSAGE",
-              "BLANK_SCREEN"
+              "CUSTOM_MESSAGE"
             ],
-            "description": "Defaults to FALLBACK when omitted or unrecognised. The legacy value \"SLEEP\" is still ACCEPTED and treated as BLANK_SCREEN, but is not listed here because it should not be sent by new callers — it never slept the display."
+            "description": "Defaults to FALLBACK when omitted or unrecognised. The legacy values \"SLEEP\" and \"BLANK_SCREEN\" are both still ACCEPTED and treated as BLACK_SCREEN; neither is listed here because neither should be sent by new callers. They rendered black anyway — SLEEP never slept the display, and BLANK_SCREEN was an exact duplicate of BLACK_SCREEN."
           },
           "outsideHoursMessage": {
             "type": "string",
