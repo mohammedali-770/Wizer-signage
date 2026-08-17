@@ -101,9 +101,10 @@ docker scout cves wizer-signage/api:latest   # optional image CVE scan
 
 ### Current advisory triage (as of this phase)
 
-- ✅ **Next.js upgraded to 15.5.x** (`apps/dashboard` declares `^15.5.16`,
-  lockfile resolves 15.5.19), which includes the fixes for the advisories that
-  affected 14.2.x. Re-run `pnpm audit` each release and prioritise
+- ✅ **Next.js upgraded to 15.5.x** (`apps/dashboard` declares `^15.5.21`,
+  lockfile resolves 15.5.22), which includes the fixes for the advisories that
+  affected 14.2.x. Exact versions move with each bump — check the manifest and
+  lockfile rather than trusting the numbers quoted here. Re-run `pnpm audit` each release and prioritise
   **high/critical** fixes; keep the dashboard served only behind nginx (no
   direct exposure).
 - Run `pnpm audit` before every release; record accepted advisories with a

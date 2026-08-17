@@ -8,7 +8,8 @@
 #   3. Start all apps in dev mode (turbo / pnpm dev).
 #
 # REQUIREMENTS:
-#   - bash, pnpm, Node >= 20
+#   - bash, pnpm, Node >= 22.18.0 (root engines + .npmrc engine-strict, so the
+#     `pnpm install` below hard-fails on older Node rather than warning)
 #
 # Windows users: run this from Git Bash or WSL, or run the equivalent pnpm
 # commands directly in PowerShell (pnpm install; pnpm dev).

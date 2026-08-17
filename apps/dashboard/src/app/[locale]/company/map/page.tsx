@@ -17,8 +17,12 @@ import { Badge, Card, EmptyState, PageHeader, Spinner } from '@/components/ui';
  * the abstraction in place and render the location list with coordinates so the
  * page is useful immediately.
  *
- * Status shown here is DERIVED from each location's lifecycle status — real
- * online/offline/warning status arrives with device heartbeats in a later phase.
+ * Status shown here is DERIVED from each location's lifecycle status. That is a
+ * deliberate choice, not a missing feature: real per-screen ONLINE/OFFLINE/
+ * WARNING status from heartbeats exists (see the Monitoring page), but a
+ * location aggregates many screens and this view answers "is this branch
+ * configured and active", not "is every screen at this branch up". Use
+ * Monitoring for liveness.
  */
 
 const MAP_PROVIDER = process.env.NEXT_PUBLIC_MAP_PROVIDER;

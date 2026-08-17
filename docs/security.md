@@ -110,8 +110,13 @@ _(Phase: Auth + Audit)_
 - **Audit logs** (`ActivityLog`) record security-relevant and tenant-significant actions
   (user/role changes, content/schedule changes, command dispatch, billing changes,
   cross-tenant Super Admin actions).
-- **Suspicious-login alerts** notify the user/admins of anomalous sign-ins (new
-  device/location, impossible travel, repeated failures).
+- **Suspicious-login alerts are NOT implemented.** `LoginEvent` carries a
+  `suspicious` column and `recordLogin` takes a `suspicious` parameter, but
+  nothing ever sets it true and nothing reads it — there is no anomaly detection
+  (new device/location, impossible travel) and no alert is raised. Repeated
+  failures ARE handled, but by account lockout (§ Account lockout), not by
+  notification. This entry previously claimed the alerts existed; treat the
+  column as a placeholder, not a control.
 - Logs are tenant-scoped (except platform-level Super Admin actions) and retained per the
   retention defaults in [database-schema.md](./database-schema.md) (90 days for logs).
 

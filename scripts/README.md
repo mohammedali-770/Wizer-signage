@@ -1,8 +1,10 @@
 # Scripts (`scripts/`)
 
-Operational shell scripts for Wizer Signage. All scripts are POSIX `bash`,
-use `set -euo pipefail`, and resolve paths relative to the repo root so they
-can be run from anywhere.
+Operational shell scripts for Wizer Signage. All are POSIX `bash` and resolve
+paths relative to the repo root so they can be run from anywhere. All use
+`set -euo pipefail` except `smoke-test.sh`, which deliberately omits `-e`
+(`set -uo pipefail`) so it can run every check and tally the failures instead of
+stopping at the first one.
 
 ## Running on Windows
 
@@ -28,9 +30,10 @@ bash scripts/dev.sh
 
 ### `deploy.sh` — production deploy (run on the host)
 
-Pulls the latest code, installs dependencies with a frozen lockfile, builds the
-service images, brings the production compose stack up, and polls
-`/api/health` until the API is healthy.
+Pulls the latest code, builds the service images, brings the production compose
+stack up, and polls `/api/health/ready` until the API is healthy. There is no
+host-side dependency install — dependencies are installed inside the images, so
+the host never needs pnpm or a Node toolchain.
 
 ```bash
 bash scripts/deploy.sh
@@ -71,12 +74,12 @@ bash scripts/restore-db.sh backups/wizer-signage_20260614_023000.sql.gz
 
 ## Prerequisites
 
-| Script          | Needs                                            |
-| --------------- | ------------------------------------------------ |
-| `dev.sh`        | `pnpm`, Node >= 20                               |
-| `deploy.sh`     | `git`, `pnpm`, `docker` (compose plugin), `curl` |
-| `backup-db.sh`  | `pg_dump` (postgresql-client), `gzip`            |
-| `restore-db.sh` | `psql` (postgresql-client), `gunzip`             |
+| Script          | Needs                                    |
+| --------------- | ---------------------------------------- |
+| `dev.sh`        | `pnpm`, Node >= 22.18.0                  |
+| `deploy.sh`     | `git`, `docker` (compose plugin), `curl` |
+| `backup-db.sh`  | `pg_dump` (postgresql-client), `gzip`    |
+| `restore-db.sh` | `psql` (postgresql-client), `gunzip`     |
 
 See also: `docs/local-development.md`, `docs/production-deployment.md`,
 `docs/backup-restore.md`.

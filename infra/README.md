@@ -9,7 +9,7 @@ convenience `Makefile`.
 ```
 infra/
   docker/
-    docker-compose.yml       # Production base stack (api, dashboard, nginx)
+    docker-compose.yml       # Production base stack (api, dashboard, maintenance, nginx)
     docker-compose.dev.yml   # OPTIONAL dev override (adds local postgres)
   nginx/
     nginx.conf               # Main nginx config

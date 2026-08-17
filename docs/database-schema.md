@@ -109,13 +109,16 @@ Company 1───* Webhook 1───* WebhookDelivery;  Company 1───* Ap
 | Reports                                   | **90 days**                                                                  |
 | **Financial records** (Invoice / billing) | **Longer** (per legal/compliance requirements; retained well beyond 90 days) |
 
-Retention is enforced by scheduled cleanup jobs in a later phase. Defaults are
-configurable per deployment/tenant where appropriate.
+Retention is enforced by `RetentionService`, run from the maintenance CLI on the
+nightly cron in the `maintenance` container. Defaults are configurable per
+deployment/tenant where appropriate.
 
-> **Reminder:** this overview is implemented as of **Phase 1**. The binding schema is the
-> Prisma schema at `apps/api/prisma/schema.prisma` (with its init migration); in case of any
-> discrepancy, the Prisma schema wins. Identity / Auth / Tenancy tables are live; the rest
-> are schema-only pending their phases.
+> **Reminder:** the binding schema is the Prisma schema at
+> `apps/api/prisma/schema.prisma`; in case of any discrepancy, the Prisma schema wins.
+> Every model in this document is live — content, playlists, schedules, screens,
+> telemetry, proof-of-play, billing and the rest all have service layers. This note
+> used to say only Identity / Auth / Tenancy were wired and the rest were
+> schema-only, which stopped being true several phases ago.
 
 ## Related docs
 

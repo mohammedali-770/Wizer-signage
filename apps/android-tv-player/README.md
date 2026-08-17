@@ -29,7 +29,7 @@ scripts/build-android-release.sh --api-base-url=https://signage.wizer.sa/api
 
 | | |
 |---|---|
-| Application ID | `com.mastersignage.player` |
+| Application ID | `com.wizer.signage` |
 | Version | `0.6.0` (versionCode 1) |
 | Min SDK | 21 |
 | Target / Compile SDK | 34 |
@@ -89,7 +89,7 @@ android-tv-player/
    ├─ proguard-rules.pro        # R8 rules placeholder (minify off in Phase 0)
    └─ src/main/
       ├─ AndroidManifest.xml    # permissions, leanback feature, MainActivity intents
-      ├─ java/com/mastersignage/player/
+      ├─ java/com/wizer/signage/
       │  ├─ MainActivity.kt      # immersive full-screen splash + placeholder pairing code
       │  └─ ui/theme/            # Material3 dark theme (Color/Type/Theme)
       └─ res/
@@ -105,11 +105,12 @@ android-tv-player/
   to keep in sync; `composeOptions.kotlinCompilerExtensionVersion` is gone.
 - **Launcher icons / TV banner**: adaptive `mipmap` icons and the TV banner asset are added
   in a later phase. The manifest currently references `@mipmap/ic_launcher`.
-- **Boot auto-start**: a commented `BootReceiver` placeholder exists in the manifest
-  (`RECEIVE_BOOT_COMPLETED`) — wired up in **Phase 6/8** with kiosk mode.
+- **Boot auto-start**: `BootReceiver` is implemented and registered live in the manifest
+  (`RECEIVE_BOOT_COMPLETED`, `exported=false`). Best-effort on consumer OEMs — see
+  [`docs/android-player.md`](../../docs/android-player.md) § "Auto-start on boot".
 - **Cleartext networking** is allowed only for local dev hosts via
   `res/xml/network_security_config.xml`; production traffic (API + Supabase) is HTTPS.
-- **Pairing, offline cache, kiosk, and auto-start** are **not** part of Phase 0.
+- **Pairing, offline cache, kiosk, auto-start and gated OTA self-update all ship.**
 
 ## Related documentation
 

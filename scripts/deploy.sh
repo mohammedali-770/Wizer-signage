@@ -4,16 +4,16 @@
 # =============================================================================
 # Deploys the latest code to the current host:
 #   1. Pull latest from git.
-#   2. Install workspace dependencies (pnpm).
+#   2. Build the service images (dependencies are installed INSIDE them).
 #   3. Build service images.
 #   4. Bring the stack up (detached) with the production compose file.
-#   5. Poll /api/health until the API reports healthy.
+#   5. Poll /api/health/ready until the API reports healthy.
 #
 # This script is intended to run ON the deployment host (the machine that runs
 # docker). See docs/production-deployment.md for the full workflow.
 #
 # REQUIREMENTS:
-#   - bash, git, pnpm, docker (with the compose plugin), curl
+#   - bash, git, docker (with the compose plugin), curl
 # =============================================================================
 
 set -euo pipefail
