@@ -18,8 +18,8 @@ Internet ──HTTPS──> Nginx (infra/nginx) ─┬─ /      ──> dashboa
 ```
 
 Compose services (see `infra/docker/docker-compose.yml`): **api** (build context
-`./apps/api`), **dashboard** (build context `./apps/dashboard`), **nginx** (build context
-`./infra/nginx`).
+`./apps/api`), **dashboard** (build context `./apps/dashboard`), **maintenance**
+(the cron worker configured in §8c) and **nginx** (build context `./infra/nginx`).
 
 ---
 
@@ -174,7 +174,7 @@ certbot issue the real cert. Full details in [nginx-ssl.md](./nginx-ssl.md).
    ```
 
 3. **Reload Nginx to pick up the real certificate.** The TLS server block
-   (`listen 443 ssl;`, HTTP→HTTPS redirect, `/ws` upgrade) is already active — it
+   (`listen 443 ssl;`, HTTP→HTTPS redirect) is already active — it
    was using the placeholder; certbot just replaced the cert files:
 
    ```bash

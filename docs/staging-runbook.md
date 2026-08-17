@@ -390,7 +390,8 @@ Test matrix:
 
 **Known limitations (by design — verify, don't treat as bugs):**
 
-- ❌ No kiosk mode yet · ❌ No auto-start on boot yet · ❌ No in-app APK auto-update yet
+- ✅ Kiosk mode · ✅ Auto-start on boot · ✅ Gated in-app OTA self-update
+  (see [android-player.md](./android-player.md) and [android-ota.md](./android-ota.md))
 - ⚠️ **URL content is not cached** → skipped while offline
 - ⚠️ **Screenshots** capture the app's own window only (video on a secure surface
   may be black; API < 26 unsupported) — never fabricated
@@ -433,9 +434,9 @@ Manual / cross-checks:
 Run a dependency audit and record findings:
 
 ```bash
-pnpm audit --prod        # NOTE: Next.js 14.2.x advisories are known + documented
-                         # (patched in 15.x; upgrade is a separate task) — see
-                         # docs/security-hardening.md
+pnpm audit --prod        # The dashboard is on Next.js 15.x, so the old 14.2.x
+                         # advisories no longer apply. Record any accepted
+                         # advisory with a rationale — docs/security-hardening.md
 ```
 
 ---

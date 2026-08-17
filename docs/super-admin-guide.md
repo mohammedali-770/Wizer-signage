@@ -42,9 +42,9 @@ When a company is suspended (`status = SUSPENDED`):
   sessions are revoked, and the JWT strategy rejects further requests for a suspended
   company (so re-login is also blocked).
 - **Existing data is preserved** — suspension is a status change, never a delete.
-- Screens will later **stop receiving new content** and fall back to normal company
-  fallback content (player behaviour lands in the Android/playback phases; the backend
-  status that drives it is implemented now).
+- Screens **stop receiving new content** and fall back to normal company fallback
+  content. Both halves ship: the backend status drives it and the Android player
+  acts on the resulting manifest.
 - **Reactivation** restores access (`status = ACTIVE`, suspension metadata cleared).
 
 All of the above is recorded in the Activity Log.
@@ -68,9 +68,12 @@ All of the above is recorded in the Activity Log.
 
 `GET/POST /api/plans`, `GET/PATCH /api/plans/:id`, `POST /api/plans/:id/archive|activate`.
 
-Plan fields: name, code (unique, immutable), description, price (amount) + currency +
-`billingInterval` (MONTHLY/QUARTERLY/YEARLY), trial days, active/public flags, and a typed
-**limits** object (stored as JSON; `null`/omitted = unlimited):
+Plan fields: name, code (unique, immutable), description, **`priceMonthly`** (required,
+defaults to 0) and optional **`priceYearly`** + currency + `billingInterval`
+(MONTHLY/QUARTERLY/YEARLY), trial days, active/public flags, and a typed **limits**
+object (stored as JSON; `null`/omitted = unlimited). There is no field called `price`;
+it was renamed to `priceMonthly` so a plan round-trips by copying fields. Money is a
+**string** on every response — parse before doing arithmetic:
 
 `maxCompanies` (reseller-ready), `maxLocations`, `maxScreens`, `maxUsers`, `storageGb`,
 `maxFileSizeMb`, `autoScreenshotsPerDay`, `scheduledReports`, `dataRetentionDays`,
@@ -96,8 +99,10 @@ Plan fields: name, code (unique, immutable), description, price (amount) + curre
   (`description`, `quantity`, `unitPrice`) drive the computed `subtotal`/`total` (+ optional
   tax). Numbers are sequential and year-scoped (`INV-YYYY-NNNNN`).
 - Statuses: **DRAFT, UNPAID, PAID, OVERDUE, CANCELLED** (marking PAID stamps `paidAt`).
-- The data model is structured for a future **Stripe / Moyasar / HyperPay** integration;
-  full PDF/Excel export belongs to the later reports phase.
+- The data model is structured for a future **Stripe / Moyasar / HyperPay** integration.
+- Invoices are a first-class export dataset — CSV, XLSX and print-ready HTML via
+  `GET /exports/invoices`. (A true server-side PDF renderer remains a future
+  enhancement; the print-HTML view is what produces PDFs today.)
 
 ## 7. Usage limits & grace period
 

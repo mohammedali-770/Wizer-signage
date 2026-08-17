@@ -23,9 +23,9 @@ stack. Nginx terminates TLS and routes traffic to the application services:
    compose `nginx` service substitutes it into `server_name` and the
    `ssl_certificate*` paths at startup — nothing to hand-edit.
 2. Make sure DNS for your domain points at the host running this stack.
-3. Confirm the upstream service names match your compose services
-   (default `/ws`; if you use Socket.IO's default `/socket.io`, update the
-   location prefix in the template accordingly).
+3. Confirm the upstream service names match your compose services (`api`,
+   `dashboard`). There is no WebSocket location to configure — the players
+   poll over HTTPS and no socket transport exists.
 
 ## Mount points (from `docker-compose.yml`)
 

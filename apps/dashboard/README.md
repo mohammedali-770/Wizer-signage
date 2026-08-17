@@ -1,16 +1,18 @@
 # @wizer/dashboard
 
 The web management console for **Wizer Signage**, a multi-tenant digital
-signage SaaS platform. Built with **Next.js 14 (App Router)**, React 18 and
+signage SaaS platform. Built with **Next.js 15 (App Router)**, React 18 and
 TypeScript.
 
-> **Phase 0:** this is the application shell only. It establishes the
-> internationalization, right-to-left (RTL) and theming foundations.
-> Authentication, tenant management and feature pages arrive in later phases.
+> **Complete.** This note used to say the package was "the application shell
+> only", with authentication and feature pages arriving in later phases. It
+> ships login and invitation acceptance, the full company console (locations,
+> screens, groups, tags, content, playlists, schedules, monitoring, reports,
+> alerts, imports, exports) and the Super Admin console under `/admin`.
 
-## Foundations in place
+## Foundations
 
-- **i18n** via `next-intl` v3 with the App Router `[locale]` segment.
+- **i18n** via `next-intl` v4 with the App Router `[locale]` segment.
   - Locales: `en` (default, LTR) and `ar` (RTL).
   - Message catalogues live in [`messages/`](./messages).
   - Locale negotiation handled by [`src/middleware.ts`](./src/middleware.ts).

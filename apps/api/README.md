@@ -1,20 +1,19 @@
 # @wizer/api
 
-NestJS 10 backend for **Wizer Signage** — the multi-tenant digital signage SaaS platform.
+NestJS 11 backend for **Wizer Signage** — the multi-tenant digital signage SaaS platform.
 
 This package is the REST API. It runs as a standalone Node service and is
 consumed by the Next.js dashboard and the Android TV player.
 
-> **Phase 1 scope.** The database schema, identity/auth, and multi-tenant
-> foundation are now implemented. The full-product **Prisma schema** is in place
-> (with an initial migration), and the Identity / Auth / Tenancy tables are wired
-> to runtime modules. Fleet, content, scheduling, telemetry, billing, and
-> integration tables exist in the schema but receive their service layers in
-> later phases.
+> **Complete.** Every phase in [`docs/roadmap.md`](../../docs/roadmap.md) has
+> shipped. Fleet, content, scheduling, telemetry and billing all have service
+> layers registered in the root module — this note used to say they were
+> schema-only and awaiting later phases, which stopped being true several phases
+> ago.
 
 ## Tech stack
 
-- **NestJS 10** on `@nestjs/platform-express`
+- **NestJS 11** on `@nestjs/platform-express`
 - **TypeScript 5.4+**, strict
 - **Prisma** ORM over Supabase Postgres (`DATABASE_URL` pooled, `DIRECT_URL` for migrations)
 - `@nestjs/config` — typed, validated environment configuration
@@ -162,7 +161,11 @@ api:
     dockerfile: apps/api/Dockerfile
 ```
 
-The image exposes port `3001` and ships a `HEALTHCHECK` hitting `/api/health`.
+The image exposes port `3001` and ships a `HEALTHCHECK` hitting
+`/api/health/ready` — deliberately NOT `/api/health`, which answers from
+`process.uptime()` and never touches the database, so a container that had lost
+its database connection reported healthy forever and the restart policy never
+fired.
 
 ## Project structure
 

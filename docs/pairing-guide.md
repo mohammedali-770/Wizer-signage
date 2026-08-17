@@ -78,9 +78,14 @@ holds a token scoped to that one screen and begins fetching its playback manifes
 ## Device token & security
 
 - The **device token is separate from the user JWT** and is **scoped to one
-  screen**. It only authorizes `GET /api/device/manifest` and
-  `GET /api/device/config` for its own screen — never dashboard APIs, the content
-  library, schedule management, or any other company/screen.
+  screen** — never dashboard APIs, the content library, schedule management, or
+  any other company/screen.
+- It authorizes the whole `/api/device/*` surface for that screen, not just the
+  manifest: config, manifest, sync-plan, sync-status, entitled content download,
+  heartbeat, crash-report, command poll/ack/result, screenshot upload,
+  proof-of-play ingest, and the OTA update policy/result endpoints. An earlier
+  version of this page listed only manifest and config, which understated what a
+  stolen device token reaches.
 - The backend stores only a **sha256 hash** of the token (never the raw value),
   validated by `DeviceAuthGuard`.
 - The **pairing secret** gates status polling so the public code cannot be used,

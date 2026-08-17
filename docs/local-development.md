@@ -7,7 +7,7 @@ The repo is a pnpm + Turborepo monorepo:
 ```
 wizer-signage/
   apps/
-    dashboard/         # Next.js 14 (App Router) — port 3000
+    dashboard/         # Next.js 15 (App Router) — port 3000
     api/               # NestJS 11 — port 3001, routes under /api
     android-tv-player/ # Kotlin / Jetpack Compose Android TV app
   packages/
@@ -130,13 +130,13 @@ pnpm --filter @wizer/api dev         # NestJS API
 
 ### Ports & key URLs
 
-| Service   | URL                                      | Notes                                                        |
-| --------- | ---------------------------------------- | ------------------------------------------------------------ |
-| Dashboard | `http://localhost:3000`                  | Next.js App Router (en/ar, light/dark).                      |
-| API       | `http://localhost:3001/api`              | All routes are under the global `/api` prefix.               |
-| Health    | `http://localhost:3001/api/health`       | `{ status: "ok", service, version, uptime, timestamp }`.     |
-| Readiness | `http://localhost:3001/api/health/ready` | Readiness probe.                                             |
-| API docs  | `http://localhost:3001/api/docs`         | Swagger UI (planned — see [api-future.md](./api-future.md)). |
+| Service   | URL                                      | Notes                                                                             |
+| --------- | ---------------------------------------- | --------------------------------------------------------------------------------- |
+| Dashboard | `http://localhost:3000`                  | Next.js App Router (en/ar, light/dark).                                           |
+| API       | `http://localhost:3001/api`              | All routes are under the global `/api` prefix.                                    |
+| Health    | `http://localhost:3001/api/health`       | `{ status: "ok", service, version, uptime, timestamp }`.                          |
+| Readiness | `http://localhost:3001/api/health/ready` | Readiness probe.                                                                  |
+| API docs  | `http://localhost:3001/api/docs`         | Swagger UI. Served outside production; set `SWAGGER_ENABLED=true` to force it on. |
 
 Quick smoke test:
 

@@ -10,12 +10,14 @@ import java.net.URL
 import kotlin.math.sqrt
 
 /**
- * Minimal PDF rendering for the Phase 6 foundation: download the file and render
- * its FIRST page to a bitmap using the framework PdfRenderer (API 21+).
+ * Renders the FIRST page of a PDF to a bitmap using the framework PdfRenderer
+ * (API 21+).
  *
- * Multi-page rotation (using `pdfPageDurationSeconds`) and on-disk caching are
- * deferred to Phase 7/8; today the player shows the first page for the item's
- * duration, or a placeholder if rendering fails.
+ * On-disk caching SHIPS: `renderFirstPageFromFile` reads straight from the
+ * offline cache, so a PDF plays without network like any other cached item.
+ * What is still outstanding is multi-page rotation using
+ * `pdfPageDurationSeconds` — the player shows the first page for the item's
+ * whole duration, or a placeholder if rendering fails.
  */
 object PdfRendering {
 

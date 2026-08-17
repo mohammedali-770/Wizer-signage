@@ -3,10 +3,11 @@
 # =============================================================================
 # Multi-tenant digital signage SaaS platform.
 #
-# This is the PRODUCTION base stack. It runs three services:
-#   - api        : NestJS backend (apps/api)        -> internal port 3001
-#   - dashboard  : Next.js frontend (apps/dashboard) -> internal port 3000
-#   - nginx      : reverse proxy + TLS termination    -> public ports 80/443
+# This is the PRODUCTION base stack. It runs four services:
+#   - api         : NestJS backend (apps/api)         -> internal port 3001
+#   - dashboard   : Next.js frontend (apps/dashboard)  -> internal port 3000
+#   - maintenance : cron worker (sweeps, reports, retention, backups) — no ports
+#   - nginx       : reverse proxy + TLS termination     -> public ports 80/443
 #
 # DATABASE & STORAGE:
 #   Database and object storage are provided by SUPABASE (external, managed).

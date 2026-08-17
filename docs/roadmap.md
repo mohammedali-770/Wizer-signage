@@ -111,7 +111,9 @@ See [monitoring.md](./monitoring.md).
 - [x] Auto-start on boot — manifest BootReceiver (BOOT_COMPLETED + QUICKBOOT_POWERON) relaunches the player after reboot; enabled by default, best-effort on consumer OEMs (see android-player.md)
 - [x] Kiosk mode — soft kiosk (immersive/keep-awake/Back-suppression) on any TV + managed Android lock task when an external MDM/DPC has allowlisted the app (see android-player.md → Kiosk mode)
 - [x] APK distribution — secure env-var signing, atomic publication, hardened nginx route, and two-stage SSH deploy (no Android SDK on the VPS); see android-signing.md / android-distribution.md
-- [ ] In-app APK auto-update (self-update from within the player) — deferred to a later phase
+- [x] In-app APK auto-update — gated OTA self-update: immutable signed release channel,
+      authenticated staged-rollout policy (`GET /api/device/update/policy`), APK trust
+      verification and health-gated recovery (see [android-ota.md](./android-ota.md))
 
 ## Phase 9 — Emergency Broadcast, Proof of Play, Reports `[x] done`
 

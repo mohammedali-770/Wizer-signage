@@ -4,9 +4,10 @@ Wizer Signage is a multi-tenant digital signage SaaS platform: a Next.js dashboa
 a NestJS API, and a native Android TV player, backed by Supabase (Postgres + Storage).
 This directory is the canonical documentation set for the platform.
 
-> Status: **Phase 0** — architecture, monorepo skeleton, tooling, and planning.
-> The documents below describe the target system and the plan to build it. Sections
-> that land in later phases are explicitly labeled.
+> Status: **complete** — every phase in [roadmap.md](./roadmap.md) is delivered.
+> These documents describe the system as built. Where something was considered
+> and deliberately not built, it is called out as such rather than written in the
+> present tense.
 
 ## Documentation index
 

@@ -108,17 +108,19 @@ file and records a `FAILED` BackupRecord (raising a "backup overdue/failed" aler
 
 ---
 
-## 4. Backup observability (planned)
+## 4. Backup observability
 
-To make backup health visible and actionable:
+Implemented. Backup health is visible and actionable:
 
 - **Last backup status visible to Super Admin** — the most recent backup's timestamp and
   success/failure surfaced in the Super Admin area of the dashboard.
 - **Backup-failure alerts** — automated notification (email via SMTP, and/or webhook; see
   [api-future.md](./api-future.md)) when a scheduled backup fails or is overdue.
 
-These are designed-for in v1 and fully wired later; the underlying `scripts/backup-db.sh`
-exit status is the source of truth in the meantime.
+Both are wired. `scripts/backup-db.sh` records each run as a `BackupRecord`; a FAILED
+record raises a `backup.failed` alert and a missing recent success raises
+`backup.overdue`, both at CRITICAL severity, so an unacknowledged "backups have
+stopped" condition keeps re-notifying rather than scrolling away.
 
 ---
 

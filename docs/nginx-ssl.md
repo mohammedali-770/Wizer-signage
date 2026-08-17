@@ -11,7 +11,6 @@ containers are never published directly.
 | `/`                            | `dashboard:3000` (Next.js)                                   |
 | `/_next/static/`               | `dashboard:3000` (cached, `immutable`, 1y)                   |
 | `/api/`                        | `api:3001` (prefix preserved; 512 MB uploads, 300s timeouts) |
-| `/ws`                          | `api:3001` (WebSocket upgrade; reserved for future use)      |
 | `/.well-known/acme-challenge/` | certbot webroot                                              |
 
 `infra/nginx/nginx.conf` sets gzip, `client_max_body_size 512m`,

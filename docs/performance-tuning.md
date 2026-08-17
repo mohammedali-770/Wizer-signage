@@ -62,9 +62,11 @@ then `prisma migrate resolve --applied 20260623120000_perf_indexes`.
 
 ### Infra
 
-- nginx: added legacy JS gzip MIME types, `gzip off` on `/ws`, and defensive
+- nginx: added legacy JS gzip MIME types and defensive
   `proxy_no_cache`/`proxy_cache_bypass` on `/api/`. (gzip, HTTP/2, immutable
-  static caching, and security headers were already correct.)
+  static caching, and security headers were already correct.) An earlier version
+  of this note also claimed `gzip off` on a `/ws` location; there is no `/ws`
+  location and no `gzip off` directive in the config — devices poll over HTTPS.
 
 ## Estimated impact
 

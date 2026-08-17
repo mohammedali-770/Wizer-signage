@@ -17,7 +17,7 @@ caveats and the capability matrix see
 
 | Concern            | Choice                                                |
 | ------------------ | ----------------------------------------------------- |
-| Language           | Kotlin 1.9.x                                          |
+| Language           | Kotlin 2.4.x                                          |
 | UI toolkit         | Jetpack Compose (with Compose for TV / Leanback)      |
 | Media playback     | Media3 ExoPlayer                                      |
 | Build system       | Gradle 8 + Android Gradle Plugin (AGP) 8              |
@@ -632,9 +632,11 @@ runtime). The default in `app/build.gradle.kts` is the live production host
 **Release builds must state the host explicitly.**
 `scripts/build-android-release.sh` **fails closed** without
 `--api-base-url=https://…` and rejects any non-HTTPS value. A release APK bakes
-the host in permanently and there is **no OTA update path**, so a wrong value
-means every screen built from it can never pair or sync and each one has to be
-re-flashed by hand.
+the host in permanently, and OTA cannot rescue a wrong one: the update channel
+is authorised through `GET /api/device/update/policy` on the host the APK was
+built against, so a screen that can never reach that host can never be told to
+update. A wrong value still means re-flashing every affected screen by hand.
+See [android-ota.md](./android-ota.md).
 The URL **must** be `https://$APP_DOMAIN/api` (matching `NEXT_PUBLIC_API_URL`),
 reachable from the TV's network, with a valid TLS certificate.
 
@@ -675,9 +677,12 @@ reachable from the TV's network, with a valid TLS certificate.
 - **URL content is not reliably cached** → skipped when offline (Phase 7).
 - **Screenshots** capture the app's own window only (video on a secure surface
   may be black; API < 26 unsupported) — never fabricated (Phase 8).
-- **No in-app APK auto-update** — intentionally out of scope; update the fleet
-  by sideloading or through an MDM (see
-  [android-distribution.md](./android-distribution.md)).
+- **In-app OTA self-update SHIPS** — see [android-ota.md](./android-ota.md).
+  It is gated, not automatic: a public release does not authorise installation,
+  and a paired screen installs only after an eligible authenticated
+  `GET /api/device/update/policy` response. Sideloading and MDM remain valid
+  for the first install. (This line previously said there was no in-app update
+  at all; that was true when written and stopped being true when OTA landed.)
 - **Kiosk mode is soft by default** — immersive, keep-awake and Back-suppression
   on any TV (see "Kiosk mode"); a true locked task needs an external MDM/DPC to
   allowlist the app. Nothing here provisions device-owner on its own.
