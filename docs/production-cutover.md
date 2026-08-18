@@ -146,6 +146,8 @@ scripts/rollback-blue-green.sh
 
 Rollback derives current state from live Nginx/container state, health-gates the previous target, restores original traffic if validation fails, and skips releases already recorded as rolled away from. Run it repeatedly to step farther back: each run excludes both the release currently serving and every release escaped earlier, so it never toggles between two releases.
 
+The target release is always brought up on the slot that is **not** serving, whichever slot it originally ran on. A slot tag is only a pointer to an immutable release image, so a rollback is a deploy of an older release into the standby slot followed by the usual health-gated switch — it never recreates the containers handling live traffic. If legacy is serving and every blue/green release is either live or excluded, there is nothing to switch to and the script refuses rather than restarting the serving containers in place.
+
 **When a release stops being excluded.** The exclusion is not permanent. It is superseded by a later deployment of that same release: `deploy-blue-green.sh` records a release only after it has passed the public readiness and smoke gates, so a deployment newer than the rollback-away entry is evidence the release serves correctly again. This matters when the original outage was environmental — a bad migration, an expired credential, a failed upstream — rather than a fault in the code, which would otherwise strand a perfectly good release as unreachable forever.
 
 Deploying a _different_ release clears nothing — it says nothing about the excluded one. The only way to clear an exclusion is to deploy that same release again, through the wrapper in section 3 with the SHA that was excluded.

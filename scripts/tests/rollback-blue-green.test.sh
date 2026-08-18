@@ -50,7 +50,7 @@ case "$1" in
     shift # container
     case "$*" in
       "cat /etc/nginx/runtime/active-upstreams.conf") cat "${STUB_STATE}/upstreams" ;;
-      *"cat > "*) cat > /dev/null ;;
+      *"cat > "*) cat > "${STUB_STATE}/proposed" ;;
     esac
     ;;
   inspect)
@@ -246,6 +246,80 @@ EOF
 rm -f "${WORK}/rollbacks"
 seed green "${SHA_B}" blue "${SHA_A}"
 expect_target "runs when no rollback has ever been recorded on this host" "blue/${TAG_A}"
+
+# --- 6c. The target never lands on the slot that is serving ------------------
+# Skip one release in an alternating history and the next candidate is two back,
+# on the SAME colour as the live one. Bringing it up there would recreate the
+# containers serving live traffic. A is recorded on blue and blue is live, so
+# the rollback must place A on green and switch there instead.
+cat > "${WORK}/bg-history" <<EOF
+2026-08-03T09:00:00Z blue ${TAG_A} ${SHA_A}
+2026-08-03T10:00:00Z green ${TAG_C} ${SHA_C}
+2026-08-03T11:00:00Z blue ${TAG_D} ${SHA_D}
+EOF
+cat > "${WORK}/rollbacks" <<EOF
+2026-08-03T10:30:00Z ROLLBACK from=green/${TAG_C} to=blue/${TAG_D} targetSha=${SHA_D}
+EOF
+rm -f "${WORK}/state/proposed"
+seed blue "${SHA_D}" green "${SHA_A}"
+expect_target "brings the target up on the slot that is not serving" "green/${TAG_A}"
+
+# --- 6d. ...so no upstream ever names one host twice -------------------------
+# dashboard_static_upstream lists the outgoing dashboard as `backup`. When the
+# target and the live release shared a slot that line named the same container
+# as both primary and backup, which can serve no purpose.
+# A host repeated across DIFFERENT upstream blocks is correct and expected —
+# dashboard_upstream and dashboard_static_upstream both front the live dashboard.
+# Only a repeat WITHIN one block is the defect, so check per block.
+if [[ -s "${WORK}/state/proposed" ]]; then
+  dupes="$(awk '
+    /^upstream /             { block = $2; split("", seen); next }
+    /^}/                     { block = ""; next }
+    block != "" && /server / {
+      if (match($0, /[a-z-]+:[0-9]+/)) {
+        host = substr($0, RSTART, RLENGTH)
+        if (host in seen) { print block " lists " host " twice" }
+        seen[host] = 1
+      }
+    }
+  ' "${WORK}/state/proposed")"
+  if [[ -z "${dupes}" ]]; then
+    ok "the emitted upstream never lists the same host twice"
+  else
+    no "the emitted upstream never lists the same host twice" "duplicated: ${dupes}"
+  fi
+else
+  no "the emitted upstream never lists the same host twice" "no config was captured"
+fi
+
+# --- 6e. Legacy serving with nothing left to switch to is refused ------------
+# The one remaining way for target and live to coincide. Restarting the serving
+# containers in place is not a rollback, so it must refuse rather than proceed.
+cat > "${WORK}/bg-history" <<EOF
+2026-08-03T09:00:00Z blue ${TAG_A} ${SHA_A}
+2026-08-03T10:00:00Z green ${TAG_B} ${SHA_B}
+EOF
+cat > "${WORK}/rollbacks" <<EOF
+2026-08-03T10:30:00Z ROLLBACK from=green/${TAG_B} to=blue/${TAG_A} targetSha=${SHA_A}
+2026-08-03T11:30:00Z ROLLBACK from=blue/${TAG_A} to=legacy/legacy targetSha=unknown
+EOF
+: > "${WORK}/legacy-history"
+cat > "${WORK}/state/upstreams" <<'EOF'
+upstream api_upstream {
+    server api:3001;
+}
+upstream dashboard_upstream {
+    server dashboard:3000;
+}
+EOF
+: > "${WORK}/state/labels"
+out="$(run_rollback)"; rc=$?
+if (( rc != 0 )) && [[ "${out}" == *"no rollback target other than"* ]] \
+   && ! grep -q 'nginx -s reload' "${WORK}/stub.log"; then
+  ok "refuses when legacy is serving and nothing else is left"
+else
+  no "refuses when legacy is serving and nothing else is left" "rc=${rc} out=${out}"
+fi
 
 # --- 7. The mark is only written on success ----------------------------------
 # A rollback that never reaches a healthy target must not record its intended

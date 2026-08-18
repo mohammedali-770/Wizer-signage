@@ -143,14 +143,52 @@ while IFS= read -r line; do
   break
 done < <(tac "${BG_HISTORY}")
 
+# Where the target release ORIGINALLY ran is not where it has to run now. A slot
+# tag (wizer-signage/api:blue) is only a pointer: ensure_slot_image below retags
+# it from the immutable release tag, exactly as the deploy does, so any release
+# can be placed in either slot.
+#
+# That matters because the history slot is sometimes the slot already serving.
+# Skip one release in an alternating history and the next candidate is two back,
+# on the same colour. Bringing the target up there would recreate the containers
+# handling live traffic — an in-place replacement with no health-gated standby,
+# which is the single thing blue/green exists to prevent. The upstream it then
+# wrote would also name the same host as both primary and backup.
+#
+# So the target always goes to the slot that is NOT serving. With two slots that
+# is fully determined by the live one and needs no reference to the history. The
+# ordinary alternating case resolves to the slot it always did, so nothing
+# changes there; only the degenerate case is diverted.
+opposite_slot() {
+  case "$1" in
+    blue) echo green ;;
+    green) echo blue ;;
+    *) echo "" ;;
+  esac
+}
+
 if [[ -n "${PREVIOUS_LINE}" ]]; then
-  TARGET_SLOT="$(awk '{print $2}' <<<"${PREVIOUS_LINE}")"
   TARGET_TAG="$(awk '{print $3}' <<<"${PREVIOUS_LINE}")"
   TARGET_SHA="$(awk '{print $4}' <<<"${PREVIOUS_LINE}")"
+  TARGET_SLOT="$(opposite_slot "${CURRENT_SLOT}")"
+  # Legacy is serving, so neither slot is in use and both are free. Keep the
+  # release where it already ran; its images are most likely still tagged there.
+  [[ -n "${TARGET_SLOT}" ]] || TARGET_SLOT="$(awk '{print $2}' <<<"${PREVIOUS_LINE}")"
 else
   TARGET_SLOT=legacy
   TARGET_TAG="$(tail -1 "${LEGACY_HISTORY}" 2>/dev/null | awk '{print $2}' || true)"
   TARGET_SHA="$(tail -1 "${LEGACY_HISTORY}" 2>/dev/null | awk '{print $3}' || true)"
+fi
+
+# Invariant: a rollback has to move traffic somewhere else. After the rule above
+# the only way to reach this is legacy -> legacy — legacy already serving and
+# every blue/green release either live or excluded. There is nothing to switch
+# to, and restarting the serving containers would be a self-inflicted outage.
+if [[ "${TARGET_SLOT}" == "${CURRENT_SLOT}" ]]; then
+  echo "ERROR: no rollback target other than the ${CURRENT_SLOT} release already serving." >&2
+  echo "       Every recorded blue/green release is either live or already rolled away from." >&2
+  echo "       This is a restore, not a traffic rollback — see docs/production-cutover.md section 9." >&2
+  exit 1
 fi
 
 wait_healthy() {
