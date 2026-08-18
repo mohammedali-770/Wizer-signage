@@ -14,6 +14,11 @@ depth.
 > the rows came back. It is a regression test for a real defect: `pg_dump` previously ran
 > without `--clean --if-exists`, so a restore into an existing schema aborted on its first
 > statement — the exact disaster-recovery case the tooling exists for.
+>
+> That same case broke a second time when telemetry partitioning landed, in a new way the
+> generic drill could not see because it seeds only non-partitioned tables. Restoring over an
+> existing **migrated** schema is now covered by
+> `scripts/tests/telemetry-backup-restore-drill.sh`, which restores the dump twice.
 
 ---
 
@@ -130,6 +135,32 @@ Restores are **destructive** — they overwrite the target database. The restore
 `scripts/restore-db.sh`, which restores a chosen dump into the database referenced by
 `DIRECT_URL`.
 
+### How the restore is applied
+
+The dump is **not** applied on top of the live schema. `restore-db.sh`:
+
+1. renames the Wizer-owned schemas aside to `wizer_pre_restore_<timestamp>_public` and
+   `wizer_pre_restore_<timestamp>_telemetry`, both in one transaction;
+2. restores the dump into the names it has just freed, which is always the empty-target case;
+3. checks tables actually exist afterwards;
+4. **retains** the archived copy, printing the `DROP SCHEMA` to run once you are satisfied.
+   Set `RESTORE_DROP_ARCHIVE=1` to drop it automatically.
+
+If any step fails the script puts the archived schemas back and exits non-zero, so a failed
+restore leaves you with the database you started with.
+
+This is not incidental. Applying a dump over an existing migrated schema **does not work at
+all**: since telemetry partitioning, `pg_dump --clean --if-exists` emits a `DROP CONSTRAINT`
+for each monthly child partition's primary key, and PostgreSQL refuses to drop a constraint
+inherited from the parent (`cannot drop inherited constraint`). The restore aborted partway
+through the preamble — by which point every foreign key in the database had already been
+dropped, leaving the target neither intact nor restored.
+
+Restoring into a fresh _database_ would be the more usual form of this, but production is
+managed Postgres: the connection owns one database it cannot rename and cannot detach the
+platform's own sessions from. A schema rename needs only ownership, so it works on managed
+and self-hosted targets alike.
+
 > ⚠️ **DANGER**
 >
 > - A restore **replaces** the current contents of the target database. Existing data not in
@@ -194,8 +225,24 @@ Restores are **destructive** — they overwrite the target database. The restore
 
 ### Rolling back a bad restore
 
-If verification fails, restore the **safety dump** you took in step 2 using the same
-`scripts/restore-db.sh` procedure, then investigate the source dump.
+If the restore itself fails, the script has already rolled back — the database is as it was,
+and no action is needed beyond investigating the dump.
+
+If the restore _succeeded_ but verification of the data fails, the pre-restore copy is still
+present as `wizer_pre_restore_<timestamp>_*` unless you passed `RESTORE_DROP_ARCHIVE=1`.
+That copy is the fastest way back and needs no dump file:
+
+```sql
+BEGIN;
+DROP SCHEMA public CASCADE;
+DROP SCHEMA wizer_telemetry CASCADE;
+ALTER SCHEMA "wizer_pre_restore_<timestamp>_public"    RENAME TO public;
+ALTER SCHEMA "wizer_pre_restore_<timestamp>_telemetry" RENAME TO wizer_telemetry;
+COMMIT;
+```
+
+Otherwise restore the **safety dump** you took in step 2 using the same `scripts/restore-db.sh`
+procedure, then investigate the source dump.
 
 ---
 

@@ -172,7 +172,9 @@ DIRECT_URL="$RESTORED_DATABASE_URL" bash scripts/assert-telemetry-partitions.sh
 DIRECT_URL="$RESTORED_DATABASE_URL" bash scripts/assert-telemetry-partition-isolation.sh
 ```
 
-`scripts/tests/telemetry-backup-restore-drill.sh` performs this migrated-schema recovery inside the existing quality gate; it does not consume another CI runner.
+`scripts/tests/telemetry-backup-restore-drill.sh` performs this migrated-schema recovery inside the existing quality gate; it does not consume another CI runner. It restores the dump **twice** — once into an empty target and once over the schema it just created — because only the second case exercises disaster recovery against a database that already exists.
+
+`restore-db.sh` renames the Wizer-owned schemas aside and restores into the freed names rather than applying the dump over the live schema, and puts them back if anything fails. See `docs/backup-restore.md` for why a dump cannot be applied over an existing migrated schema.
 
 ## 10. Final acceptance
 
