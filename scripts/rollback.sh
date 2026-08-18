@@ -71,6 +71,14 @@ fi
 # twice: after [A, B, A] it would pick B — the release you just escaped. Tags
 # that have been rolled away from are therefore recorded and skipped, so a
 # repeated rollback steps genuinely further back or stops and says so.
+#
+# The "rolled-back" mark is superseded by a later DEPLOY of the same tag. History
+# is read oldest-first, so a deploy line after the mark means the operator shipped
+# that release again and the mark no longer describes reality — if it fails once
+# more, the next rollback simply re-marks it. Without this the mark is permanent
+# and unfalsifiable, which is wrong whenever the original outage was environmental
+# rather than in the code. A "rollback" note is a one-off operator override
+# (an explicit tag argument), not evidence of health, so it clears nothing.
 CURRENT_TAG="$(tail -n 1 "${DEPLOY_STATE}" | awk '{print $2}')"
 
 if [[ -n "${1:-}" ]]; then
@@ -78,7 +86,11 @@ if [[ -n "${1:-}" ]]; then
 else
   TARGET_TAG="$(
     awk -v current="${CURRENT_TAG}" '
-      { tag[NR] = $2; note[NR] = $3; if ($3 == "rolled-back") bad[$2] = 1 }
+      {
+        tag[NR] = $2
+        if ($3 == "rolled-back")   { bad[$2] = 1 }
+        else if ($3 != "" && $3 != "rollback") { delete bad[$2] }
+      }
       END {
         for (i = NR; i >= 1; i--) {
           if (tag[i] == current) continue

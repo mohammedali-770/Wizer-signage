@@ -144,7 +144,15 @@ For an unhealthy server/API release:
 scripts/rollback-blue-green.sh
 ```
 
-Rollback derives current state from live Nginx/container state, health-gates the previous target, restores original traffic if validation fails, and skips releases already recorded as rolled away from.
+Rollback derives current state from live Nginx/container state, health-gates the previous target, restores original traffic if validation fails, and skips releases already recorded as rolled away from. Run it repeatedly to step farther back: each run excludes both the release currently serving and every release escaped earlier, so it never toggles between two releases.
+
+**When a release stops being excluded.** The exclusion is not permanent. It is superseded by a later deployment of that same release: `deploy-blue-green.sh` records a release only after it has passed the public readiness and smoke gates, so a deployment newer than the rollback-away entry is evidence the release serves correctly again. This matters when the original outage was environmental — a bad migration, an expired credential, a failed upstream — rather than a fault in the code, which would otherwise strand a perfectly good release as unreachable forever.
+
+Deploying a _different_ release clears nothing — it says nothing about the excluded one. The only way to clear an exclusion is to deploy that same release again, through the wrapper in section 3 with the SHA that was excluded.
+
+Because the wrapper accepts a SHA only while it still equals protected `main`, this covers the case that matters and no more: a release rolled back for an environmental fault, redeployed once the environment is repaired, with `main` never having moved. Once `main` has advanced past a release, that release stays excluded — which is the intended reading, since its code has been superseded by whatever fixed it.
+
+If repeated rollbacks have excluded everything and the script reaches the `legacy` fallback, the situation is no longer a traffic rollback: go to section 9.
 
 Database migrations are not reversed automatically. This is why every live rollout migration must remain compatible with the previous application until a later contract phase.
 

@@ -86,14 +86,43 @@ fi
 
 echo "==> [rollback] Live traffic is ${CURRENT_SLOT}/${CURRENT_TAG:-unknown}."
 
-# A release that was explicitly rolled away from is a known-bad rollback target
-# until a NEW release/version is produced. Do not bounce back into it on a second
-# rollback. The log format is append-only and only written after a successful
-# rollback, so failed rollback attempts never poison this set.
-ROLLED_AWAY_TAGS="$(sed -nE 's/.* from=[^/]+\/([0-9a-f]{12}).*/\1/p' "${ROLLBACK_HISTORY}" 2>/dev/null || true)"
+# A release that was explicitly rolled away from is a known-bad rollback target,
+# so a repeated rollback steps farther back instead of toggling A <-> known-bad B.
+#
+# That mark is deliberately NOT permanent. It records that a release was escaped
+# at a point in time, and redeploying that exact release supersedes it:
+# deploy-blue-green.sh appends to BG_HISTORY only after the release has passed
+# the public readiness and smoke gates, so a deployment line strictly NEWER than
+# the rollback-away line is positive evidence the release serves correctly again.
+# That is the normal outcome when the original outage was environmental rather
+# than in this code. Without the comparison the mark is unfalsifiable: a release
+# could never be reached again however many times it was successfully shipped,
+# and repeated rollbacks would drain toward the unverified `legacy` branch.
+#
+# Only a redeployment of the SAME tag clears it. A newer, different release says
+# nothing about the bad one and must not clear it. Equal timestamps stay
+# excluded, so clearing requires evidence that is unambiguously later.
+#
+# Both logs are append-only and written only after success, so failed attempts
+# never poison this set.
+latest_timestamp() { sort | tail -1; }
+
+rolled_away_at() {
+  sed -nE "s|^([^ ]+) ROLLBACK from=[^/]+/$1 .*|\\1|p" "${ROLLBACK_HISTORY}" 2>/dev/null | latest_timestamp
+}
+
+redeployed_at() {
+  awk -v tag="$1" '$3 == tag { print $1 }' "${BG_HISTORY}" 2>/dev/null | latest_timestamp
+}
+
 is_rolled_away() {
-  local tag="$1"
-  [[ -n "${tag}" ]] && grep -Fxq "${tag}" <<<"${ROLLED_AWAY_TAGS}"
+  local tag="$1" rolled deployed
+  [[ -n "${tag}" ]] || return 1
+  rolled="$(rolled_away_at "${tag}")"
+  [[ -n "${rolled}" ]] || return 1
+  deployed="$(redeployed_at "${tag}")"
+  [[ -n "${deployed}" && "${deployed}" > "${rolled}" ]] && return 1
+  return 0
 }
 
 # Walk successful deployments newest-first. Skip the release currently serving
