@@ -120,6 +120,17 @@ RESTORED_CHILDREN="$(client_query "$RESTORE_URL" "SELECT count(*) FROM pg_inheri
 }
 echo "  ok  restored all ${RESTORED_CHILDREN} telemetry child partitions"
 
+# That restore ran WITHOUT RESTORE_DROP_ARCHIVE, so the pre-restore copy of the
+# schemas it replaced must still be here. Retaining it by default is the point:
+# it is the only remaining copy of whatever the target held, and the operator's
+# last chance to compare against it.
+ARCHIVES_RETAINED="$(client_query "$RESTORE_URL" "SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'wizer_pre_restore_%'")"
+[[ "$ARCHIVES_RETAINED" =~ ^[0-9]+$ && "$ARCHIVES_RETAINED" -ge 1 ]] || {
+  echo "ERROR [telemetry-drill]: restore-db.sh kept no pre-restore archive by default." >&2
+  exit 1
+}
+echo "  ok  pre-restore archive retained by default (${ARCHIVES_RETAINED})"
+
 echo "== telemetry DR: run physical post-restore assertions =="
 for verifier in assert-telemetry-partitions.sh assert-telemetry-partition-isolation.sh; do
   docker run --rm --network=host \
@@ -170,14 +181,18 @@ REPEAT_FKS="$(client_query "$RESTORE_URL" "SELECT count(*) FROM pg_constraint WH
 }
 echo "  ok  ${REPEAT_CHILDREN} partitions and ${REPEAT_FKS} foreign keys intact after re-restore"
 
-# RESTORE_DROP_ARCHIVE=1 was set above, so the pre-restore copy must be gone.
-# Left behind, every recovery would silently double the database's schema count.
+# The second restore set RESTORE_DROP_ARCHIVE=1, so it must have dropped ITS OWN
+# archive and left the first restore's alone. Compare against the count taken
+# after the first restore rather than against zero: an absolute check here would
+# fail on the archive the default path is supposed to keep, blaming this restore
+# for the previous one. Left uncleaned, every recovery would silently add another
+# full copy of both schemas.
 LEFTOVER="$(client_query "$RESTORE_URL" "SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'wizer_pre_restore_%'")"
-[[ "$LEFTOVER" == "0" ]] || {
-  echo "ERROR [telemetry-drill]: ${LEFTOVER} pre-restore archive schema(s) left behind." >&2
+[[ "$LEFTOVER" == "$ARCHIVES_RETAINED" ]] || {
+  echo "ERROR [telemetry-drill]: RESTORE_DROP_ARCHIVE=1 did not drop its archive (before=${ARCHIVES_RETAINED} after=${LEFTOVER})." >&2
   exit 1
 }
-echo "  ok  pre-restore archive cleaned up"
+echo "  ok  RESTORE_DROP_ARCHIVE=1 dropped its own archive and kept the earlier one"
 
 echo "== telemetry DR: re-run physical assertions after the second restore =="
 for verifier in assert-telemetry-partitions.sh assert-telemetry-partition-isolation.sh; do
