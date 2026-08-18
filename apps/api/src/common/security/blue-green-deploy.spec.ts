@@ -103,10 +103,36 @@ describe('blue/green deployment contract', () => {
     expect(historyWalk).toBeGreaterThan(slotDecision);
   });
 
+  // These three cases pin the SHAPE of the rollback contract so the deploy and
+  // rollback sides cannot drift apart unnoticed. The behavioural guard is
+  // scripts/tests/rollback-blue-green.test.sh, which executes the script against a
+  // stubbed docker and asserts on the release it actually selects.
   it('skips releases already recorded as rolled away from on repeated rollback', () => {
-    expect(rollback).toContain('ROLLED_AWAY_TAGS=');
     expect(rollback).toContain('is_rolled_away');
     expect(rollback).toContain('if is_rolled_away "${tag}"; then continue; fi');
     expect(rollback).toContain('ROLLBACK from=%s/%s to=%s/%s');
+  });
+
+  it('lets a later redeployment of the same release clear its rolled-away mark', () => {
+    // The mark must not be permanent. A release redeployed after being escaped has
+    // passed the readiness and smoke gates again, and without this it could never be
+    // reached however many times it shipped — repeated rollbacks would drain toward
+    // the unverified legacy branch. Only the SAME tag clears it, and only when the
+    // deployment is strictly later, so a tie stays excluded.
+    expect(rollback).toContain('rolled_away_at');
+    expect(rollback).toContain('redeployed_at');
+    expect(rollback).toContain(`awk -v tag="$1" '$3 == tag`);
+    expect(rollback).toContain('"${deployed}" > "${rolled}"');
+  });
+
+  it('never brings the rollback target up on the slot already serving', () => {
+    // The target's history slot is sometimes the live one: skip a release in an
+    // alternating history and the next candidate is two back, on the same colour.
+    // Starting it there would recreate the containers handling live traffic, with no
+    // health-gated standby and an upstream naming one host as primary and backup.
+    expect(rollback).toContain('opposite_slot');
+    expect(rollback).toContain('TARGET_SLOT="$(opposite_slot "${CURRENT_SLOT}")"');
+    expect(rollback).toContain('if [[ "${TARGET_SLOT}" == "${CURRENT_SLOT}" ]]; then');
+    expect(rollback).toContain('no rollback target other than');
   });
 });

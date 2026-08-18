@@ -113,6 +113,9 @@ jobs:
       - name: Rollback decision-logic tests
         run: bash scripts/tests/rollback.test.sh
 
+      - name: Blue/green rollback target-selection tests
+        run: bash scripts/tests/rollback-blue-green.test.sh
+
       - name: Smoke-test self-test
         run: bash scripts/tests/smoke-test.test.sh
 

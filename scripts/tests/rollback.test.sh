@@ -154,6 +154,47 @@ else
   no "steps further back to the next genuinely older release" "rc=${rc} out=${out}"
 fi
 
+# --- 6d. A rolled-back release is reachable again once it is redeployed ------
+# The mark records that B was escaped at 10:05. Shipping B again at 11:00 says
+# the operator put it back in production deliberately; the mark no longer
+# describes reality, and if B fails once more the next rollback re-marks it.
+# A permanent mark would be unfalsifiable — B could never be reached again
+# however many times it was successfully redeployed.
+redeployed="${WORK}/redeployed"
+cat > "${redeployed}" <<'HISTORY'
+2026-08-03T09:00:00Z aaaaaaaaaaaa sha-a
+2026-08-03T10:00:00Z bbbbbbbbbbbb sha-b
+2026-08-03T10:05:00Z bbbbbbbbbbbb rolled-back
+2026-08-03T10:05:00Z aaaaaaaaaaaa rollback
+2026-08-03T11:00:00Z bbbbbbbbbbbb sha-b
+2026-08-03T12:00:00Z cccccccccccc sha-c
+HISTORY
+out="$(KNOWN_TAGS="" run_rollback "${redeployed}")"; rc=$?
+if (( rc != 0 )) && [[ "${out}" == *"bbbbbbbbbbbb"* ]]; then
+  ok "a redeployed release stops counting as rolled-back"
+else
+  no "a redeployed release stops counting as rolled-back" "rc=${rc} out=${out}"
+fi
+
+# --- 6e. ...but only that exact release --------------------------------------
+# C is deployed after B was marked, and says nothing whatever about B. With both
+# B and C escaped, the only remaining target is A.
+other="${WORK}/other-release"
+cat > "${other}" <<'HISTORY'
+2026-08-03T09:00:00Z aaaaaaaaaaaa sha-a
+2026-08-03T10:00:00Z bbbbbbbbbbbb sha-b
+2026-08-03T10:05:00Z bbbbbbbbbbbb rolled-back
+2026-08-03T11:00:00Z cccccccccccc sha-c
+2026-08-03T11:30:00Z cccccccccccc rolled-back
+2026-08-03T12:00:00Z dddddddddddd sha-d
+HISTORY
+out="$(KNOWN_TAGS="" run_rollback "${other}")"; rc=$?
+if (( rc != 0 )) && [[ "${out}" == *"aaaaaaaaaaaa"* ]] && [[ "${out}" != *"bbbbbbbbbbbb"* ]]; then
+  ok "deploying a DIFFERENT release does not clear an older mark"
+else
+  no "deploying a DIFFERENT release does not clear an older mark" "rc=${rc} out=${out}"
+fi
+
 # --- 7. --list prints the history and changes nothing ------------------------
 : > "${WORK}/stub.log"
 out="$(run_rollback "${two}" --list)"; rc=$?

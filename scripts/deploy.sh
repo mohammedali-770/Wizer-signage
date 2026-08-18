@@ -181,7 +181,8 @@ fi
 # were omitted, the last line would be the PREVIOUS good one and a rollback
 # would skip past it to the release before. Recording first keeps that stepping
 # correct, and rollback.sh marks this tag `rolled-back` when the operator
-# escapes it, so it is never selected again.
+# escapes it, so it is not selected again unless this same tag is deployed once
+# more — a later deploy line supersedes the mark.
 SMOKE_SCRIPT="${ROOT_DIR}/scripts/smoke-test.sh"
 if [[ "${SKIP_SMOKE:-0}" == "1" ]]; then
   echo "==> [deploy] Smoke test SKIPPED (SKIP_SMOKE=1)."
