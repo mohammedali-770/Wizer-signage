@@ -120,7 +120,81 @@ RESTORED_CHILDREN="$(client_query "$RESTORE_URL" "SELECT count(*) FROM pg_inheri
 }
 echo "  ok  restored all ${RESTORED_CHILDREN} telemetry child partitions"
 
+# That restore ran WITHOUT RESTORE_DROP_ARCHIVE, so the pre-restore copy of the
+# schemas it replaced must still be here. Retaining it by default is the point:
+# it is the only remaining copy of whatever the target held, and the operator's
+# last chance to compare against it.
+ARCHIVES_RETAINED="$(client_query "$RESTORE_URL" "SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'wizer_pre_restore_%'")"
+[[ "$ARCHIVES_RETAINED" =~ ^[0-9]+$ && "$ARCHIVES_RETAINED" -ge 1 ]] || {
+  echo "ERROR [telemetry-drill]: restore-db.sh kept no pre-restore archive by default." >&2
+  exit 1
+}
+echo "  ok  pre-restore archive retained by default (${ARCHIVES_RETAINED})"
+
 echo "== telemetry DR: run physical post-restore assertions =="
+for verifier in assert-telemetry-partitions.sh assert-telemetry-partition-isolation.sh; do
+  docker run --rm --network=host \
+    -v "$REPO/scripts:/app/scripts:ro" \
+    -e DIRECT_URL="$RESTORE_URL" \
+    postgres:16-alpine \
+    bash "/app/scripts/${verifier}"
+  echo "  ok  ${verifier}"
+done
+
+# The restore above went into an EMPTY target, which is the easy half. The half
+# that matters for disaster recovery is restoring over a database that already
+# holds the migrated schema — and that is where this drill used to have a hole.
+#
+# `pg_dump --clean --if-exists` emits a DROP CONSTRAINT for every child
+# partition's primary key, which PostgreSQL refuses because that key is inherited
+# from the parent. The restore aborted after the preamble had already dropped
+# every foreign key, so the target ended up neither intact nor restored. Nothing
+# caught it: this drill only ever restored into a fresh instance, and the generic
+# drill only covers non-partitioned tables. Restoring twice is the whole test.
+echo "== telemetry DR: restore AGAIN over the now-migrated target =="
+RESTORE_AGAIN="$(docker run --rm --network=host \
+  -v "$REPO/scripts:/app/scripts:ro" \
+  -v "$WORK/backups:/backups:ro" \
+  -e FORCE=1 \
+  -e RESTORE_DROP_ARCHIVE=1 \
+  -e DIRECT_URL="$RESTORE_URL" \
+  postgres:16-alpine \
+  bash /app/scripts/restore-db.sh "/backups/$(basename "$DUMP")" 2>&1)" || {
+    echo "$RESTORE_AGAIN" | tail -20 | sed 's/^/      /' >&2
+    echo "ERROR [telemetry-drill]: restore-db.sh cannot restore over an existing migrated schema." >&2
+    exit 1
+  }
+echo "  ok  migrated dump restored over an existing migrated schema"
+
+REPEAT_CHILDREN="$(client_query "$RESTORE_URL" "SELECT count(*) FROM pg_inherits WHERE inhparent IN ('public.heartbeats'::regclass,'public.proof_of_plays'::regclass)")"
+[[ "$REPEAT_CHILDREN" == "$SOURCE_CHILDREN" ]] || {
+  echo "ERROR [telemetry-drill]: partition child count wrong after re-restore: source=${SOURCE_CHILDREN} restored=${REPEAT_CHILDREN}." >&2
+  exit 1
+}
+
+# A restore that half-succeeds is worse than one that refuses, so prove the
+# foreign keys are back rather than merely that the tables exist.
+REPEAT_FKS="$(client_query "$RESTORE_URL" "SELECT count(*) FROM pg_constraint WHERE contype='f' AND connamespace IN ('public'::regnamespace,'wizer_telemetry'::regnamespace)")"
+[[ "$REPEAT_FKS" =~ ^[0-9]+$ && "$REPEAT_FKS" -ge 1 ]] || {
+  echo "ERROR [telemetry-drill]: no foreign keys present after re-restore (${REPEAT_FKS:-0})." >&2
+  exit 1
+}
+echo "  ok  ${REPEAT_CHILDREN} partitions and ${REPEAT_FKS} foreign keys intact after re-restore"
+
+# The second restore set RESTORE_DROP_ARCHIVE=1, so it must have dropped ITS OWN
+# archive and left the first restore's alone. Compare against the count taken
+# after the first restore rather than against zero: an absolute check here would
+# fail on the archive the default path is supposed to keep, blaming this restore
+# for the previous one. Left uncleaned, every recovery would silently add another
+# full copy of both schemas.
+LEFTOVER="$(client_query "$RESTORE_URL" "SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'wizer_pre_restore_%'")"
+[[ "$LEFTOVER" == "$ARCHIVES_RETAINED" ]] || {
+  echo "ERROR [telemetry-drill]: RESTORE_DROP_ARCHIVE=1 did not drop its archive (before=${ARCHIVES_RETAINED} after=${LEFTOVER})." >&2
+  exit 1
+}
+echo "  ok  RESTORE_DROP_ARCHIVE=1 dropped its own archive and kept the earlier one"
+
+echo "== telemetry DR: re-run physical assertions after the second restore =="
 for verifier in assert-telemetry-partitions.sh assert-telemetry-partition-isolation.sh; do
   docker run --rm --network=host \
     -v "$REPO/scripts:/app/scripts:ro" \
