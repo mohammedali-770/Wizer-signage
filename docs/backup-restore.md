@@ -75,6 +75,19 @@ RESTRICT` so even a direct `DELETE FROM companies` cannot cascade them away. Do 
 
   When it is unset the script warns loudly on every run.
 
+- **The PostgreSQL client major must match the server major.** `pg_dump` 17+ writes
+  `SET transaction_timeout = 0;` into the dump preamble, which PostgreSQL 16 and older
+  reject — and `restore-db.sh` pipes dumps into `psql --set ON_ERROR_STOP=on`, so the
+  restore aborts on the preamble **before a single row is applied**. The failure is
+  invisible until you try to recover: the nightly backup succeeds, the file is the right
+  size, and it is simply not restorable. The maintenance image therefore pins
+  `postgresql16-client` rather than the unversioned `postgresql-client`, which is a virtual
+  package that floats to whatever major Alpine ships newest. The host needs the same major,
+  since it runs `backup-db.sh` at deploy time; production preflight compares the two.
+  **On a server upgrade, change `infra/docker/Dockerfile.maintenance` and the host package
+  together** — `maintenance-runtime.spec.ts` pins the image against CI's Postgres service
+  so the pair cannot drift silently.
+
 - **The command must exist in BOTH places that run it.** `backup-db.sh` executes on the
   **host** at deploy time (`deploy-blue-green.sh`) and inside the **maintenance container**
   on the nightly cron schedule (`infra/docker/crontab`). Only `rclone` is installed in the
