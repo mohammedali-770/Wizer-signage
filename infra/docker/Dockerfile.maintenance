@@ -47,7 +47,20 @@ WORKDIR /app
 # at the first NUL byte and still exits 0. A gzip dump begins 1f 8b 08 00, so
 # every backup "uploaded" exactly three bytes and reported success.
 # rclone is ~106 MiB — a deliberate cost, paid so the off-box copy is real.
-RUN apk add --no-cache openssl su-exec bash postgresql-client tzdata rclone
+#
+# The PostgreSQL client is PINNED TO THE PRODUCTION SERVER MAJOR (16). The
+# unversioned `postgresql-client` is a virtual package that resolves to the
+# newest major Alpine carries — 18.6 on Alpine 3.24 — and pg_dump 17+ writes
+# `SET transaction_timeout = 0;` into the dump preamble. PostgreSQL 16 does not
+# recognize that parameter, and restore-db.sh pipes the dump into
+# `psql --set ON_ERROR_STOP=on`, so the restore aborts on the preamble before a
+# single row is applied. Every dump this container produced was unrestorable
+# into the database it was backing up.
+#
+# ON A SERVER UPGRADE, CHANGE THIS TOO. The client major must track the
+# production server major; maintenance-runtime.spec.ts pins the two together so
+# the pair cannot drift silently.
+RUN apk add --no-cache openssl su-exec bash postgresql16-client tzdata rclone
 
 # Maintenance runs compiled JavaScript and checked-in shell tools directly.
 # npm/npx are build-only tooling and are not needed in the deployed worker.

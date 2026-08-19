@@ -33,6 +33,11 @@ The production `.env` must contain real values for at least:
 > inside the maintenance image so a command that works when tested by hand cannot go on to
 > fail, or silently transfer nothing, every night.
 >
+> **The PostgreSQL client major must match the production server major (16).** `pg_dump`
+> 17+ emits `SET transaction_timeout = 0;`, which PostgreSQL 16 rejects, and `restore-db.sh`
+> runs `psql --set ON_ERROR_STOP=on` — so a dump from a newer client aborts before any row
+> is applied. Preflight compares the host client against the maintenance image's.
+>
 > Verification is separate from the copy for a reason: a zero exit is not evidence that
 > bytes arrived. Busybox `wget --post-file` truncates a gzip dump at its first NUL byte and
 > exits 0, which produced a 3-byte "backup" while the run logged success, pinged the

@@ -46,7 +46,7 @@ require_value() {
 }
 
 printf '==> Wizer production preflight\n'
-for command in docker curl awk grep sed df; do
+for command in docker curl awk grep sed df pg_dump; do
   command -v "${command}" >/dev/null 2>&1 || fail "required command '${command}' is not installed"
 done
 pass "required host commands are present"
@@ -201,6 +201,24 @@ esac
 docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${VERIFY_BIN}' >/dev/null 2>&1" \
   || fail "BACKUP_OFFSITE_VERIFY_CMD runs '${VERIFY_BIN}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
 pass "offsite backup copy is verified against the local dump size"
+
+# The host and the maintenance container must produce interchangeable dumps.
+# backup-db.sh runs in both -- on the host at deploy time, in the container
+# nightly -- and pg_dump 17+ writes `SET transaction_timeout = 0;` into the dump
+# preamble, which PostgreSQL 16 and older reject. restore-db.sh pipes dumps into
+# `psql --set ON_ERROR_STOP=on`, so a dump from a newer client aborts on the
+# preamble before a single row is applied: a backup that appears to succeed
+# every night and cannot be restored. Comparing the two majors here catches a
+# host whose postgresql-client has drifted away from the pinned image (see
+# infra/docker/Dockerfile.maintenance); both must track the server major.
+host_pg_major() { pg_dump --version 2>/dev/null | sed -nE 's/.*[^0-9]([0-9]+)\.[0-9]+.*/\1/p'; }
+HOST_PG_MAJOR="$(host_pg_major)"
+IMAGE_PG_MAJOR="$(docker run --rm --entrypoint pg_dump "${MAINTENANCE_IMAGE}" --version 2>/dev/null | sed -nE 's/.*[^0-9]([0-9]+)\.[0-9]+.*/\1/p')"
+[[ "${HOST_PG_MAJOR}" =~ ^[0-9]+$ ]] || fail "could not determine the host pg_dump major version"
+[[ "${IMAGE_PG_MAJOR}" =~ ^[0-9]+$ ]] || fail "could not determine the pg_dump major version in ${MAINTENANCE_IMAGE}"
+[[ "${HOST_PG_MAJOR}" == "${IMAGE_PG_MAJOR}" ]] \
+  || fail "host pg_dump is major ${HOST_PG_MAJOR} but the maintenance image that takes the nightly backup is major ${IMAGE_PG_MAJOR}; dumps from a newer client cannot be restored into an older server"
+pass "host and maintenance-image PostgreSQL clients are the same major (${HOST_PG_MAJOR})"
 
 HEALTHCHECKS_URL_VALUE="$(read_env_value HEALTHCHECKS_URL)"
 [[ "${HEALTHCHECKS_URL_VALUE}" =~ ^https://[^[:space:]]+$ ]] || fail "HEALTHCHECKS_URL must be an HTTPS dead-man monitoring URL"
