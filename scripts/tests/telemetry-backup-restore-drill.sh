@@ -63,12 +63,21 @@ SOURCE_CHILDREN="$(client_query "$SOURCE_URL" "SELECT count(*) FROM pg_inherits 
 echo "  ok  migrated source has ${SOURCE_CHILDREN} telemetry child partitions"
 
 echo "== telemetry DR: take backup with production script =="
+# The offsite copy is exercised with real bytes and a real size comparison, not
+# with `true`. A no-op here would assert nothing: the defect this guards against
+# is a copy command that exits 0 having transferred a truncated file, which is
+# indistinguishable from success unless the stored size is actually checked.
+# (Transport over a network is covered separately by the rclone/object-store
+# drill; what matters here is that the copy-then-verify machinery runs.)
+mkdir -p "$WORK/offsite"
 BACKUP_OUT="$(docker run --rm --network=host -u "$(id -u)" \
   -v "$REPO/scripts:/app/scripts:ro" \
   -v "$WORK/backups:/backups" \
+  -v "$WORK/offsite:/offsite" \
   -e BACKUP_DIR=/backups \
   -e DIRECT_URL="$SOURCE_URL" \
-  -e BACKUP_OFFSITE_CMD=true \
+  -e BACKUP_OFFSITE_CMD='cp "$1" "/offsite/$(basename "$1")"' \
+  -e BACKUP_OFFSITE_VERIFY_CMD='wc -c < "/offsite/$(basename "$1")" | tr -d " "' \
   postgres:16-alpine \
   bash /app/scripts/backup-db.sh 2>&1)" || {
     echo "$BACKUP_OUT" | sed 's/^/      /' >&2
@@ -81,6 +90,45 @@ DUMP="$(ls "$WORK"/backups/wizer-signage_*.sql.gz 2>/dev/null | head -1)"
   exit 1
 }
 echo "  ok  migrated-source dump created"
+
+grep -q "Offsite copy verified" <<<"$BACKUP_OUT" || {
+  echo "$BACKUP_OUT" | sed 's/^/      /' >&2
+  echo "ERROR [telemetry-drill]: the offsite copy was not verified against the local dump." >&2
+  exit 1
+}
+OFFSITE_COPY="$WORK/offsite/$(basename "$DUMP")"
+[[ -s "$OFFSITE_COPY" ]] || { echo "ERROR [telemetry-drill]: no offsite copy was produced." >&2; exit 1; }
+[[ "$(wc -c < "$OFFSITE_COPY" | tr -d ' ')" == "$(wc -c < "$DUMP" | tr -d ' ')" ]] || {
+  echo "ERROR [telemetry-drill]: offsite copy size differs from the local dump." >&2; exit 1; }
+echo "  ok  offsite copy verified byte-for-byte against the local dump"
+
+# A copy command that exits 0 having stored the wrong bytes must FAIL the run.
+mkdir -p "$WORK/backups-trunc"
+TRUNC_OUT="$(docker run --rm --network=host -u "$(id -u)" \
+  -v "$REPO/scripts:/app/scripts:ro" \
+  -v "$WORK/backups-trunc:/backups" \
+  -v "$WORK/offsite:/offsite" \
+  -e BACKUP_DIR=/backups \
+  -e DIRECT_URL="$SOURCE_URL" \
+  -e BACKUP_OFFSITE_CMD='head -c 3 "$1" > "/offsite/$(basename "$1")"' \
+  -e BACKUP_OFFSITE_VERIFY_CMD='wc -c < "/offsite/$(basename "$1")" | tr -d " "' \
+  postgres:16-alpine \
+  bash /app/scripts/backup-db.sh 2>&1)" && {
+    echo "$TRUNC_OUT" | sed 's/^/      /' >&2
+    echo "ERROR [telemetry-drill]: a truncated offsite copy was reported as success." >&2
+    exit 1
+  }
+grep -q "Offsite copy OK" <<<"$TRUNC_OUT" || {
+  echo "ERROR [telemetry-drill]: precondition lost - the copy command did not exit 0." >&2; exit 1; }
+grep -q "the local dump is" <<<"$TRUNC_OUT" || {
+  echo "$TRUNC_OUT" | sed 's/^/      /' >&2
+  echo "ERROR [telemetry-drill]: truncated copy failed for the wrong reason." >&2
+  exit 1
+}
+grep -q "Pruning backups older than" <<<"$TRUNC_OUT" && {
+  echo "ERROR [telemetry-drill]: pruned local backups despite an unproven offsite copy." >&2; exit 1; }
+echo "  ok  a copy command that exits 0 with truncated bytes fails the run"
+rm -rf "$WORK/backups-trunc" "$WORK/offsite"
 
 echo "== telemetry DR: start isolated restore target =="
 docker run -d --name "$PG" --network=host \

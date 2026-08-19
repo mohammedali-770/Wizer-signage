@@ -135,8 +135,72 @@ SUPABASE_BUCKET_VALUE="$(read_env_value SUPABASE_STORAGE_BUCKET)"
 pass "persistent Supabase production storage is configured"
 
 OFFSITE_CMD="$(read_env_value BACKUP_OFFSITE_CMD)"
-case "${OFFSITE_CMD}" in true|:|echo|"echo "*) fail "BACKUP_OFFSITE_CMD is a no-op; configure a real off-host copy command" ;; esac
+
+# Normalize before the no-op test. The previous literal comparison matched only
+# `true`, `:`, `echo` and `echo *`, so `/bin/true`, `true ` (trailing space) and
+# `true #comment` all passed as "a real off-host copy command".
+offsite_first_word() {
+  local cmd="${1%%[;&|]*}"          # first command in a list
+  cmd="${cmd%%#*}"                  # drop a trailing comment
+  cmd="${cmd#"${cmd%%[![:space:]]*}"}"
+  cmd="${cmd%%[[:space:]]*}"        # first word
+  cmd="${cmd##*/}"                  # basename, so /bin/true == true
+  printf '%s' "${cmd}"
+}
+OFFSITE_BIN="$(offsite_first_word "${OFFSITE_CMD}")"
+case "${OFFSITE_BIN}" in
+  true|:|echo|cat|printf|test|nop|noop|'')
+    fail "BACKUP_OFFSITE_CMD is a no-op; configure a real off-host copy command" ;;
+esac
 pass "offsite backup copy command is configured"
+
+# Resolve that binary INSIDE THE MAINTENANCE IMAGE, not just on this host.
+#
+# The same BACKUP_OFFSITE_CMD is executed in two different filesystems: on the
+# host by deploy-blue-green.sh at deploy time, and inside the maintenance
+# container by the nightly cron job. Validating only the host is how a command
+# that an operator successfully tests by hand goes on to fail — or silently
+# transfer nothing — every night in the container. Checking the host would have
+# passed `rclone copyto ...` while the container had no rclone at all.
+#
+# --rm and no volumes: this starts and discards one throwaway container and
+# changes no host state, consistent with this script's read-only contract.
+resolve_maintenance_image() {
+  local img
+  img="$(docker inspect -f '{{.Config.Image}}' wizer-signage-maintenance 2>/dev/null || true)"
+  [[ -n "${img}" ]] && { printf '%s' "${img}"; return 0; }
+  if [[ $# -gt 0 && -n "${1}" ]]; then
+    img="${REGISTRY}/wizer-signage-maintenance:${1}"
+    docker image inspect "${img}" >/dev/null 2>&1 && { printf '%s' "${img}"; return 0; }
+  fi
+  for img in "wizer-signage/maintenance:${IMAGE_TAG:-latest}" "wizer-signage/maintenance:latest"; do
+    docker image inspect "${img}" >/dev/null 2>&1 && { printf '%s' "${img}"; return 0; }
+  done
+  return 1
+}
+if MAINTENANCE_IMAGE="$(resolve_maintenance_image "${1:-}")"; then
+  docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${OFFSITE_BIN}' >/dev/null 2>&1" \
+    || fail "BACKUP_OFFSITE_CMD runs '${OFFSITE_BIN}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
+  pass "offsite copy command resolves inside the maintenance image"
+else
+  fail "cannot resolve the maintenance image to validate BACKUP_OFFSITE_CMD against; start the base stack or pull the release images first (blue/green is an adoption path — see docs/production-cutover.md §5)"
+fi
+
+# An exit status is not evidence that bytes arrived. backup-db.sh compares the
+# remote object's size against the local dump, but only when this is set, so
+# production requires it — otherwise a copy command that silently transfers
+# nothing still reports success, pings the dead-man and prunes older backups.
+OFFSITE_VERIFY_CMD="$(read_env_value BACKUP_OFFSITE_VERIFY_CMD)"
+[[ -n "${OFFSITE_VERIFY_CMD}" ]] \
+  || fail "BACKUP_OFFSITE_VERIFY_CMD is missing/empty in ${ENV_FILE}; the offsite copy would be assumed from an exit status rather than confirmed"
+VERIFY_BIN="$(offsite_first_word "${OFFSITE_VERIFY_CMD}")"
+case "${VERIFY_BIN}" in
+  true|:|echo|cat|printf|test|nop|noop|'')
+    fail "BACKUP_OFFSITE_VERIFY_CMD is a no-op; it must report the remote object's size in bytes" ;;
+esac
+docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${VERIFY_BIN}' >/dev/null 2>&1" \
+  || fail "BACKUP_OFFSITE_VERIFY_CMD runs '${VERIFY_BIN}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
+pass "offsite backup copy is verified against the local dump size"
 
 HEALTHCHECKS_URL_VALUE="$(read_env_value HEALTHCHECKS_URL)"
 [[ "${HEALTHCHECKS_URL_VALUE}" =~ ^https://[^[:space:]]+$ ]] || fail "HEALTHCHECKS_URL must be an HTTPS dead-man monitoring URL"

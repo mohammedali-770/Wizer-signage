@@ -24,6 +24,16 @@ describe('maintenance runtime image / cron contract', () => {
     expect(crontab).toContain('ensure-telemetry-partitions.sh');
   });
 
+  // This container runs the nightly backup, so it runs BACKUP_OFFSITE_CMD. It
+  // previously shipped nothing that could copy a file off the host -- no rclone,
+  // aws, curl, scp, ssh or rsync -- which made both commands documented in
+  // docs/backup-restore.md exit 127 here and left busybox `wget --post-file`,
+  // which truncates a gzip dump at its first NUL byte and still exits 0.
+  it('ships a transfer tool capable of performing the offsite backup copy', () => {
+    expect(dockerfile).toMatch(/apk add[^\n]*\brclone\b/);
+    expect(crontab).toContain('backup-db.sh');
+  });
+
   it('keeps the fast OTA reconciliation and daily partition-preparation jobs', () => {
     expect(crontab).toContain('android-ota-health');
     expect(crontab).toContain('wizer-ota-health.lock');

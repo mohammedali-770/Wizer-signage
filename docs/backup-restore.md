@@ -71,11 +71,34 @@ RESTRICT` so even a direct `DELETE FROM companies` cannot cascade them away. Do 
 
   ```bash
   BACKUP_OFFSITE_CMD='rclone copyto "$1" "remote:wizer-backups/$(basename "$1")"'
-  # or
-  BACKUP_OFFSITE_CMD='aws s3 cp "$1" "s3://wizer-backups/"'
   ```
 
   When it is unset the script warns loudly on every run.
+
+- **The command must exist in BOTH places that run it.** `backup-db.sh` executes on the
+  **host** at deploy time (`deploy-blue-green.sh`) and inside the **maintenance container**
+  on the nightly cron schedule (`infra/docker/crontab`). Only `rclone` is installed in the
+  maintenance image — `aws`, `curl`, `scp`, `ssh` and `rsync` are **not** there, so a
+  command naming one of them works when you test it by hand on the host and then exits 127
+  every night in the container. Production preflight resolves the command's first word
+  inside the maintenance image for exactly this reason.
+
+- **Verify the copy — set `BACKUP_OFFSITE_VERIFY_CMD`.** A zero exit from the copy command
+  is not evidence that any bytes arrived. The verify command receives the same dump path as
+  `$1` and must print the **remote** object's size in bytes as the first token of stdout;
+  `backup-db.sh` compares it against the local dump and fails the run on any mismatch, so
+  the check does not depend on the copying tool's own success claim:
+
+  ```bash
+  BACKUP_OFFSITE_VERIFY_CMD='rclone size --json "remote:wizer-backups/$(basename "$1")" | sed -n "s/.*\"bytes\":\([0-9]*\).*/\1/p"'
+  ```
+
+  This exists because the failure it catches is silent. Busybox `wget --post-file` — for a
+  long time the only transfer tool present in the maintenance image — truncates binary
+  payloads at the first NUL byte and still exits 0. A gzip dump begins `1f 8b 08 00`, so
+  every "successful" upload was a 3-byte stub: the run logged `Offsite copy OK`, pinged the
+  dead-man switch, and pruned older local backups. Nothing surfaced until a restore.
+  Production preflight requires this variable.
 
 ### Cron example
 

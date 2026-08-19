@@ -37,7 +37,17 @@ WORKDIR /app
 
 # crond (busybox, bundled), su-exec for unprivileged jobs, bash, PostgreSQL
 # client tools (pg_dump + psql), tzdata and OpenSSL for Prisma/runtime TLS.
-RUN apk add --no-cache openssl su-exec bash postgresql-client tzdata
+#
+# rclone is here because THIS container runs the nightly backup (see
+# infra/docker/crontab) and therefore runs BACKUP_OFFSITE_CMD. Without it the
+# image shipped nothing that could copy a file off the host: no rclone, aws,
+# curl, scp, ssh or rsync — only busybox wget and nc. That made both commands
+# documented in docs/backup-restore.md exit 127 here, and left busybox
+# `wget --post-file` as the only transfer path, which truncates binary payloads
+# at the first NUL byte and still exits 0. A gzip dump begins 1f 8b 08 00, so
+# every backup "uploaded" exactly three bytes and reported success.
+# rclone is ~106 MiB — a deliberate cost, paid so the off-box copy is real.
+RUN apk add --no-cache openssl su-exec bash postgresql-client tzdata rclone
 
 # Maintenance runs compiled JavaScript and checked-in shell tools directly.
 # npm/npx are build-only tooling and are not needed in the deployed worker.

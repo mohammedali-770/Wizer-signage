@@ -84,6 +84,74 @@ describe('production preflight contract', () => {
     expect(preflight).toContain('out-of-band backup dead-man monitoring is configured');
   });
 
+  // The offsite command is executed in two different filesystems -- on the host
+  // by deploy-blue-green.sh, and inside the maintenance container by the nightly
+  // cron job -- so validating only the host lets a command that an operator
+  // tests successfully by hand fail every night in production.
+  it('resolves the offsite copy command inside the maintenance image, not just the host', () => {
+    expect(preflight).toContain('wizer-signage-maintenance');
+    expect(preflight).toContain('resolve_maintenance_image');
+    expect(preflight).toContain('does not exist in the maintenance image');
+    expect(preflight).toContain('offsite copy command resolves inside the maintenance image');
+    // Still read-only: every container it starts is throwaway and unmounted.
+    // (A bare /-v / would match the `command -v` inside the probe, so mounts are
+    // matched by their required `source:target` form instead.)
+    const dockerRuns = preflight.split('\n').filter((line) => line.includes('docker run'));
+    expect(dockerRuns.length).toBeGreaterThan(0);
+    for (const line of dockerRuns) {
+      expect(line).toContain('--rm');
+      expect(line).not.toContain('--volume');
+      expect(line).not.toMatch(/-v\s+[^\s'"]+:[^\s'"]+/);
+    }
+  });
+
+  it('requires the offsite copy to be verified against the local dump size', () => {
+    expect(preflight).toContain('BACKUP_OFFSITE_VERIFY_CMD');
+    expect(preflight).toContain('rather than confirmed');
+    expect(preflight).toContain('BACKUP_OFFSITE_VERIFY_CMD is a no-op');
+    expect(preflight).toContain('offsite backup copy is verified against the local dump size');
+  });
+
+  // Behavioural, not string-level: the previous check compared against four
+  // literals, so `/bin/true`, `true ` and `true #x` all passed as real commands.
+  // The function is extracted and executed so the normalization is actually run.
+  describe('no-op detection for BACKUP_OFFSITE_CMD', () => {
+    const firstWord = (cmd: string): string =>
+      execFileSync(
+        'bash',
+        [
+          '-c',
+          `source <(sed -n '/^offsite_first_word()/,/^}/p' "$1"); offsite_first_word "$2"`,
+          '_',
+          preflightPath,
+          cmd,
+        ],
+        { encoding: 'utf8' },
+      );
+
+    const NO_OPS = [
+      'true',
+      '/bin/true',
+      'true ',
+      '  true  ',
+      'true #keep the old behaviour',
+      '/usr/bin/true',
+      ':',
+      'echo uploaded',
+    ];
+    it.each(NO_OPS)('normalizes %p to a rejected no-op', (cmd) => {
+      expect(['true', ':', 'echo']).toContain(firstWord(cmd));
+    });
+
+    const REAL = [
+      'rclone copyto "$1" "remote:wizer/$(basename "$1")"',
+      'rclone size --json "remote:wizer/x" | sed -n "s/.*bytes//p"',
+    ];
+    it.each(REAL)('keeps %p as a real command', (cmd) => {
+      expect(firstWord(cmd)).toBe('rclone');
+    });
+  });
+
   it('requires a production off-box log collector and validates its port', () => {
     expect(preflight).toContain('LOG_SHIPPING_ADDRESS must be a collector host:port');
     expect(preflight).toContain('LOG_SHIPPING_ADDRESS port must be 1-65535');
