@@ -3,13 +3,33 @@
 # The repo previously had no automated dependency updates at all, and shipped
 # with 11 high-severity advisories in production dependencies (including the
 # framework itself and the library used for upload magic-byte validation).
+#
+# -----------------------------------------------------------------------------
+# PRODUCTION CUTOVER FREEZE — TEMPORARY
+# -----------------------------------------------------------------------------
+# Every ecosystem below is pinned to `open-pull-requests-limit: 0`, which
+# disables VERSION updates only. Restore these values once the cutover is
+# accepted (docs/production-cutover.md section 10):
+#
+#     npm             5      gradle          3
+#     docker (x3)     default (5)            github-actions  default (5)
+#
+# Security updates are deliberately untouched. Per GitHub's documentation,
+# "Security update pull requests are not subject to this limit and do not count
+# toward it", and there is "no interaction between the settings specified in the
+# dependabot.yml file and Dependabot security alerts". So an advisory still
+# raises a pull request during the freeze; only routine version bumps stop.
+#
+# The eleven version-update pull requests that were already open were converted
+# to drafts rather than closed, so Dependabot keeps them rebased and they are one
+# click from ready when the freeze lifts.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: '/'
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0 # cutover freeze; was 5
     groups:
       # One PR for routine patch/minor bumps keeps the noise manageable; a major
       # still arrives on its own so it gets a real review.
@@ -20,22 +40,26 @@ updates:
     directory: '/apps/android-tv-player'
     schedule:
       interval: weekly
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0 # cutover freeze; was 3
 
   - package-ecosystem: docker
     directory: '/apps/api'
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0 # cutover freeze; was the default
   - package-ecosystem: docker
     directory: '/apps/dashboard'
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0 # cutover freeze; was the default
   - package-ecosystem: docker
     directory: '/infra/docker'
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0 # cutover freeze; was the default
 
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0 # cutover freeze; was the default
