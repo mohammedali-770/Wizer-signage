@@ -8,7 +8,12 @@ x-offbox-logging: &offbox-logging
     fluentd-address: ${LOG_SHIPPING_ADDRESS:?LOG_SHIPPING_ADDRESS is required for log shipping}
     fluentd-async: 'true'
     fluentd-buffer-limit: ${LOG_SHIPPING_BUFFER_LIMIT:-1048576}
-    fluentd-retry-wait: ${LOG_SHIPPING_RETRY_WAIT_SECONDS:-1}
+    # Docker parses this as a Go duration and rejects a bare number
+    # ("time: missing unit in duration"), which fails container CREATE — not
+    # compose rendering — so nothing catches it until a deploy or rollback
+    # tries to start a container. The variable is named SECONDS, so the unit
+    # is appended here and operators set a plain integer.
+    fluentd-retry-wait: ${LOG_SHIPPING_RETRY_WAIT_SECONDS:-1}s
     tag: 'wizer.{{.Name}}'
 
 services:

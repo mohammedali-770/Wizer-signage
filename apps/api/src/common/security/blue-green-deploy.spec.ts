@@ -56,6 +56,27 @@ describe('blue/green deployment contract', () => {
     expect(rollback).toContain('docker-compose.blue-green-log-shipping.yml');
   });
 
+  it('gives every fluentd duration option a unit', () => {
+    // Docker parses fluentd-retry-wait as a Go duration and REJECTS a bare
+    // number with "time: missing unit in duration". That failure happens at
+    // container create, not at compose render, so `docker compose config`
+    // succeeds and production preflight passes — and then the first deploy or
+    // rollback cannot start a single slot. Both overlays shipped `:-1`.
+    for (const [name, overlay] of [
+      ['base', baseLogging],
+      ['slots', slotLogging],
+    ] as const) {
+      const values = [...overlay.matchAll(/fluentd-retry-wait:\s*(\S+)/g)].map((m) => m[1]);
+      expect(values.length).toBeGreaterThan(0);
+      for (const value of values) {
+        // Either an interpolation whose default carries a unit, or a literal
+        // duration. What must never appear again is a bare integer.
+        expect(value).toMatch(/(ms|s|m|h)$/);
+        expect(`${name}:${value}`).not.toMatch(/:\$\{[^}]*:-\d+\}$/);
+      }
+    }
+  });
+
   it('rechecks the production wrapper accepted SHA after its own fetch/pull', () => {
     const pull = deploy.indexOf('git pull --ff-only');
     const identity = deploy.indexOf('FULL_SHA="$(git rev-parse HEAD)"');
