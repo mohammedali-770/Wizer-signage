@@ -351,5 +351,12 @@ describe('Android OTA unhealthy-recovery (real database)', () => {
          AND "settings"->'androidOta'->>'targetVersionCode' <> ${String(RECOVERY.code)}`;
     expect(Number(stranded[0]?.count)).toBe(0);
     expect(alerts.raised.length).toBeGreaterThanOrEqual(N);
-  });
+    // Jest's default 5s is not a safe budget for ~1500 inserts plus a 501-company
+    // sweep: pnpm test:e2e runs its spec files in parallel workers against one
+    // database, so this contends with every other e2e file. It takes ~2s
+    // uncontended, which left too little margin -- and a timeout here is not a
+    // clean failure, because afterEach starts wiping rows while the sweep is
+    // still running, which reports a partial revert count and hides the real
+    // cause. The assertions above are unchanged; only the time budget is.
+  }, 60_000);
 });
