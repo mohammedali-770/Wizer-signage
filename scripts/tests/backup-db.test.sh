@@ -14,6 +14,8 @@
 #   5. pg_dump failure removes the partial output and records FAILED.
 #   6. Both Wizer-owned schemas (public + wizer_telemetry) are always selected.
 #   9. No credentials appear in the script's own logs.
+#   H. The offsite copy is CONFIRMED, not assumed from an exit status: a command
+#      that exits 0 having transferred a truncated file must fail the run.
 # (Volume-ownership cases 7-8 need Docker and live in the e2e test.)
 # =============================================================================
 set -uo pipefail
@@ -85,7 +87,14 @@ run_backup() {
 }
 
 backup_count() { ls "$WORK"/backups/*.sql.gz 2>/dev/null | wc -l | tr -d ' '; }
-reset_env() { unset DIRECT_URL DATABASE_URL PG_DUMP_FAIL; }
+reset_env() { unset DIRECT_URL DATABASE_URL PG_DUMP_FAIL BACKUP_OFFSITE_CMD BACKUP_OFFSITE_VERIFY_CMD; }
+
+# A real directory standing in for the offsite destination, so these cases move
+# actual bytes rather than asserting against a mock's say-so.
+REMOTE="$WORK/remote"; mkdir -p "$REMOTE"
+reset_remote() { rm -f "$REMOTE"/* 2>/dev/null || true; }
+remote_size() { wc -c < "$REMOTE/$(ls "$REMOTE" 2>/dev/null | head -1)" 2>/dev/null | tr -d ' '; }
+pruned()  { case "$OUT" in *"Pruning backups older than"*) return 0 ;; *) return 1 ;; esac; }
 
 echo "== backup-db URL selection + failure handling =="
 
@@ -165,6 +174,72 @@ case "$CAPTURED" in
   *) pass "G: URI fragment dropped from pg_dump dbname" ;;
 esac
 case "$CAPTURED" in *sslmode=require) pass "G: sslmode value intact after fragment strip" ;; *) fail "G: sslmode value corrupted" ;; esac
+
+
+echo
+echo "== offsite copy is confirmed, not assumed =="
+
+# H1. THE REGRESSION. A copy command that exits 0 having written only the first
+# three bytes -- exactly what busybox `wget --post-file` does to a gzip dump,
+# which begins 1f 8b 08 00 -- must fail the run. Before the verify step this
+# logged "Offsite copy OK", recorded SUCCESS, pinged the dead-man and pruned.
+reset_env; reset_remote
+export DIRECT_URL="postgresql://u:${SECRET}@direct.example:5432/app"
+export BACKUP_OFFSITE_CMD='head -c 3 "$1" > "'"$REMOTE"'/$(basename "$1")"'
+export BACKUP_OFFSITE_VERIFY_CMD='wc -c < "'"$REMOTE"'/$(basename "$1")" | tr -d " "'
+run_backup
+[ "$RC" -ne 0 ] && pass "H1: truncated offsite copy fails the run" || fail "H1: truncated copy reported success (rc=$RC)"
+echo "$RECORD" | grep -q "FAILED" && pass "H1: BackupRecord FAILED recorded" || fail "H1: FAILED not recorded"
+case "$OUT" in *"Offsite copy OK"*) pass "H1: the copy command itself did exit 0" ;; *) fail "H1: precondition lost -- copy did not exit 0" ;; esac
+[ "$(remote_size)" = "3" ] && pass "H1: only 3 bytes actually landed offsite" || fail "H1: expected a 3-byte remote object, got $(remote_size)"
+pruned && fail "H1: pruned local backups despite an unproven offsite copy" || pass "H1: no prune after offsite verification failure"
+
+# H2. An honest copy verifies and the run completes.
+reset_env; reset_remote
+export DIRECT_URL="postgresql://u:${SECRET}@direct.example:5432/app"
+export BACKUP_OFFSITE_CMD='cp "$1" "'"$REMOTE"'/$(basename "$1")"'
+export BACKUP_OFFSITE_VERIFY_CMD='wc -c < "'"$REMOTE"'/$(basename "$1")" | tr -d " "'
+run_backup
+[ "$RC" -eq 0 ] && pass "H2: complete offsite copy succeeds" || fail "H2: expected success (rc=$RC)"
+echo "$OUT" | grep -q "Offsite copy verified" && pass "H2: verification is logged" || fail "H2: verification not logged"
+echo "$RECORD" | grep -q "SUCCESS" && pass "H2: BackupRecord SUCCESS recorded" || fail "H2: SUCCESS not recorded"
+pruned && pass "H2: prune runs once the copy is proven" || fail "H2: prune skipped on a good run"
+case "$OUT" in *"$SECRET"*) fail "9: secret leaked in log (case H2)" ;; *) pass "9: no secret in log (case H2)" ;; esac
+
+# H3. A verify command that cannot answer must not be read as success.
+reset_env; reset_remote
+export DIRECT_URL="postgresql://u:${SECRET}@direct.example:5432/app"
+export BACKUP_OFFSITE_CMD='cp "$1" "'"$REMOTE"'/$(basename "$1")"'
+export BACKUP_OFFSITE_VERIFY_CMD='exit 7'
+run_backup
+[ "$RC" -ne 0 ] && pass "H3: failing verification command fails the run" || fail "H3: verification failure masked"
+pruned && fail "H3: pruned despite failed verification" || pass "H3: no prune after a failed verification command"
+
+# H4. Output that is not a byte count fails closed rather than being scraped.
+reset_env; reset_remote
+export DIRECT_URL="postgresql://u:${SECRET}@direct.example:5432/app"
+export BACKUP_OFFSITE_CMD='cp "$1" "'"$REMOTE"'/$(basename "$1")"'
+export BACKUP_OFFSITE_VERIFY_CMD='echo "upload complete"'
+run_backup
+[ "$RC" -ne 0 ] && pass "H4: non-numeric verification output fails closed" || fail "H4: accepted a non-numeric size"
+echo "$OUT" | grep -q "did not report a byte count" && pass "H4: reason names the missing byte count" || fail "H4: unclear reason"
+
+# H5. Offsite configured without verification still runs, but says so loudly.
+reset_env; reset_remote
+export DIRECT_URL="postgresql://u:${SECRET}@direct.example:5432/app"
+export BACKUP_OFFSITE_CMD='cp "$1" "'"$REMOTE"'/$(basename "$1")"'
+run_backup
+[ "$RC" -eq 0 ] && pass "H5: unverified offsite copy still completes" || fail "H5: expected success (rc=$RC)"
+echo "$OUT" | grep -q "BACKUP_OFFSITE_VERIFY_CMD is not set" && pass "H5: warns that the copy is unconfirmed" || fail "H5: missing unverified-copy warning"
+
+# H6. A copy command that fails outright fails the run and keeps the local dump.
+reset_env; reset_remote
+export DIRECT_URL="postgresql://u:${SECRET}@direct.example:5432/app"
+export BACKUP_OFFSITE_CMD='exit 127'
+run_backup
+[ "$RC" -ne 0 ] && pass "H6: failed offsite copy fails the run" || fail "H6: offsite failure masked"
+[ "$(backup_count)" -eq 1 ] && pass "H6: local dump retained as the only copy" || fail "H6: local dump lost after offsite failure"
+pruned && fail "H6: pruned after a failed offsite copy" || pass "H6: no prune after a failed offsite copy"
 
 reset_env
 echo

@@ -22,7 +22,22 @@ The production `.env` must contain real values for at least:
 - `IMAGE_REGISTRY_PREFIX=ghcr.io/<owner>`
 - `METRICS_TOKEN` (32+ characters)
 - `BACKUP_OFFSITE_CMD` — a real off-host copy command, not `true`, `:`, `echo`, or another no-op
+- `BACKUP_OFFSITE_VERIFY_CMD` — prints the **remote** object's size in bytes; `backup-db.sh`
+  compares it against the local dump and fails the run on mismatch
 - `HEALTHCHECKS_URL` — an HTTPS dead-man endpoint pinged only after a successful backup
+
+> **The offsite command runs in two filesystems.** `backup-db.sh` executes on the host at
+> deploy time and inside the maintenance container on the nightly cron schedule, so anything
+> the command names must exist in both. Only `rclone` is installed in that image — `aws`,
+> `curl`, `scp`, `ssh` and `rsync` are not. Preflight resolves the command's first word
+> inside the maintenance image so a command that works when tested by hand cannot go on to
+> fail, or silently transfer nothing, every night.
+>
+> Verification is separate from the copy for a reason: a zero exit is not evidence that
+> bytes arrived. Busybox `wget --post-file` truncates a gzip dump at its first NUL byte and
+> exits 0, which produced a 3-byte "backup" while the run logged success, pinged the
+> dead-man and pruned older local copies.
+
 - `CAPTCHA_SECRET` — the API **refuses to boot** without it in production, because the
   unauthenticated trial-signup endpoint must not be served without human verification.
   `CAPTCHA_PROVIDER` selects `turnstile` (default), `recaptcha` or `hcaptcha`.
@@ -208,6 +223,8 @@ The release is accepted only when all are true:
 - private metrics work and the public metrics endpoint remains inaccessible;
 - off-box JSON logs are visible;
 - external backup dead-man monitoring receives a successful backup signal;
+- the off-box copy of that backup is **pulled back and restored**, not merely reported as
+  uploaded — a stored object is only a backup once it has been read back and applied;
 - physical Android canary install/restart/offline/cache/playback checks pass;
 - deliberate OTA unhealthy-window automatic recovery succeeds;
 - monitoring shows the expected version with no abnormal crash/offline/warning trend;

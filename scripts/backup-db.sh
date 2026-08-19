@@ -135,7 +135,11 @@ if pg_dump \
   #
   # BACKUP_OFFSITE_CMD receives the dump path as $1, e.g.
   #   BACKUP_OFFSITE_CMD='rclone copyto "$1" "remote:wizer-backups/$(basename "$1")"'
-  #   BACKUP_OFFSITE_CMD='aws s3 cp "$1" "s3://wizer-backups/"'
+  #
+  # The command runs inside the MAINTENANCE CONTAINER on the nightly schedule
+  # (infra/docker/crontab) and on the HOST at deploy time (deploy-blue-green.sh).
+  # Anything it names must exist in both. Dockerfile.maintenance installs rclone
+  # for exactly this reason; do not assume aws/curl/scp are available.
   if [[ -n "${BACKUP_OFFSITE_CMD:-}" ]]; then
     echo "[backup] Copying offsite..."
     if sh -c "${BACKUP_OFFSITE_CMD}" _ "${OUTFILE}"; then
@@ -144,6 +148,48 @@ if pg_dump \
       echo "[backup] FAILED — offsite copy failed; the only copy is on this host." >&2
       record_backup "FAILED" "${OUTFILE}" "${SIZE_BYTES}" "offsite copy failed"
       exit 1
+    fi
+
+    # --- Verify the copy actually landed -----------------------------------
+    # A zero exit from the copy command is NOT evidence that any bytes arrived.
+    # Observed for real: busybox `wget --post-file` truncates a gzip dump at the
+    # first NUL byte — a 942-byte backup became a 3-byte remote object — and
+    # still exited 0. Without this check the run reports "Offsite copy OK",
+    # pings the dead-man switch and prunes older backups, so the operator is
+    # told everything is healthy while the off-box copy is a stub. That failure
+    # is silent, cumulative, and only discovered during a restore.
+    #
+    # BACKUP_OFFSITE_VERIFY_CMD receives the same dump path as $1 and must print
+    # the size of the REMOTE object in bytes as the first token of stdout, e.g.
+    #   BACKUP_OFFSITE_VERIFY_CMD='rclone size --json "remote:wizer-backups/$(basename "$1")" | sed -n "s/.*\"bytes\":\([0-9]*\).*/\1/p"'
+    # The size is compared against the local dump, so the check does not depend
+    # on the verifying tool's own success claim.
+    if [[ -n "${BACKUP_OFFSITE_VERIFY_CMD:-}" ]]; then
+      echo "[backup] Verifying the offsite copy..."
+      if ! VERIFY_OUT="$(sh -c "${BACKUP_OFFSITE_VERIFY_CMD}" _ "${OUTFILE}")"; then
+        echo "[backup] FAILED — offsite verification command failed; the copy is unproven." >&2
+        record_backup "FAILED" "${OUTFILE}" "${SIZE_BYTES}" "offsite verification failed"
+        exit 1
+      fi
+      # First whitespace-separated token only: a bare integer is required, so a
+      # command that prints a path, an error or nothing fails closed instead of
+      # having digits scraped out of unrelated output.
+      REMOTE_BYTES="${VERIFY_OUT%%[[:space:]]*}"
+      if [[ ! "${REMOTE_BYTES}" =~ ^[0-9]+$ ]]; then
+        echo "[backup] FAILED — offsite verification did not report a byte count." >&2
+        record_backup "FAILED" "${OUTFILE}" "${SIZE_BYTES}" "offsite verification returned no byte count"
+        exit 1
+      fi
+      if [[ "${REMOTE_BYTES}" != "${SIZE_BYTES}" ]]; then
+        echo "[backup] FAILED — offsite copy is ${REMOTE_BYTES} byte(s); the local dump is ${SIZE_BYTES}." >&2
+        record_backup "FAILED" "${OUTFILE}" "${SIZE_BYTES}" "offsite copy size mismatch"
+        exit 1
+      fi
+      echo "[backup] Offsite copy verified — ${REMOTE_BYTES} bytes match the local dump."
+    else
+      echo "[backup] WARNING: BACKUP_OFFSITE_VERIFY_CMD is not set — the offsite copy is" >&2
+      echo "[backup]          assumed from an exit status, not confirmed. A command that" >&2
+      echo "[backup]          silently transfers nothing will still report success." >&2
     fi
   else
     echo "[backup] WARNING: BACKUP_OFFSITE_CMD is not set — this backup exists ONLY on this host." >&2
