@@ -76,6 +76,23 @@ The zero-downtime path rejects common destructive migration shapes unless an exp
 
 ## 5. Blue/green cutover sequence
 
+Blue/green is an **adoption path on a host already running the base stack**, not a
+greenfield topology. The first deploy recreates Nginx with the blue/green template
+and a persistent runtime volume, and the entrypoint seeds that volume with upstreams
+pointing at the running `api` / `dashboard` services so traffic keeps flowing until
+the first slot switch. Those two containers must therefore already be up.
+
+On a host where they are not — a fresh staging box, a rebuild after a disaster —
+Nginx refuses to start at all:
+
+```
+[emerg] host not found in upstream "api:3001" in /etc/nginx/runtime/active-upstreams.conf
+```
+
+and the deploy aborts on the next `docker exec`. Bring the base stack up first on any
+such host. `deploy-blue-green.sh` starts Nginx with `--no-deps` and never starts those
+services itself.
+
 The expected deployment order is:
 
 1. Resolve protected `main` and verify/pull immutable images.
