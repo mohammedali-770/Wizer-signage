@@ -136,6 +136,8 @@ Then:
 
 Terminal install failures are sticky per policy revision. After remediation, save a new policy revision. A concurrent operator save must win over stale automatic recovery work.
 
+Step 8 is also checked automatically. `apps/api/test/android-ota-recovery.e2e-spec.ts` runs the real reconciliation against the CI database and proves the recovery transition end to end: the cohort advances to the pre-staged higher-version build and is carried over unwidened, the spent rollback coordinate is cleared so a rollout cannot resume unarmed, unrelated company settings survive the write, a second sweep does nothing, a healthy canary is untouched, a missing recovery artifact halts instead of reverting, and an operator saving mid-sweep wins the race. Running it on the lab TV still matters — only that proves the player installs and reports what the server expects — but the server-side half no longer depends on remembering to check it.
+
 ## 8. Traffic rollback
 
 For an unhealthy server/API release:
