@@ -61,7 +61,7 @@ A recovered crash is diagnostic only and does not change the screen health state
 
 ## Off-box logs
 
-Base Compose keeps local `json-file` rotation for incident access through `docker logs`.
+Base Compose keeps local `json-file` rotation for incident access through `docker logs`. Read-back access survives the overlay: when a log driver cannot be read back, Docker substitutes its own bounded local cache, so `docker logs` — and the blue/green deploy's health-gate diagnostic, which calls it — keep working under Fluentd. That cache is Docker's, with its own size defaults; the `json-file` rotation configured here does not apply to it.
 
 To ship API/dashboard/maintenance/nginx output to a Fluentd-compatible collector, add the opt-in overlay:
 
@@ -73,7 +73,50 @@ docker compose \
   config
 ```
 
-Validate the rendered configuration first, then use the same files with `up -d`. The overlay uses asynchronous Fluentd delivery so a collector outage does not prevent Wizer from starting. Monitor the collector independently.
+Validate the rendered configuration first, then use the same files with `up -d`. The overlay uses asynchronous Fluentd delivery so a collector outage does not prevent Wizer from starting.
+
+### What asynchronous delivery costs
+
+`fluentd-async: 'true'` buys availability — Wizer keeps running when the collector does not — and pays for it in three ways that were measured directly during the off-box logging drill:
+
+| Behaviour                                            | Measured                                                                                  |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| An unreachable collector is completely silent        | 0 of 33 lines delivered; container `running`, `docker logs` normal, **no daemon warning** |
+| A collector blip drops whatever overflows the buffer | a 10 s outage under load lost **2945 of 4000 lines** at Docker's 1 MiB default            |
+| The tail before a container exits is not flushed     | 8 of 300 lines never shipped — the lines that explain _why_ it exited                     |
+
+Three consequences follow.
+
+**The address is resolved by the Docker daemon on the host, not from inside the container network.** A value that looks correct — a Compose service name, a hostname only present on the container network — will connect from nowhere and ship nothing, forever, without a single error. Production preflight opens a TCP connection to `LOG_SHIPPING_ADDRESS` from the host for exactly this reason, retrying three times so a momentary blip does not block a release. If the collector is genuinely down and the release must ship anyway, `ALLOW_UNREACHABLE_LOG_COLLECTOR=1` proceeds with a loud warning — logs from that release are dropped until the collector returns.
+
+**Raising `LOG_SHIPPING_BUFFER_LIMIT` does not buy durability.** It is a _count of buffered events_, not a byte size — verified directly: with the limit at 10, containers emitting 4-byte and 400-byte lines both delivered 11 messages after reconnecting. And raising it does not reduce loss: over a ten-second outage with 4000 lines in flight, `1048576` delivered 1092 and `8388608` delivered 1097 — indistinguishable. Whatever async delivery discards during an outage is not governed by this ceiling, so an increase only enlarges a per-container channel inside `dockerd`. It is left at Docker's default deliberately. **Loss is made visible by the canary below, not prevented by tuning.**
+
+**Off-box logs are lossy at exactly the moment they matter most.** Docker enables a local file cache automatically when a log driver cannot be read back, so `docker logs` still works under the overlay and generally retains what the off-box copy dropped. That cache is a bounded local ring buffer with its own defaults — it is _not_ the `json-file` rotation configured in base Compose, and it is not a substitute for retention. During an incident, reach for the host first and the collector second, but do not assume either holds a complete record.
+
+### Proving logs still leave the host
+
+The maintenance worker emits one structured line every five minutes carrying a fixed marker (`scripts/log-shipping-canary.sh`):
+
+```json
+{
+  "level": "info",
+  "logger": "log-shipping-canary",
+  "marker": "wizer.log-shipping.canary",
+  "host": "...",
+  "at": "...",
+  "release": "..."
+}
+```
+
+That line travels the whole delivery path — daemon, network, collector, ingest — so its **absence at the collector** is the signal. Nothing on the Wizer host can raise this alarm credibly, for the same reason the database backup uses an external dead-man switch: the container that would report the failure is inside the failure.
+
+Configure this on the collector, once:
+
+1. Match received lines containing `wizer.log-shipping.canary`.
+2. On each match, ping a dead-man URL (healthchecks.io or equivalent).
+3. Set that check's period to **at least three times the cron interval** — 15 minutes or more — so a single missed tick is not a page.
+
+Without step 2 the canary is just another log line and proves nothing. `maintenance-runtime.spec.ts` pins the marker in the script against the one printed here, so the two cannot drift apart and silently disarm the alert.
 
 ## Recommended alerts
 
@@ -85,6 +128,7 @@ Start with service-level alerts rather than one Prometheus alert series per scre
 - unexpected API uptime reset/restart;
 - memory approaching container limit;
 - backup dead-man check missed;
+- **log-shipping canary missed** — off-box delivery has stopped (see “Proving logs still leave the host” above);
 - TLS expiry check failed;
 - player version fragmentation;
 - concentration of the same Android crash fingerprint after a release.

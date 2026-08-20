@@ -7,6 +7,17 @@ x-offbox-logging: &offbox-logging
   options:
     fluentd-address: ${LOG_SHIPPING_ADDRESS:?LOG_SHIPPING_ADDRESS is required for log shipping}
     fluentd-async: 'true'
+    # NOTE: this is a COUNT OF BUFFERED EVENTS, not a byte size -- verified
+    # directly: with the limit at 10, a container emitting 4-byte lines and one
+    # emitting 400-byte lines both delivered 11 messages after a reconnect.
+    #
+    # Left at Docker's default deliberately. Raising it does NOT reduce loss
+    # during a collector outage: measured over a ten-second outage with 4000
+    # lines in flight, 1048576 delivered 1092 and 8388608 delivered 1097 --
+    # indistinguishable. Whatever async delivery discards during an outage is
+    # not governed by this ceiling, so an increase buys nothing while enlarging
+    # a per-container channel inside dockerd. Do not raise it expecting
+    # durability; the canary in infra/docker/crontab is what makes loss visible.
     fluentd-buffer-limit: ${LOG_SHIPPING_BUFFER_LIMIT:-1048576}
     # Docker parses this as a Go duration and rejects a bare number
     # ("time: missing unit in duration"), which fails container CREATE — not

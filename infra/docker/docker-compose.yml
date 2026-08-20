@@ -181,6 +181,11 @@ services:
       # The in-app "backup overdue" alert is raised by this same container and so
       # cannot report its own death — this is the out-of-band signal.
       HEALTHCHECKS_URL: ${HEALTHCHECKS_URL:-}
+      # Compose interpolates IMAGE_TAG into the `image:` line above, which does
+      # NOT place it inside the container. The log-shipping canary stamps it on
+      # every line so a gap in off-box delivery can be attributed to a release,
+      # so it must be passed through explicitly or it is always "unknown".
+      IMAGE_TAG: ${IMAGE_TAG:-latest}
     volumes:
       - backups:/backups
     depends_on:

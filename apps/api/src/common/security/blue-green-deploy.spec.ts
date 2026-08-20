@@ -56,6 +56,25 @@ describe('blue/green deployment contract', () => {
     expect(rollback).toContain('docker-compose.blue-green-log-shipping.yml');
   });
 
+  // fluentd-buffer-limit is a COUNT OF EVENTS, not a byte size, and raising it
+  // does not reduce loss during a collector outage -- measured over a ten-second
+  // outage with 4000 lines in flight, 1048576 delivered 1092 and 8388608
+  // delivered 1097. An increase therefore buys nothing while enlarging a
+  // per-container channel inside dockerd, so the overlays must not carry one
+  // silently: loss is made visible by the canary, not prevented by this ceiling.
+  it('does not inflate the fluentd buffer in place of real delivery monitoring', () => {
+    for (const overlay of [baseLogging, slotLogging]) {
+      const limits = [...overlay.matchAll(/fluentd-buffer-limit:[^\n]*?:-(\d+)\}/g)].map((m) =>
+        Number(m[1]),
+      );
+      expect(limits.length).toBeGreaterThan(0);
+      for (const limit of limits) {
+        expect(limit).toBe(1048576);
+      }
+      expect(overlay).toContain('COUNT OF BUFFERED EVENTS');
+    }
+  });
+
   it('gives every fluentd duration option a unit', () => {
     // Docker parses fluentd-retry-wait as a Go duration and REJECTS a bare
     // number with "time: missing unit in duration". That failure happens at

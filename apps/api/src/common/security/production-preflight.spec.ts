@@ -158,6 +158,29 @@ describe('production preflight contract', () => {
     expect(preflight).toContain('off-box logging collector coordinate is configured');
   });
 
+  // Shape is not reachability, and the connection is opened by the Docker daemon
+  // on the host rather than from inside a container network -- so an address that
+  // looks valid (a Compose service name, say) can silently ship nothing forever.
+  it('proves the log collector is actually reachable, not merely well-formed', () => {
+    expect(preflight).toContain('/dev/tcp/');
+    expect(preflight).toContain('is unreachable from this host');
+    expect(preflight).toContain('log collector accepts connections from this host');
+    // Retried, so a momentary blip at a third-party collector cannot block a
+    // release through a gate that is otherwise fail-closed.
+    expect(preflight).toContain('log_collector_reachable');
+    // And overridable, because fluentd-async exists precisely so collector
+    // downtime never stops Wizer from running.
+    expect(preflight).toContain('ALLOW_UNREACHABLE_LOG_COLLECTOR');
+  });
+
+  // The shape regex admits shell metacharacters, and this value is used in a
+  // connect attempt run by the docker-privileged deploy user.
+  it('constrains the collector host before using it in a connect attempt', () => {
+    expect(preflight).toContain('LOG_SHIPPING_ADDRESS host must be a DNS hostname or IPv4 literal');
+    // Passed as an argument, never spliced into the command string.
+    expect(preflight).toMatch(/bash -c 'printf "" >\/dev\/tcp\/"\$1"\/"\$2"' _/);
+  });
+
   it('requires live SMTP delivery before deployment', () => {
     expect(preflight).toContain('SMTP_HOST points at a placeholder/local mail server');
     expect(preflight).toContain('SMTP_PORT must be 1-65535');

@@ -226,7 +226,9 @@ The release is accepted only when all are true:
 - both-schema database restore and telemetry physical checks pass;
 - one-release traffic rollback is proven;
 - private metrics work and the public metrics endpoint remains inaccessible;
-- off-box JSON logs are visible;
+- off-box JSON logs are visible, **and** the log-shipping canary is arriving at the
+  collector with its dead-man rule configured — one line arriving proves the path worked
+  once, not that anyone would notice when it stops;
 - external backup dead-man monitoring receives a successful backup signal;
 - the off-box copy of that backup is **pulled back and restored**, not merely reported as
   uploaded — a stored object is only a backup once it has been read back and applied;

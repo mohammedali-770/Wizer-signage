@@ -46,7 +46,7 @@ require_value() {
 }
 
 printf '==> Wizer production preflight\n'
-for command in docker curl awk grep sed df pg_dump; do
+for command in docker curl awk grep sed df pg_dump timeout; do
   command -v "${command}" >/dev/null 2>&1 || fail "required command '${command}' is not installed"
 done
 pass "required host commands are present"
@@ -231,6 +231,54 @@ LOG_SHIPPING_PORT="${LOG_SHIPPING_ADDRESS_VALUE##*:}"
 (( LOG_SHIPPING_PORT >= 1 && LOG_SHIPPING_PORT <= 65535 )) || fail "LOG_SHIPPING_ADDRESS port must be 1-65535"
 case "${LOG_SHIPPING_ADDRESS_VALUE,,}" in localhost:*|127.*|*.invalid:*|*.example:*) fail "LOG_SHIPPING_ADDRESS points at a placeholder/local collector" ;; esac
 pass "off-box logging collector coordinate is configured"
+
+# Shape is not reachability. `fluentd-async: 'true'` means an unreachable
+# collector costs nothing observable: containers start, stay healthy, keep
+# serving, `docker logs` looks completely normal, and the Docker daemon logs no
+# complaint -- while zero lines leave the host. Measured during the off-box
+# logging drill: a wrong address delivered 0 of 33 lines with no signal anywhere.
+#
+# The connection is opened BY THE DOCKER DAEMON ON THIS HOST, not from inside a
+# container network, so the address must resolve and connect from here. That
+# distinction is easy to get wrong -- a Compose service name looks perfectly
+# valid and can never work -- and this is the only place it is cheap to catch.
+LOG_SHIPPING_HOST="${LOG_SHIPPING_ADDRESS_VALUE%:*}"
+
+# The shape regex above forbids whitespace and colons but still admits shell
+# metacharacters, so a value like '$(id):24224' would satisfy it. This value is
+# interpolated into a connect attempt below, and preflight runs as the
+# docker-privileged deploy user, so constrain it to an actual hostname or IPv4
+# literal first and pass it as an argument rather than splicing it into code.
+[[ "${LOG_SHIPPING_HOST}" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] \
+  || fail "LOG_SHIPPING_ADDRESS host must be a DNS hostname or IPv4 literal"
+
+# Retry before concluding anything. A single attempt turns a momentary blip at a
+# third-party collector into a blocked deploy, and this gate is fail-closed.
+log_collector_reachable() {
+  local attempt
+  for attempt in 1 2 3; do
+    if timeout 5 bash -c 'printf "" >/dev/tcp/"$1"/"$2"' _ "${LOG_SHIPPING_HOST}" "${LOG_SHIPPING_PORT}" 2>/dev/null; then
+      return 0
+    fi
+    (( attempt < 3 )) && sleep 2
+  done
+  return 1
+}
+
+if log_collector_reachable; then
+  pass "log collector accepts connections from this host (${LOG_SHIPPING_ADDRESS_VALUE})"
+elif [[ "${ALLOW_UNREACHABLE_LOG_COLLECTOR:-0}" == "1" ]]; then
+  # Deliberate escape hatch, mirroring DEPLOY_SKIP_BACKUP in deploy-blue-green.sh.
+  # `fluentd-async: 'true'` exists precisely so collector downtime never stops
+  # Wizer from running, and refusing to ship an urgent fix because an
+  # observability service is down would invert that. The release still starts
+  # with a known hole in its off-box record, so say so loudly.
+  printf 'WARNING [preflight]: log collector %s is unreachable; proceeding because ALLOW_UNREACHABLE_LOG_COLLECTOR=1.\n' \
+    "${LOG_SHIPPING_ADDRESS_VALUE}" >&2
+  printf 'WARNING [preflight]: logs from this release will be dropped until the collector returns.\n' >&2
+else
+  fail "log collector ${LOG_SHIPPING_ADDRESS_VALUE} is unreachable from this host after 3 attempts; the Docker daemon opens this connection, so an address that only resolves inside a container network will silently ship nothing. Set ALLOW_UNREACHABLE_LOG_COLLECTOR=1 to deploy anyway with logs dropped."
+fi
 
 SMTP_HOST_VALUE="$(read_env_value SMTP_HOST)"
 case "${SMTP_HOST_VALUE,,}" in localhost|127.*|*.invalid|*.example.com) fail "SMTP_HOST points at a placeholder/local mail server" ;; esac
