@@ -232,6 +232,23 @@ LOG_SHIPPING_PORT="${LOG_SHIPPING_ADDRESS_VALUE##*:}"
 case "${LOG_SHIPPING_ADDRESS_VALUE,,}" in localhost:*|127.*|*.invalid:*|*.example:*) fail "LOG_SHIPPING_ADDRESS points at a placeholder/local collector" ;; esac
 pass "off-box logging collector coordinate is configured"
 
+# Shape is not reachability. `fluentd-async: 'true'` means an unreachable
+# collector costs nothing observable: containers start, stay healthy, keep
+# serving, `docker logs` looks completely normal, and the Docker daemon logs no
+# complaint -- while zero lines leave the host. Measured during the off-box
+# logging drill: a wrong address delivered 0 of 33 lines with no signal anywhere.
+#
+# The connection is opened BY THE DOCKER DAEMON ON THIS HOST, not from inside a
+# container network, so the address must resolve and connect from here. That
+# distinction is easy to get wrong -- a Compose service name looks perfectly
+# valid and can never work -- and this is the only place it is cheap to catch.
+LOG_SHIPPING_HOST="${LOG_SHIPPING_ADDRESS_VALUE%:*}"
+if timeout 5 bash -c "printf '' >/dev/tcp/${LOG_SHIPPING_HOST}/${LOG_SHIPPING_PORT}" 2>/dev/null; then
+  pass "log collector accepts connections from this host (${LOG_SHIPPING_ADDRESS_VALUE})"
+else
+  fail "log collector ${LOG_SHIPPING_ADDRESS_VALUE} is unreachable from this host; the Docker daemon opens this connection, so an address that only resolves inside a container network will silently ship nothing"
+fi
+
 SMTP_HOST_VALUE="$(read_env_value SMTP_HOST)"
 case "${SMTP_HOST_VALUE,,}" in localhost|127.*|*.invalid|*.example.com) fail "SMTP_HOST points at a placeholder/local mail server" ;; esac
 SMTP_PORT_VALUE="$(read_env_value SMTP_PORT)"

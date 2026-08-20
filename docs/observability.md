@@ -61,7 +61,7 @@ A recovered crash is diagnostic only and does not change the screen health state
 
 ## Off-box logs
 
-Base Compose keeps local `json-file` rotation for incident access through `docker logs`.
+Base Compose keeps local `json-file` rotation for incident access through `docker logs`. That access survives the overlay: when a log driver cannot be read back, Docker enables a local file cache automatically, so `docker logs` — and the blue/green deploy's health-gate diagnostic, which calls it — keep working under Fluentd.
 
 To ship API/dashboard/maintenance/nginx output to a Fluentd-compatible collector, add the opt-in overlay:
 
@@ -73,7 +73,50 @@ docker compose \
   config
 ```
 
-Validate the rendered configuration first, then use the same files with `up -d`. The overlay uses asynchronous Fluentd delivery so a collector outage does not prevent Wizer from starting. Monitor the collector independently.
+Validate the rendered configuration first, then use the same files with `up -d`. The overlay uses asynchronous Fluentd delivery so a collector outage does not prevent Wizer from starting.
+
+### What asynchronous delivery costs
+
+`fluentd-async: 'true'` buys availability — Wizer keeps running when the collector does not — and pays for it in three ways that were measured directly during the off-box logging drill:
+
+| Behaviour                                            | Measured                                                                                  |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| An unreachable collector is completely silent        | 0 of 33 lines delivered; container `running`, `docker logs` normal, **no daemon warning** |
+| A collector blip drops whatever overflows the buffer | a 10 s outage under load lost **2945 of 4000 lines** at Docker's 1 MiB default            |
+| The tail before a container exits is not flushed     | 8 of 300 lines never shipped — the lines that explain _why_ it exited                     |
+
+Three consequences follow.
+
+**The address is resolved by the Docker daemon on the host, not from inside the container network.** A value that looks correct — a Compose service name, a hostname only present on the container network — will connect from nowhere and ship nothing, forever, without a single error. Production preflight now opens a TCP connection to `LOG_SHIPPING_ADDRESS` from the host for exactly this reason.
+
+**`LOG_SHIPPING_BUFFER_LIMIT` defaults to 8 MiB**, not Docker's 1 MiB. At roughly 900 bytes per line that is about 9,000 lines of head-room instead of 1,100. The buffer is held per container in the daemon, so budget it across every service in the overlay.
+
+**Off-box logs are lossy at exactly the moment they matter most.** Local `docker logs` keeps everything the off-box copy dropped — Docker enables a local file cache automatically when the log driver cannot be read back — so during an incident, treat the host as the authoritative record and the collector as the searchable index, not the reverse.
+
+### Proving logs still leave the host
+
+The maintenance worker emits one structured line every five minutes carrying a fixed marker (`scripts/log-shipping-canary.sh`):
+
+```json
+{
+  "level": "info",
+  "logger": "log-shipping-canary",
+  "marker": "wizer.log-shipping.canary",
+  "host": "...",
+  "at": "...",
+  "release": "..."
+}
+```
+
+That line travels the whole delivery path — daemon, network, collector, ingest — so its **absence at the collector** is the signal. Nothing on the Wizer host can raise this alarm credibly, for the same reason the database backup uses an external dead-man switch: the container that would report the failure is inside the failure.
+
+Configure this on the collector, once:
+
+1. Match received lines containing `wizer.log-shipping.canary`.
+2. On each match, ping a dead-man URL (healthchecks.io or equivalent).
+3. Set that check's period to **at least three times the cron interval** — 15 minutes or more — so a single missed tick is not a page.
+
+Without step 2 the canary is just another log line and proves nothing. `maintenance-runtime.spec.ts` pins the marker in the script against the one printed here, so the two cannot drift apart and silently disarm the alert.
 
 ## Recommended alerts
 
@@ -85,6 +128,7 @@ Start with service-level alerts rather than one Prometheus alert series per scre
 - unexpected API uptime reset/restart;
 - memory approaching container limit;
 - backup dead-man check missed;
+- **log-shipping canary missed** — off-box delivery has stopped (see below);
 - TLS expiry check failed;
 - player version fragmentation;
 - concentration of the same Android crash fingerprint after a release.

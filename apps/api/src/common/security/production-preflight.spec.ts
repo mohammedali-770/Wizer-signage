@@ -158,6 +158,15 @@ describe('production preflight contract', () => {
     expect(preflight).toContain('off-box logging collector coordinate is configured');
   });
 
+  // Shape is not reachability, and the connection is opened by the Docker daemon
+  // on the host rather than from inside a container network -- so an address that
+  // looks valid (a Compose service name, say) can silently ship nothing forever.
+  it('proves the log collector is actually reachable, not merely well-formed', () => {
+    expect(preflight).toContain('/dev/tcp/');
+    expect(preflight).toContain('is unreachable from this host');
+    expect(preflight).toContain('log collector accepts connections from this host');
+  });
+
   it('requires live SMTP delivery before deployment', () => {
     expect(preflight).toContain('SMTP_HOST points at a placeholder/local mail server');
     expect(preflight).toContain('SMTP_PORT must be 1-65535');

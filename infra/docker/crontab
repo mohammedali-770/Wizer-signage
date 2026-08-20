@@ -46,6 +46,15 @@
 # same container, so it cannot report its own death.
 0 2 * * * flock -n /tmp/wizer-backup.lock -c 'cd /app && su-exec node bash scripts/backup-db.sh && { [ -n "$HEALTHCHECKS_URL" ] && wget -q -T 10 -O /dev/null "$HEALTHCHECKS_URL" || true; }' >> /proc/1/fd/1 2>&1
 
+# Off-box log-shipping canary — one structured line every 5 minutes.
+# `fluentd-async: 'true'` makes a dead collector completely silent: containers
+# stay healthy, `docker logs` looks normal, the daemon logs no complaint, and
+# nothing leaves the host. Nothing here can raise that alarm credibly, because
+# the container that would report it is inside the failure. This line traverses
+# the whole path instead, and the COLLECTOR alerts on its absence -- see
+# scripts/log-shipping-canary.sh and docs/observability.md.
+*/5 * * * * flock -n /tmp/wizer-log-canary.lock -c 'cd /app && su-exec node bash scripts/log-shipping-canary.sh' >> /proc/1/fd/1 2>&1
+
 # TLS certificate expiry check at 07:15 — checks the certificate actually SERVED
 # by APP_DOMAIN, so it catches both "renewal did not run" and "renewed but nginx
 # is still serving the old cert". Non-zero exit + stderr surfaces in docker logs.

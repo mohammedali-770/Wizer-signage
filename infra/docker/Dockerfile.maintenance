@@ -79,11 +79,13 @@ COPY --chown=node:node scripts/backup-db.sh ./scripts/backup-db.sh
 COPY --chown=node:node scripts/lib/pg-url.sh ./scripts/lib/pg-url.sh
 COPY --chown=node:node scripts/check-cert-expiry.sh ./scripts/check-cert-expiry.sh
 COPY --chown=node:node scripts/ensure-telemetry-partitions.sh ./scripts/ensure-telemetry-partitions.sh
+COPY --chown=node:node scripts/log-shipping-canary.sh ./scripts/log-shipping-canary.sh
 COPY infra/docker/crontab /etc/crontabs/root
 RUN chmod +x \
   ./scripts/backup-db.sh \
   ./scripts/check-cert-expiry.sh \
-  ./scripts/ensure-telemetry-partitions.sh
+  ./scripts/ensure-telemetry-partitions.sh \
+  ./scripts/log-shipping-canary.sh
 
 COPY infra/docker/maintenance-entrypoint.sh /usr/local/bin/maintenance-entrypoint.sh
 RUN chmod +x /usr/local/bin/maintenance-entrypoint.sh

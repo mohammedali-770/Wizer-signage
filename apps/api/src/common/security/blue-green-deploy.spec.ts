@@ -56,6 +56,23 @@ describe('blue/green deployment contract', () => {
     expect(rollback).toContain('docker-compose.blue-green-log-shipping.yml');
   });
 
+  // Measured during the off-box logging drill: at ~900 bytes/line Docker's 1 MiB
+  // default held roughly ten seconds of a moderately busy API, and a ten-second
+  // collector outage under load silently dropped 2945 of 4000 lines. Async mode
+  // reports none of that, so the buffer is the only thing standing between a
+  // routine collector blip and permanent log loss.
+  it('buffers enough log volume to survive a collector blip', () => {
+    for (const overlay of [baseLogging, slotLogging]) {
+      const limits = [...overlay.matchAll(/fluentd-buffer-limit:[^\n]*?:-(\d+)\}/g)].map((m) =>
+        Number(m[1]),
+      );
+      expect(limits.length).toBeGreaterThan(0);
+      for (const limit of limits) {
+        expect(limit).toBeGreaterThanOrEqual(8 * 1024 * 1024);
+      }
+    }
+  });
+
   it('gives every fluentd duration option a unit', () => {
     // Docker parses fluentd-retry-wait as a Go duration and REJECTS a bare
     // number with "time: missing unit in duration". That failure happens at

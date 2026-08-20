@@ -5,6 +5,8 @@ const root = resolve(__dirname, '..', '..', '..', '..', '..');
 const dockerfile = readFileSync(resolve(root, 'infra/docker/Dockerfile.maintenance'), 'utf8');
 const crontab = readFileSync(resolve(root, 'infra/docker/crontab'), 'utf8');
 const ci = readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf8');
+const canary = readFileSync(resolve(root, 'scripts/log-shipping-canary.sh'), 'utf8');
+const observability = readFileSync(resolve(root, 'docs/observability.md'), 'utf8');
 
 describe('maintenance runtime image / cron contract', () => {
   it('ships every repository shell script invoked by cron', () => {
@@ -51,6 +53,25 @@ describe('maintenance runtime image / cron contract', () => {
   it('ships a transfer tool capable of performing the offsite backup copy', () => {
     expect(dockerfile).toMatch(/apk add[^\n]*\brclone\b/);
     expect(crontab).toContain('backup-db.sh');
+  });
+
+  // fluentd-async makes a dead collector completely silent -- containers stay
+  // healthy, docker logs looks normal, the daemon logs nothing, and no line
+  // leaves the host. The canary is the only thing that makes that visible, and
+  // it only works if the marker the script emits is the marker the operator's
+  // collector rule matches. Those two live in different places, so pin them.
+  it('emits a log-shipping canary whose marker matches the documented rule', () => {
+    expect(crontab).toContain('log-shipping-canary.sh');
+    expect(crontab).toMatch(/\*\/\d+ \* \* \* \*[^\n]*log-shipping-canary\.sh/);
+
+    const marker = canary.match(/LOG_CANARY_MARKER='([^']+)'/);
+    expect(marker).not.toBeNull();
+    expect(canary).toContain(`"marker":"%s"`);
+
+    // The operator configures their collector against the marker printed in the
+    // runbook. If the script's value drifts from it the alert stops firing and
+    // nothing else in the system would notice.
+    expect(observability).toContain(marker?.[1]);
   });
 
   it('keeps the fast OTA reconciliation and daily partition-preparation jobs', () => {
