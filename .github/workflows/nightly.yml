@@ -258,6 +258,12 @@ jobs:
       issues: write
     env:
       GH_TOKEN: ${{ github.token }}
+      # gh infers the repository from a git remote, and this job deliberately
+      # does not check out the source -- it only needs the API. Without GH_REPO
+      # every gh call dies with "fatal: not a git repository", which is exactly
+      # how this job failed on its first real run: the reporting mechanism was
+      # itself silent, and a genuinely broken nightly would have opened no issue.
+      GH_REPO: ${{ github.repository }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       ISSUE_TITLE: 'Nightly workflow is failing'
       RESULTS: 'load-test=${{ needs.load-test.result }} dependency-audit=${{ needs.dependency-audit.result }} backup-drill=${{ needs.backup-drill.result }}'

@@ -112,6 +112,16 @@ describe('nightly failure reporting', () => {
     expect(notify).toMatch(/Fail if any job failed[\s\S]*exit 1/);
   });
 
+  it('gives gh a repository without checking out the source', () => {
+    // gh infers the repo from a git remote. This job does not check out the
+    // source -- it only needs the API -- so without GH_REPO every gh call dies
+    // with "fatal: not a git repository". That is how this job failed on its
+    // first real run: the reporting was itself silent, and a genuinely broken
+    // nightly would have opened no issue at all.
+    expect(notify).toContain('GH_REPO: ${{ github.repository }}');
+    expect(notify).not.toContain('actions/checkout');
+  });
+
   it('reuses one tracking issue instead of opening one per night', () => {
     // A fresh issue every night is noise, and noise is what people mute.
     expect(notify).toContain('gh issue comment');
