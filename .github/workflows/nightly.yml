@@ -51,20 +51,38 @@ jobs:
       JWT_ACCESS_SECRET: nightly-only-access-secret-value
       JWT_REFRESH_SECRET: nightly-only-refresh-secret-value
       ENCRYPTION_KEY: nightly-only-encryption-key-value
-      NODE_ENV: production
       API_HOST: 127.0.0.1
       API_PORT: '3001'
-      APP_URL: https://signage.example.invalid
-      CORS_ORIGINS: https://signage.example.invalid
-      # NODE_ENV=production makes SMTP mandatory — env.validation.ts fails boot
-      # without it, so that mail delivery cannot silently fall back to log-only
-      # in a real deployment. Nothing is sent here: k6 exercises read paths only.
-      # The host is on the reserved .invalid TLD and cannot resolve, which is the
-      # point — a nightly that could email anyone is a nightly that eventually
-      # emails someone.
+      # example.com, not example.invalid: env.validation.ts rejects a .invalid
+      # dashboard origin as a local/private host, so the API cannot boot in
+      # production mode with one — and that rejection is correct, because a
+      # password-reset link pointing at an unresolvable host is a broken email.
+      # example.com is IANA-reserved for documentation. SMTP_HOST below stays on
+      # .invalid, which is the value that actually guarantees no mail can leave;
+      # only the SMTP coordinates decide that, not this origin.
+      APP_URL: https://signage.example.com
+      CORS_ORIGINS: https://signage.example.com
+      # Required because the API boots with NODE_ENV=production (set on the
+      # "Start the API" step): env.validation.ts fails boot without SMTP, so mail
+      # delivery cannot silently fall back to log-only in a real deployment.
+      # Nothing is sent here — k6 exercises read paths only — and the host is on
+      # the reserved .invalid TLD and cannot resolve, which is the point: a
+      # nightly that could email anyone is a nightly that eventually emails
+      # someone.
       SMTP_HOST: smtp.example.invalid
       SMTP_PORT: '587'
       SMTP_FROM: nightly@signage.example.invalid
+      # Production boot also requires object storage and captcha, for the same
+      # reason it requires SMTP: env.validation.ts refuses to start rather than
+      # let content storage fall back to ephemeral local disk, or serve the
+      # public signup endpoint without human verification. All synthetic and
+      # unreachable — nothing here is contacted, because k6 exercises read paths
+      # only. Booting in production mode is the point: it is what keeps these
+      # guards from silently regressing between releases.
+      SUPABASE_URL: https://nightly.supabase.example.com
+      SUPABASE_SERVICE_ROLE_KEY: nightly-only-service-role-key-value
+      SUPABASE_STORAGE_BUCKET: wizer-nightly
+      CAPTCHA_SECRET: nightly-only-captcha-secret-value
 
     steps:
       - name: Checkout
@@ -92,11 +110,25 @@ jobs:
         working-directory: apps/api
         run: pnpm prisma migrate deploy
 
+      # The `...` suffix builds @wizer/api AND its workspace dependencies. Without
+      # it, @wizer/shared and @wizer/types are never built and the API fails to
+      # compile with "Cannot find module '@wizer/shared'". This was invisible
+      # until the install above was fixed, because the job never reached here.
+      # Dockerfile.maintenance already uses the same form.
       - name: Build the API
-        run: pnpm --filter @wizer/api build
+        run: pnpm --filter "@wizer/api..." build
 
+      # NODE_ENV belongs to THIS step only. As a job-level variable it also
+      # reached `pnpm install`, where pnpm skips devDependencies under
+      # production — so the root `prepare` script could not find husky, the
+      # install failed, and every step after it was skipped. The k6 smoke had
+      # not run for at least six nights. The build needs devDependencies too,
+      # so the job was broken end to end; booting the API is the only place the
+      # production setting is actually wanted.
       - name: Start the API
         working-directory: apps/api
+        env:
+          NODE_ENV: production
         run: |
           node dist/main.js > "${RUNNER_TEMP}/api.log" 2>&1 &
           echo "API_PID=$!" >> "$GITHUB_ENV"
@@ -132,7 +164,7 @@ jobs:
 
       - name: API log (on failure)
         if: failure()
-        run: cat "${RUNNER_TEMP}/api.log"
+        run: cat "${RUNNER_TEMP}/api.log" 2>/dev/null || echo "(the API never started; the failure is above)"
 
       - name: Stop the API
         if: always()
