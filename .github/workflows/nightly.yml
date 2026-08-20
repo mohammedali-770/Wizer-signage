@@ -24,6 +24,11 @@ concurrency:
   group: nightly
   cancel-in-progress: false
 
+# Least privilege by default; only the notify job below widens it, and only to
+# open and close its own tracking issue.
+permissions:
+  contents: read
+
 jobs:
   load-test:
     name: k6 smoke (ephemeral stack)
@@ -51,20 +56,38 @@ jobs:
       JWT_ACCESS_SECRET: nightly-only-access-secret-value
       JWT_REFRESH_SECRET: nightly-only-refresh-secret-value
       ENCRYPTION_KEY: nightly-only-encryption-key-value
-      NODE_ENV: production
       API_HOST: 127.0.0.1
       API_PORT: '3001'
-      APP_URL: https://signage.example.invalid
-      CORS_ORIGINS: https://signage.example.invalid
-      # NODE_ENV=production makes SMTP mandatory — env.validation.ts fails boot
-      # without it, so that mail delivery cannot silently fall back to log-only
-      # in a real deployment. Nothing is sent here: k6 exercises read paths only.
-      # The host is on the reserved .invalid TLD and cannot resolve, which is the
-      # point — a nightly that could email anyone is a nightly that eventually
-      # emails someone.
+      # example.com, not example.invalid: env.validation.ts rejects a .invalid
+      # dashboard origin as a local/private host, so the API cannot boot in
+      # production mode with one — and that rejection is correct, because a
+      # password-reset link pointing at an unresolvable host is a broken email.
+      # example.com is IANA-reserved for documentation. SMTP_HOST below stays on
+      # .invalid, which is the value that actually guarantees no mail can leave;
+      # only the SMTP coordinates decide that, not this origin.
+      APP_URL: https://signage.example.com
+      CORS_ORIGINS: https://signage.example.com
+      # Required because the API boots with NODE_ENV=production (set on the
+      # "Start the API" step): env.validation.ts fails boot without SMTP, so mail
+      # delivery cannot silently fall back to log-only in a real deployment.
+      # Nothing is sent here — k6 exercises read paths only — and the host is on
+      # the reserved .invalid TLD and cannot resolve, which is the point: a
+      # nightly that could email anyone is a nightly that eventually emails
+      # someone.
       SMTP_HOST: smtp.example.invalid
       SMTP_PORT: '587'
       SMTP_FROM: nightly@signage.example.invalid
+      # Production boot also requires object storage and captcha, for the same
+      # reason it requires SMTP: env.validation.ts refuses to start rather than
+      # let content storage fall back to ephemeral local disk, or serve the
+      # public signup endpoint without human verification. All synthetic and
+      # unreachable — nothing here is contacted, because k6 exercises read paths
+      # only. Booting in production mode is the point: it is what keeps these
+      # guards from silently regressing between releases.
+      SUPABASE_URL: https://nightly.supabase.example.com
+      SUPABASE_SERVICE_ROLE_KEY: nightly-only-service-role-key-value
+      SUPABASE_STORAGE_BUCKET: wizer-nightly
+      CAPTCHA_SECRET: nightly-only-captcha-secret-value
 
     steps:
       - name: Checkout
@@ -92,11 +115,25 @@ jobs:
         working-directory: apps/api
         run: pnpm prisma migrate deploy
 
+      # The `...` suffix builds @wizer/api AND its workspace dependencies. Without
+      # it, @wizer/shared and @wizer/types are never built and the API fails to
+      # compile with "Cannot find module '@wizer/shared'". This was invisible
+      # until the install above was fixed, because the job never reached here.
+      # Dockerfile.maintenance already uses the same form.
       - name: Build the API
-        run: pnpm --filter @wizer/api build
+        run: pnpm --filter "@wizer/api..." build
 
+      # NODE_ENV belongs to THIS step only. As a job-level variable it also
+      # reached `pnpm install`, where pnpm skips devDependencies under
+      # production — so the root `prepare` script could not find husky, the
+      # install failed, and every step after it was skipped. The k6 smoke had
+      # not run for at least six nights. The build needs devDependencies too,
+      # so the job was broken end to end; booting the API is the only place the
+      # production setting is actually wanted.
       - name: Start the API
         working-directory: apps/api
+        env:
+          NODE_ENV: production
         run: |
           node dist/main.js > "${RUNNER_TEMP}/api.log" 2>&1 &
           echo "API_PID=$!" >> "$GITHUB_ENV"
@@ -132,7 +169,7 @@ jobs:
 
       - name: API log (on failure)
         if: failure()
-        run: cat "${RUNNER_TEMP}/api.log"
+        run: cat "${RUNNER_TEMP}/api.log" 2>/dev/null || echo "(the API never started; the failure is above)"
 
       - name: Stop the API
         if: always()
@@ -192,3 +229,100 @@ jobs:
       # nightly is what turns "we have backups" into "we have restores".
       - name: Backup + maintenance end-to-end drill
         run: bash scripts/tests/backup-maintenance-e2e.sh
+
+  # ---------------------------------------------------------------------------
+  # This workflow failed on six consecutive nights and nobody heard about it.
+  # Fixing the job that broke does not fix that: the next silent breakage looks
+  # identical from the outside.
+  #
+  # TWO mechanisms, because they fail in different directions.
+  #
+  # A failure notification only fires when the workflow RUNS and fails. GitHub
+  # disables scheduled workflows after 60 days without repository activity, and
+  # a workflow that never runs never fails, so a failure hook alone reproduces
+  # exactly the silence it was added to prevent. The dead-man ping covers that:
+  # it is sent only when every job succeeded, so the external check alarms on
+  # "failed" and "never ran" alike.
+  #
+  # The tracking issue needs no configuration and works from the first run. The
+  # dead-man needs a secret and is skipped when it is absent -- an unconfigured
+  # ping must never be a red workflow, or the alerting becomes the noise.
+  # ---------------------------------------------------------------------------
+  notify:
+    name: Report nightly outcome
+    needs: [load-test, dependency-audit, backup-drill]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      ISSUE_TITLE: 'Nightly workflow is failing'
+      RESULTS: 'load-test=${{ needs.load-test.result }} dependency-audit=${{ needs.dependency-audit.result }} backup-drill=${{ needs.backup-drill.result }}'
+    steps:
+      - name: Determine outcome
+        id: outcome
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Job results: ${RESULTS}"
+
+      # Deliberately not a label: `gh issue create --label` fails when the label
+      # does not exist, which would turn a reporting step into a second failure.
+      - name: Find the existing tracking issue
+        id: existing
+        run: |
+          number="$(gh issue list --state open --limit 100 --json number,title \
+            --jq "[.[] | select(.title == \"${ISSUE_TITLE}\")][0].number // empty")"
+          echo "number=${number}" >> "$GITHUB_OUTPUT"
+
+      # One issue, many comments -- a fresh issue every night would be noise
+      # that people mute, which is how the last six nights went unnoticed.
+      - name: Open or update the tracking issue
+        if: steps.outcome.outputs.failed == 'true'
+        run: |
+          # printf, not a multi-line shell string: the continuation lines would
+          # carry this file's indentation into the issue and render as a code block.
+          body="$(printf 'Nightly run failed on %s.\n\nResults: %s\n\n%s\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${RESULTS}" "${RUN_URL}")"
+          if [ -n "${{ steps.existing.outputs.number }}" ]; then
+            gh issue comment "${{ steps.existing.outputs.number }}" --body "${body}"
+          else
+            gh issue create --title "${ISSUE_TITLE}" --body "${body}"
+          fi
+
+      - name: Close the tracking issue once the nightly is green again
+        if: steps.outcome.outputs.failed == 'false' && steps.existing.outputs.number != ''
+        run: |
+          gh issue close "${{ steps.existing.outputs.number }}" \
+            --comment "Nightly is green again as of $(date -u +%Y-%m-%dT%H:%M:%SZ). ${RUN_URL}"
+
+      # Sent ONLY on a fully green run, so the external check alarms both when
+      # the nightly fails and when it stops running at all. `|| true`: an
+      # unreachable dead-man endpoint must not fail the workflow -- the external
+      # service noticing the missing ping is the alarm, not this step's exit code.
+      - name: Ping the dead-man endpoint
+        if: steps.outcome.outputs.failed == 'false'
+        env:
+          NIGHTLY_HEALTHCHECK_URL: ${{ secrets.NIGHTLY_HEALTHCHECK_URL }}
+        run: |
+          if [ -z "${NIGHTLY_HEALTHCHECK_URL}" ]; then
+            echo "NIGHTLY_HEALTHCHECK_URL is not configured — no dead-man ping sent."
+            echo "Without it, a nightly that stops running entirely raises no alarm."
+            exit 0
+          fi
+          curl -fsS -m 10 -o /dev/null "${NIGHTLY_HEALTHCHECK_URL}" || true
+          echo "Dead-man ping sent."
+
+      # The workflow's own conclusion must still reflect reality: a green notify
+      # job on top of a failed nightly would be a worse lie than no notification.
+      - name: Fail if any job failed
+        if: steps.outcome.outputs.failed == 'true'
+        run: |
+          echo "Nightly failed — ${RESULTS}" >&2
+          exit 1
