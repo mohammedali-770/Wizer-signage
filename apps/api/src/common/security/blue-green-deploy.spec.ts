@@ -56,20 +56,22 @@ describe('blue/green deployment contract', () => {
     expect(rollback).toContain('docker-compose.blue-green-log-shipping.yml');
   });
 
-  // Measured during the off-box logging drill: at ~900 bytes/line Docker's 1 MiB
-  // default held roughly ten seconds of a moderately busy API, and a ten-second
-  // collector outage under load silently dropped 2945 of 4000 lines. Async mode
-  // reports none of that, so the buffer is the only thing standing between a
-  // routine collector blip and permanent log loss.
-  it('buffers enough log volume to survive a collector blip', () => {
+  // fluentd-buffer-limit is a COUNT OF EVENTS, not a byte size, and raising it
+  // does not reduce loss during a collector outage -- measured over a ten-second
+  // outage with 4000 lines in flight, 1048576 delivered 1092 and 8388608
+  // delivered 1097. An increase therefore buys nothing while enlarging a
+  // per-container channel inside dockerd, so the overlays must not carry one
+  // silently: loss is made visible by the canary, not prevented by this ceiling.
+  it('does not inflate the fluentd buffer in place of real delivery monitoring', () => {
     for (const overlay of [baseLogging, slotLogging]) {
       const limits = [...overlay.matchAll(/fluentd-buffer-limit:[^\n]*?:-(\d+)\}/g)].map((m) =>
         Number(m[1]),
       );
       expect(limits.length).toBeGreaterThan(0);
       for (const limit of limits) {
-        expect(limit).toBeGreaterThanOrEqual(8 * 1024 * 1024);
+        expect(limit).toBe(1048576);
       }
+      expect(overlay).toContain('COUNT OF BUFFERED EVENTS');
     }
   });
 

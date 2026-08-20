@@ -38,7 +38,7 @@ NET=lsd_net; COL=lsd_collector; WORK="$(mktemp -d)"
 PASS=0; FAIL=0
 ok(){ PASS=$((PASS+1)); echo "  ok   - $1"; }
 no(){ FAIL=$((FAIL+1)); echo "  FAIL - $1"; }
-cleanup(){ docker rm -f "$COL" lsd_app lsd_canary lsd_dark >/dev/null 2>&1 || true
+cleanup(){ docker rm -f "$COL" lsd_api_blue lsd_canary lsd_dark >/dev/null 2>&1 || true
            docker network rm "$NET" >/dev/null 2>&1 || true
            rm -rf "$WORK" || true; }
 trap cleanup EXIT
@@ -90,13 +90,19 @@ received(){ cat "$WORK"/out/received.*.log 2>/dev/null; }
 wait_for(){ for _ in $(seq 1 30); do received | grep -q "$1" && return 0; sleep 1; done; return 1; }
 
 echo "== A: a container line reaches the collector under its own tag =="
-docker run -d --name wizer-signage-api-blue --network "$NET" "${log_opts[@]}" \
+# The container name is what `tag: wizer.{{.Name}}` renders, so this case has to
+# use a slot-shaped name -- but NEVER a real one. `wizer-signage-api-blue` is the
+# live production blue slot's container_name (docker-compose.blue-green-slots.yml),
+# and `docker rm -f` on it would destroy the running API. The lsd_ prefix keeps
+# the rendered tag realistic while guaranteeing no collision with a real container.
+SLOT_NAME=lsd_api_blue
+docker run -d --name "$SLOT_NAME" --network "$NET" "${log_opts[@]}" \
   alpine:3.20 sh -c 'echo "{\"level\":\"error\",\"msg\":\"drill-line-alpha\"}"; sleep 60' >/dev/null
 if wait_for drill-line-alpha; then ok "A: emitted line arrived off-box"; else no "A: line never arrived"; fi
 TAG="$(received | grep drill-line-alpha | head -1 | sed -nE 's/.*"fluentd_tag":"([^"]+)".*/\1/p')"
-[ "$TAG" = "wizer.wizer-signage-api-blue" ] \
-  && ok "A: arrived under the per-slot tag ($TAG)" || no "A: unexpected tag '$TAG'"
-docker rm -f wizer-signage-api-blue >/dev/null 2>&1
+[ "$TAG" = "wizer.${SLOT_NAME}" ] \
+  && ok "A: arrived under the per-container tag ($TAG)" || no "A: unexpected tag '$TAG'"
+docker rm -f "$SLOT_NAME" >/dev/null 2>&1
 
 echo "== B: the canary marker survives the trip intact =="
 MARKER="$(bash "$REPO/scripts/log-shipping-canary.sh" | sed -nE 's/.*"marker":"([^"]+)".*/\1/p')"
@@ -117,11 +123,13 @@ else
   no "B: canary line lacks its logger name"
 fi
 # The arriving payload must still parse as the JSON the collector will index.
-if received | grep "$MARKER" | head -1 | python3 -c '
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "  skip - B: JSON validity (python3 not installed)"
+elif received | grep "$MARKER" | head -1 | python3 -c '
 import sys, json
 outer = json.loads(sys.stdin.readline())
 json.loads(outer["log"])
-' 2>/dev/null; then
+'; then
   ok "B: canary payload is still valid JSON at the collector"
 else
   no "B: canary payload did not survive as valid JSON"
@@ -142,10 +150,25 @@ LOCAL="$(docker logs lsd_dark 2>/dev/null | grep -c 'drill-dark-')"
 [ "$LOCAL" -gt 0 ] && ok "C: docker logs still shows $LOCAL lines locally" || no "C: local logs unexpectedly empty"
 AFTER="$(received | wc -l | tr -d ' ')"
 DARK="$(received | grep -c 'drill-dark-' || true)"
-[ "$DARK" -eq 0 ] \
-  && ok "C: zero lines reached the collector — the silent failure, reproduced" \
-  || no "C: expected no delivery, got $DARK lines"
-[ "$BEFORE" = "$AFTER" ] && ok "C: collector saw nothing at all from the dark container" || no "C: unexpected collector traffic"
+# That nothing arrives at a port nobody is listening on is a tautology; it is
+# recorded only as the precondition for the assertions that follow.
+[ "$DARK" -eq 0 ] && [ "$BEFORE" = "$AFTER" ] \
+  || no "C: precondition lost — the dark container delivered $DARK lines"
+
+# The finding worth proving is that this total loss is INVISIBLE. Each of these
+# is a place an operator would reasonably look to notice, and none of them shows
+# anything wrong.
+HEALTH="$(docker inspect lsd_dark --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
+[ "$STATE" = "running" ] && ok "C: state stays 'running' — nothing to notice there" || no "C: state was '$STATE'"
+[ "$LOCAL" -gt 0 ] && ok "C: docker logs looks completely normal ($LOCAL lines)" || no "C: local logs empty"
+EXITED="$(docker inspect lsd_dark --format '{{.State.ExitCode}}')"
+[ "$EXITED" = "0" ] && ok "C: no error exit code to alert on" || no "C: unexpected exit code $EXITED"
+case "$HEALTH" in
+  unhealthy) no "C: health status flagged the loss (unexpected — would be good news)" ;;
+  *) ok "C: health status ($HEALTH) does not reflect the loss" ;;
+esac
+echo "  note - C: total off-box loss, and none of state/logs/exit-code/health shows it"
+echo "         this is precisely what the log-shipping canary exists to surface"
 
 echo
 echo "== log-shipping drill: $PASS passed, $FAIL failed =="

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -5,7 +6,6 @@ const root = resolve(__dirname, '..', '..', '..', '..', '..');
 const dockerfile = readFileSync(resolve(root, 'infra/docker/Dockerfile.maintenance'), 'utf8');
 const crontab = readFileSync(resolve(root, 'infra/docker/crontab'), 'utf8');
 const ci = readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf8');
-const canary = readFileSync(resolve(root, 'scripts/log-shipping-canary.sh'), 'utf8');
 const observability = readFileSync(resolve(root, 'docs/observability.md'), 'utf8');
 
 describe('maintenance runtime image / cron contract', () => {
@@ -64,14 +64,40 @@ describe('maintenance runtime image / cron contract', () => {
     expect(crontab).toContain('log-shipping-canary.sh');
     expect(crontab).toMatch(/\*\/\d+ \* \* \* \*[^\n]*log-shipping-canary\.sh/);
 
-    const marker = canary.match(/LOG_CANARY_MARKER='([^']+)'/);
-    expect(marker).not.toBeNull();
-    expect(canary).toContain(`"marker":"%s"`);
+    // RUN the script rather than reading it. What matters is the string that
+    // actually reaches the collector, and a source-only assertion would stay
+    // green while the emitted marker drifted -- which is exactly the failure
+    // mode this canary exists to rule out everywhere else.
+    const emitted = execFileSync('bash', [resolve(root, 'scripts/log-shipping-canary.sh')], {
+      encoding: 'utf8',
+      env: { ...process.env, IMAGE_TAG: 'spec-release' },
+    });
+    const parsed = JSON.parse(emitted);
 
-    // The operator configures their collector against the marker printed in the
-    // runbook. If the script's value drifts from it the alert stops firing and
+    expect(parsed.logger).toBe('log-shipping-canary');
+    expect(parsed.release).toBe('spec-release');
+    expect(typeof parsed.marker).toBe('string');
+    expect(parsed.marker.length).toBeGreaterThan(0);
+
+    // The operator configures their collector rule against the marker printed in
+    // the runbook. If the emitted value drifts from it the alert stops firing and
     // nothing else in the system would notice.
-    expect(observability).toContain(marker?.[1]);
+    expect(observability).toContain(parsed.marker);
+  });
+
+  // A canary that emits malformed JSON breaks the collector rule in the one way
+  // nothing downstream would report. IMAGE_TAG comes from the deploy environment.
+  it('emits well-formed JSON even for hostile release tags', () => {
+    for (const tag of ['v1.2.3', 'a"b\\c', 'tag\nwith\nnewlines', '$(id)', '%s%n']) {
+      const emitted = execFileSync('bash', [resolve(root, 'scripts/log-shipping-canary.sh')], {
+        encoding: 'utf8',
+        env: { ...process.env, IMAGE_TAG: tag },
+      });
+      const parsed = JSON.parse(emitted);
+      expect(parsed.marker).toBe('wizer.log-shipping.canary');
+      expect(parsed.release).not.toContain('"');
+      expect(parsed.release).not.toContain('\n');
+    }
   });
 
   it('keeps the fast OTA reconciliation and daily partition-preparation jobs', () => {

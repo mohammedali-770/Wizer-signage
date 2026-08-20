@@ -40,10 +40,25 @@ set -uo pipefail
 # apps/api/src/common/security/maintenance-runtime.spec.ts.
 LOG_CANARY_MARKER='wizer.log-shipping.canary'
 
+# The collector parses these lines as JSON, so a quote, backslash or newline in
+# an interpolated value would emit a malformed record and quietly break the
+# dead-man rule that matches on it. IMAGE_TAG comes from the deploy environment
+# and the hostname from the container runtime; neither is guaranteed benign, and
+# a canary that emits invalid JSON fails in the one way nothing else would catch.
+# Restricting to a conservative charset guarantees a well-formed line.
+json_safe() {
+  printf '%s' "${1}" | tr -cd 'A-Za-z0-9._:+-' | cut -c1-128
+}
+
+CANARY_HOST="$(json_safe "$(hostname 2>/dev/null || echo unknown)")"
+CANARY_RELEASE="$(json_safe "${IMAGE_TAG:-unknown}")"
+[ -n "${CANARY_HOST}" ] || CANARY_HOST=unknown
+[ -n "${CANARY_RELEASE}" ] || CANARY_RELEASE=unknown
+
 printf '{"level":"info","logger":"log-shipping-canary","marker":"%s","host":"%s","at":"%s","release":"%s"}\n' \
   "${LOG_CANARY_MARKER}" \
-  "$(hostname 2>/dev/null || echo unknown)" \
+  "${CANARY_HOST}" \
   "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  "${IMAGE_TAG:-unknown}"
+  "${CANARY_RELEASE}"
 
 exit 0
