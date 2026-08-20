@@ -74,7 +74,15 @@ server {
     # exact public-edge tombstone here so the generic /api/ proxy below can never
     # expose the endpoint if routes are reordered/refactored. METRICS_TOKEN is
     # still mandatory defense-in-depth on the direct internal request.
-    location = /api/internal/metrics {
+    # Regex, not `location = `, and case-insensitive. An exact-match tombstone
+    # covers exactly one spelling, while Express routes every spelling it will
+    # accept to the same handler: it is case-insensitive and non-strict about a
+    # trailing slash by default. Verified against a real nginx in front of a real
+    # API -- `/api/internal/metrics/` and `/api/Internal/metrics` both walked
+    # straight past the exact match and reached the endpoint through the public
+    # edge. The token guard still refused them anonymously, but this tombstone
+    # exists precisely so the token is not the only thing standing there.
+    location ~* ^/api/internal/metrics/?$ {
         return 404;
     }
 
