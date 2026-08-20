@@ -129,6 +129,7 @@ Start with service-level alerts rather than one Prometheus alert series per scre
 - memory approaching container limit;
 - backup dead-man check missed;
 - **log-shipping canary missed** — off-box delivery has stopped (see “Proving logs still leave the host” above);
+- **nightly dead-man missed** — the nightly workflow failed, or stopped running altogether (see below);
 - TLS expiry check failed;
 - player version fragmentation;
 - concentration of the same Android crash fingerprint after a release.
@@ -144,3 +145,21 @@ Per-screen offline/warning notifications remain in Wizer's application alerting 
 5. Use activity logs for operator changes and fleet-health data for Android-version/crash clusters.
 
 This is the production error/metrics equivalent required by the readiness plan; Sentry can be added later as an optional visualization/alerting vendor, not as a prerequisite for Wizer availability.
+
+## Knowing the nightly still runs
+
+The nightly workflow (`.github/workflows/nightly.yml`) carries the checks that must not gate every push but must not go unrun either: the k6 load smoke with its p95/error thresholds, the backup-and-restore drill, and the production dependency audit.
+
+It failed on six consecutive nights without reaching anyone, and the k6 smoke inside it had never executed once. Two mechanisms now report on it, because they fail in different directions.
+
+**A tracking issue**, opened on the first failure and commented on thereafter — one issue, not one per night, because a nightly issue is noise and noise gets muted. It closes itself when the nightly is green again. This needs no configuration and works from the first run.
+
+**A dead-man ping**, sent only when every job succeeded. This is the half that catches what a failure notification structurally cannot: GitHub **disables scheduled workflows after 60 days without repository activity**, and a workflow that never runs never fails. An external check alarms on "failed" and "never ran" alike.
+
+To enable the dead-man, set a repository secret:
+
+```
+NIGHTLY_HEALTHCHECK_URL = https://hc-ping.com/<uuid>
+```
+
+Give that check a period of **~26 hours** — comfortably longer than the daily schedule, so one slow queue does not page anyone. When the secret is absent the step logs that no ping was sent and exits 0: an unconfigured dead-man must never be a red build, or the alerting becomes the noise it exists to prevent.

@@ -18,6 +18,7 @@ function job(name: string): string {
 }
 
 const loadTest = job('load-test');
+const notify = job('notify');
 // Everything above the first `steps:` is job-level configuration.
 const jobEnv = loadTest.slice(0, loadTest.indexOf('\n    steps:'));
 const steps = loadTest.slice(loadTest.indexOf('\n    steps:'));
@@ -90,5 +91,49 @@ describe('nightly k6 load-test job', () => {
     expect(smtpHost).toMatch(/\.invalid$/);
     const smtpFrom = jobEnv.match(/^ {6}SMTP_FROM: (\S+)$/m)?.[1];
     expect(smtpFrom).toMatch(/\.invalid$/);
+  });
+});
+
+// Six nights of failures reached nobody. The job that broke is fixed, but the
+// silence around it is a separate defect: the next breakage looks identical from
+// the outside unless something reports it.
+describe('nightly failure reporting', () => {
+  it('reports on every outcome, not only on success', () => {
+    expect(notify).toContain('if: always()');
+    // Must depend on all three real jobs, or a failure in an unwatched one is
+    // exactly as silent as before.
+    expect(notify).toContain('needs: [load-test, dependency-audit, backup-drill]');
+  });
+
+  it('still fails the workflow when a job failed', () => {
+    // A green notify job sitting on top of a failed nightly would be a worse
+    // lie than no notification at all -- the run must stay red.
+    expect(notify).toContain('- name: Fail if any job failed');
+    expect(notify).toMatch(/Fail if any job failed[\s\S]*exit 1/);
+  });
+
+  it('reuses one tracking issue instead of opening one per night', () => {
+    // A fresh issue every night is noise, and noise is what people mute.
+    expect(notify).toContain('gh issue comment');
+    expect(notify).toContain('gh issue create');
+    expect(notify).toContain('gh issue close');
+  });
+
+  it('pings a dead-man only on a fully green run', () => {
+    // A failure hook cannot fire when the workflow never runs -- GitHub disables
+    // scheduled workflows after 60 days of repository inactivity. The dead-man is
+    // what covers "stopped running entirely", so it must be gated on success.
+    expect(notify).toMatch(
+      /- name: Ping the dead-man endpoint\n +if: steps\.outcome\.outputs\.failed == 'false'/,
+    );
+    expect(notify).toContain('NIGHTLY_HEALTHCHECK_URL');
+  });
+
+  it('does not turn an unconfigured or unreachable dead-man into a red build', () => {
+    // Otherwise the alerting itself becomes the noise it exists to prevent.
+    const ping = notify.slice(notify.indexOf('- name: Ping the dead-man endpoint'));
+    expect(ping).toContain('is not configured');
+    expect(ping).toContain('exit 0');
+    expect(ping).toMatch(/curl[^\n]*\|\| true/);
   });
 });

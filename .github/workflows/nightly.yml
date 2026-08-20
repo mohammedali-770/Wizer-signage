@@ -24,6 +24,11 @@ concurrency:
   group: nightly
   cancel-in-progress: false
 
+# Least privilege by default; only the notify job below widens it, and only to
+# open and close its own tracking issue.
+permissions:
+  contents: read
+
 jobs:
   load-test:
     name: k6 smoke (ephemeral stack)
@@ -224,3 +229,100 @@ jobs:
       # nightly is what turns "we have backups" into "we have restores".
       - name: Backup + maintenance end-to-end drill
         run: bash scripts/tests/backup-maintenance-e2e.sh
+
+  # ---------------------------------------------------------------------------
+  # This workflow failed on six consecutive nights and nobody heard about it.
+  # Fixing the job that broke does not fix that: the next silent breakage looks
+  # identical from the outside.
+  #
+  # TWO mechanisms, because they fail in different directions.
+  #
+  # A failure notification only fires when the workflow RUNS and fails. GitHub
+  # disables scheduled workflows after 60 days without repository activity, and
+  # a workflow that never runs never fails, so a failure hook alone reproduces
+  # exactly the silence it was added to prevent. The dead-man ping covers that:
+  # it is sent only when every job succeeded, so the external check alarms on
+  # "failed" and "never ran" alike.
+  #
+  # The tracking issue needs no configuration and works from the first run. The
+  # dead-man needs a secret and is skipped when it is absent -- an unconfigured
+  # ping must never be a red workflow, or the alerting becomes the noise.
+  # ---------------------------------------------------------------------------
+  notify:
+    name: Report nightly outcome
+    needs: [load-test, dependency-audit, backup-drill]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      ISSUE_TITLE: 'Nightly workflow is failing'
+      RESULTS: 'load-test=${{ needs.load-test.result }} dependency-audit=${{ needs.dependency-audit.result }} backup-drill=${{ needs.backup-drill.result }}'
+    steps:
+      - name: Determine outcome
+        id: outcome
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Job results: ${RESULTS}"
+
+      # Deliberately not a label: `gh issue create --label` fails when the label
+      # does not exist, which would turn a reporting step into a second failure.
+      - name: Find the existing tracking issue
+        id: existing
+        run: |
+          number="$(gh issue list --state open --limit 100 --json number,title \
+            --jq "[.[] | select(.title == \"${ISSUE_TITLE}\")][0].number // empty")"
+          echo "number=${number}" >> "$GITHUB_OUTPUT"
+
+      # One issue, many comments -- a fresh issue every night would be noise
+      # that people mute, which is how the last six nights went unnoticed.
+      - name: Open or update the tracking issue
+        if: steps.outcome.outputs.failed == 'true'
+        run: |
+          # printf, not a multi-line shell string: the continuation lines would
+          # carry this file's indentation into the issue and render as a code block.
+          body="$(printf 'Nightly run failed on %s.\n\nResults: %s\n\n%s\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${RESULTS}" "${RUN_URL}")"
+          if [ -n "${{ steps.existing.outputs.number }}" ]; then
+            gh issue comment "${{ steps.existing.outputs.number }}" --body "${body}"
+          else
+            gh issue create --title "${ISSUE_TITLE}" --body "${body}"
+          fi
+
+      - name: Close the tracking issue once the nightly is green again
+        if: steps.outcome.outputs.failed == 'false' && steps.existing.outputs.number != ''
+        run: |
+          gh issue close "${{ steps.existing.outputs.number }}" \
+            --comment "Nightly is green again as of $(date -u +%Y-%m-%dT%H:%M:%SZ). ${RUN_URL}"
+
+      # Sent ONLY on a fully green run, so the external check alarms both when
+      # the nightly fails and when it stops running at all. `|| true`: an
+      # unreachable dead-man endpoint must not fail the workflow -- the external
+      # service noticing the missing ping is the alarm, not this step's exit code.
+      - name: Ping the dead-man endpoint
+        if: steps.outcome.outputs.failed == 'false'
+        env:
+          NIGHTLY_HEALTHCHECK_URL: ${{ secrets.NIGHTLY_HEALTHCHECK_URL }}
+        run: |
+          if [ -z "${NIGHTLY_HEALTHCHECK_URL}" ]; then
+            echo "NIGHTLY_HEALTHCHECK_URL is not configured — no dead-man ping sent."
+            echo "Without it, a nightly that stops running entirely raises no alarm."
+            exit 0
+          fi
+          curl -fsS -m 10 -o /dev/null "${NIGHTLY_HEALTHCHECK_URL}" || true
+          echo "Dead-man ping sent."
+
+      # The workflow's own conclusion must still reflect reality: a green notify
+      # job on top of a failed nightly would be a worse lie than no notification.
+      - name: Fail if any job failed
+        if: steps.outcome.outputs.failed == 'true'
+        run: |
+          echo "Nightly failed — ${RESULTS}" >&2
+          exit 1
