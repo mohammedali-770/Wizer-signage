@@ -55,7 +55,13 @@ case "$1" in
     ;;
   inspect)
     if [[ "$*" == *"State.Health"* ]]; then
-      echo healthy
+      # A case may declare the maintenance worker unhealthy; everything else is
+      # healthy so the target-selection cases are unaffected.
+      if [[ "$*" == *wizer-signage-maintenance* && -f "${STUB_STATE}/maintenance_health" ]]; then
+        cat "${STUB_STATE}/maintenance_health"
+      else
+        echo healthy
+      fi
     else
       for arg in "$@"; do
         case "${arg}" in
@@ -117,7 +123,10 @@ EOF
     echo "wizer-signage/api:${live_slot} ${live_sha}"
     echo "wizer-signage/api:${target_slot} ${target_sha}"
     echo "wizer-signage/dashboard:${target_slot} ${target_sha}"
+    # Maintenance is tagged by release, not by slot: it has no colour.
+    echo "wizer-signage/maintenance:${target_sha:0:12} ${target_sha}"
   } > "${WORK}/state/labels"
+  rm -f "${WORK}/state/maintenance_health"
 }
 
 run_rollback() {
@@ -338,6 +347,98 @@ else
   no "a failed rollback records nothing and never reloads nginx" \
      "rc=${rc} rollbacks=$(cat "${WORK}/rollbacks") out=${out}"
 fi
+
+# --- 8. The maintenance worker moves with the rollback -----------------------
+# It carries no traffic, so nothing about the switch itself notices when it is
+# left behind. deploy-blue-green.sh puts it on the new release after the public
+# gates pass; a rollback that does not put it back leaves the nightly backup,
+# the TLS expiry check and the log-shipping canary running the release that was
+# just judged bad — and this repository has shipped two releases whose defect
+# was in exactly that component.
+cat > "${WORK}/bg-history" <<EOF
+2026-08-03T09:00:00Z blue ${TAG_A} ${SHA_A}
+2026-08-03T10:00:00Z green ${TAG_B} ${SHA_B}
+EOF
+: > "${WORK}/rollbacks"
+seed green "${SHA_B}" blue "${SHA_A}"
+out="$(run_rollback)"; rc=$?
+if (( rc == 0 )) \
+   && grep -q "wizer-signage/maintenance:${TAG_A}" "${WORK}/stub.log" \
+   && grep -q -- '--no-deps maintenance' "${WORK}/stub.log"; then
+  ok "returns the maintenance worker to the release traffic was rolled back to"
+else
+  no "returns the maintenance worker to the release traffic was rolled back to" \
+     "rc=${rc} out=${out}"
+fi
+
+# --- 8b. Failing to move it is a PARTIAL rollback, not a clean one -----------
+# Traffic is correct, so this is not a failed rollback; but a zero exit would
+# leave the operator believing the bad release is gone while the container that
+# protects the data still runs it. The release images are gone from the host and
+# no registry prefix is configured, so recovery is impossible.
+cat > "${WORK}/bg-history" <<EOF
+2026-08-03T09:00:00Z blue ${TAG_A} ${SHA_A}
+2026-08-03T10:00:00Z green ${TAG_B} ${SHA_B}
+EOF
+: > "${WORK}/rollbacks"
+seed green "${SHA_B}" blue "${SHA_A}"
+grep -v 'wizer-signage/maintenance:' "${WORK}/state/labels" > "${WORK}/state/labels.tmp"
+mv "${WORK}/state/labels.tmp" "${WORK}/state/labels"
+out="$(run_rollback)"; rc=$?
+if (( rc != 0 )) && [[ "${out}" == *"PARTIAL ROLLBACK"* ]] \
+   && grep -q 'nginx -s reload' "${WORK}/stub.log" \
+   && grep -q 'ROLLBACK from=' "${WORK}/rollbacks"; then
+  ok "reports a partial rollback when the maintenance worker cannot be moved back"
+else
+  no "reports a partial rollback when the maintenance worker cannot be moved back" \
+     "rc=${rc} rollbacks=$(cat "${WORK}/rollbacks") out=${out}"
+fi
+
+# --- 8c. The legacy fallback does not invent a maintenance release -----------
+# Rolling back past every blue/green release leaves no recorded release to
+# return the worker to. If it never moved onto the escaped release there is
+# nothing to fix, and refusing there would break the last escape hatch.
+cat > "${WORK}/bg-history" <<EOF
+2026-08-03T09:00:00Z blue ${TAG_A} ${SHA_A}
+2026-08-03T10:00:00Z green ${TAG_B} ${SHA_B}
+EOF
+cat > "${WORK}/rollbacks" <<EOF
+2026-08-03T10:30:00Z ROLLBACK from=green/${TAG_B} to=blue/${TAG_A} targetSha=${SHA_A}
+2026-08-03T11:30:00Z ROLLBACK from=blue/${TAG_A} to=legacy/legacy targetSha=unknown
+EOF
+: > "${WORK}/legacy-history"
+seed green "${SHA_B}" blue "${SHA_A}"
+out="$(run_rollback)"; rc=$?
+if (( rc == 0 )) && [[ "${out}" == *"not on the rolled-back release"* ]] \
+   && ! grep -q -- '--no-deps maintenance' "${WORK}/stub.log"; then
+  ok "the legacy fallback leaves a worker that never moved alone"
+else
+  no "the legacy fallback leaves a worker that never moved alone" "rc=${rc} out=${out}"
+fi
+
+# --- 8d. A worker that starts but is not running cron is not "moved" ---------
+# `docker compose up -d` returns when the container is STARTED. If crond exits
+# straight after — a bad image, a broken crontab, a missing mount — the detached
+# call still succeeds, and reporting a clean rollback there would restate the
+# very assumption this change removes: a container that started is not a
+# container running cron, just as a dump that exists is not a dump that restores.
+cat > "${WORK}/bg-history" <<EOF
+2026-08-03T09:00:00Z blue ${TAG_A} ${SHA_A}
+2026-08-03T10:00:00Z green ${TAG_B} ${SHA_B}
+EOF
+: > "${WORK}/rollbacks"
+seed green "${SHA_B}" blue "${SHA_A}"
+echo unhealthy > "${WORK}/state/maintenance_health"
+out="$(run_rollback)"; rc=$?
+if (( rc != 0 )) && [[ "${out}" == *"PARTIAL ROLLBACK"* ]] \
+   && grep -q -- '--no-deps maintenance' "${WORK}/stub.log" \
+   && grep -q 'nginx -s reload' "${WORK}/stub.log"; then
+  ok "an unhealthy maintenance worker is a partial rollback, not a clean one"
+else
+  no "an unhealthy maintenance worker is a partial rollback, not a clean one" \
+     "rc=${rc} out=${out}"
+fi
+rm -f "${WORK}/state/maintenance_health"
 
 echo
 echo "=== ${pass} passed, ${fail} failed ==="

@@ -89,7 +89,18 @@ These cannot be satisfied from the repository and gate the items above.
 
 - **Off-box logs are lossy by design.** `fluentd-async` drops a large fraction of logs during a collector outage — measured at ~73% over ten seconds — and does not flush the tail when a container exits. The buffer limit does **not** control this; it counts events, not bytes, and raising it changes nothing measurable. Local `docker logs` retains what the off-box copy drops. During an incident the host is the fuller record.
 - **Preflight compares host against image, not against the live server.** The PostgreSQL client major is pinned to 16 by a test tied to CI's Postgres service. On a server upgrade, `Dockerfile.maintenance` and the host package must move together; what catches a stale pin is that test and this note, not the preflight.
-- **`scripts/rollback-blue-green.sh:29`** assigns `BASE_COMPOSE` and never uses it.
+
+## Correction — 2026-08-27
+
+The previous revision listed `scripts/rollback-blue-green.sh:29` under known limitations as a harmless dead assignment: "assigns `BASE_COMPOSE` and never uses it." It was not harmless, and it fits the pattern the drill table above describes.
+
+`deploy-blue-green.sh:263` moves the **maintenance** container onto the new release image after the public gates pass. `rollback-blue-green.sh` rolled back the API, the dashboard and the Nginx upstreams and never touched it, so every rollback left the nightly `backup-db.sh`, the TLS expiry check and the log-shipping canary running the release that had just been judged bad. `BASE_COMPOSE` is the handle the rollback needs to bring maintenance back; it was assigned and then the step was never written, which is why the variable read as dead code rather than as a missing operation.
+
+Two of the seven defects in the table above were in that exact component — the `pg_dump` 18-against-16 dumps that could not be restored (#107) and the transfer path that truncated a dump to 3 bytes and exited 0 (#106). A rollback triggered by either of those would have restored traffic and left the broken backup worker running.
+
+Fixed: the rollback now returns the maintenance worker to the target release, verifying the image's `org.opencontainers.image.revision` and re-pulling from the registry when the host no longer has it. If it cannot, the script reports `PARTIAL ROLLBACK` and exits non-zero — traffic restored, worker not — rather than reporting a clean rollback. `scripts/tests/rollback-blue-green.test.sh` covers all three outcomes and fails against the unfixed script.
+
+This was found by reading the script rather than by a drill, which is the one route the eight drills did not cover: no drill asserts the maintenance container's image after a rollback.
 
 ## Definition of 100% for this audit
 

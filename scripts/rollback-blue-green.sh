@@ -223,6 +223,81 @@ ensure_slot_image() {
   }
 }
 
+# The maintenance worker carries no traffic and is not slot-based, which is why
+# it is easy to leave behind in a rollback -- and why leaving it behind is the
+# most dangerous omission available here. deploy-blue-green.sh moves it onto the
+# new release image once the public gates pass, so a rollback that only moves
+# api/dashboard/nginx leaves the nightly `backup-db.sh`, the TLS expiry check and
+# the log-shipping canary all running the release just judged bad. Two releases
+# in this repository's history were bad in precisely that component: one shipped
+# a pg_dump major the production server rejects, so every dump was unrestorable,
+# and one shipped a transfer path that truncated a gzip dump to 3 bytes and
+# exited 0. Rolling the app back while the backup worker keeps running that code
+# is the worst of both states: the outage reads as resolved while the data
+# protection is still broken.
+#
+# Returns 0 when the maintenance worker is known not to be running the release
+# being escaped, 1 when it is (or may be) and could not be moved off it.
+maintenance_revision() {
+  docker inspect wizer-signage-maintenance --format '{{index .Config.Image}}' 2>/dev/null \
+    | xargs docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' 2>/dev/null \
+    || true
+}
+
+restore_maintenance_worker() {
+  local tag="$1" expected_sha="$2"
+  local image actual=""
+
+  # The legacy fallback has no recorded release, so there is no known-good
+  # maintenance image to return to. That is only a problem if the worker is
+  # actually on the release being escaped; if it never moved, leave it alone.
+  if [[ -z "${tag}" || -z "${expected_sha}" ]]; then
+    local running; running="$(maintenance_revision)"
+    if [[ -n "${CURRENT_SHA}" && "${running}" == "${CURRENT_SHA}" ]]; then
+      echo "ERROR: the maintenance worker runs ${CURRENT_SHA}, the release being rolled away from," >&2
+      echo "       and the rollback target records no maintenance release to return it to." >&2
+      return 1
+    fi
+    echo "    [rollback] Maintenance worker is not on the rolled-back release; left as is."
+    return 0
+  fi
+
+  image="wizer-signage/maintenance:${tag}"
+  actual="$(docker image inspect "${image}" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' 2>/dev/null || true)"
+  if [[ "${actual}" != "${expected_sha}" ]]; then
+    [[ -n "${IMAGE_REGISTRY_PREFIX}" && "${tag}" =~ ^[0-9a-f]{12}$ ]] || {
+      echo "ERROR: the previous maintenance image is missing/mismatched and registry recovery is unavailable." >&2
+      return 1
+    }
+    echo "==> [rollback] Re-pulling verified maintenance release ${tag}..."
+    bash "${SCRIPT_DIR}/pull-release-images.sh" "${tag}" || return 1
+    actual="$(docker image inspect "${image}" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' 2>/dev/null || true)"
+    [[ "${actual}" == "${expected_sha}" ]] || {
+      echo "ERROR: recovered maintenance image revision '${actual}' != '${expected_sha}'." >&2
+      return 1
+    }
+  fi
+
+  # IMAGE_TAG is set for the command rather than relied on from .env because the
+  # container reads it as an env var as well: the log-shipping canary stamps it
+  # on every line it ships, so a stale value would attribute an off-box logging
+  # gap to the wrong release.
+  IMAGE_TAG="${tag}" "${BASE_COMPOSE[@]}" up -d --no-build --no-deps maintenance || return 1
+
+  # `up -d` returns when the container is STARTED, which is not the same as the
+  # worker running. If crond exits immediately after start -- a bad image, a
+  # broken crontab, a missing mount -- the detached call still succeeds and the
+  # rollback would report the worker moved while backups are silently offline.
+  # That is the same assumption this whole change exists to remove: a container
+  # that started is not a container running cron, exactly as a dump that exists
+  # is not a dump that restores. An unhealthy worker routes to the partial
+  # rollback instead of being reported as a clean one.
+  #
+  # This waits after traffic is already restored and smoke has passed, so it
+  # costs the outage nothing; it only delays the script's exit.
+  wait_healthy wizer-signage-maintenance 'maintenance worker' || return 1
+}
+
 if [[ "${TARGET_SLOT}" == "legacy" ]]; then
   echo "==> [rollback] Targeting pre-blue/green legacy containers (${TARGET_TAG:-unknown})."
   docker start wizer-signage-api wizer-signage-dashboard >/dev/null
@@ -296,6 +371,13 @@ if [[ "${SKIP_SMOKE:-0}" != "1" ]] && ! bash "${SCRIPT_DIR}/smoke-test.sh" "${SM
   exit 1
 fi
 
+# Only once the rollback target is publicly healthy, mirroring the order
+# deploy-blue-green.sh uses: never move the backup worker onto a release the
+# public gates have not just accepted.
+echo "==> [rollback] Returning maintenance worker to ${TARGET_TAG:-the pre-blue/green release}..."
+MAINTENANCE_RESTORED=1
+restore_maintenance_worker "${TARGET_TAG}" "${TARGET_SHA}" || MAINTENANCE_RESTORED=0
+
 # Keep the just-replaced dashboard as static backup. Stop only its API after
 # graceful old-worker drainage; it can be restarted again from the slot tag.
 if (( API_DRAIN_SECONDS > 0 )); then sleep "${API_DRAIN_SECONDS}"; fi
@@ -307,4 +389,20 @@ printf '%s ROLLBACK from=%s/%s to=%s/%s targetSha=%s\n' \
   "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${CURRENT_SLOT}" "${CURRENT_TAG:-unknown}" \
   "${TARGET_SLOT}" "${TARGET_TAG:-legacy}" "${TARGET_SHA:-unknown}" >> "${ROLLBACK_HISTORY}"
 
-echo "==> [rollback] SUCCESS — traffic now serves ${TARGET_SLOT}/${TARGET_TAG:-legacy}."
+if (( MAINTENANCE_RESTORED == 0 )); then
+  # Traffic is correct, so this is deliberately not reported as a failed
+  # rollback. It is not reported as a clean one either: the operator is left with
+  # a backup worker running a release just judged bad, and a zero exit there is
+  # exactly the silent success this repository has already been bitten by.
+  echo "ERROR: PARTIAL ROLLBACK." >&2
+  echo "       Traffic IS restored to ${TARGET_SLOT}/${TARGET_TAG:-legacy}." >&2
+  echo "       The maintenance worker is NOT, so tonight's backup, the TLS expiry check" >&2
+  echo "       and the log-shipping canary still run the rolled-back release." >&2
+  echo "       Return it to a known-good release before the next backup window:" >&2
+  echo "         scripts/pull-release-images.sh <release-tag>" >&2
+  echo "         IMAGE_TAG=<release-tag> docker compose --env-file ${ENV_FILE} \\" >&2
+  echo "           -f ${BASE} -f ${PROXY} -f ${LOGGING} up -d --no-build --no-deps maintenance" >&2
+  exit 1
+fi
+
+echo "==> [rollback] SUCCESS — traffic now serves ${TARGET_SLOT}/${TARGET_TAG:-legacy}; maintenance worker moved with it."
