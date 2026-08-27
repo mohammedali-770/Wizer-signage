@@ -282,7 +282,20 @@ restore_maintenance_worker() {
   # container reads it as an env var as well: the log-shipping canary stamps it
   # on every line it ships, so a stale value would attribute an off-box logging
   # gap to the wrong release.
-  IMAGE_TAG="${tag}" "${BASE_COMPOSE[@]}" up -d --no-build --no-deps maintenance
+  IMAGE_TAG="${tag}" "${BASE_COMPOSE[@]}" up -d --no-build --no-deps maintenance || return 1
+
+  # `up -d` returns when the container is STARTED, which is not the same as the
+  # worker running. If crond exits immediately after start -- a bad image, a
+  # broken crontab, a missing mount -- the detached call still succeeds and the
+  # rollback would report the worker moved while backups are silently offline.
+  # That is the same assumption this whole change exists to remove: a container
+  # that started is not a container running cron, exactly as a dump that exists
+  # is not a dump that restores. An unhealthy worker routes to the partial
+  # rollback instead of being reported as a clean one.
+  #
+  # This waits after traffic is already restored and smoke has passed, so it
+  # costs the outage nothing; it only delays the script's exit.
+  wait_healthy wizer-signage-maintenance 'maintenance worker' || return 1
 }
 
 if [[ "${TARGET_SLOT}" == "legacy" ]]; then

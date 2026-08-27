@@ -55,7 +55,13 @@ case "$1" in
     ;;
   inspect)
     if [[ "$*" == *"State.Health"* ]]; then
-      echo healthy
+      # A case may declare the maintenance worker unhealthy; everything else is
+      # healthy so the target-selection cases are unaffected.
+      if [[ "$*" == *wizer-signage-maintenance* && -f "${STUB_STATE}/maintenance_health" ]]; then
+        cat "${STUB_STATE}/maintenance_health"
+      else
+        echo healthy
+      fi
     else
       for arg in "$@"; do
         case "${arg}" in
@@ -120,6 +126,7 @@ EOF
     # Maintenance is tagged by release, not by slot: it has no colour.
     echo "wizer-signage/maintenance:${target_sha:0:12} ${target_sha}"
   } > "${WORK}/state/labels"
+  rm -f "${WORK}/state/maintenance_health"
 }
 
 run_rollback() {
@@ -408,6 +415,30 @@ if (( rc == 0 )) && [[ "${out}" == *"not on the rolled-back release"* ]] \
 else
   no "the legacy fallback leaves a worker that never moved alone" "rc=${rc} out=${out}"
 fi
+
+# --- 8d. A worker that starts but is not running cron is not "moved" ---------
+# `docker compose up -d` returns when the container is STARTED. If crond exits
+# straight after — a bad image, a broken crontab, a missing mount — the detached
+# call still succeeds, and reporting a clean rollback there would restate the
+# very assumption this change removes: a container that started is not a
+# container running cron, just as a dump that exists is not a dump that restores.
+cat > "${WORK}/bg-history" <<EOF
+2026-08-03T09:00:00Z blue ${TAG_A} ${SHA_A}
+2026-08-03T10:00:00Z green ${TAG_B} ${SHA_B}
+EOF
+: > "${WORK}/rollbacks"
+seed green "${SHA_B}" blue "${SHA_A}"
+echo unhealthy > "${WORK}/state/maintenance_health"
+out="$(run_rollback)"; rc=$?
+if (( rc != 0 )) && [[ "${out}" == *"PARTIAL ROLLBACK"* ]] \
+   && grep -q -- '--no-deps maintenance' "${WORK}/stub.log" \
+   && grep -q 'nginx -s reload' "${WORK}/stub.log"; then
+  ok "an unhealthy maintenance worker is a partial rollback, not a clean one"
+else
+  no "an unhealthy maintenance worker is a partial rollback, not a clean one" \
+     "rc=${rc} out=${out}"
+fi
+rm -f "${WORK}/state/maintenance_health"
 
 echo
 echo "=== ${pass} passed, ${fail} failed ==="
