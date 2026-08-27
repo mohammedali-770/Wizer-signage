@@ -82,6 +82,16 @@ ENV DASHBOARD_PORT=3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
+# Refresh the base image's OpenSSL runtime. Unlike the API and maintenance
+# images, this stage installs nothing with apk, so it keeps whatever libcrypto3
+# and libssl3 `node:26-alpine` was built with -- and those go stale the moment
+# Alpine publishes a fix, however current the Node tag is. CI's Trivy gate runs
+# with `ignore-unfixed: true`, so it fails only when a patch already exists,
+# which is exactly this case: CVE-2026-14456 was fixed in 3.5.8-r0 while the
+# base still shipped 3.5.7-r0. The API image never saw it because its
+# `apk add --no-cache openssl` pulls the same packages forward as dependencies.
+RUN apk --no-cache upgrade libcrypto3 libssl3
+
 RUN rm -rf /usr/local/lib/node_modules/npm \
   && rm -f /usr/local/bin/npm /usr/local/bin/npx
 
