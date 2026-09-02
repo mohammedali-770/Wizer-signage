@@ -211,9 +211,16 @@ pass "offsite backup copy is verified against the local dump size"
 # every night and cannot be restored. Comparing the two majors here catches a
 # host whose postgresql-client has drifted away from the pinned image (see
 # infra/docker/Dockerfile.maintenance); both must track the server major.
-host_pg_major() { pg_dump --version 2>/dev/null | sed -nE 's/.*[^0-9]([0-9]+)\.[0-9]+.*/\1/p'; }
+# The major is taken from the FIRST number in the version string, not the last.
+# Debian/Ubuntu packages append their own version: `pg_dump (PostgreSQL) 18.6
+# (Ubuntu 18.6-1.pgdg24.04+2)`. A greedy match on the last `<non-digit><digits>.
+# <digits>` reads `pgdg24.04` and reports major 24, so preflight refused to
+# deploy on a correctly configured Ubuntu host. Alpine's string carries no
+# suffix, which is why the image side parsed correctly and only the host side
+# was wrong.
+host_pg_major() { pg_dump --version 2>/dev/null | sed -nE 's/^[^0-9]*([0-9]+).*/\1/p'; }
 HOST_PG_MAJOR="$(host_pg_major)"
-IMAGE_PG_MAJOR="$(docker run --rm --entrypoint pg_dump "${MAINTENANCE_IMAGE}" --version 2>/dev/null | sed -nE 's/.*[^0-9]([0-9]+)\.[0-9]+.*/\1/p')"
+IMAGE_PG_MAJOR="$(docker run --rm --entrypoint pg_dump "${MAINTENANCE_IMAGE}" --version 2>/dev/null | sed -nE 's/^[^0-9]*([0-9]+).*/\1/p')"
 [[ "${HOST_PG_MAJOR}" =~ ^[0-9]+$ ]] || fail "could not determine the host pg_dump major version"
 [[ "${IMAGE_PG_MAJOR}" =~ ^[0-9]+$ ]] || fail "could not determine the pg_dump major version in ${MAINTENANCE_IMAGE}"
 [[ "${HOST_PG_MAJOR}" == "${IMAGE_PG_MAJOR}" ]] \

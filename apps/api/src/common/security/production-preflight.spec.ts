@@ -11,6 +11,33 @@ describe('production preflight contract', () => {
     expect(() => execFileSync('bash', ['-n', preflightPath])).not.toThrow();
   });
 
+  // Regression: the parser used a greedy match on the LAST `<non-digit><digits>.
+  // <digits>` in the version string. Alpine prints `pg_dump (PostgreSQL) 18.6`
+  // and parsed correctly; Debian/Ubuntu append their packaging version, so
+  // `pg_dump (PostgreSQL) 18.6 (Ubuntu 18.6-1.pgdg24.04+2)` matched `pgdg24.04`
+  // and reported major 24. Preflight then refused to deploy on a correctly
+  // configured host, comparing an imaginary host major against the image's real
+  // one. Ubuntu is the ordinary host OS for this stack, so this blocked the
+  // documented cutover path outright.
+  //
+  // This runs the expression the script actually contains rather than a copy of
+  // it, so the two cannot drift apart.
+  it('reads the pg_dump major from packaged and unpackaged version strings alike', () => {
+    const expression = preflight.match(/host_pg_major\(\)[^|]*\|\s*sed -nE '([^']+)'/)?.[1];
+    expect(expression).toBeDefined();
+
+    const major = (versionLine: string) =>
+      execFileSync('sed', ['-nE', expression as string], {
+        input: `${versionLine}\n`,
+        encoding: 'utf8',
+      }).trim();
+
+    expect(major('pg_dump (PostgreSQL) 18.6')).toBe('18');
+    expect(major('pg_dump (PostgreSQL) 18.6 (Ubuntu 18.6-1.pgdg24.04+2)')).toBe('18');
+    expect(major('pg_dump (PostgreSQL) 16.10 (Debian 16.10-1.pgdg120+1)')).toBe('16');
+    expect(major('pg_dump (PostgreSQL) 17.2 (Ubuntu 17.2-1.pgdg22.04+1)')).toBe('17');
+  });
+
   it('is read-only and validates blue-green plus logging compose graphs', () => {
     expect(preflight).toContain('config --quiet');
     expect(preflight).toContain('docker-compose.blue-green-proxy.yml');

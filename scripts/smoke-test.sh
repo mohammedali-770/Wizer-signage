@@ -133,12 +133,33 @@ fi
 # --- 4. A well-formed inbound ID is honoured ---------------------------------
 # nginx originates this per request; the API must adopt it rather than mint its
 # own, otherwise the access log and the app log key on different IDs.
+# The API honours a valid inbound X-Request-Id (RequestIdMiddleware, bounded by
+# SAFE_REQUEST_ID) so the caller's id reaches the application log. That is what
+# lets nginx's id join the access log to the app log to the error envelope a
+# user screenshots.
+#
+# It is only observable when this smoke talks to the API DIRECTLY. Behind the
+# production edge, nginx sets `X-Request-Id $request_id` and logs the same value
+# as `id=`, deliberately replacing whatever the client sent -- otherwise nginx
+# would log its own id while the app logged the client's, and the join it exists
+# to provide would be broken. So the client's id is expected to be discarded
+# there, and asserting otherwise fails a correctly configured deployment. That
+# is exactly what it did on the 2026-09-02 cutover.
 sent="smoke-$(date +%s)-abc"
 req GET /api/health -H "X-Request-Id: ${sent}"
-if [[ "$(header 'X-Request-Id')" == "${sent}" ]]; then
+got="$(header 'X-Request-Id')"
+if is_https; then
+  if [[ -n "${got}" ]] && [[ "${got}" =~ ^[A-Za-z0-9._-]{1,128}$ ]]; then
+    ok "the edge originates a well-formed X-Request-Id"
+  else
+    no "the edge originates a well-formed X-Request-Id" "got=${got}"
+  fi
+  na "a valid inbound X-Request-Id is preserved end to end" \
+     "nginx originates the id at the edge; only observable against the API directly"
+elif [[ "${got}" == "${sent}" ]]; then
   ok "a valid inbound X-Request-Id is preserved end to end"
 else
-  no "a valid inbound X-Request-Id is preserved end to end" "sent=${sent} got=$(header 'X-Request-Id')"
+  no "a valid inbound X-Request-Id is preserved end to end" "sent=${sent} got=${got}"
 fi
 
 # --- 5. A malformed inbound ID is replaced, never rejected -------------------
