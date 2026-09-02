@@ -149,8 +149,17 @@ sent="smoke-$(date +%s)-abc"
 req GET /api/health -H "X-Request-Id: ${sent}"
 got="$(header 'X-Request-Id')"
 if is_https; then
-  if [[ -n "${got}" ]] && [[ "${got}" =~ ^[A-Za-z0-9._-]{1,128}$ ]]; then
+  # Well-formed is not enough on its own: `${sent}` also satisfies the pattern,
+  # so an edge misconfigured to FORWARD the client's id (`$http_x_request_id`
+  # in place of the `$request_id` the shipped templates use) would pass a
+  # shape-only check while the access log and the app log key on a value the
+  # client chose. Requiring the id to differ is what actually proves the edge
+  # minted it, which is the whole point of the join.
+  if [[ -n "${got}" ]] && [[ "${got}" =~ ^[A-Za-z0-9._-]{1,128}$ ]] && [[ "${got}" != "${sent}" ]]; then
     ok "the edge originates a well-formed X-Request-Id"
+  elif [[ "${got}" == "${sent}" ]]; then
+    no "the edge originates a well-formed X-Request-Id" \
+       "the edge echoed the client's id (${got}) instead of minting one — check for \$http_x_request_id where \$request_id belongs"
   else
     no "the edge originates a well-formed X-Request-Id" "got=${got}"
   fi
