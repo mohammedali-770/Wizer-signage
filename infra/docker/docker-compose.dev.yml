@@ -8,7 +8,7 @@
 #     -f infra/docker/docker-compose.dev.yml up -d
 #
 # WHAT IT ADDS:
-#   - A local postgres:16 service for OFFLINE development only.
+#   - A local postgres:17 service for OFFLINE development only.
 #
 # IMPORTANT:
 #   Supabase (managed Postgres + storage) is the REAL/production target.
@@ -27,7 +27,7 @@ services:
   # Local Postgres — OPTIONAL, offline development only.
   # ---------------------------------------------------------------------------
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: wizer-signage-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-wizer_signage}

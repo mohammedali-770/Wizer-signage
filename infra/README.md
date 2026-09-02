@@ -27,7 +27,7 @@ infra/
 | `api`       | build `apps/api/Dockerfile`       | 3001          | internal |
 | `dashboard` | build `apps/dashboard/Dockerfile` | 3000          | internal |
 | `nginx`     | `nginx:1.27-alpine`               | 80 / 443      | 80, 443  |
-| `postgres`  | `postgres:16-alpine` (dev only)   | 5432          | 5432     |
+| `postgres`  | `postgres:17-alpine` (dev only)   | 5432          | 5432     |
 
 ## Production vs. development
 
@@ -38,7 +38,7 @@ production — connectivity is configured entirely through env vars
 `SUPABASE_STORAGE_BUCKET`, ...). See `docs/environment-variables.md`.
 
 **Development** may optionally layer in `docker-compose.dev.yml`, which adds a
-local `postgres:16` container for offline work. This is a convenience only —
+local `postgres:17` container for offline work. This is a convenience only —
 Supabase remains the real target, and Supabase-specific features (RLS, storage,
 auth) are **not** reproduced locally.
 

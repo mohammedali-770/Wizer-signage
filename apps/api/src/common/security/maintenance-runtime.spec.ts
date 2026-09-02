@@ -5,7 +5,15 @@ import { resolve } from 'node:path';
 const root = resolve(__dirname, '..', '..', '..', '..', '..');
 const dockerfile = readFileSync(resolve(root, 'infra/docker/Dockerfile.maintenance'), 'utf8');
 const crontab = readFileSync(resolve(root, 'infra/docker/crontab'), 'utf8');
-const ci = readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf8');
+// Every file that stands up a PostgreSQL server the backup/restore path is
+// exercised against. The client pin has to equal the major in all of them.
+const pgServerSources = [
+  '.github/workflows/ci.yml',
+  '.github/workflows/nightly.yml',
+  'scripts/tests/backup-restore-drill.sh',
+  'scripts/tests/telemetry-backup-restore-drill.sh',
+  'scripts/tests/backup-maintenance-e2e.sh',
+].map((path) => ({ path, text: readFileSync(resolve(root, path), 'utf8') }));
 const observability = readFileSync(resolve(root, 'docs/observability.md'), 'utf8');
 
 describe('maintenance runtime image / cron contract', () => {
@@ -27,22 +35,42 @@ describe('maintenance runtime image / cron contract', () => {
     expect(crontab).toContain('ensure-telemetry-partitions.sh');
   });
 
-  // pg_dump 17+ writes `SET transaction_timeout = 0;` into the dump preamble,
-  // which PostgreSQL 16 rejects -- and restore-db.sh pipes dumps into
-  // `psql --set ON_ERROR_STOP=on`, so the restore aborts before any row is
-  // applied. The unversioned `postgresql-client` package is virtual and floats
-  // to whatever major Alpine ships newest, so the pin has to be explicit and it
-  // has to track the server. CI's Postgres service is the authority here: it is
-  // the major every backup/restore drill actually runs against.
-  it('pins the PostgreSQL client to the same major the drills run against', () => {
+  // The client major has to track the server major in BOTH directions, and the
+  // unversioned `postgresql-client` package is virtual -- it floats to whatever
+  // major Alpine ships newest -- so the pin has to be explicit:
+  //
+  //   too new: pg_dump 17+ writes `SET transaction_timeout = 0;` into the dump
+  //            preamble, which a 16 server rejects, and restore-db.sh pipes
+  //            dumps into `psql --set ON_ERROR_STOP=on`, so the restore aborts
+  //            before any row is applied -- a backup that is silently
+  //            unrestorable;
+  //   too old: pg_dump REFUSES to dump a newer server outright, so there is no
+  //            backup at all. The image shipped postgresql16-client against the
+  //            17.6 production server until 2026-09-02 and the nightly backup
+  //            failed every night for it.
+  //
+  // The Postgres servers this repo stands up are the authority: they are what
+  // the backup and restore drills actually run against. Earlier this read only
+  // CI's `image:` lines, which left CI's own `docker run postgres:N-alpine` and
+  // all three drill scripts free to drift -- and a drill that restores into a
+  // different major from the one the client targets proves nothing.
+  it('pins the PostgreSQL client to the same major every drill runs against', () => {
     const client = dockerfile.match(/apk add[^\n]*\bpostgresql(\d+)-client\b/);
     expect(client).not.toBeNull();
 
-    const serverMajors = [...ci.matchAll(/image:\s*postgres:(\d+)-alpine/g)].map((m) => m[1]);
-    expect(serverMajors.length).toBeGreaterThan(0);
-    expect(new Set(serverMajors).size).toBe(1);
+    const byFile = pgServerSources.map(({ path, text }) => ({
+      path,
+      majors: [...new Set([...text.matchAll(/postgres:(\d+)-alpine/g)].map((m) => m[1]))],
+    }));
 
-    expect(client?.[1]).toBe(serverMajors[0]);
+    // Every listed file must actually pin one, or the assertion silently covers
+    // less than it claims the day a path is renamed.
+    expect(byFile.filter(({ majors }) => majors.length === 0)).toEqual([]);
+
+    const disagreeing = byFile.filter(
+      ({ majors }) => majors.length > 1 || majors[0] !== client?.[1],
+    );
+    expect({ client: client?.[1], disagreeing }).toEqual({ client: client?.[1], disagreeing: [] });
   });
 
   // This container runs the nightly backup, so it runs BACKUP_OFFSITE_CMD. It

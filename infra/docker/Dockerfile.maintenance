@@ -48,19 +48,31 @@ WORKDIR /app
 # every backup "uploaded" exactly three bytes and reported success.
 # rclone is ~106 MiB — a deliberate cost, paid so the off-box copy is real.
 #
-# The PostgreSQL client is PINNED TO THE PRODUCTION SERVER MAJOR (16). The
+# The PostgreSQL client is PINNED TO THE PRODUCTION SERVER MAJOR (17). The
 # unversioned `postgresql-client` is a virtual package that resolves to the
-# newest major Alpine carries — 18.6 on Alpine 3.24 — and pg_dump 17+ writes
-# `SET transaction_timeout = 0;` into the dump preamble. PostgreSQL 16 does not
-# recognize that parameter, and restore-db.sh pipes the dump into
-# `psql --set ON_ERROR_STOP=on`, so the restore aborts on the preamble before a
-# single row is applied. Every dump this container produced was unrestorable
-# into the database it was backing up.
+# newest major Alpine carries, so the pin has to be explicit in both directions:
 #
-# ON A SERVER UPGRADE, CHANGE THIS TOO. The client major must track the
-# production server major; maintenance-runtime.spec.ts pins the two together so
-# the pair cannot drift silently.
-RUN apk add --no-cache openssl su-exec bash postgresql16-client tzdata rclone
+#   TOO NEW  — pg_dump 18 against a 17 server writes preamble parameters the
+#              server does not recognize, and restore-db.sh pipes dumps into
+#              `psql --set ON_ERROR_STOP=on`, so the restore aborts before a
+#              single row is applied. (This is what a floating client does:
+#              pg_dump 17+ emits `SET transaction_timeout = 0;`, which is why a
+#              16 server rejected dumps from an unpinned client.)
+#   TOO OLD  — pg_dump REFUSES outright to dump a server newer than itself:
+#              "server version 17.6; pg_dump version 16.x". A 16 client against
+#              the 17.6 production server produced no dump at all.
+#
+# The second is not hypothetical. This image shipped `postgresql16-client`
+# against a 17.6 server from PR #107 until 2026-09-02, on the mistaken belief
+# that production ran 16, and the nightly backup inside this container failed
+# every night for it. Only the deploy-time backup kept working, because that one
+# runs on the host.
+#
+# ON A SERVER UPGRADE, CHANGE THIS TOO — and the host client, and CI's Postgres
+# service, together. maintenance-runtime.spec.ts pins this to CI's server major
+# and production-preflight.sh pins the host client to this image, so a partial
+# move fails loudly rather than silently producing unrestorable backups.
+RUN apk add --no-cache openssl su-exec bash postgresql17-client tzdata rclone
 
 # Maintenance runs compiled JavaScript and checked-in shell tools directly.
 # npm/npx are build-only tooling and are not needed in the deployed worker.

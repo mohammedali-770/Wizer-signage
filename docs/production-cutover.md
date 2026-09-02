@@ -33,10 +33,47 @@ The production `.env` must contain real values for at least:
 > inside the maintenance image so a command that works when tested by hand cannot go on to
 > fail, or silently transfer nothing, every night.
 >
-> **The PostgreSQL client major must match the production server major (16).** `pg_dump`
-> 17+ emits `SET transaction_timeout = 0;`, which PostgreSQL 16 rejects, and `restore-db.sh`
-> runs `psql --set ON_ERROR_STOP=on` — so a dump from a newer client aborts before any row
-> is applied. Preflight compares the host client against the maintenance image's.
+> **The PostgreSQL client major must match the production server major (17).** It has to
+> match in both directions. A client that is **too new** produces dumps the server rejects:
+> `pg_dump` 17+ emits `SET transaction_timeout = 0;`, which PostgreSQL 16 does not
+> recognize, and `restore-db.sh` runs `psql --set ON_ERROR_STOP=on`, so such a dump aborts
+> before any row is applied. A client that is **too old** produces no dump at all —
+> `pg_dump` refuses outright with _"server version 17.6; pg_dump version 16.x"_.
+>
+> **The host needs `postgresql-client-17` before the next deploy.** Preflight requires the
+> host client and the maintenance image's client to be the same major, and the image moved
+> from 16 to 17 to match the 17.6 production server. A host still on 16 or 18 fails
+> preflight with _"host pg_dump is major N but the maintenance image ... is major 17"_.
+> Check and fix it with:
+>
+> ```bash
+> pg_dump --version        # want: pg_dump (PostgreSQL) 17.x
+>
+> # If it is not 17, on Debian/Ubuntu:
+> sudo install -d /usr/share/postgresql-common/pgdg
+> sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+>   https://www.postgresql.org/media/keys/ACCC4CF8.asc
+> echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+>   https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+>   | sudo tee /etc/apt/sources.list.d/pgdg.list
+> sudo apt-get update && sudo apt-get install -y postgresql-client-17
+> ```
+>
+> **Installing 17 alongside 16 is not enough.** On Debian/Ubuntu `/usr/bin/pg_dump` is a
+> symlink to `pg_wrapper`, which picks its version from the _default cluster_ when a local
+> cluster exists and only otherwise falls back to the newest installed client. Verified with
+> both majors present: bare `pg_dump --version` reported **16.13**, not 17.11. So re-check
+> after installing, and if it still is not 17, do one of:
+>
+> ```bash
+> sudo apt-get remove postgresql-client-16          # cleanest: leave only 17
+> # or, for the deploy user only:
+> export PATH="/usr/lib/postgresql/17/bin:$PATH"    # resolves to the real 17 binary
+> ```
+>
+> `pg_dump --version` is exactly what preflight reads, so treat its output as the answer.
+> Getting this wrong fails preflight rather than corrupting anything — that gate exists
+> because the previous mismatch ran unnoticed for weeks.
 >
 > Verification is separate from the copy for a reason: a zero exit is not evidence that
 > bytes arrived. Busybox `wget --post-file` truncates a gzip dump at its first NUL byte and
