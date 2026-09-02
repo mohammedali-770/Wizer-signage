@@ -113,6 +113,15 @@ describe('telemetry partitioning (real PostgreSQL)', () => {
   });
 
   it('surfaces a cross-month duplicate session through Prisma and releases the key on delete', async () => {
+    // Both timestamps must be anchored to "now". wizer_ensure_telemetry_partitions
+    // only ever creates the current month and future ones, so a hardcoded month
+    // passes until the calendar moves past it and then fails the insert with
+    // 'no partition of relation "proof_of_plays" found for row'.
+    await prisma.$executeRaw`SELECT public.wizer_ensure_telemetry_partitions(2)`;
+    const now = new Date();
+    const monthStart = (offset: number) =>
+      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1, 12, 0, 0));
+
     const suffix = randomUUID().slice(0, 8);
     const company = await prisma.company.create({
       data: { name: `Partition test ${suffix}`, slug: `partition-test-${suffix}` },
@@ -123,8 +132,8 @@ describe('telemetry partitioning (real PostgreSQL)', () => {
       select: { id: true },
     });
     const session = randomUUID();
-    const firstStart = new Date(Date.UTC(2026, 7, 20, 12, 0, 0));
-    const secondStart = new Date(Date.UTC(2026, 8, 2, 12, 0, 0));
+    const firstStart = monthStart(0);
+    const secondStart = monthStart(1);
 
     try {
       const first = await prisma.proofOfPlay.create({

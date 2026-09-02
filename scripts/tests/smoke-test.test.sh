@@ -32,10 +32,13 @@ command -v python3 >/dev/null 2>&1 || { echo "python3 is required for this harne
 # --- Stub server -------------------------------------------------------------
 # MODE (env) selects exactly one deviation from a healthy deployment.
 cat > "${WORK}/server.py" <<'PY'
-import json, os, sys
+import json, os, socket, ssl, sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 MODE = os.environ.get("MODE", "healthy")
+# When set, one port answers both schemes (see Server.get_request below) so the
+# smoke test's is_https branch can be driven.
+TLS_CERT = os.environ.get("TLS_CERT") or ""
 SAFE = lambda s: s and all(c.isalnum() or c in "._-" for c in s) and len(s) <= 128
 
 class H(BaseHTTPRequestHandler):
@@ -52,17 +55,42 @@ class H(BaseHTTPRequestHandler):
             # A healthy app honours a well-formed inbound id and replaces junk.
             if MODE == "id-not-honoured":
                 rid = "server-minted-id"
+            elif MODE == "edge":
+                # nginx sets `X-Request-Id $request_id`: a fresh id every
+                # request, whatever the client sent. Plain `healthy` under TLS
+                # is the opposite -- it honours the inbound id, which is what a
+                # `$http_x_request_id` misconfiguration looks like from outside.
+                rid = "edge-minted-0123456789"
             elif inbound and SAFE(inbound):
                 rid = inbound
             else:
                 rid = "generated-0123456789"
             self.send_header("X-Request-Id", rid)
+        if self.over_tls():
+            # What the shipped nginx templates add and the smoke test checks for.
+            self.send_header("Strict-Transport-Security", "max-age=31536000")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()
         self.wfile.write(raw)
 
+    def over_tls(self):
+        return isinstance(self.connection, ssl.SSLSocket)
+
+    def redirect_to_https(self):
+        # A TLS deployment must never SERVE over :80, only redirect. Without
+        # this the smoke test's downgrade check has nothing to observe.
+        self.send_response(301)
+        self.send_header("Location", f"https://{self.headers.get('Host')}{self.path}")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_GET(self):
+        if TLS_CERT and not self.over_tls():
+            return self.redirect_to_https()
         p = self.path
         if p == "/api/health":
             return self._send(200, json.dumps({"status": "ok", "service": "wizer-signage-api"}))
@@ -82,6 +110,8 @@ class H(BaseHTTPRequestHandler):
         }))
 
     def do_POST(self):
+        if TLS_CERT and not self.over_tls():
+            return self.redirect_to_https()
         p = self.path
         length = int(self.headers.get("Content-Length") or 0)
         self.rfile.read(length)
@@ -98,15 +128,47 @@ class H(BaseHTTPRequestHandler):
             return self._send(403, json.dumps({"error": "forbidden"}))
         return self._send(404, json.dumps({"success": False, "error": {"code": "NOT_FOUND"}}))
 
-srv = HTTPServer(("127.0.0.1", 0), H)
+class Server(HTTPServer):
+    """Serves HTTPS and HTTP on ONE port.
+
+    smoke-test.sh derives its downgrade check's URL from the base URL by
+    swapping the scheme and keeping host:port, so both have to land here.
+    A TLS ClientHello starts with 0x16; peek at the first byte without
+    consuming it and wrap only those connections.
+    """
+
+    def get_request(self):
+        sock, addr = self.socket.accept()
+        if TLS_CERT and sock.recv(1, socket.MSG_PEEK) == b"\x16":
+            sock = CTX.wrap_socket(sock, server_side=True)
+        return sock, addr
+
+
+if TLS_CERT:
+    CTX = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    CTX.load_cert_chain(TLS_CERT)
+
+srv = Server(("127.0.0.1", 0), H)
 print(srv.server_port, flush=True)
 srv.serve_forever()
 PY
 
+# A self-signed cert for 127.0.0.1. Without it the is_https branch of the smoke
+# test is unreachable from this harness, which is exactly how a hole in it went
+# unnoticed: every case below ran over plain HTTP, where that branch is skipped.
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+  -keyout "${WORK}/tls.key" -out "${WORK}/tls.crt" \
+  -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+  >/dev/null 2>&1 || { echo "openssl is required to generate the test certificate" >&2; exit 1; }
+cat "${WORK}/tls.crt" "${WORK}/tls.key" > "${WORK}/tls.pem"
+
+# start_server <mode> [tls]  -- pass "tls" to put the stub behind HTTPS.
 start_server() {
-  local mode="$1"
+  local mode="$1" scheme="${2:-}" cert=""
+  [[ "${scheme}" == "tls" ]] && cert="${WORK}/tls.pem"
   [[ -n "${SERVER_PID}" ]] && { kill "${SERVER_PID}" 2>/dev/null; wait "${SERVER_PID}" 2>/dev/null; }
-  MODE="${mode}" python3 "${WORK}/server.py" > "${WORK}/port" 2>"${WORK}/server.err" &
+  rm -f "${WORK}/port"
+  MODE="${mode}" TLS_CERT="${cert}" python3 "${WORK}/server.py" > "${WORK}/port" 2>"${WORK}/server.err" &
   SERVER_PID=$!
   for _ in $(seq 1 50); do
     PORT="$(head -1 "${WORK}/port" 2>/dev/null)"
@@ -114,12 +176,15 @@ start_server() {
     sleep 0.1
   done
   [[ -n "${PORT:-}" ]] || { echo "stub server failed to start: $(cat "${WORK}/server.err")" >&2; exit 1; }
-  BASE="http://127.0.0.1:${PORT}"
+  if [[ -n "${cert}" ]]; then BASE="https://127.0.0.1:${PORT}"; else BASE="http://127.0.0.1:${PORT}"; fi
 }
 
 # Runs the smoke test against the stub and reports its exit code in RC / OUT.
+# CURL_CA_BUNDLE trusts the throwaway cert; no_proxy keeps a proxy-configured
+# environment from intercepting a loopback request.
 run_smoke() {
-  OUT="$(bash "${SMOKE}" "${BASE}" 2>&1)"
+  OUT="$(CURL_CA_BUNDLE="${WORK}/tls.crt" no_proxy="127.0.0.1,localhost" NO_PROXY="127.0.0.1,localhost" \
+    bash "${SMOKE}" "${BASE}" 2>&1)"
   RC=$?
 }
 
@@ -230,6 +295,35 @@ if (( RC != 0 )); then
   ok "fails against an unreachable host"
 else
   no "fails against an unreachable host" "rc=${RC}
+${OUT}"
+fi
+
+# --- 12. Behind TLS, an edge that originates the ID passes -------------------
+# The whole is_https branch had no coverage before this: cases 1-11 run over
+# plain HTTP, where it is skipped. The stub now answers both schemes on one
+# port, so the edge checks -- security headers, the :80 redirect, and the ID
+# below -- are exercised for real.
+start_server edge tls
+run_smoke
+if (( RC == 0 )) && [[ "${OUT}" == *"the edge originates a well-formed X-Request-Id"* ]]; then
+  ok "passes behind TLS when the edge originates the request ID"
+else
+  no "passes behind TLS when the edge originates the request ID" "rc=${RC}
+${OUT}"
+fi
+
+# --- 13. Behind TLS, an edge that FORWARDS the client's ID fails -------------
+# The finding this covers: the client's ID is itself well formed, so a check
+# that only tested the SHAPE of the returned ID passed while the access log and
+# the app log keyed on a value the caller chose -- which is the one thing the
+# ID exists to prevent. `healthy` under TLS honours the inbound ID, which is
+# what `$http_x_request_id` in place of `$request_id` looks like from outside.
+start_server healthy tls
+run_smoke
+if (( RC != 0 )) && [[ "${OUT}" == *"echoed the client's id"* ]]; then
+  ok "fails behind TLS when the edge forwards the client's request ID"
+else
+  no "fails behind TLS when the edge forwards the client's request ID" "rc=${RC}
 ${OUT}"
 fi
 

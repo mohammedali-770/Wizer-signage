@@ -58,6 +58,12 @@ The production `.env` must contain real values for at least:
 
 Authenticate Docker to private GHCR with a **read-only** package credential. The application host must not have registry write credentials.
 
+> **`.env` must parse as bash.** `backup-db.sh` does `set -a; source "${ENV_FILE}"`, so a value containing `<`, `>`, `(` or `)` must be quoted — `SMTP_FROM="Wizer <no-reply@example.com>"`, not bare. An unquoted one aborts the backup, and therefore the deploy, with `syntax error near unexpected token`. Nothing else in the stack sources the file, so a long-lived `.env` can carry this fault for months without symptom. Check it before you start:
+>
+> ```bash
+> bash -n .env && echo ".env parses cleanly"
+> ```
+
 Run the read-only preflight:
 
 ```bash
