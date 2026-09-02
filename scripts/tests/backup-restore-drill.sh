@@ -18,9 +18,9 @@
 # while silently omitting partition data and idempotency state.
 #
 # When this script is run inside the normal quality job, DIRECT_URL/DATABASE_URL
-# points at the already-migrated Wizer PostgreSQL 16 service. In that case the
+# points at the already-migrated Wizer PostgreSQL 17 service. In that case the
 # final extension also runs telemetry-backup-restore-drill.sh so a real migrated
-# partition tree is dumped, restored into a second Postgres 16 instance, and
+# partition tree is dumped, restored into a second Postgres 17 instance, and
 # checked with both physical telemetry verifiers. No extra CI runner is needed.
 #
 # Everything it creates is namespaced `bkdrill_*` and removed on exit.
@@ -51,7 +51,7 @@ trap cleanup EXIT
 cleanup
 
 docker run -d --name "$PG" --network=host -e POSTGRES_PASSWORD=pw_drill \
-  postgres:16-alpine -c "port=${PGPORT_DRILL}" >/dev/null
+  postgres:17-alpine -c "port=${PGPORT_DRILL}" >/dev/null
 for _ in $(seq 1 40); do
   docker exec "$PG" psql -U postgres -p "$PGPORT_DRILL" -d postgres -c 'select 1' >/dev/null 2>&1 && break
   sleep 1
@@ -83,7 +83,7 @@ OUT="$(docker run --rm --network=host -u "$(id -u)" \
   -v "$REPO/scripts:/app/scripts:ro" -v "$WORK/backups:/backups" \
   -e BACKUP_DIR=/backups \
   -e DIRECT_URL="postgresql://postgres:pw_drill@127.0.0.1:${PGPORT_DRILL}/postgres?sslmode=disable" \
-  postgres:16-alpine bash /app/scripts/backup-db.sh 2>&1)"
+  postgres:17-alpine bash /app/scripts/backup-db.sh 2>&1)"
 RC=$?
 [ "$RC" -eq 0 ] && ok "backup-db.sh succeeded" || { no "backup-db.sh rc=$RC"; echo "$OUT" | sed 's/^/      /'; }
 DUMP="$(ls "$WORK"/backups/wizer-signage_*.sql.gz 2>/dev/null | head -1)"
@@ -107,7 +107,7 @@ RES="$(docker run --rm --network=host \
   -v "$REPO/scripts:/app/scripts:ro" -v "$WORK/backups:/backups:ro" \
   -e FORCE=1 \
   -e DIRECT_URL="postgresql://postgres:pw_drill@127.0.0.1:${PGPORT_DRILL}/postgres?sslmode=disable" \
-  postgres:16-alpine bash /app/scripts/restore-db.sh "/backups/$(basename "$DUMP")" 2>&1)"
+  postgres:17-alpine bash /app/scripts/restore-db.sh "/backups/$(basename "$DUMP")" 2>&1)"
 RRC=$?
 [ "$RRC" -eq 0 ] && ok "restore-db.sh succeeded against a populated database" || { no "restore rc=$RRC"; echo "$RES" | tail -8 | sed 's/^/      /'; }
 

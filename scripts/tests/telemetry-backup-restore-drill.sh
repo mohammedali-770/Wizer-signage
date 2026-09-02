@@ -3,8 +3,8 @@
 # Wizer Signage — migrated telemetry backup/restore drill
 # =============================================================================
 # Runs against an EXISTING, already-migrated Wizer PostgreSQL database (the
-# quality job's Postgres 16 service), takes a dump with the real backup-db.sh,
-# restores that dump into a separate scratch Postgres 16 instance, then proves
+# quality job's Postgres 17 service), takes a dump with the real backup-db.sh,
+# restores that dump into a separate scratch Postgres 17 instance, then proves
 # the partition parents/children/registry/triggers/helper survived the round trip.
 #
 # This is intentionally an extension of backup-restore-drill.sh, not another CI
@@ -45,7 +45,7 @@ client_query() {
   docker run --rm --network=host \
     -e WIZER_PSQL_URL="$url" \
     -e WIZER_PSQL_SQL="$sql" \
-    postgres:16-alpine \
+    postgres:17-alpine \
     sh -c 'psql "$WIZER_PSQL_URL" -X -qAt --set=ON_ERROR_STOP=1 -c "$WIZER_PSQL_SQL"'
 }
 
@@ -78,7 +78,7 @@ BACKUP_OUT="$(docker run --rm --network=host -u "$(id -u)" \
   -e DIRECT_URL="$SOURCE_URL" \
   -e BACKUP_OFFSITE_CMD='cp "$1" "/offsite/$(basename "$1")"' \
   -e BACKUP_OFFSITE_VERIFY_CMD='wc -c < "/offsite/$(basename "$1")" | tr -d " "' \
-  postgres:16-alpine \
+  postgres:17-alpine \
   bash /app/scripts/backup-db.sh 2>&1)" || {
     echo "$BACKUP_OUT" | sed 's/^/      /' >&2
     echo "ERROR [telemetry-drill]: backup-db.sh failed against migrated source." >&2
@@ -112,7 +112,7 @@ TRUNC_OUT="$(docker run --rm --network=host -u "$(id -u)" \
   -e DIRECT_URL="$SOURCE_URL" \
   -e BACKUP_OFFSITE_CMD='head -c 3 "$1" > "/offsite/$(basename "$1")"' \
   -e BACKUP_OFFSITE_VERIFY_CMD='wc -c < "/offsite/$(basename "$1")" | tr -d " "' \
-  postgres:16-alpine \
+  postgres:17-alpine \
   bash /app/scripts/backup-db.sh 2>&1)" && {
     echo "$TRUNC_OUT" | sed 's/^/      /' >&2
     echo "ERROR [telemetry-drill]: a truncated offsite copy was reported as success." >&2
@@ -133,7 +133,7 @@ rm -rf "$WORK/backups-trunc" "$WORK/offsite"
 echo "== telemetry DR: start isolated restore target =="
 docker run -d --name "$PG" --network=host \
   -e POSTGRES_PASSWORD="$PASSWORD" \
-  postgres:16-alpine -c "port=${PORT}" >/dev/null
+  postgres:17-alpine -c "port=${PORT}" >/dev/null
 READY=0
 for _ in $(seq 1 40); do
   if docker exec "$PG" psql -U postgres -p "$PORT" -d postgres -c 'select 1' >/dev/null 2>&1; then
@@ -153,7 +153,7 @@ RESTORE_OUT="$(docker run --rm --network=host \
   -v "$WORK/backups:/backups:ro" \
   -e FORCE=1 \
   -e DIRECT_URL="$RESTORE_URL" \
-  postgres:16-alpine \
+  postgres:17-alpine \
   bash /app/scripts/restore-db.sh "/backups/$(basename "$DUMP")" 2>&1)" || {
     echo "$RESTORE_OUT" | tail -20 | sed 's/^/      /' >&2
     echo "ERROR [telemetry-drill]: restore-db.sh failed for migrated dump." >&2
@@ -184,7 +184,7 @@ for verifier in assert-telemetry-partitions.sh assert-telemetry-partition-isolat
   docker run --rm --network=host \
     -v "$REPO/scripts:/app/scripts:ro" \
     -e DIRECT_URL="$RESTORE_URL" \
-    postgres:16-alpine \
+    postgres:17-alpine \
     bash "/app/scripts/${verifier}"
   echo "  ok  ${verifier}"
 done
@@ -206,7 +206,7 @@ RESTORE_AGAIN="$(docker run --rm --network=host \
   -e FORCE=1 \
   -e RESTORE_DROP_ARCHIVE=1 \
   -e DIRECT_URL="$RESTORE_URL" \
-  postgres:16-alpine \
+  postgres:17-alpine \
   bash /app/scripts/restore-db.sh "/backups/$(basename "$DUMP")" 2>&1)" || {
     echo "$RESTORE_AGAIN" | tail -20 | sed 's/^/      /' >&2
     echo "ERROR [telemetry-drill]: restore-db.sh cannot restore over an existing migrated schema." >&2
@@ -247,7 +247,7 @@ for verifier in assert-telemetry-partitions.sh assert-telemetry-partition-isolat
   docker run --rm --network=host \
     -v "$REPO/scripts:/app/scripts:ro" \
     -e DIRECT_URL="$RESTORE_URL" \
-    postgres:16-alpine \
+    postgres:17-alpine \
     bash "/app/scripts/${verifier}"
   echo "  ok  ${verifier}"
 done

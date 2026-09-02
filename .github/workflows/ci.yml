@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 25
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_PASSWORD: ci_postgres_password
           POSTGRES_DB: wizer_ci
@@ -62,7 +62,7 @@ jobs:
           set -euo pipefail
           docker run --rm --network host \
             -e PGPASSWORD=ci_postgres_password \
-            postgres:16-alpine \
+            postgres:17-alpine \
             psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
               -c 'DROP DATABASE IF EXISTS wizer_shadow WITH (FORCE);' \
               -c 'CREATE DATABASE wizer_shadow;'
@@ -156,7 +156,7 @@ jobs:
     timeout-minutes: 40
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_PASSWORD: docker_ci_postgres_password
           POSTGRES_DB: wizer_docker_ci

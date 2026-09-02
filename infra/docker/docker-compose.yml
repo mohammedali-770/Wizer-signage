@@ -16,7 +16,7 @@
 #   database container.
 #
 #   For OFFLINE/local development only, use the dev override which adds a
-#   local postgres:16 service:
+#   local postgres:17 service:
 #     docker compose \
 #       -f infra/docker/docker-compose.yml \
 #       -f infra/docker/docker-compose.dev.yml up -d

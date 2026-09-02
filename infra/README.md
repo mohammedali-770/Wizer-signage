@@ -27,7 +27,7 @@ infra/
 | `api`       | build `apps/api/Dockerfile`       | 3001          | internal |
 | `dashboard` | build `apps/dashboard/Dockerfile` | 3000          | internal |
 | `nginx`     | `nginx:1.27-alpine`               | 80 / 443      | 80, 443  |
-| `postgres`  | `postgres:16-alpine` (dev only)   | 5432          | 5432     |
+| `postgres`  | `postgres:17-alpine` (dev only)   | 5432          | 5432     |
 
 ## Production vs. development
 
@@ -38,9 +38,18 @@ production — connectivity is configured entirely through env vars
 `SUPABASE_STORAGE_BUCKET`, ...). See `docs/environment-variables.md`.
 
 **Development** may optionally layer in `docker-compose.dev.yml`, which adds a
-local `postgres:16` container for offline work. This is a convenience only —
+local `postgres:17` container for offline work. This is a convenience only —
 Supabase remains the real target, and Supabase-specific features (RLS, storage,
 auth) are **not** reproduced locally.
+
+> **The dev database volume moved with the major.** It is now
+> `wizer-signage-postgres-17-data`; PostgreSQL will not start on a data
+> directory another major initialized, so reusing the old fixed name would have
+> left the database failing its health check after an ordinary `pull` and `up`.
+> The old `wizer-signage-postgres-data` volume is left in place, not deleted —
+> re-seed the new one, and `docker volume rm wizer-signage-postgres-data` when
+> you no longer want the old data. `docker-compose.dev.yml` has the commands for
+> carrying data across instead.
 
 ## Common commands
 

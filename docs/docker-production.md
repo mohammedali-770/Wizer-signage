@@ -16,7 +16,7 @@ production.
 Compose files (`infra/docker/`):
 
 - `docker-compose.yml` — the **production** stack (the file above).
-- `docker-compose.dev.yml` — local override adding a `postgres:16` container (dev only).
+- `docker-compose.dev.yml` — local override adding a `postgres:17` container (dev only).
 - `docker-compose.certbot.yml` — optional containerized Let's Encrypt.
 
 ## Image design
@@ -81,7 +81,7 @@ Each service sets `deploy.resources.limits` (api 1.5cpu/768M, dashboard
 docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.dev.yml up -d
 ```
 
-This adds a `postgres:16` service for offline dev only — **never** in production.
+This adds a `postgres:17` service for offline dev only — **never** in production.
 
 See also: [production-deployment.md](./production-deployment.md) (full runbook),
 [nginx-ssl.md](./nginx-ssl.md), [environment-variables.md](./environment-variables.md),

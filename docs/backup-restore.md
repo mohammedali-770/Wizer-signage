@@ -75,18 +75,22 @@ RESTRICT` so even a direct `DELETE FROM companies` cannot cascade them away. Do 
 
   When it is unset the script warns loudly on every run.
 
-- **The PostgreSQL client major must match the server major.** `pg_dump` 17+ writes
-  `SET transaction_timeout = 0;` into the dump preamble, which PostgreSQL 16 and older
-  reject — and `restore-db.sh` pipes dumps into `psql --set ON_ERROR_STOP=on`, so the
-  restore aborts on the preamble **before a single row is applied**. The failure is
+- **The PostgreSQL client major must match the server major — in both directions.**
+  A client that is **too new** produces dumps the server rejects: `pg_dump` 17+ writes
+  `SET transaction_timeout = 0;` into the preamble, which PostgreSQL 16 and older do not
+  recognize, and `restore-db.sh` pipes dumps into `psql --set ON_ERROR_STOP=on`, so the
+  restore aborts on the preamble **before a single row is applied**. That failure is
   invisible until you try to recover: the nightly backup succeeds, the file is the right
-  size, and it is simply not restorable. The maintenance image therefore pins
-  `postgresql16-client` rather than the unversioned `postgresql-client`, which is a virtual
-  package that floats to whatever major Alpine ships newest. The host needs the same major,
-  since it runs `backup-db.sh` at deploy time; production preflight compares the two.
-  **On a server upgrade, change `infra/docker/Dockerfile.maintenance` and the host package
-  together** — `maintenance-runtime.spec.ts` pins the image against CI's Postgres service
-  so the pair cannot drift silently.
+  size, and it is simply not restorable. A client that is **too old** produces nothing at
+  all — `pg_dump` refuses outright, with _"server version 17.6; pg_dump version 16.x"_.
+  The maintenance image therefore pins `postgresql17-client`, matching the 17.6 production
+  server, rather than the unversioned `postgresql-client`, which is a virtual package that
+  floats to whatever major Alpine ships newest. The host needs the same major, since it
+  runs `backup-db.sh` at deploy time; production preflight compares the two.
+  **On a server upgrade, change `infra/docker/Dockerfile.maintenance`, the host package and
+  CI's Postgres service together** — `maintenance-runtime.spec.ts` pins the image against
+  CI's service and preflight pins the host against the image, so a partial move fails
+  loudly instead of silently producing backups nobody can restore.
 
 - **The command must exist in BOTH places that run it.** `backup-db.sh` executes on the
   **host** at deploy time (`deploy-blue-green.sh`) and inside the **maintenance container**
