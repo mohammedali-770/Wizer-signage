@@ -249,7 +249,7 @@ Database migrations are not reversed automatically. This is why every live rollo
 On the exact final migration chain, prove the actual migrated schema survives backup and restore:
 
 1. dump with the real `backup-db.sh`;
-2. restore into a separate PostgreSQL 16 target;
+2. restore into a separate PostgreSQL 17 target — it must match the client major that took the dump, or the restore aborts on the preamble;
 3. require restored telemetry child count to match the source;
 4. run:
 

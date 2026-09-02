@@ -18,9 +18,9 @@
 # while silently omitting partition data and idempotency state.
 #
 # When this script is run inside the normal quality job, DIRECT_URL/DATABASE_URL
-# points at the already-migrated Wizer PostgreSQL 16 service. In that case the
+# points at the already-migrated Wizer PostgreSQL 17 service. In that case the
 # final extension also runs telemetry-backup-restore-drill.sh so a real migrated
-# partition tree is dumped, restored into a second Postgres 16 instance, and
+# partition tree is dumped, restored into a second Postgres 17 instance, and
 # checked with both physical telemetry verifiers. No extra CI runner is needed.
 #
 # Everything it creates is namespaced `bkdrill_*` and removed on exit.

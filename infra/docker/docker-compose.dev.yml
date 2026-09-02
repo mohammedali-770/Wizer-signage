@@ -89,4 +89,25 @@ services:
 # -----------------------------------------------------------------------------
 volumes:
   postgres-data:
-    name: wizer-signage-postgres-data
+    # VERSIONED ON PURPOSE. PostgreSQL refuses to start on a data directory
+    # initialized by a different major -- it exits with "The data directory was
+    # initialized by PostgreSQL 16, which is not compatible with this version".
+    # Keeping one fixed name across the 16 -> 17 move would have meant an
+    # ordinary `git pull && docker compose up` leaving the database failing its
+    # health check and the API down with it.
+    #
+    # A new name means 17 initializes a fresh directory instead. The old volume
+    # is NOT deleted, just no longer mounted: this is offline dev data, so
+    # re-seed rather than migrate. Reclaim the space when you are done with it:
+    #
+    #   docker volume rm wizer-signage-postgres-data
+    #
+    # To carry data across instead, dump from the old volume BEFORE switching:
+    #
+    #   docker run --rm -v wizer-signage-postgres-data:/var/lib/postgresql/data \
+    #     -v "$PWD":/out postgres:16-alpine \
+    #     sh -c 'pg_ctl -D /var/lib/postgresql/data -o "-k /tmp" -w start \
+    #            && pg_dumpall -h /tmp -U wizer_signage > /out/dev-dump.sql'
+    #
+    # then `psql` it into the new one once 17 is up.
+    name: wizer-signage-postgres-17-data

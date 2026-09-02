@@ -42,6 +42,15 @@ local `postgres:17` container for offline work. This is a convenience only —
 Supabase remains the real target, and Supabase-specific features (RLS, storage,
 auth) are **not** reproduced locally.
 
+> **The dev database volume moved with the major.** It is now
+> `wizer-signage-postgres-17-data`; PostgreSQL will not start on a data
+> directory another major initialized, so reusing the old fixed name would have
+> left the database failing its health check after an ordinary `pull` and `up`.
+> The old `wizer-signage-postgres-data` volume is left in place, not deleted —
+> re-seed the new one, and `docker volume rm wizer-signage-postgres-data` when
+> you no longer want the old data. `docker-compose.dev.yml` has the commands for
+> carrying data across instead.
+
 ## Common commands
 
 All commands are run from the **repo root**.

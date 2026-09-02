@@ -3,8 +3,8 @@
 # Wizer Signage — migrated telemetry backup/restore drill
 # =============================================================================
 # Runs against an EXISTING, already-migrated Wizer PostgreSQL database (the
-# quality job's Postgres 16 service), takes a dump with the real backup-db.sh,
-# restores that dump into a separate scratch Postgres 16 instance, then proves
+# quality job's Postgres 17 service), takes a dump with the real backup-db.sh,
+# restores that dump into a separate scratch Postgres 17 instance, then proves
 # the partition parents/children/registry/triggers/helper survived the round trip.
 #
 # This is intentionally an extension of backup-restore-drill.sh, not another CI

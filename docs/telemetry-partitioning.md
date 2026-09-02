@@ -81,7 +81,7 @@ DIRECT_URL="$DIRECT_URL" bash scripts/assert-telemetry-partition-isolation.sh
 
 ## Validation gate
 
-The final PR must run against real PostgreSQL 16 and prove all of the following on the exact release head:
+The final PR must run against real PostgreSQL 17 and prove all of the following on the exact release head:
 
 - full migration chain applies from an empty database;
 - Prisma client generation succeeds and the normal schema-drift gate remains strict;
