@@ -131,6 +131,9 @@ jobs:
       - name: Preflight mail transport tests
         run: bash scripts/tests/preflight-mail-transport.test.sh
 
+      - name: Preflight .env parsing tests
+        run: bash scripts/tests/preflight-env-parsing.test.sh
+
       - name: Deploy nginx-reload tests
         run: bash scripts/tests/deploy-nginx-reload.test.sh
 

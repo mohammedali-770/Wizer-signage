@@ -20,13 +20,70 @@ pass() { printf '  ok  %s\n' "$*"; }
 [[ -f "${ENV_FILE}" ]] || fail "environment file not found: ${ENV_FILE}"
 [[ -r "${ENV_FILE}" ]] || fail "environment file is not readable: ${ENV_FILE}"
 
-read_env_value() {
+read_env_raw() {
   local key="$1" raw
   raw="$(grep -E "^${key}=" "${ENV_FILE}" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
   raw="${raw//$'\r'/}"
-  raw="${raw#\"}"; raw="${raw%\"}"
-  raw="${raw#\'}"; raw="${raw%\'}"
-  printf '%s' "${raw}" | xargs
+
+  # Trim with parameter expansion, never xargs. xargs parses its input as
+  # shell-ish words -- quotes and backslashes are SYNTAX to it, not data. Every
+  # BACKUP_OFFSITE_* value is itself a shell command and legitimately contains
+  # quotes, so an unbalanced one killed the whole preflight with
+  # "xargs: unmatched double quote", taking the deploy with it. Observed in
+  # production on 2026-09-09, aborting immediately after the offsite-image
+  # check -- against the very form backup-db.sh documents. xargs also silently
+  # ATE the quotes from values it could parse, so BACKUP_OFFSITE_CMD was being
+  # gated in a form nothing would ever run.
+  raw="${raw#"${raw%%[![:space:]]*}"}"
+  raw="${raw%"${raw##*[![:space:]]}"}"
+  printf '%s' "${raw}"
+}
+
+read_env_value() {
+  local raw
+  raw="$(read_env_raw "$1")"
+
+  # Strip only a MATCHED surrounding pair, the way Compose does. Unconditionally
+  # removing one leading and one trailing quote is what CREATED the imbalance:
+  # `rclone size "spaces:b/$(basename "$1")"` does not start with a quote but
+  # ends with one, so it lost its closing quote and became unparseable.
+  if (( ${#raw} >= 2 )) \
+    && { [[ ${raw:0:1} == '"' && ${raw: -1} == '"' ]] \
+      || [[ ${raw:0:1} == "'" && ${raw: -1} == "'" ]]; }; then
+    raw="${raw:1:${#raw}-2}"
+  fi
+
+  printf '%s' "${raw}"
+}
+
+# scripts/backup-db.sh SOURCES .env under `set -euo pipefail`, so these values
+# are PARSED BY THE SHELL, not merely read. Two shapes are silently wrong there
+# while passing every other gate, and both fail during the mandatory
+# pre-migration backup -- mid-deploy, after images are pulled:
+#
+#   BACKUP_OFFSITE_CMD=rclone copyto "$1" remote:x
+#     bash reads `BACKUP_OFFSITE_CMD=rclone` as an assignment prefix and tries
+#     to RUN `copyto`. Under set -e that aborts the backup.
+#
+#   BACKUP_OFFSITE_CMD="rclone copyto \"$1\" remote:$(basename x)"
+#     double quotes expand $1 and $(...) AT SOURCE TIME, so the stored command
+#     is missing the placeholders it needs and silently copies the wrong thing.
+#
+# Single-quote the value, as backup-db.sh documents.
+offsite_assignment_is_source_safe() {
+  local raw="$1"
+  [[ -z "${raw}" ]] && return 0
+  # Single quotes: the shell takes the value verbatim. Always safe.
+  [[ ${raw} == \'*\' && ${#raw} -ge 2 ]] && return 0
+  # Double quotes: safe only when nothing inside would be expanded on source.
+  if [[ ${raw} == \"*\" && ${#raw} -ge 2 ]]; then
+    [[ ${raw} == *'$'* || ${raw} == *'`'* ]] && return 1
+    return 0
+  fi
+  # Unwrapped: safe only as a single word, which the shell cannot re-read as an
+  # assignment prefix followed by a command.
+  [[ ${raw} == *[[:space:]]* ]] && return 1
+  return 0
 }
 
 is_placeholder() {
@@ -354,6 +411,15 @@ case "${VERIFY_BIN}" in
 esac
 docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${VERIFY_BIN}' >/dev/null 2>&1" \
   || fail "BACKUP_OFFSITE_VERIFY_CMD runs '${VERIFY_BIN}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
+# Both offsite values are read back by a shell that SOURCES .env, so a shape
+# that only Compose can parse would pass every gate above and then abort the
+# mandatory pre-migration backup, mid-deploy.
+for offsite_key in BACKUP_OFFSITE_CMD BACKUP_OFFSITE_VERIFY_CMD; do
+  offsite_assignment_is_source_safe "$(read_env_raw "${offsite_key}")" \
+    || fail "${offsite_key} is not safe for \`source\`, which scripts/backup-db.sh does under set -euo pipefail: wrap the whole value in SINGLE quotes. Unquoted, bash reads the first word as the value and runs the rest as a command; double-quoted, it expands \$1 and \$(...) at source time and stores the wrong command."
+done
+pass "offsite backup commands survive being sourced by backup-db.sh"
+
 pass "offsite backup copy is verified against the local dump size"
 
 # The host and the maintenance container must produce interchangeable dumps.
