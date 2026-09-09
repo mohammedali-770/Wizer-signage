@@ -109,6 +109,15 @@ scripts/production-preflight.sh <FULL_GIT_SHA>
 
 It verifies host tools, Docker/Compose, production-like endpoints, database/registry shape, secret floors, offsite recovery posture, dead-man monitoring, Compose rendering, free disk, open-file headroom and immutable SHA syntax without printing secret values.
 
+> **Naming a release means that release must already be on the host.** Preflight
+> validates the image being deployed, not the one it replaces, so it fails with
+> _"release … was named but its maintenance image is not on this host"_ and the
+> `pull-release-images.sh` command to fix it. `deploy-production.sh` pulls before
+> preflighting for exactly this reason; only a standalone run has to pull first.
+>
+> Run it with **no argument** to audit the steady state instead — that resolves
+> the running maintenance container, which is what takes tonight's backup.
+
 ## 3. Deploy only through the production wrapper
 
 Use the same accepted SHA:
