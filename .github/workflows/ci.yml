@@ -122,6 +122,9 @@ jobs:
       - name: Deploy gate tests
         run: bash scripts/tests/deploy-gate.test.sh
 
+      - name: Preflight maintenance-image resolution tests
+        run: bash scripts/tests/preflight-image-resolution.test.sh
+
       - name: Deploy nginx-reload tests
         run: bash scripts/tests/deploy-nginx-reload.test.sh
 

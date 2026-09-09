@@ -165,26 +165,62 @@ pass "offsite backup copy command is configured"
 #
 # --rm and no volumes: this starts and discards one throwaway container and
 # changes no host state, consistent with this script's read-only contract.
+# WHEN A RELEASE IS NAMED, VALIDATE THAT RELEASE — NEVER THE ONE IT REPLACES.
+#
+# This previously read the RUNNING container first, so on any release that
+# changes something this script gates, preflight measured the image being
+# replaced and blocked the deploy that fixed it. Observed in production on
+# 2026-09-09: with the host client moved to 17 to match the 17.6 server, it
+# resolved `wizer-signage/maintenance:3b61952f4dd0` -- the old 16 image -- and
+# failed the major comparison. The deploy had to go around it.
+#
+# The old argument branch could not rescue that either. deploy-production.sh
+# passes the FULL 40-character SHA while release images are tagged with the
+# 12-character prefix, so `${REGISTRY}/wizer-signage-maintenance:<40 chars>`
+# never existed and it fell through to `:latest` -- a tag that may point at an
+# entirely different release, or at nothing.
+#
+# Exit codes let the caller say which of the two failures happened:
+#   0  resolved (image name on stdout)
+#   1  no release named and nothing resolvable
+#   2  a release WAS named and is not present locally
+#
+# A named-but-absent release must fail rather than fall back. Falling back is
+# precisely the bug: it validates some other image and reports a pass.
 resolve_maintenance_image() {
-  local img
+  local target="${1:-${IMAGE_TAG:-}}" tag img
+  if [[ "${target}" =~ ^[0-9a-f]{40}$ ]]; then
+    tag="${target:0:12}"
+  else
+    tag="${target}"
+  fi
+
+  if [[ -n "${tag}" ]]; then
+    for img in "wizer-signage/maintenance:${tag}" "${REGISTRY}/wizer-signage-maintenance:${tag}"; do
+      docker image inspect "${img}" >/dev/null 2>&1 && { printf '%s' "${img}"; return 0; }
+    done
+    return 2
+  fi
+
+  # No release named: this is a steady-state audit, so the running container is
+  # the right subject -- it is what takes tonight's backup.
   img="$(docker inspect -f '{{.Config.Image}}' wizer-signage-maintenance 2>/dev/null || true)"
   [[ -n "${img}" ]] && { printf '%s' "${img}"; return 0; }
-  if [[ $# -gt 0 && -n "${1}" ]]; then
-    img="${REGISTRY}/wizer-signage-maintenance:${1}"
-    docker image inspect "${img}" >/dev/null 2>&1 && { printf '%s' "${img}"; return 0; }
-  fi
-  for img in "wizer-signage/maintenance:${IMAGE_TAG:-latest}" "wizer-signage/maintenance:latest"; do
-    docker image inspect "${img}" >/dev/null 2>&1 && { printf '%s' "${img}"; return 0; }
-  done
+  img="wizer-signage/maintenance:latest"
+  docker image inspect "${img}" >/dev/null 2>&1 && { printf '%s' "${img}"; return 0; }
   return 1
 }
-if MAINTENANCE_IMAGE="$(resolve_maintenance_image "${1:-}")"; then
-  docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${OFFSITE_BIN}' >/dev/null 2>&1" \
-    || fail "BACKUP_OFFSITE_CMD runs '${OFFSITE_BIN}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
-  pass "offsite copy command resolves inside the maintenance image"
-else
-  fail "cannot resolve the maintenance image to validate BACKUP_OFFSITE_CMD against; start the base stack or pull the release images first (blue/green is an adoption path — see docs/production-cutover.md §5)"
-fi
+MAINTENANCE_IMAGE="$(resolve_maintenance_image "${1:-}")" && resolve_rc=0 || resolve_rc=$?
+case "${resolve_rc}" in
+  0)
+    docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${OFFSITE_BIN}' >/dev/null 2>&1" \
+      || fail "BACKUP_OFFSITE_CMD runs '${OFFSITE_BIN}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
+    pass "offsite copy command resolves inside the maintenance image (${MAINTENANCE_IMAGE})" ;;
+  2)
+    fail "release ${1} was named but its maintenance image is not on this host; pull it first: IMAGE_REGISTRY_PREFIX=${REGISTRY} scripts/pull-release-images.sh ${1:0:12}" ;;
+  *)
+    fail "cannot resolve the maintenance image to validate BACKUP_OFFSITE_CMD against; start the base stack or pull the release images first (blue/green is an adoption path — see docs/production-cutover.md §5)" ;;
+esac
 
 # An exit status is not evidence that bytes arrived. backup-db.sh compares the
 # remote object's size against the local dump, but only when this is set, so
