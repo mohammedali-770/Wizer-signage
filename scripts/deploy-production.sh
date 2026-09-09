@@ -40,6 +40,22 @@ REMOTE_MAIN_SHA="$(git -C "${ROOT_DIR}" ls-remote origin refs/heads/main | awk '
 }
 printf '  ok  protected main still equals the accepted immutable release SHA\n'
 
+# pull-release-images.sh reads IMAGE_REGISTRY_PREFIX from the EXPORTED environment
+# only -- it has no .env fallback of its own. deploy-blue-green.sh does read the
+# .env value and export it, but that runs after this point, so an operator who
+# keeps the prefix in the documented repo-root .env (rather than exporting it by
+# hand) would fail here. Resolve and export it first, using the same fallback
+# blue/green uses; blue/green's own read then finds it already set.
+ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
+if [[ -z "${IMAGE_REGISTRY_PREFIX:-}" && -r "${ENV_FILE}" ]]; then
+  IMAGE_REGISTRY_PREFIX="$(grep -E '^IMAGE_REGISTRY_PREFIX=' "${ENV_FILE}" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"'"'"'\r' | xargs || true)"
+fi
+[[ -n "${IMAGE_REGISTRY_PREFIX:-}" ]] || {
+  echo "ERROR [production]: IMAGE_REGISTRY_PREFIX is required (for example ghcr.io/<owner>); set it in ${ENV_FILE} or export it." >&2
+  exit 1
+}
+export IMAGE_REGISTRY_PREFIX
+
 printf '==> [production] Pulling and verifying immutable release images for %s...\n' "${TARGET_SHA}"
 bash "${SCRIPT_DIR}/pull-release-images.sh" "${TARGET_SHA:0:12}"
 
