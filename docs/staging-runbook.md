@@ -93,7 +93,11 @@ nano .env                        # fill in (see checklist below)
 - Database **[REQUIRED]**: `DATABASE_URL`, `DIRECT_URL`
 - Auth **[REQUIRED]**: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY` (≥16 chars; use 48+)
 - Supabase: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, `SUPABASE_STORAGE_BUCKET`
-- SMTP (optional but recommended): `SMTP_HOST/PORT/USER/PASSWORD/FROM/SECURE`
+- Email **[REQUIRED in production]**: `MAIL_TRANSPORT` (`smtp` default, or `zeptomail-api`)
+  and `SMTP_FROM`, plus either `SMTP_HOST/PORT/USER/PASSWORD/SECURE` or `ZEPTOMAIL_API_KEY`.
+  Check whether the host blocks outbound SMTP before choosing — DigitalOcean blocks
+  25/465/587 on every Droplet by default, and a blocked host on the SMTP default reports
+  mail healthy while delivering nothing.
 - Maintenance/backup: `RETENTION_DAYS`, `CONTENT_TRASH_RETENTION_DAYS`, `BACKUP_DIR=/backups`, `TZ`
 - SSL: `LETSENCRYPT_EMAIL`
 

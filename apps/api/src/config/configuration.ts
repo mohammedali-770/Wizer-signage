@@ -87,6 +87,27 @@ export interface SmtpConfig {
   readonly secure?: boolean;
 }
 
+/**
+ * Which transport carries outbound mail.
+ *
+ * `smtp` is the default and works with any provider. `zeptomail-api` exists
+ * because some hosts block outbound SMTP outright — DigitalOcean blocks
+ * 25/465/587 on every Droplet by default — and ZeptoMail publishes no
+ * alternate submission port, so on such a host HTTPS is the only route out.
+ */
+export type MailTransport = 'smtp' | 'zeptomail-api';
+
+export interface ZeptoMailConfig {
+  readonly apiKey?: string;
+  /** Overrides the default endpoint; ZeptoMail has per-region hostnames. */
+  readonly endpoint?: string;
+}
+
+export interface MailConfig {
+  readonly transport: MailTransport;
+  readonly zeptoMail: ZeptoMailConfig;
+}
+
 export interface RetentionConfig {
   /** Default retention window for telemetry/operational data (days). */
   readonly days: number;
@@ -117,6 +138,7 @@ export interface AppConfig {
   readonly security: SecurityConfig;
   readonly twoFactor: TwoFactorConfig;
   readonly smtp: SmtpConfig;
+  readonly mail: MailConfig;
   readonly retention: RetentionConfig;
   readonly map: MapConfig;
   readonly trial: TrialConfig;
@@ -202,6 +224,16 @@ export default (): AppConfig => {
       password: env.SMTP_PASSWORD ?? env.SMTP_PASS,
       from: env.SMTP_FROM,
       secure: env.SMTP_SECURE !== undefined ? env.SMTP_SECURE === 'true' : undefined,
+    },
+    mail: {
+      // Anything other than the explicit opt-in stays on SMTP, so an
+      // unrecognised value degrades to the documented default rather than
+      // disabling mail.
+      transport: env.MAIL_TRANSPORT === 'zeptomail-api' ? 'zeptomail-api' : 'smtp',
+      zeptoMail: {
+        apiKey: env.ZEPTOMAIL_API_KEY,
+        endpoint: env.ZEPTOMAIL_API_URL,
+      },
     },
     retention: {
       days: parseIntEnv(env.RETENTION_DAYS, 90),

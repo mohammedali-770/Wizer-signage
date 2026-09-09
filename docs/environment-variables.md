@@ -119,23 +119,55 @@ the seed prints a warning. They are not read at runtime.
 
 ---
 
-## Email / SMTP
+## Email
 
-Outbound transactional email (invitations, alerts, password resets). The SMTP password is
-a **secret**.
+Outbound transactional email (invitations, alerts, password resets). Two transports are
+supported, selected by `MAIL_TRANSPORT`. Credentials for either are **secrets**.
 
-| Variable        | Required | Scope | Description                                                    | Example / Placeholder               |
-| --------------- | -------- | ----- | -------------------------------------------------------------- | ----------------------------------- |
-| `SMTP_HOST`     | Yes      | api   | SMTP server hostname.                                          | `smtp.example.com`                  |
-| `SMTP_PORT`     | Yes      | api   | SMTP server port (`587` for STARTTLS, `465` for implicit TLS). | `587`                               |
-| `SMTP_USER`     | Yes      | api   | SMTP authentication username.                                  | `no-reply@wizer.sa`                 |
-| `SMTP_PASSWORD` | Yes      | api   | **Secret.** SMTP authentication password / app password.       | `change-me`                         |
-| `SMTP_PASS`     | No       | api   | **Secret.** Alias for `SMTP_PASSWORD` (either is accepted).    | `change-me`                         |
-| `SMTP_FROM`     | Yes      | api   | Default From address for outgoing mail.                        | `Wizer Signage <no-reply@wizer.sa>` |
-| `SMTP_SECURE`   | No       | api   | Force implicit TLS on connect. Defaults to true for port 465.  | `false`                             |
+| Variable            | Required           | Scope | Description                                                           | Example / Placeholder                  |
+| ------------------- | ------------------ | ----- | --------------------------------------------------------------------- | -------------------------------------- |
+| `MAIL_TRANSPORT`    | No                 | api   | `smtp` (default) or `zeptomail-api`. Any other value is rejected.     | `smtp`                                 |
+| `SMTP_FROM`         | Yes                | api   | Default From address. Required by **both** transports.                | `Wizer Signage <no-reply@wizer.sa>`    |
+| `SMTP_HOST`         | On `smtp`          | api   | SMTP server hostname.                                                 | `smtp.example.com`                     |
+| `SMTP_PORT`         | On `smtp`          | api   | SMTP server port (`587` STARTTLS, `465` implicit TLS).                | `587`                                  |
+| `SMTP_USER`         | No                 | api   | SMTP authentication username. Omit for an unauthenticated relay.      | `no-reply@wizer.sa`                    |
+| `SMTP_PASSWORD`     | No                 | api   | **Secret.** SMTP authentication password / app password.              | `change-me`                            |
+| `SMTP_PASS`         | No                 | api   | **Secret.** Alias for `SMTP_PASSWORD` (either is accepted).           | `change-me`                            |
+| `SMTP_SECURE`       | No                 | api   | Force implicit TLS on connect. Defaults to true for port 465.         | `false`                                |
+| `ZEPTOMAIL_API_KEY` | On `zeptomail-api` | api   | **Secret.** ZeptoMail Send Mail token, from the Mail Agent's API tab. | `change-me`                            |
+| `ZEPTOMAIL_API_URL` | No                 | api   | Override for a non-default ZeptoMail region.                          | `https://api.zeptomail.com/v1.1/email` |
 
-> When SMTP is **unset**, the API logs emails instead of sending them (dev mode);
-> every send is recorded in `EmailDeliveryLog` either way.
+> When neither transport is configured, the API logs emails instead of sending them
+> (dev mode); every send is recorded in `EmailDeliveryLog` either way.
+
+### Choosing a transport
+
+`smtp` is the default and works with any provider. Use `zeptomail-api` when the host
+blocks outbound SMTP.
+
+**DigitalOcean blocks TCP 25, 465 and 587 on every Droplet by default**, including
+traffic leaving via a Reserved IP, and ZeptoMail publishes no alternate submission port.
+On a Droplet, every SMTP send therefore dies in `connect` with an opaque `ETIMEDOUT`
+that looks exactly like a wrong password or a bad hostname. Confirm the block before
+blaming the credentials — a port-level block hits every host, not just your provider:
+
+```bash
+for t in smtp.zeptomail.com:587 smtp.gmail.com:587 api.zeptomail.com:443; do
+  h=${t%:*}; p=${t#*:}
+  timeout 5 bash -c "exec 3<>/dev/tcp/$h/$p" 2>/dev/null && echo "OPEN $t" || echo "BLOCKED $t"
+done
+```
+
+Both 587 lines BLOCKED while 443 is OPEN means the platform, not your configuration.
+Either ask DigitalOcean support to lift the block (1–2 business days, discretionary) or
+set `MAIL_TRANSPORT=zeptomail-api`, which uses 443 and cannot be policy-blocked.
+
+`ZEPTOMAIL_API_KEY` is **not** necessarily the same string as the SMTP password —
+ZeptoMail issues them on separate tabs of the Mail Agent. Copy the one shown under API.
+
+Sending on the API transport also needs the domain verified in ZeptoMail, which means a
+DKIM `TXT` record and a bounce `CNAME` published for the sending domain. Verify those
+from outside your own DNS panel before trusting the provider's green tick.
 
 ---
 
@@ -218,7 +250,7 @@ Before starting the stack, confirm the following are set (the rest have safe def
 - Networking: `API_PORT`, `DASHBOARD_PORT`, `API_URL`, `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`
 - Database/Supabase: `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`
 - Auth: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY` (all enforced at boot, ≥16 chars), `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `SESSION_INACTIVITY_TIMEOUT_MINUTES`
-- Email: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_SECURE`
+- Email: `MAIL_TRANSPORT`, `SMTP_FROM`, plus either `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_SECURE` or `ZEPTOMAIL_API_KEY`/`ZEPTOMAIL_API_URL`
 - Maintenance/backup (prod): `RETENTION_DAYS`, `CONTENT_TRASH_RETENTION_DAYS`, `BACKUP_DIR`, `BACKUP_OFFSITE_CMD`, `BACKUP_OFFSITE_VERIFY_CMD`, `TZ`
 - Deployment (prod): `APP_DOMAIN`, `LETSENCRYPT_EMAIL`, and the dashboard build arg `NEXT_PUBLIC_API_URL`
 

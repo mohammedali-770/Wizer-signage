@@ -13,6 +13,7 @@ import { URL } from 'node:url';
 import { plainToInstance } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -178,6 +179,25 @@ export class EnvironmentVariables {
   @IsString()
   SMTP_SECURE?: string;
 
+  /**
+   * Rejected rather than silently coerced: a typo here ("zeptomail_api") would
+   * quietly select SMTP, and on a host that blocks outbound SMTP that means
+   * every email fails while the service reports itself configured.
+   */
+  @IsOptional()
+  @IsIn(['smtp', 'zeptomail-api'], {
+    message: "MAIL_TRANSPORT must be either 'smtp' or 'zeptomail-api'",
+  })
+  MAIL_TRANSPORT?: string;
+
+  @IsOptional()
+  @IsString()
+  ZEPTOMAIL_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  ZEPTOMAIL_API_URL?: string;
+
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -280,6 +300,47 @@ function validateProductionDashboardOrigin(config: EnvironmentVariables): void {
   }
 }
 
+/**
+ * ZEPTOMAIL_API_URL carries the Send Mail token in an Authorization header and
+ * the rendered email in the body — password-reset and invitation mails carry
+ * single-use bearer tokens in their links. A plaintext endpoint would put both
+ * on the wire in cleartext.
+ *
+ * Checked here rather than only in production-preflight.sh because preflight
+ * runs on exactly one deploy path (deploy-production.sh). deploy-release.sh,
+ * deploy-blue-green.sh and a plain `docker compose up -d` all bypass it, so the
+ * only check guaranteed to run before a secret is sent is this one.
+ *
+ * Applies in every environment: a developer pointing at a plaintext proxy leaks
+ * just as effectively as an operator does.
+ */
+function validateZeptoMailEndpoint(config: EnvironmentVariables): void {
+  const raw = config.ZEPTOMAIL_API_URL?.trim();
+  if (!raw) {
+    return;
+  }
+
+  let parsed: URL;
+  try {
+    // Rejects a hostless "https://" outright, which a prefix check accepts and
+    // which would leave readiness healthy while every send failed.
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(
+      `Invalid environment configuration: ZEPTOMAIL_API_URL is not a valid URL (${raw}).`,
+    );
+  }
+
+  if (parsed.protocol !== 'https:') {
+    throw new Error(
+      `Invalid environment configuration: ZEPTOMAIL_API_URL must use https:// ` +
+        `(found ${parsed.protocol}//). The API key and the rendered email — which ` +
+        `carries single-use password-reset links — would otherwise cross the ` +
+        `network in cleartext.`,
+    );
+  }
+}
+
 export function validate(config: Record<string, unknown>): EnvironmentVariables {
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
@@ -297,10 +358,20 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
     throw new Error(`Invalid environment configuration: ${details}`);
   }
 
+  validateZeptoMailEndpoint(validatedConfig);
+
   if (validatedConfig.NODE_ENV === Environment.Production) {
     validateProductionDashboardOrigin(validatedConfig);
 
-    const missingSmtp = (['SMTP_HOST', 'SMTP_PORT', 'SMTP_FROM'] as const).filter((key) => {
+    // SMTP_FROM is required whatever the transport — it is the envelope sender
+    // every one of them stamps on the message. The credentials that must
+    // accompany it depend on which transport is selected.
+    const requiredMail: readonly (keyof EnvironmentVariables)[] =
+      validatedConfig.MAIL_TRANSPORT === 'zeptomail-api'
+        ? ['SMTP_FROM', 'ZEPTOMAIL_API_KEY']
+        : ['SMTP_HOST', 'SMTP_PORT', 'SMTP_FROM'];
+
+    const missingSmtp = requiredMail.filter((key) => {
       const value = validatedConfig[key];
       return value === undefined || value === null || String(value).trim() === '';
     });

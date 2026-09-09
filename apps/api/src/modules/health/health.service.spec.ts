@@ -2,7 +2,7 @@ import { HealthService } from './health.service';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-function build(over: { dbOk?: boolean; supabase?: any; smtp?: any } = {}) {
+function build(over: { dbOk?: boolean; supabase?: any; smtp?: any; mail?: any } = {}) {
   const prisma: any = {
     $queryRaw: jest.fn(() =>
       over.dbOk === false
@@ -11,8 +11,12 @@ function build(over: { dbOk?: boolean; supabase?: any; smtp?: any } = {}) {
     ),
   };
   const config: any = {
-    get: (key: string) =>
-      key === 'supabase' ? (over.supabase ?? {}) : key === 'smtp' ? (over.smtp ?? {}) : undefined,
+    get: (key: string) => {
+      if (key === 'supabase') return over.supabase ?? {};
+      if (key === 'smtp') return over.smtp ?? {};
+      if (key === 'mail') return over.mail ?? { transport: 'smtp', zeptoMail: {} };
+      return undefined;
+    },
   };
   return new HealthService(prisma, config);
 }
@@ -65,6 +69,35 @@ describe('HealthService', () => {
       expect(r.checks.storageConfigured).toBe(false);
       expect(r.checks.mailConfigured).toBe(false);
       expect(JSON.stringify(r)).not.toMatch(/serviceRoleKey|password|secret/i);
+    });
+
+    // The readiness probe has to agree with the transport MailService actually
+    // selects. Reporting on SMTP alone is what let a droplet run for months
+    // announcing mailConfigured: true while nothing could be delivered.
+    it('reports mail configured on the API transport even with no SMTP host', async () => {
+      const r = await build({
+        dbOk: true,
+        smtp: { from: 'Wizer <no-reply@wizer.sa>' },
+        mail: { transport: 'zeptomail-api', zeptoMail: { apiKey: 'k' } },
+      }).ready();
+      expect(r.checks.mailConfigured).toBe(true);
+    });
+
+    it('reports mail NOT configured when the API transport has no key', async () => {
+      const r = await build({
+        dbOk: true,
+        smtp: { host: 'smtp.example.com', port: 587 },
+        mail: { transport: 'zeptomail-api', zeptoMail: {} },
+      }).ready();
+      expect(r.checks.mailConfigured).toBe(false);
+    });
+
+    it('never leaks the ZeptoMail API key', async () => {
+      const r = await build({
+        dbOk: true,
+        mail: { transport: 'zeptomail-api', zeptoMail: { apiKey: 'super-secret-token' } },
+      }).ready();
+      expect(JSON.stringify(r)).not.toContain('super-secret-token');
     });
   });
 });

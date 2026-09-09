@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
 import type { AppConfig } from '../../config/configuration';
+import { ZeptoMailApiTransport } from './zeptomail-api.transport';
 
 export interface MailMessage {
   to: string;
@@ -14,15 +15,23 @@ export interface MailMessage {
 /**
  * Email delivery.
  *
- * When SMTP_* is configured a real SMTP transport is used; otherwise a
- * development "json" transport logs the message so flows (invitations, password
- * reset) work locally without an email provider. Per-tenant branded senders
- * (Company.brandedEmailFrom) are layered on in a later phase.
+ * Three transports, chosen at boot:
+ *
+ * - `zeptomail-api` — ZeptoMail's REST endpoint over 443. Required on hosts
+ *   that block outbound SMTP; DigitalOcean blocks 25/465/587 on every Droplet
+ *   by default and ZeptoMail publishes no alternate submission port.
+ * - `smtp` (default) — any SMTP provider, when SMTP_HOST and SMTP_PORT are set.
+ * - dev fallback — a "json" transport that logs instead of sending, so
+ *   invitation and password-reset flows work locally with no provider.
+ *
+ * Per-tenant branded senders (Company.brandedEmailFrom) are layered on in a
+ * later phase.
  */
 @Injectable()
 export class MailService implements OnModuleInit {
   private readonly logger = new Logger(MailService.name);
   private transporter!: nodemailer.Transporter;
+  private apiTransport?: ZeptoMailApiTransport;
   private fromAddress = 'Wizer Signage <no-reply@wizer.sa>';
   private liveTransport = false;
 
@@ -30,8 +39,28 @@ export class MailService implements OnModuleInit {
 
   onModuleInit(): void {
     const smtp = this.config.get<AppConfig['smtp']>('smtp', { infer: true });
+    const mail = this.config.get<AppConfig['mail']>('mail', { infer: true });
     if (smtp?.from) {
       this.fromAddress = smtp.from;
+    }
+
+    if (mail?.transport === 'zeptomail-api' && mail.zeptoMail?.apiKey) {
+      this.apiTransport = new ZeptoMailApiTransport({
+        apiKey: mail.zeptoMail.apiKey,
+        endpoint: mail.zeptoMail.endpoint,
+      });
+      this.liveTransport = true;
+      this.logger.log('Mail transport: ZeptoMail HTTPS API.');
+      return;
+    }
+
+    if (mail?.transport === 'zeptomail-api') {
+      // Selecting the API transport without a key is a deployment mistake, not
+      // a request to fall back silently — that is exactly how this service ran
+      // for months reporting healthy while delivering nothing.
+      this.logger.error(
+        'MAIL_TRANSPORT=zeptomail-api but ZEPTOMAIL_API_KEY is unset — falling back to SMTP/dev.',
+      );
     }
 
     if (smtp?.host && smtp.port) {
@@ -54,12 +83,13 @@ export class MailService implements OnModuleInit {
         maxMessages: 50,
       });
       this.liveTransport = true;
-      this.logger.log(`SMTP transport configured (${smtp.host}:${smtp.port}).`);
-    } else {
-      // Dev fallback: does not send; returns the message as JSON.
-      this.transporter = nodemailer.createTransport({ jsonTransport: true });
-      this.logger.warn('SMTP not configured — emails are logged, not sent (dev mode).');
+      this.logger.log(`Mail transport: SMTP (${smtp.host}:${smtp.port}).`);
+      return;
     }
+
+    // Dev fallback: does not send; returns the message as JSON.
+    this.transporter = nodemailer.createTransport({ jsonTransport: true });
+    this.logger.warn('SMTP not configured — emails are logged, not sent (dev mode).');
   }
 
   /**
@@ -68,6 +98,18 @@ export class MailService implements OnModuleInit {
    * transport error — callers that must not fail (alerts) should catch.
    */
   async send(message: MailMessage): Promise<{ messageId: string | null; live: boolean }> {
+    if (this.apiTransport) {
+      const { messageId } = await this.apiTransport.send({
+        from: this.fromAddress,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+      });
+      this.logger.log(`Email sent to ${message.to} (id: ${messageId}).`);
+      return { messageId, live: true };
+    }
+
     const result = await this.transporter.sendMail({
       from: this.fromAddress,
       to: message.to,
@@ -90,7 +132,7 @@ export class MailService implements OnModuleInit {
     return { messageId: result.messageId ?? null, live: this.liveTransport };
   }
 
-  /** True when a real SMTP transport is configured (vs. the dev log-only mode). */
+  /** True when a real transport is configured (vs. the dev log-only mode). */
   get isLive(): boolean {
     return this.liveTransport;
   }
