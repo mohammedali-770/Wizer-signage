@@ -28,7 +28,7 @@ pass=0; fail=0
 ok() { echo "  ok   — $1"; pass=$(( pass + 1 )); }
 no() { echo "  FAIL — $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fail=$(( fail + 1 )); }
 
-for fn in read_env_raw read_env_value offsite_assignment_is_source_safe; do
+for fn in read_env_raw read_env_value offsite_assignment_is_source_safe offsite_bin_on_host; do
   body="$(sed -n "/^${fn}() {/,/^}/p" "${PREFLIGHT}")"
   [[ -n "${body}" ]] || { echo "could not extract ${fn} from ${PREFLIGHT}" >&2; exit 1; }
   eval "${body}"
@@ -144,6 +144,25 @@ unsafe "an unwrapped multi-word command" 'rclone size --json "spaces:b/$(basenam
 # Double quotes expand $1 and $(...) at source time, storing the wrong command.
 unsafe "a double-quoted command containing \$" '"rclone copyto \"$1\" remote:b"'
 unsafe "a double-quoted command containing a backtick" '"rclone copyto `date` remote:b"'
+
+# --- host-side binary resolution --------------------------------------------
+# deploy-blue-green.sh:95 runs backup-db.sh on the HOST, while the nightly runs
+# it in the maintenance container. On 2026-09-09 a deploy died at the mandatory
+# pre-migration backup with `_: 1: rclone: not found` because preflight only
+# ever checked the image. The previous BACKUP_OFFSITE_CMD was `cp`, which
+# exists everywhere, so the gap had never shown.
+if offsite_bin_on_host sh; then ok "finds a binary that is on PATH"; else no "finds a binary that is on PATH" "found" "not found"; fi
+if offsite_bin_on_host wizer-definitely-not-installed-xyz; then
+  no "rejects a binary that is absent" "not found" "found"
+else
+  ok "rejects a binary that is absent"
+fi
+# An absolute path that does not exist must not be treated as present.
+if offsite_bin_on_host /nonexistent/rclone; then
+  no "rejects an absolute path that does not exist" "not found" "found"
+else
+  ok "rejects an absolute path that does not exist"
+fi
 
 echo
 echo "passed: ${pass}  failed: ${fail}"

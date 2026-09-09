@@ -279,6 +279,21 @@ offsite_first_word() {
   cmd="${cmd##*/}"                  # basename, so /bin/true == true
   printf '%s' "${cmd}"
 }
+# The offsite commands run in TWO places, and preflight has to prove both.
+#
+#   nightly     — scripts/backup-db.sh inside the maintenance container
+#   deploy time — scripts/backup-db.sh on the HOST, called by
+#                 deploy-blue-green.sh:95 before migrations
+#
+# Checking only the image is how a deploy reached the mandatory pre-migration
+# backup on 2026-09-09 and died with `_: 1: rclone: not found`: the container
+# had rclone, the host did not. Nothing had caught it because the previous
+# BACKUP_OFFSITE_CMD was `cp`, which exists everywhere. A backup that fails
+# here aborts the deploy after a dump has already been written.
+offsite_bin_on_host() {
+  command -v "$1" >/dev/null 2>&1
+}
+
 OFFSITE_BIN="$(offsite_first_word "${OFFSITE_CMD}")"
 case "${OFFSITE_BIN}" in
   true|:|echo|cat|printf|test|nop|noop|'')
@@ -411,6 +426,14 @@ case "${VERIFY_BIN}" in
 esac
 docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${VERIFY_BIN}' >/dev/null 2>&1" \
   || fail "BACKUP_OFFSITE_VERIFY_CMD runs '${VERIFY_BIN}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
+# Now that both binaries are known, prove they exist on the HOST as well. The
+# deploy-time backup runs here, not in the container.
+for offsite_pair in "BACKUP_OFFSITE_CMD:${OFFSITE_BIN}" "BACKUP_OFFSITE_VERIFY_CMD:${VERIFY_BIN}"; do
+  offsite_bin_on_host "${offsite_pair#*:}" \
+    || fail "${offsite_pair%%:*} runs '${offsite_pair#*:}', which is not on this host's PATH. deploy-blue-green.sh runs scripts/backup-db.sh on the HOST for the mandatory pre-migration backup, so the maintenance image having it is not enough — install it here too."
+done
+pass "offsite backup commands resolve on the host that takes the pre-migration backup"
+
 # Both offsite values are read back by a shell that SOURCES .env, so a shape
 # that only Compose can parse would pass every gate above and then abort the
 # mandatory pre-migration backup, mid-deploy.
