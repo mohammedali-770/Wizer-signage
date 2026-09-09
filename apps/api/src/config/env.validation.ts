@@ -13,6 +13,7 @@ import { URL } from 'node:url';
 import { plainToInstance } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -178,6 +179,25 @@ export class EnvironmentVariables {
   @IsString()
   SMTP_SECURE?: string;
 
+  /**
+   * Rejected rather than silently coerced: a typo here ("zeptomail_api") would
+   * quietly select SMTP, and on a host that blocks outbound SMTP that means
+   * every email fails while the service reports itself configured.
+   */
+  @IsOptional()
+  @IsIn(['smtp', 'zeptomail-api'], {
+    message: "MAIL_TRANSPORT must be either 'smtp' or 'zeptomail-api'",
+  })
+  MAIL_TRANSPORT?: string;
+
+  @IsOptional()
+  @IsString()
+  ZEPTOMAIL_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  ZEPTOMAIL_API_URL?: string;
+
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -300,7 +320,15 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
   if (validatedConfig.NODE_ENV === Environment.Production) {
     validateProductionDashboardOrigin(validatedConfig);
 
-    const missingSmtp = (['SMTP_HOST', 'SMTP_PORT', 'SMTP_FROM'] as const).filter((key) => {
+    // SMTP_FROM is required whatever the transport — it is the envelope sender
+    // every one of them stamps on the message. The credentials that must
+    // accompany it depend on which transport is selected.
+    const requiredMail: readonly (keyof EnvironmentVariables)[] =
+      validatedConfig.MAIL_TRANSPORT === 'zeptomail-api'
+        ? ['SMTP_FROM', 'ZEPTOMAIL_API_KEY']
+        : ['SMTP_HOST', 'SMTP_PORT', 'SMTP_FROM'];
+
+    const missingSmtp = requiredMail.filter((key) => {
       const value = validatedConfig[key];
       return value === undefined || value === null || String(value).trim() === '';
     });

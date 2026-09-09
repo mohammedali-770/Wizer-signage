@@ -207,6 +207,49 @@ describe('validate (environment)', () => {
       expect(() => validate(production)).not.toThrow();
     });
 
+    // The API transport exists because some hosts block outbound SMTP outright
+    // (DigitalOcean blocks 25/465/587 on every Droplet). Requiring SMTP_HOST
+    // there would make a correct deployment unbootable.
+    it('accepts production on the API transport with no SMTP host or port', () => {
+      const { SMTP_HOST: _host, SMTP_PORT: _port, ...withoutSmtp } = production;
+      expect(() =>
+        validate({
+          ...withoutSmtp,
+          MAIL_TRANSPORT: 'zeptomail-api',
+          ZEPTOMAIL_API_KEY: 'token-abc',
+        }),
+      ).not.toThrow();
+    });
+
+    it('rejects the API transport in production without a key', () => {
+      expect(() => validate({ ...production, MAIL_TRANSPORT: 'zeptomail-api' })).toThrow(
+        /ZEPTOMAIL_API_KEY.*required when NODE_ENV=production/s,
+      );
+    });
+
+    it('still requires SMTP_FROM on the API transport', () => {
+      const { SMTP_FROM: _from, ...withoutFrom } = production;
+      expect(() =>
+        validate({
+          ...withoutFrom,
+          MAIL_TRANSPORT: 'zeptomail-api',
+          ZEPTOMAIL_API_KEY: 'token-abc',
+        }),
+      ).toThrow(/SMTP_FROM/);
+    });
+
+    // A typo would otherwise coerce to SMTP and, on a host that blocks it,
+    // fail every send while the service reports itself configured.
+    it('rejects an unrecognised MAIL_TRANSPORT rather than coercing it', () => {
+      expect(() => validate({ ...production, MAIL_TRANSPORT: 'zeptomail_api' })).toThrow(
+        /MAIL_TRANSPORT must be either 'smtp' or 'zeptomail-api'/,
+      );
+    });
+
+    it('accepts an explicit MAIL_TRANSPORT=smtp', () => {
+      expect(() => validate({ ...production, MAIL_TRANSPORT: 'smtp' })).not.toThrow();
+    });
+
     it('does not require SMTP outside production', () => {
       expect(() => validate({ ...base, NODE_ENV: 'test' })).not.toThrow();
       expect(() => validate({ ...base, NODE_ENV: 'development' })).not.toThrow();

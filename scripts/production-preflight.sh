@@ -65,11 +65,57 @@ done
 # slot fail its health gate. Blue/green would not switch traffic, so there is no
 # outage — but a whole release cycle is spent to learn about a missing string.
 # Preflight is read-only and runs first; this belongs here.
+# Which mail transport this host uses decides which credentials are mandatory,
+# so it has to be resolved before the required-key loop below.
+#
+# An unrecognised value is REJECTED rather than defaulted, matching
+# env.validation.ts. A typo like "zeptomail_api" would otherwise select SMTP,
+# and on a host that blocks outbound SMTP that means every send fails while the
+# readiness probe still reports mail configured. DigitalOcean blocks TCP
+# 25/465/587 on every Droplet by default, so that host is the common case here,
+# not a corner case.
+resolve_mail_transport() {
+  local value
+  value="$(read_env_value MAIL_TRANSPORT)"
+  # read_env_value already trims, but do not depend on the caller: an untrimmed
+  # value would fall through to the reject branch and abort a whole deploy over
+  # trailing whitespace in .env.
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  value="${value:-smtp}"
+  case "${value}" in
+    smtp|zeptomail-api) printf '%s' "${value}"; return 0 ;;
+  esac
+  printf '%s' "${value}"
+  return 1
+}
+
+# The env keys that must carry a real value for a given transport. SMTP_FROM is
+# in both sets: it is the envelope sender every transport stamps on a message.
+mail_required_keys() {
+  case "$1" in
+    zeptomail-api) printf 'SMTP_FROM ZEPTOMAIL_API_KEY' ;;
+    *) printf 'SMTP_HOST SMTP_PORT SMTP_FROM' ;;
+  esac
+}
+
+# Plaintext would put the Send Mail token AND the rendered email on the wire in
+# clear, and password-reset and invitation mails carry single-use links. An
+# unset override is fine — the transport then uses its built-in https endpoint.
+zeptomail_endpoint_is_secure() {
+  [[ -z "$1" || "$1" == https://* ]]
+}
+
+MAIL_TRANSPORT_VALUE="$(resolve_mail_transport)" \
+  || fail "MAIL_TRANSPORT must be 'smtp' or 'zeptomail-api' (found '${MAIL_TRANSPORT_VALUE}')"
+read -r -a MAIL_REQUIRED_KEYS <<< "$(mail_required_keys "${MAIL_TRANSPORT_VALUE}")"
+
 for key in \
   APP_DOMAIN NEXT_PUBLIC_API_URL DATABASE_URL DIRECT_URL JWT_ACCESS_SECRET JWT_REFRESH_SECRET ENCRYPTION_KEY \
   IMAGE_REGISTRY_PREFIX METRICS_TOKEN BACKUP_OFFSITE_CMD HEALTHCHECKS_URL LOG_SHIPPING_ADDRESS \
   CAPTCHA_SECRET \
-  SMTP_HOST SMTP_PORT SMTP_FROM SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_STORAGE_BUCKET; do
+  "${MAIL_REQUIRED_KEYS[@]}" \
+  SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_STORAGE_BUCKET; do
   require_value "${key}"
 done
 
@@ -385,22 +431,31 @@ else
   fail "log collector ${LOG_SHIPPING_ADDRESS_VALUE} is unreachable from this host after 3 attempts; the Docker daemon opens this connection, so an address that only resolves inside a container network will silently ship nothing. Set ALLOW_UNREACHABLE_LOG_COLLECTOR=1 to deploy anyway with logs dropped."
 fi
 
-SMTP_HOST_VALUE="$(read_env_value SMTP_HOST)"
-case "${SMTP_HOST_VALUE,,}" in localhost|127.*|*.invalid|*.example.com) fail "SMTP_HOST points at a placeholder/local mail server" ;; esac
-SMTP_PORT_VALUE="$(read_env_value SMTP_PORT)"
-[[ "${SMTP_PORT_VALUE}" =~ ^[0-9]{1,5}$ ]] || fail "SMTP_PORT must be an integer port"
-(( SMTP_PORT_VALUE >= 1 && SMTP_PORT_VALUE <= 65535 )) || fail "SMTP_PORT must be 1-65535"
+# SMTP_FROM is the envelope sender on every transport, so it is checked either way.
 SMTP_FROM_VALUE="$(read_env_value SMTP_FROM)"
 [[ "${SMTP_FROM_VALUE}" == *"@"* ]] || fail "SMTP_FROM must contain a sender email address"
-SMTP_USER_VALUE="$(read_env_value SMTP_USER)"
-SMTP_PASSWORD_VALUE="$(read_env_value SMTP_PASSWORD)"
-SMTP_PASS_VALUE="$(read_env_value SMTP_PASS)"
-if [[ -n "${SMTP_USER_VALUE}" ]]; then
-  [[ -n "${SMTP_PASSWORD_VALUE}" || -n "${SMTP_PASS_VALUE}" ]] || fail "SMTP_USER is configured but neither SMTP_PASSWORD nor SMTP_PASS is set"
-  if [[ -n "${SMTP_PASSWORD_VALUE}" ]]; then ! is_placeholder "${SMTP_PASSWORD_VALUE}" || fail "SMTP_PASSWORD still contains a placeholder value"; fi
-  if [[ -n "${SMTP_PASS_VALUE}" ]]; then ! is_placeholder "${SMTP_PASS_VALUE}" || fail "SMTP_PASS still contains a placeholder value"; fi
+
+if [[ "${MAIL_TRANSPORT_VALUE}" == "zeptomail-api" ]]; then
+  ZEPTOMAIL_API_URL_VALUE="$(read_env_value ZEPTOMAIL_API_URL)"
+  zeptomail_endpoint_is_secure "${ZEPTOMAIL_API_URL_VALUE}" \
+    || fail "ZEPTOMAIL_API_URL must be an https:// endpoint"
+  pass "live ZeptoMail API delivery coordinates are configured"
+else
+  SMTP_HOST_VALUE="$(read_env_value SMTP_HOST)"
+  case "${SMTP_HOST_VALUE,,}" in localhost|127.*|*.invalid|*.example.com) fail "SMTP_HOST points at a placeholder/local mail server" ;; esac
+  SMTP_PORT_VALUE="$(read_env_value SMTP_PORT)"
+  [[ "${SMTP_PORT_VALUE}" =~ ^[0-9]{1,5}$ ]] || fail "SMTP_PORT must be an integer port"
+  (( SMTP_PORT_VALUE >= 1 && SMTP_PORT_VALUE <= 65535 )) || fail "SMTP_PORT must be 1-65535"
+  SMTP_USER_VALUE="$(read_env_value SMTP_USER)"
+  SMTP_PASSWORD_VALUE="$(read_env_value SMTP_PASSWORD)"
+  SMTP_PASS_VALUE="$(read_env_value SMTP_PASS)"
+  if [[ -n "${SMTP_USER_VALUE}" ]]; then
+    [[ -n "${SMTP_PASSWORD_VALUE}" || -n "${SMTP_PASS_VALUE}" ]] || fail "SMTP_USER is configured but neither SMTP_PASSWORD nor SMTP_PASS is set"
+    if [[ -n "${SMTP_PASSWORD_VALUE}" ]]; then ! is_placeholder "${SMTP_PASSWORD_VALUE}" || fail "SMTP_PASSWORD still contains a placeholder value"; fi
+    if [[ -n "${SMTP_PASS_VALUE}" ]]; then ! is_placeholder "${SMTP_PASS_VALUE}" || fail "SMTP_PASS still contains a placeholder value"; fi
+  fi
+  pass "live SMTP delivery coordinates are configured"
 fi
-pass "live SMTP delivery coordinates are configured"
 
 docker compose --env-file "${ENV_FILE}" -f "${BASE}" -f "${PROXY}" -f "${LOGGING}" config --quiet >/dev/null || fail "production proxy/logging compose configuration is invalid"
 docker compose --env-file "${ENV_FILE}" -f "${SLOTS}" -f "${SLOTS_LOGGING}" config --quiet >/dev/null || fail "blue/green slot/logging compose configuration is invalid"

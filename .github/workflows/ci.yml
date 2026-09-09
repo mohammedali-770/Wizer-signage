@@ -128,6 +128,9 @@ jobs:
       - name: Preflight off-box backup command tests
         run: bash scripts/tests/preflight-offsite-backup.test.sh
 
+      - name: Preflight mail transport tests
+        run: bash scripts/tests/preflight-mail-transport.test.sh
+
       - name: Deploy nginx-reload tests
         run: bash scripts/tests/deploy-nginx-reload.test.sh
 

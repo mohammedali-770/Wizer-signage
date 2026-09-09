@@ -76,10 +76,18 @@ export class HealthService {
 
     const supabase = this.config.get<AppConfig['supabase']>('supabase', { infer: true });
     const smtp = this.config.get<AppConfig['smtp']>('smtp', { infer: true });
+    const mail = this.config.get<AppConfig['mail']>('mail', { infer: true });
     const storageConfigured = Boolean(
       (supabase?.url && supabase?.serviceRoleKey) || process.env.STORAGE_LOCAL_DIR,
     );
-    const mailConfigured = Boolean(smtp?.host && smtp?.port);
+    // Must match what MailService actually selects at boot, not just "is there
+    // an SMTP host". Reporting on SMTP alone told us mail was configured while
+    // the API transport carried it, and would report configured for an SMTP
+    // host that does not resolve.
+    const mailConfigured =
+      mail?.transport === 'zeptomail-api'
+        ? Boolean(mail.zeptoMail?.apiKey)
+        : Boolean(smtp?.host && smtp?.port);
 
     return {
       status: database === 'up' ? 'ok' : 'degraded',
