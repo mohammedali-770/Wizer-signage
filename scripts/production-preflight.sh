@@ -139,11 +139,30 @@ OFFSITE_CMD="$(read_env_value BACKUP_OFFSITE_CMD)"
 # Normalize before the no-op test. The previous literal comparison matched only
 # `true`, `:`, `echo` and `echo *`, so `/bin/true`, `true ` (trailing space) and
 # `true #comment` all passed as "a real off-host copy command".
+#
+# Leading environment assignments and wrapper commands are stripped so that what
+# gets classified is the utility the shell will actually exec, not the syntax in
+# front of it: `VAR=x cp ...`, `command cp ...`, `env cp ...` and `sudo cp ...`
+# are all still a `cp`. A leading backslash (`\cp`, which bypasses an alias) is
+# dropped for the same reason.
 offsite_first_word() {
   local cmd="${1%%[;&|]*}"          # first command in a list
   cmd="${cmd%%#*}"                  # drop a trailing comment
+  local word
+  while :; do
+    cmd="${cmd#"${cmd%%[![:space:]]*}"}"
+    word="${cmd%%[[:space:]]*}"
+    case "${word}" in
+      *=*) ;;                                                    # VAR=value prefix
+      command|builtin|exec|env|nice|ionice|nohup|time|sudo|doas) ;;
+      *) break ;;
+    esac
+    [[ "${cmd}" == *[[:space:]]* ]] || { cmd=""; break; }
+    cmd="${cmd#*[[:space:]]}"       # advance past the wrapper
+  done
   cmd="${cmd#"${cmd%%[![:space:]]*}"}"
   cmd="${cmd%%[[:space:]]*}"        # first word
+  cmd="${cmd#\\}"                 # \cp bypasses an alias; still cp
   cmd="${cmd##*/}"                  # basename, so /bin/true == true
   printf '%s' "${cmd}"
 }
@@ -170,11 +189,18 @@ esac
 # ran was `mkdir -p /backups/offsite && cp "$1" /backups/offsite/`, whose first
 # word is `mkdir` -- so a check that looked only at the head of the list would
 # have missed the exact command it exists to catch.
+# Records the offending utility in OFFSITE_LOCAL_BIN. The head of the whole
+# command is not it: for `mkdir -p ... && cp ...` that is `mkdir`, so reporting
+# it would tell the operator the wrong thing -- and this is exactly the message
+# they read when deciding whether the network-mount override applies to them.
+OFFSITE_LOCAL_BIN=""
 offsite_is_local_copy() {
-  local segment
+  local segment word
+  OFFSITE_LOCAL_BIN=""
   while IFS= read -r segment; do
-    case "$(offsite_first_word "${segment}")" in
-      cp|mv|install|ln|dd) return 0 ;;
+    word="$(offsite_first_word "${segment}")"
+    case "${word}" in
+      cp|mv|install|ln|dd) OFFSITE_LOCAL_BIN="${word}"; return 0 ;;
     esac
   done <<< "$(printf '%s' "${1}" | tr ';&|' '\n\n\n')"
   return 1
@@ -182,10 +208,10 @@ offsite_is_local_copy() {
 if offsite_is_local_copy "${OFFSITE_CMD}"; then
   if [[ "${ALLOW_LOCAL_OFFSITE_BACKUP:-0}" == "1" ]]; then
     printf "WARNING [preflight]: BACKUP_OFFSITE_CMD uses '%s', which writes to this host's filesystem; proceeding because ALLOW_LOCAL_OFFSITE_BACKUP=1.\n" \
-      "${OFFSITE_BIN}" >&2
+      "${OFFSITE_LOCAL_BIN}" >&2
     printf 'WARNING [preflight]: losing this machine will lose the database and every snapshot unless that target is a real network mount.\n' >&2
   else
-    fail "BACKUP_OFFSITE_CMD uses '${OFFSITE_BIN}', which can only write to this host's filesystem — that is a second copy, not an off-box backup, and losing this machine loses both. Use a real off-host transport (the maintenance image ships rclone; see .env.example). If '${OFFSITE_BIN}' genuinely targets a network mount, set ALLOW_LOCAL_OFFSITE_BACKUP=1."
+    fail "BACKUP_OFFSITE_CMD uses '${OFFSITE_LOCAL_BIN}', which can only write to this host's filesystem — that is a second copy, not an off-box backup, and losing this machine loses both. Use a real off-host transport (the maintenance image ships rclone; see .env.example). If '${OFFSITE_LOCAL_BIN}' genuinely targets a network mount, set ALLOW_LOCAL_OFFSITE_BACKUP=1."
   fi
 fi
 pass "offsite backup copy command is configured"

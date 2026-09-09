@@ -24,6 +24,7 @@ pass=0; fail=0
 ok() { echo "  ok   — $1"; pass=$(( pass + 1 )); }
 no() { echo "  FAIL — $1"; echo "         $2"; fail=$(( fail + 1 )); }
 
+OFFSITE_LOCAL_BIN=""
 for fn in offsite_first_word offsite_is_local_copy; do
   body="$(sed -n "/^${fn}() {/,/^}/p" "${PREFLIGHT}")"
   [[ -n "${body}" ]] || { echo "could not extract ${fn} from ${PREFLIGHT}" >&2; exit 1; }
@@ -52,6 +53,33 @@ local_case "install"            'install -m 600 "$1" /backups/offsite/'
 local_case "ln"                 'ln "$1" /backups/offsite/'
 local_case "dd"                 'dd if="$1" of=/backups/offsite/dump.gz'
 local_case "an absolute path"   '/bin/cp "$1" /backups/offsite/'
+
+# --- Wrapped invocations are still the same local copy -----------------------
+# `command`, `env`, `sudo`, a VAR=value prefix and a leading backslash are all
+# ordinary shell syntax, and a first-word check reads each of them as the
+# utility. The shell still execs cp.
+local_case "command cp"          'command cp "$1" /backups/offsite/'
+local_case "a VAR=value prefix"  'RCLONE_X=1 cp "$1" /backups/offsite/'
+local_case "env with an assignment" 'env FOO=bar cp "$1" /backups/offsite/'
+local_case "backslash-escaped cp" '\cp "$1" /backups/offsite/'
+local_case "sudo cp"             'sudo cp "$1" /backups/offsite/'
+local_case "nice cp"             'nice cp "$1" /backups/offsite/'
+local_case "a wrapper after &&"  'mkdir -p /backups/offsite && command cp "$1" /backups/offsite/'
+
+# --- The reported utility must be the one that was detected -----------------
+# The operator reads this name when deciding whether the network-mount override
+# applies to them, so naming `mkdir` for `mkdir -p ... && cp ...` is a false
+# diagnosis, not a cosmetic slip.
+reports() {
+  offsite_is_local_copy "$2" >/dev/null
+  if [[ "${OFFSITE_LOCAL_BIN}" == "$3" ]]; then
+    ok "reports '$3' for $1"
+  else
+    no "reports '$3' for $1" "reported '${OFFSITE_LOCAL_BIN}'"
+  fi
+}
+reports "the compound production shape" 'mkdir -p /backups/offsite && cp "$1" /backups/offsite/' cp
+reports "a wrapped mv"                  'mkdir -p /x && sudo mv "$1" /x/' mv
 
 # --- Real off-host transports must still pass -------------------------------
 # The documented default in .env.example, which is what the fix configures.
