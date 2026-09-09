@@ -164,16 +164,26 @@ rather than by waiting for the intermediate package to re-release. Each entry is
 range-scoped (`"pkg@<fixed": "^fixed"`) so it applies only to the vulnerable range and
 lapses on its own once the dependency catches up.
 
-| Advisory                        | Override  | Notes                                                                                    |
-| ------------------------------- | --------- | ---------------------------------------------------------------------------------------- |
-| `file-type` ASF loop + ZIP bomb | `^21.3.4` | `@nestjs/common` loads it via a dynamic `import()`, so an ESM-only v21 is fine           |
-| `uuid` v3/v5/v6 bounds check    | `^11.1.1` | Last line still shipping a CJS build — `exceljs` does `require('uuid')`; v14 is ESM-only |
-| `js-yaml` flow-collection DoS   | `^5.2.3`  | Reached via `@nestjs/swagger` 11; the separate 4.x entry does not cover the 5.x range    |
-| `qs` `stringify` DoS            | `^6.15.3` | Dormant — Express 5 already resolves above the vulnerable range                          |
-| `body-parser` limit bypass      | `^1.20.6` | Dormant — Express 5 uses body-parser 2.x; kept in case a 1.x dependent reappears         |
+| Advisory                                              | Override  | Notes                                                                                        |
+| ----------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------- |
+| `file-type` ASF loop + ZIP bomb                       | `^21.3.4` | `@nestjs/common` loads it via a dynamic `import()`, so an ESM-only v21 is fine               |
+| `uuid` v3/v5/v6 bounds check                          | `^11.1.1` | Last line still shipping a CJS build — `exceljs` does `require('uuid')`; v14 is ESM-only     |
+| `js-yaml` flow-collection DoS                         | `^5.2.3`  | Reached via `@nestjs/swagger` 11; the separate 4.x entry does not cover the 5.x range        |
+| `qs` array-limit bypass + isBuffer DoS                | `^6.16.0` | **Active.** Express 5, `body-parser` 2.x and `superagent` all resolve through it — see below |
+| `multer` DoS trio (field names, FD leak, array index) | `^2.3.0`  | Pinned above `@nestjs/platform-express`, which still requests 2.2.0                          |
+| `sharp` libheif vulnerabilities                       | `^0.35.4` | Transitive via `next`; moves with it rather than independently                               |
+| `body-parser` limit bypass                            | `^1.20.6` | Dormant — Express 5 uses body-parser 2.x; kept in case a 1.x dependent reappears             |
 
 Dormant entries are deliberately left in place. They cost nothing, and removing one would
 silently drop the protection if some future dependency pulls the old major back in.
+
+**A dormant entry can wake up, and a fixed version can stop being fixed.** The `qs` entry
+was recorded here as dormant at `^6.15.3` on the reasoning that Express 5 already resolved
+above the vulnerable range. Two later advisories moved that range up to include 6.15.3
+itself, so the override was pinning a version that had since become vulnerable, and Express
+5 — via `body-parser` 2.x — was exactly what would have pulled it. Re-read the whole table
+whenever this list changes, not only the row being edited: every `^fixed` here is a floor
+that some future advisory can invalidate.
 
 ### Adding an override
 
