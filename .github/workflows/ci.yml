@@ -125,6 +125,9 @@ jobs:
       - name: Preflight maintenance-image resolution tests
         run: bash scripts/tests/preflight-image-resolution.test.sh
 
+      - name: Preflight off-box backup command tests
+        run: bash scripts/tests/preflight-offsite-backup.test.sh
+
       - name: Deploy nginx-reload tests
         run: bash scripts/tests/deploy-nginx-reload.test.sh
 
