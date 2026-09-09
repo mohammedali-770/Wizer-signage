@@ -28,9 +28,11 @@ pass=0; fail=0
 ok() { echo "  ok   — $1"; pass=$(( pass + 1 )); }
 no() { echo "  FAIL — $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fail=$(( fail + 1 )); }
 
-body="$(sed -n '/^read_env_value() {/,/^}/p' "${PREFLIGHT}")"
-[[ -n "${body}" ]] || { echo "could not extract read_env_value from ${PREFLIGHT}" >&2; exit 1; }
-eval "${body}"
+for fn in read_env_raw read_env_value offsite_assignment_is_source_safe; do
+  body="$(sed -n "/^${fn}() {/,/^}/p" "${PREFLIGHT}")"
+  [[ -n "${body}" ]] || { echo "could not extract ${fn} from ${PREFLIGHT}" >&2; exit 1; }
+  eval "${body}"
+done
 
 ENV_FILE="$(mktemp)"
 trap 'rm -f "${ENV_FILE}"' EXIT
@@ -45,13 +47,24 @@ case_is() {
 
 echo "=== production-preflight.sh .env value parsing ==="
 
-# --- The exact shape that aborted the production deploy ---------------------
-case_is "the verify command that broke the deploy" \
-  'BACKUP_OFFSITE_VERIFY_CMD=rclone size --json "spaces:wizer-backups/$(basename "$1")"' \
+# --- The form backup-db.sh documents, which is what aborted the deploy -------
+# Single-quoted, because backup-db.sh SOURCES .env and double quotes would
+# expand $(basename "$1") at source time. This exact shape produced
+# "xargs: unmatched double quote" and killed a production deploy on 2026-09-09.
+case_is "the documented verify command that broke the deploy" \
+  'BACKUP_OFFSITE_VERIFY_CMD='"'"'rclone size --json "remote:b/$(basename "$1")" | sed -n "s/.*\"bytes\":\([0-9]*\).*/\1/p"'"'"'' \
   BACKUP_OFFSITE_VERIFY_CMD \
-  'rclone size --json "spaces:wizer-backups/$(basename "$1")"'
+  'rclone size --json "remote:b/$(basename "$1")" | sed -n "s/.*\"bytes\":\([0-9]*\).*/\1/p"'
 
-case_is "a copy command with a && and quotes" \
+# xargs did not only crash: on values it COULD parse it silently ate the
+# quotes, so this was gated as `rclone copyto $1 remote:b/$(basename $1)` --
+# a command nothing would ever run.
+case_is "the documented copy command keeps its quotes" \
+  "BACKUP_OFFSITE_CMD='rclone copyto \"\$1\" \"remote:b/\$(basename \"\$1\")\"'" \
+  BACKUP_OFFSITE_CMD \
+  'rclone copyto "$1" "remote:b/$(basename "$1")"'
+
+case_is "an unwrapped command with && and quotes is read verbatim" \
   'BACKUP_OFFSITE_CMD=mkdir -p /t && rclone copyto "$1" "spaces:b/$(basename "$1")"' \
   BACKUP_OFFSITE_CMD \
   'mkdir -p /t && rclone copyto "$1" "spaces:b/$(basename "$1")"'
@@ -109,6 +122,28 @@ case_is "a bare single quote survives" "K='" K "'"
 printf 'K=first\nK=second\n' > "${ENV_FILE}"
 got="$(read_env_value K 2>&1)"
 if [[ "${got}" == "second" ]]; then ok "the last definition wins"; else no "the last definition wins" "second" "${got}"; fi
+
+# --- source safety ----------------------------------------------------------
+# backup-db.sh does `source "${ENV_FILE}"` under set -euo pipefail. A value
+# only Compose can parse passes every other gate and then aborts the mandatory
+# pre-migration backup, mid-deploy.
+safe() {
+  if offsite_assignment_is_source_safe "$2"; then ok "accepts $1"; else no "accepts $1" "accepted" "rejected"; fi
+}
+unsafe() {
+  if offsite_assignment_is_source_safe "$2"; then no "rejects $1" "rejected" "accepted"; else ok "rejects $1"; fi
+}
+
+safe   "the documented single-quoted command" "'rclone copyto \"\$1\" \"remote:b/\$(basename \"\$1\")\"'"
+safe   "a double-quoted command with nothing to expand" '"rclone copyto /tmp/x remote:b"'
+safe   "a single unquoted word" 'true'
+safe   "an empty value" ''
+
+# bash reads `KEY=rclone` as an assignment prefix and runs the rest.
+unsafe "an unwrapped multi-word command" 'rclone size --json "spaces:b/$(basename "$1")"'
+# Double quotes expand $1 and $(...) at source time, storing the wrong command.
+unsafe "a double-quoted command containing \$" '"rclone copyto \"$1\" remote:b"'
+unsafe "a double-quoted command containing a backtick" '"rclone copyto `date` remote:b"'
 
 echo
 echo "passed: ${pass}  failed: ${fail}"
