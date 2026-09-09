@@ -24,9 +24,27 @@ read_env_value() {
   local key="$1" raw
   raw="$(grep -E "^${key}=" "${ENV_FILE}" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
   raw="${raw//$'\r'/}"
-  raw="${raw#\"}"; raw="${raw%\"}"
-  raw="${raw#\'}"; raw="${raw%\'}"
-  printf '%s' "${raw}" | xargs
+
+  # Trim with parameter expansion, never xargs. xargs parses its input as
+  # shell-ish words -- quotes and backslashes are SYNTAX to it, not data. Every
+  # BACKUP_OFFSITE_* value is itself a shell command and legitimately contains
+  # quotes, so an unbalanced one killed the whole preflight with
+  # "xargs: unmatched double quote", taking the deploy with it. Observed in
+  # production on 2026-09-09, aborting immediately after the offsite-image check.
+  raw="${raw#"${raw%%[![:space:]]*}"}"
+  raw="${raw%"${raw##*[![:space:]]}"}"
+
+  # Strip only a MATCHED surrounding pair, the way Compose does. Unconditionally
+  # removing one leading and one trailing quote is what CREATED the imbalance:
+  # `rclone size "spaces:b/$(basename "$1")"` does not start with a quote but
+  # ends with one, so it lost its closing quote and became unparseable.
+  if (( ${#raw} >= 2 )) \
+    && { [[ ${raw:0:1} == '"' && ${raw: -1} == '"' ]] \
+      || [[ ${raw:0:1} == "'" && ${raw: -1} == "'" ]]; }; then
+    raw="${raw:1:${#raw}-2}"
+  fi
+
+  printf '%s' "${raw}"
 }
 
 is_placeholder() {
