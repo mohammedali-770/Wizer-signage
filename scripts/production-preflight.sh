@@ -152,6 +152,42 @@ case "${OFFSITE_BIN}" in
   true|:|echo|cat|printf|test|nop|noop|'')
     fail "BACKUP_OFFSITE_CMD is a no-op; configure a real off-host copy command" ;;
 esac
+
+# A copy that lands on THIS HOST is not an off-box backup, and every other gate
+# here is blind to that. `cp "$1" /backups/offsite/` resolves inside the
+# maintenance image, exits 0, and produces a remote byte count that matches the
+# local dump exactly -- so it passes the no-op test, the binary-resolution test
+# and the size verification while protecting nothing. Losing the droplet still
+# loses the database and every snapshot with it, which is the failure this whole
+# section exists to prevent. Production ran in exactly that state.
+#
+# These utilities have no remote transport at all: they can only write to a path
+# in this filesystem namespace. Naming one means the destination is either local
+# or a mount, and preflight cannot tell those apart from an opaque shell string
+# -- so a genuine network mount (NFS/SMB) is the one legitimate case, and it is
+# what the override exists for.
+# EVERY command in the list, not just the first. The shape production actually
+# ran was `mkdir -p /backups/offsite && cp "$1" /backups/offsite/`, whose first
+# word is `mkdir` -- so a check that looked only at the head of the list would
+# have missed the exact command it exists to catch.
+offsite_is_local_copy() {
+  local segment
+  while IFS= read -r segment; do
+    case "$(offsite_first_word "${segment}")" in
+      cp|mv|install|ln|dd) return 0 ;;
+    esac
+  done <<< "$(printf '%s' "${1}" | tr ';&|' '\n\n\n')"
+  return 1
+}
+if offsite_is_local_copy "${OFFSITE_CMD}"; then
+  if [[ "${ALLOW_LOCAL_OFFSITE_BACKUP:-0}" == "1" ]]; then
+    printf "WARNING [preflight]: BACKUP_OFFSITE_CMD uses '%s', which writes to this host's filesystem; proceeding because ALLOW_LOCAL_OFFSITE_BACKUP=1.\n" \
+      "${OFFSITE_BIN}" >&2
+    printf 'WARNING [preflight]: losing this machine will lose the database and every snapshot unless that target is a real network mount.\n' >&2
+  else
+    fail "BACKUP_OFFSITE_CMD uses '${OFFSITE_BIN}', which can only write to this host's filesystem — that is a second copy, not an off-box backup, and losing this machine loses both. Use a real off-host transport (the maintenance image ships rclone; see .env.example). If '${OFFSITE_BIN}' genuinely targets a network mount, set ALLOW_LOCAL_OFFSITE_BACKUP=1."
+  fi
+fi
 pass "offsite backup copy command is configured"
 
 # Resolve that binary INSIDE THE MAINTENANCE IMAGE, not just on this host.
