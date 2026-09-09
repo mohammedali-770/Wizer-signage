@@ -80,6 +80,27 @@ interface ZeptoMailSuccessBody {
   data?: Array<{ code?: string; message?: string; additional_info?: unknown }>;
 }
 
+/**
+ * Last line of defence before the API key and the rendered email reach the
+ * network. env.validation.ts rejects a plaintext endpoint at boot, but this
+ * class is constructible directly and must not depend on a caller having
+ * checked.
+ */
+export function assertHttpsEndpoint(endpoint: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(endpoint);
+  } catch {
+    throw new Error(`ZeptoMail endpoint is not a valid URL: ${endpoint}`);
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new Error(
+      `ZeptoMail endpoint must use https:// (found ${parsed.protocol}//): ${endpoint}`,
+    );
+  }
+  return endpoint;
+}
+
 export class ZeptoMailApiTransport {
   private readonly apiKey: string;
   private readonly endpoint: string;
@@ -88,7 +109,7 @@ export class ZeptoMailApiTransport {
 
   constructor(options: ZeptoMailApiOptions) {
     this.apiKey = options.apiKey;
-    this.endpoint = options.endpoint?.trim() || ZEPTOMAIL_DEFAULT_ENDPOINT;
+    this.endpoint = assertHttpsEndpoint(options.endpoint?.trim() || ZEPTOMAIL_DEFAULT_ENDPOINT);
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch;
   }

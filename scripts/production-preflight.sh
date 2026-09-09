@@ -103,7 +103,17 @@ mail_required_keys() {
 # clear, and password-reset and invitation mails carry single-use links. An
 # unset override is fine — the transport then uses its built-in https endpoint.
 zeptomail_endpoint_is_secure() {
-  [[ -z "$1" || "$1" == https://* ]]
+  local url="$1" rest host
+  [[ -z "${url}" ]] && return 0
+  [[ "${url}" == https://* ]] || return 1
+
+  # A prefix check alone accepts "https://" and "https:///v1/email", which have
+  # no host at all: the API's own validation rejects them, but a deploy path
+  # that skips preflight would leave readiness healthy while every send failed.
+  rest="${url#https://}"
+  host="${rest%%[/?#]*}"
+  host="${host##*@}"          # strip any userinfo; "https://user@" is hostless
+  [[ -n "${host}" ]]
 }
 
 MAIL_TRANSPORT_VALUE="$(resolve_mail_transport)" \

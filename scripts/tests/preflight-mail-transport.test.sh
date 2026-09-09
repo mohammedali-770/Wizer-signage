@@ -118,6 +118,11 @@ secure   "a regional https endpoint"             "https://api.zeptomail.eu/v1.1/
 insecure "a plaintext endpoint"                  "http://api.zeptomail.com/v1.1/email"
 insecure "a scheme-less host"                    "api.zeptomail.com/v1.1/email"
 insecure "a lookalike scheme"                    "httpx://api.zeptomail.com/v1.1/email"
+# A prefix check alone accepts these. They have no host, so every send fails
+# while the readiness probe still reports mail configured.
+insecure "a hostless https"                      "https://"
+insecure "an empty authority"                    "https:///v1.1/email"
+insecure "userinfo with no host"                 "https://user@"
 
 echo
 echo "passed: ${pass}  failed: ${fail}"

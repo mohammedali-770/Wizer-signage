@@ -135,6 +135,21 @@ describe('ZeptoMailApiTransport', () => {
     expect(only().url).toBe(ZEPTOMAIL_DEFAULT_ENDPOINT);
   });
 
+  // The header carries the Send Mail token and the body is the rendered email,
+  // so a plaintext or hostless endpoint must never be constructible. Preflight
+  // checks this too, but it runs on only one of the deploy paths.
+  it.each([
+    ['plaintext http', 'http://api.zeptomail.com/v1.1/email'],
+    ['a hostless https', 'https://'],
+    ['a scheme-less host', 'api.zeptomail.com/v1.1/email'],
+    ['a lookalike scheme', 'httpx://api.zeptomail.com/v1.1/email'],
+    ['plain nonsense', 'not-a-url'],
+  ])('refuses to construct with %s', (_label, endpoint) => {
+    expect(() => new ZeptoMailApiTransport({ apiKey: 'k', endpoint })).toThrow(
+      /ZeptoMail endpoint (must use https|is not a valid URL)/,
+    );
+  });
+
   it('surfaces the provider error code and message on a rejection', async () => {
     const { impl } = stubFetch(
       jsonResponse(401, {
