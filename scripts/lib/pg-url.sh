@@ -119,3 +119,39 @@ resolve_pg_dump_url() {
   printf '%s' "$sanitized"
   return 0
 }
+
+# pg_load_env_file
+#   Sources an .env file for DIRECT_URL/DATABASE_URL WITHOUT clobbering values
+#   already present in the environment.
+#
+#   `set -a; source .env` overwrites exported variables. On a production host
+#   that is a loaded gun: an operator who exports a scratch DIRECT_URL to
+#   restore a backup into a throwaway database has it silently replaced by the
+#   production URL from .env, and restore-db.sh then overwrites production. With
+#   FORCE=1 there is not even a prompt. Verified 2026-09-10.
+#
+#   Explicit environment wins, which is the usual dotenv contract: the file
+#   supplies defaults, the caller overrides them. Echoes where the restore
+#   target came from so the operator can see it before confirming.
+pg_load_env_file() {
+  local env_file="$1"
+  [ -f "$env_file" ] || return 0
+
+  local direct_preset="${DIRECT_URL+set}" direct_value="${DIRECT_URL-}"
+  local database_preset="${DATABASE_URL+set}" database_value="${DATABASE_URL-}"
+
+  set -a
+  # shellcheck disable=SC1090
+  . "$env_file"
+  set +a
+
+  if [ -n "$direct_preset" ]; then
+    DIRECT_URL="$direct_value"
+    echo "[pg-url] DIRECT_URL taken from the environment, not ${env_file}." >&2
+  fi
+  if [ -n "$database_preset" ]; then
+    DATABASE_URL="$database_value"
+    echo "[pg-url] DATABASE_URL taken from the environment, not ${env_file}." >&2
+  fi
+  return 0
+}
