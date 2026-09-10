@@ -34,10 +34,17 @@ PROD_DIRECT='postgresql://prod:s@aws-1.pooler.supabase.com:5432/postgres'
 PROD_DATABASE='postgresql://prod:s@aws-1.pooler.supabase.com:6543/postgres?pgbouncer=true'
 printf 'DIRECT_URL=%s\nDATABASE_URL=%s\nOTHER_KEY=from-file\n' "${PROD_DIRECT}" "${PROD_DATABASE}" > "${ENV_FILE}"
 
+# CI exports DATABASE_URL and DIRECT_URL into the job environment. A case that
+# sets only one of them would otherwise read CI's value for the other and assert
+# against the wrong thing — which is exactly how this suite passed locally and
+# failed in CI on its first run. Every case starts from a known-empty state.
+reset_env() { unset DIRECT_URL DATABASE_URL OTHER_KEY; }
+
 echo "=== .env must not clobber an explicit database URL ==="
 
 # The exact scenario that would have destroyed production.
 (
+  reset_env
   export DIRECT_URL='postgresql://drill:d@127.0.0.1:55432/drill'
   pg_load_env_file "${ENV_FILE}" 2>/dev/null
   [[ "${DIRECT_URL}" == 'postgresql://drill:d@127.0.0.1:55432/drill' ]]
@@ -45,6 +52,7 @@ echo "=== .env must not clobber an explicit database URL ==="
   || no "an exported DIRECT_URL survives .env" "the scratch URL" "the production URL"
 
 (
+  reset_env
   export DATABASE_URL='postgresql://drill:d@127.0.0.1:55432/drill'
   pg_load_env_file "${ENV_FILE}" 2>/dev/null
   [[ "${DATABASE_URL}" == 'postgresql://drill:d@127.0.0.1:55432/drill' ]]
@@ -55,16 +63,17 @@ echo "=== .env must not clobber an explicit database URL ==="
 # in a way the caller did not intend — the file value is still used, which is
 # correct, but the override that WAS given must hold.
 (
+  reset_env
   export DIRECT_URL='postgresql://drill:d@127.0.0.1:55432/drill'
   pg_load_env_file "${ENV_FILE}" 2>/dev/null
-  [[ "${DIRECT_URL}" == *'127.0.0.1'* && "${DATABASE_URL}" == "${PROD_DATABASE}" ]]
+  [[ "${DIRECT_URL}" == *':55432/drill'* && "${DATABASE_URL}" == "${PROD_DATABASE}" ]]
 ) && ok "overriding one leaves the other at its .env default" \
   || no "overriding one leaves the other at its .env default" "direct=scratch, database=file" "mismatch"
 
 # With nothing exported the file must still supply both, or every existing
 # deploy path breaks.
 (
-  unset DIRECT_URL DATABASE_URL
+  reset_env
   pg_load_env_file "${ENV_FILE}" 2>/dev/null
   [[ "${DIRECT_URL}" == "${PROD_DIRECT}" && "${DATABASE_URL}" == "${PROD_DATABASE}" ]]
 ) && ok "with nothing exported the .env values are used" \
@@ -72,7 +81,7 @@ echo "=== .env must not clobber an explicit database URL ==="
 
 # Everything else in .env must still be exported as before.
 (
-  unset OTHER_KEY
+  reset_env
   pg_load_env_file "${ENV_FILE}" 2>/dev/null
   [[ "${OTHER_KEY}" == 'from-file' ]]
 ) && ok "other .env keys are still loaded and exported" \
@@ -81,6 +90,7 @@ echo "=== .env must not clobber an explicit database URL ==="
 # An empty-string export is still an explicit choice and must be honoured,
 # otherwise `DIRECT_URL= scripts/restore-db.sh` silently falls back to the file.
 (
+  reset_env
   export DIRECT_URL=''
   pg_load_env_file "${ENV_FILE}" 2>/dev/null
   [[ -z "${DIRECT_URL}" ]]
@@ -89,7 +99,7 @@ echo "=== .env must not clobber an explicit database URL ==="
 
 # A missing file must be a no-op, not an error.
 (
-  unset DIRECT_URL
+  reset_env
   pg_load_env_file "/nonexistent/.env" 2>/dev/null
 ) && ok "a missing .env is a no-op" || no "a missing .env is a no-op" "exit 0" "non-zero"
 
