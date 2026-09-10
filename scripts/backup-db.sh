@@ -42,12 +42,7 @@ source "${SCRIPT_DIR}/lib/pg-url.sh"
 
 # --- Load .env if present (without overriding already-exported vars) ---------
 ENV_FILE="${ROOT_DIR}/.env"
-if [[ -f "${ENV_FILE}" ]]; then
-  # shellcheck disable=SC1090
-  set -a
-  source "${ENV_FILE}"
-  set +a
-fi
+pg_load_env_file "${ENV_FILE}"
 
 # --- Configuration -----------------------------------------------------------
 BACKUP_DIR="${BACKUP_DIR:-${ROOT_DIR}/backups}"

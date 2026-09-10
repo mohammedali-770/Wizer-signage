@@ -25,7 +25,7 @@ ok() { echo "  ok   — $1"; pass=$(( pass + 1 )); }
 no() { echo "  FAIL — $1"; echo "         $2"; fail=$(( fail + 1 )); }
 
 OFFSITE_LOCAL_BIN=""
-for fn in offsite_first_word offsite_is_local_copy; do
+for fn in offsite_executable offsite_first_word offsite_is_local_copy; do
   body="$(sed -n "/^${fn}() {/,/^}/p" "${PREFLIGHT}")"
   [[ -n "${body}" ]] || { echo "could not extract ${fn} from ${PREFLIGHT}" >&2; exit 1; }
   eval "${body}"

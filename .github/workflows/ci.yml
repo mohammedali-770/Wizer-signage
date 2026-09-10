@@ -134,6 +134,9 @@ jobs:
       - name: Preflight .env parsing tests
         run: bash scripts/tests/preflight-env-parsing.test.sh
 
+      - name: Database URL environment precedence tests
+        run: bash scripts/tests/pg-env-precedence.test.sh
+
       - name: Deploy nginx-reload tests
         run: bash scripts/tests/deploy-nginx-reload.test.sh
 

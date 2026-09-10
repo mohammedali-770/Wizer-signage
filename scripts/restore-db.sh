@@ -63,12 +63,7 @@ fi
 
 # --- Load .env if present ----------------------------------------------------
 ENV_FILE="${ROOT_DIR}/.env"
-if [[ -f "${ENV_FILE}" ]]; then
-  # shellcheck disable=SC1090
-  set -a
-  source "${ENV_FILE}"
-  set +a
-fi
+pg_load_env_file "${ENV_FILE}"
 
 # --- Preconditions -----------------------------------------------------------
 # Choose the URL psql restores into: DIRECT_URL when set, else a sanitized

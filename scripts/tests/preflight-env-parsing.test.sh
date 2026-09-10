@@ -28,7 +28,7 @@ pass=0; fail=0
 ok() { echo "  ok   — $1"; pass=$(( pass + 1 )); }
 no() { echo "  FAIL — $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fail=$(( fail + 1 )); }
 
-for fn in read_env_raw read_env_value offsite_assignment_is_source_safe; do
+for fn in read_env_raw read_env_value offsite_assignment_is_source_safe offsite_bin_on_host offsite_executable offsite_first_word; do
   body="$(sed -n "/^${fn}() {/,/^}/p" "${PREFLIGHT}")"
   [[ -n "${body}" ]] || { echo "could not extract ${fn} from ${PREFLIGHT}" >&2; exit 1; }
   eval "${body}"
@@ -144,6 +144,60 @@ unsafe "an unwrapped multi-word command" 'rclone size --json "spaces:b/$(basenam
 # Double quotes expand $1 and $(...) at source time, storing the wrong command.
 unsafe "a double-quoted command containing \$" '"rclone copyto \"$1\" remote:b"'
 unsafe "a double-quoted command containing a backtick" '"rclone copyto `date` remote:b"'
+
+# --- host-side binary resolution --------------------------------------------
+# deploy-blue-green.sh:95 runs backup-db.sh on the HOST, while the nightly runs
+# it in the maintenance container. On 2026-09-09 a deploy died at the mandatory
+# pre-migration backup with `_: 1: rclone: not found` because preflight only
+# ever checked the image. The previous BACKUP_OFFSITE_CMD was `cp`, which
+# exists everywhere, so the gap had never shown.
+if offsite_bin_on_host sh; then ok "finds a binary that is on PATH"; else no "finds a binary that is on PATH" "found" "not found"; fi
+if offsite_bin_on_host wizer-definitely-not-installed-xyz; then
+  no "rejects a binary that is absent" "not found" "found"
+else
+  ok "rejects a binary that is absent"
+fi
+# An absolute path that does not exist must not be treated as present.
+if offsite_bin_on_host /nonexistent/rclone; then
+  no "rejects an absolute path that does not exist" "not found" "found"
+else
+  ok "rejects an absolute path that does not exist"
+fi
+
+# --- composition: what preflight actually feeds the host check ---------------
+# Testing offsite_bin_on_host alone misses the real defect. offsite_first_word
+# basenames its result, so `/missing/rclone ...` became `rclone` and passed
+# whenever any rclone was on PATH, while `/opt/vendor/rclone ...` outside PATH
+# was rejected. Resolution must run on the path-preserving value.
+exec_is() {
+  local got; got="$(offsite_executable "$2")"
+  if [[ "${got}" == "$3" ]]; then ok "$1"; else no "$1" "$3" "${got}"; fi
+}
+exec_is "keeps an absolute path intact"      '/opt/vendor/rclone copyto "$1" r:b' '/opt/vendor/rclone'
+exec_is "keeps a relative path intact"       './bin/rclone copyto "$1" r:b'       './bin/rclone'
+exec_is "still unwraps wrappers, with path"  'sudo /usr/bin/rclone copyto "$1"'   '/usr/bin/rclone'
+exec_is "still unwraps a VAR= prefix"        'X=1 /usr/bin/rclone copyto "$1"'    '/usr/bin/rclone'
+exec_is "a bare name stays bare"             'rclone copyto "$1" r:b'             'rclone'
+
+# Classification keeps the basename, so /bin/cp is still recognised as cp.
+bin_is() {
+  local got; got="$(offsite_first_word "$2")"
+  if [[ "${got}" == "$3" ]]; then ok "$1"; else no "$1" "$3" "${got}"; fi
+}
+bin_is "classification basenames an absolute path" '/bin/cp "$1" /backups/offsite/' 'cp'
+bin_is "classification basenames a wrapped path"   'sudo /bin/cp "$1" /b/'          'cp'
+
+# The end-to-end composition, which is what the preflight loop does.
+if offsite_bin_on_host "$(offsite_executable '/missing/rclone copyto "$1" r:b')"; then
+  no "rejects a command whose absolute path is missing" "not found" "found"
+else
+  ok "rejects a command whose absolute path is missing"
+fi
+if offsite_bin_on_host "$(offsite_executable 'sh -c true')"; then
+  ok "accepts a command whose executable is on PATH"
+else
+  no "accepts a command whose executable is on PATH" "found" "not found"
+fi
 
 echo
 echo "passed: ${pass}  failed: ${fail}"
