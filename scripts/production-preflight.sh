@@ -258,7 +258,13 @@ OFFSITE_CMD="$(read_env_value BACKUP_OFFSITE_CMD)"
 # front of it: `VAR=x cp ...`, `command cp ...`, `env cp ...` and `sudo cp ...`
 # are all still a `cp`. A leading backslash (`\cp`, which bypasses an alias) is
 # dropped for the same reason.
-offsite_first_word() {
+# The executable the shell will ACTUALLY run: wrappers unwrapped, directory
+# components PRESERVED. Resolution checks must use this, not the basename —
+# `/missing/rclone copyto ...` reduces to `rclone` and would pass whenever some
+# other rclone is on PATH, while a valid `/opt/vendor/rclone` outside PATH
+# would be rejected. Both mis-answer the only question that matters: will this
+# command run here?
+offsite_executable() {
   local cmd="${1%%[;&|]*}"          # first command in a list
   cmd="${cmd%%#*}"                  # drop a trailing comment
   local word
@@ -276,8 +282,16 @@ offsite_first_word() {
   cmd="${cmd#"${cmd%%[![:space:]]*}"}"
   cmd="${cmd%%[[:space:]]*}"        # first word
   cmd="${cmd#\\}"                 # \cp bypasses an alias; still cp
-  cmd="${cmd##*/}"                  # basename, so /bin/true == true
   printf '%s' "${cmd}"
+}
+
+# The same word reduced to its basename, for CLASSIFICATION only: deciding
+# whether the utility is a no-op or a same-host copy, and naming it in errors.
+# `/bin/cp` and `cp` are the same utility for that purpose.
+offsite_first_word() {
+  local cmd
+  cmd="$(offsite_executable "$1")"
+  printf '%s' "${cmd##*/}"
 }
 # The offsite commands run in TWO places, and preflight has to prove both.
 #
@@ -295,6 +309,7 @@ offsite_bin_on_host() {
 }
 
 OFFSITE_BIN="$(offsite_first_word "${OFFSITE_CMD}")"
+OFFSITE_EXEC="$(offsite_executable "${OFFSITE_CMD}")"
 case "${OFFSITE_BIN}" in
   true|:|echo|cat|printf|test|nop|noop|'')
     fail "BACKUP_OFFSITE_CMD is a no-op; configure a real off-host copy command" ;;
@@ -403,8 +418,8 @@ resolve_maintenance_image() {
 MAINTENANCE_IMAGE="$(resolve_maintenance_image "${1:-}")" && resolve_rc=0 || resolve_rc=$?
 case "${resolve_rc}" in
   0)
-    docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${OFFSITE_BIN}' >/dev/null 2>&1" \
-      || fail "BACKUP_OFFSITE_CMD runs '${OFFSITE_BIN}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
+    docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${OFFSITE_EXEC}' >/dev/null 2>&1" \
+      || fail "BACKUP_OFFSITE_CMD runs '${OFFSITE_EXEC}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
     pass "offsite copy command resolves inside the maintenance image (${MAINTENANCE_IMAGE})" ;;
   2)
     fail "release ${1} was named but its maintenance image is not on this host; pull it first: IMAGE_REGISTRY_PREFIX=${REGISTRY} scripts/pull-release-images.sh ${1:0:12}" ;;
@@ -420,15 +435,16 @@ OFFSITE_VERIFY_CMD="$(read_env_value BACKUP_OFFSITE_VERIFY_CMD)"
 [[ -n "${OFFSITE_VERIFY_CMD}" ]] \
   || fail "BACKUP_OFFSITE_VERIFY_CMD is missing/empty in ${ENV_FILE}; the offsite copy would be assumed from an exit status rather than confirmed"
 VERIFY_BIN="$(offsite_first_word "${OFFSITE_VERIFY_CMD}")"
+VERIFY_EXEC="$(offsite_executable "${OFFSITE_VERIFY_CMD}")"
 case "${VERIFY_BIN}" in
   true|:|echo|cat|printf|test|nop|noop|'')
     fail "BACKUP_OFFSITE_VERIFY_CMD is a no-op; it must report the remote object's size in bytes" ;;
 esac
-docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${VERIFY_BIN}' >/dev/null 2>&1" \
-  || fail "BACKUP_OFFSITE_VERIFY_CMD runs '${VERIFY_BIN}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
+docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${VERIFY_EXEC}' >/dev/null 2>&1" \
+  || fail "BACKUP_OFFSITE_VERIFY_CMD runs '${VERIFY_EXEC}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
 # Now that both binaries are known, prove they exist on the HOST as well. The
 # deploy-time backup runs here, not in the container.
-for offsite_pair in "BACKUP_OFFSITE_CMD:${OFFSITE_BIN}" "BACKUP_OFFSITE_VERIFY_CMD:${VERIFY_BIN}"; do
+for offsite_pair in "BACKUP_OFFSITE_CMD:${OFFSITE_EXEC}" "BACKUP_OFFSITE_VERIFY_CMD:${VERIFY_EXEC}"; do
   offsite_bin_on_host "${offsite_pair#*:}" \
     || fail "${offsite_pair%%:*} runs '${offsite_pair#*:}', which is not on this host's PATH. deploy-blue-green.sh runs scripts/backup-db.sh on the HOST for the mandatory pre-migration backup, so the maintenance image having it is not enough — install it here too."
 done

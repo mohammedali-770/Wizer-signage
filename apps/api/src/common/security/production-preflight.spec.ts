@@ -150,7 +150,9 @@ describe('production preflight contract', () => {
         'bash',
         [
           '-c',
-          `source <(sed -n '/^offsite_first_word()/,/^}/p' "$1"); offsite_first_word "$2"`,
+          // offsite_first_word delegates to offsite_executable (which preserves
+          // directory components for resolution checks), so both must be sourced.
+          `source <(sed -n '/^offsite_executable()/,/^}/p;/^offsite_first_word()/,/^}/p' "$1"); offsite_first_word "$2"`,
           '_',
           preflightPath,
           cmd,
