@@ -5,7 +5,8 @@ native Android TV player (`com.wizer.signage`), how the owner creates and
 protects the production signing key, and how to validate updates on a real TV.
 
 This covers **direct APK distribution** (sideload / MDM), which is how the
-signage player is delivered — it is **not** assumed to go through Google Play.
+signage player is delivered. Google Play is **ruled out** by a recorded decision
+— see [§6](#6-why-not-google-play-decision-recorded-2026-09-10).
 
 > Related: [android-player.md](./android-player.md) (build/install),
 > [pairing-guide.md](./pairing-guide.md), [device-limitations.md](./device-limitations.md).
@@ -206,11 +207,54 @@ a top-tier secret.
 
 ---
 
-## 6. Key types — do not confuse them
+## 6. Why not Google Play (decision recorded 2026-09-10)
+
+**Wizer Signage self-distributes. It is not submitted to Google Play.** This is a
+settled decision, not an open question, and the reason is structural rather than
+a matter of preference.
+
+Google Play's Device and Network Abuse policy states that an app distributed via
+Google Play **may not modify, replace, or update itself using any method other
+than Google Play's update mechanism**, and that `REQUEST_INSTALL_PACKAGES` may
+not be used to perform self-updates except for device-management purposes. Any
+install must be _"initiated and driven by the user."_
+
+The player's entire OTA subsystem is the behaviour that policy prohibits. It
+declares both `REQUEST_INSTALL_PACKAGES` and `UPDATE_PACKAGES_WITHOUT_USER_ACTION`,
+and `AndroidUpdateInstaller.kt` explicitly requests
+`USER_ACTION_NOT_REQUIRED` — because no user stands in front of a signage screen
+to approve anything. Publishing to Play would mean deleting the capability that
+makes unattended signage viable.
+
+Two secondary points, so they are not rediscovered as objections:
+
+- **Target API level is not the obstacle.** As an Android TV app (`leanback`
+  required, `LEANBACK_LAUNCHER`), `targetSdk = 34` meets Play's Android TV
+  requirement. The self-update is the blocker, nothing else.
+- **Play would also take away release timing.** Update timing would become
+  Google's, every release would wait on review, and kiosk screens frequently
+  have no Play Services or signed-in account at all.
+
+**Consequence for the signing key.** Because there is no Play App Signing in the
+picture, the key created in §4 is the _only_ signing identity, held solely by
+Wizer, with no Google-held copy to fall back on. That makes §5 the most
+important section in this document.
+
+**If this is ever revisited**, the migration is not free: an APK signed with the
+Wizer key and one signed via Play App Signing are, to Android, different apps
+that cannot update each other. Every already-installed screen would need a
+physical uninstall and reinstall. Decide before deploying to customer venues,
+not after. The realistic path at fleet scale is **managed Google Play with
+Android Enterprise** (dedicated-device / COSU enrolment), where updates move to
+an EMM — which replaces the OTA subsystem rather than coexisting with it.
+
+---
+
+## 6a. Key types — do not confuse them
 
 Because this player is **directly distributed** (sideload / MDM), only the first
-one applies today. The others exist only if you later publish through Google
-Play — a decision Wizer has **not** made for the TV player.
+one applies. The others are listed only so they are recognised if the decision
+above is ever reopened.
 
 | Key                                             | What it is                                                                                                                                        | Who holds it                                  |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
@@ -220,6 +264,10 @@ Play — a decision Wizer has **not** made for the TV player.
 
 For Wizer Signage's Android TV player, the **direct-distribution application
 signing key (§4)** is the single key to create, protect, and reuse.
+
+> Related: [android-distribution.md](./android-distribution.md) for publishing a
+> release, and [android-ota.md](./android-ota.md) §9 for the first-release
+> checklist including the pre-staged recovery build.
 
 ---
 
