@@ -117,17 +117,42 @@ log "Keystore present and readable: ${KS_PATH}"
 # --- Locate Android SDK build-tools ------------------------------------------
 SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 [[ -n "${SDK_ROOT}" && -d "${SDK_ROOT}" ]] || fail "ANDROID_HOME / ANDROID_SDK_ROOT is not set to a valid Android SDK."
+# Resolve a build-tool by name, allowing for the platform's wrapper extension.
+#
+# Windows SDK build-tools ship `apksigner.bat` and `aapt2.exe` -- there is no
+# extensionless `apksigner` at all, so a bare `-x "${d}/apksigner"` finds
+# nothing and the script aborts on a perfectly good SDK. Git Bash is a
+# supported way to run this (the owner's signing machine is Windows, and the
+# keystore never leaves it), so the lookup has to cover both layouts.
+#
+# `-x` is deliberately NOT required for .bat/.exe: the executable bit is not
+# meaningful for them under Git Bash / MSYS, and testing it rejects files that
+# run perfectly well.
+bt_tool() { # bt_tool <build-tools-dir> <name>  -> prints path, or returns 1
+  local dir="$1" name="$2" cand
+  for cand in "${dir}/${name}" "${dir}/${name}.bat" "${dir}/${name}.exe"; do
+    [[ -f "${cand}" ]] || continue
+    case "${cand}" in
+      *.bat|*.exe) printf '%s' "${cand}"; return 0 ;;
+      *) if [[ -x "${cand}" ]]; then printf '%s' "${cand}"; return 0; fi ;;
+    esac
+  done
+  return 1
+}
+
 BUILD_TOOLS_DIR=""
+APKSIGNER=""
 if [[ -d "${SDK_ROOT}/build-tools" ]]; then
   while IFS= read -r d; do
-    if [[ -x "${d}/apksigner" ]]; then BUILD_TOOLS_DIR="${d}"; break; fi
+    if found="$(bt_tool "${d}" apksigner)"; then
+      BUILD_TOOLS_DIR="${d}"; APKSIGNER="${found}"; break
+    fi
   done < <(find "${SDK_ROOT}/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -Vr)
 fi
-[[ -n "${BUILD_TOOLS_DIR}" ]] || fail "Could not find 'apksigner' under ${SDK_ROOT}/build-tools. Install Android build-tools."
-APKSIGNER="${BUILD_TOOLS_DIR}/apksigner"
-AAPT="${BUILD_TOOLS_DIR}/aapt"
-[[ -x "${AAPT}" ]] || AAPT="${BUILD_TOOLS_DIR}/aapt2"
-[[ -x "${AAPT}" ]] || fail "Could not find aapt/aapt2 under ${BUILD_TOOLS_DIR}."
+[[ -n "${BUILD_TOOLS_DIR}" ]] || fail "Could not find 'apksigner' (or apksigner.bat/.exe) under ${SDK_ROOT}/build-tools. Install Android build-tools."
+AAPT="$(bt_tool "${BUILD_TOOLS_DIR}" aapt || true)"
+[[ -n "${AAPT}" ]] || AAPT="$(bt_tool "${BUILD_TOOLS_DIR}" aapt2 || true)"
+[[ -n "${AAPT}" ]] || fail "Could not find aapt/aapt2 (or their .exe) under ${BUILD_TOOLS_DIR}."
 log "Using build-tools: ${BUILD_TOOLS_DIR}"
 
 # --- Choose Gradle invocation ------------------------------------------------
