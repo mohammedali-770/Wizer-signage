@@ -150,6 +150,22 @@ if [[ -d "${SDK_ROOT}/build-tools" ]]; then
   done < <(find "${SDK_ROOT}/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -Vr)
 fi
 [[ -n "${BUILD_TOOLS_DIR}" ]] || fail "Could not find 'apksigner' (or apksigner.bat/.exe) under ${SDK_ROOT}/build-tools. Install Android build-tools."
+# Prefer the jar over the platform wrapper for apksigner.
+#
+# apksigner.bat resolves its own directory and re-invokes through cmd without
+# quoting it, so on a machine whose profile is "C:\Users\Mohammed Ali" the path
+# splits at the space and verification dies with
+#   'C:\Users\Mohammed' is not recognized as an internal or external command
+# -- AFTER a correctly signed APK has already been produced, which is the worst
+# possible place to stop. lib/apksigner.jar ships in every build-tools release
+# and runs identically on every platform, so there is no wrapper to mis-quote.
+APKSIGNER_CMD=()
+if [[ -f "${BUILD_TOOLS_DIR}/lib/apksigner.jar" ]] && command -v java >/dev/null 2>&1; then
+  APKSIGNER_CMD=(java -jar "${BUILD_TOOLS_DIR}/lib/apksigner.jar")
+else
+  APKSIGNER_CMD=("${APKSIGNER}")
+fi
+
 AAPT="$(bt_tool "${BUILD_TOOLS_DIR}" aapt || true)"
 [[ -n "${AAPT}" ]] || AAPT="$(bt_tool "${BUILD_TOOLS_DIR}" aapt2 || true)"
 [[ -n "${AAPT}" ]] || fail "Could not find aapt/aapt2 (or their .exe) under ${BUILD_TOOLS_DIR}."
@@ -194,7 +210,7 @@ log "Built APK: ${APK_BUILT}"
 
 # --- 7. Verify it is actually signed -----------------------------------------
 log "Verifying signature (apksigner verify) ..."
-VERIFY_OUT="$("${APKSIGNER}" verify --verbose --print-certs "${APK_BUILT}")"
+VERIFY_OUT="$("${APKSIGNER_CMD[@]}" verify --verbose --print-certs "${APK_BUILT}")"
 scheme_v1="$(printf '%s\n' "${VERIFY_OUT}" | grep -i 'Verified using v1 scheme' | head -1)"
 scheme_v2="$(printf '%s\n' "${VERIFY_OUT}" | grep -i 'Verified using v2 scheme' | head -1)"
 scheme_v3="$(printf '%s\n' "${VERIFY_OUT}" | grep -i 'Verified using v3 scheme' | head -1)"
