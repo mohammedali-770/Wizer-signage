@@ -1,10 +1,11 @@
-import { Controller, Get, NotFoundException, Param, Res } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Redirect, Res } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Public } from '../../common/decorators/public.decorator';
+import { AndroidReleaseCatalogService } from './android-release-catalog.service';
 
 const LEGACY_APK = /^[A-Za-z0-9._-]+\.apk$/;
 const ANDROID_RELEASE_FILE =
@@ -26,6 +27,35 @@ const ANDROID_RELEASE_FILE =
 @Controller('downloads')
 export class DownloadsController {
   private readonly dir = process.env.APK_DOWNLOAD_DIR ?? '/srv/downloads';
+
+  constructor(private readonly catalog: AndroidReleaseCatalogService) {}
+
+  /**
+   * Stable entry point for the CURRENT release, so an installer never has to
+   * type a versioned filename.
+   *
+   * Android TV devices generally ship no browser, so a person sideloading the
+   * player types a URL into a loader app using a D-pad remote. The immutable
+   * path `/api/downloads/android/wizer-signage-v0.6.0-1.apk` is unusable that
+   * way and changes every release, which would stale every printed instruction.
+   * nginx maps `/apk` here so the typed URL is short and permanent.
+   *
+   * This must NOT live under /api/downloads/android/: that prefix is an nginx
+   * `alias` served straight off disk (`location ^~`), so a request there never
+   * reaches the API and would be resolved as a filename.
+   *
+   * 302, not 301: the target changes with every release and a permanently
+   * cached redirect would pin devices and browsers to a stale APK.
+   */
+  @Get('android-latest')
+  @Redirect(undefined, 302)
+  redirectToLatestApk(): { url: string } {
+    const release = this.catalog.findLatest();
+    if (!release) {
+      throw new NotFoundException('No Android release is currently published.');
+    }
+    return { url: `/api/downloads/android/${release.fileName}` };
+  }
 
   /** Backwards-compatible root APK route used by older manual-install docs. */
   @Get(':file')
