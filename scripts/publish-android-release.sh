@@ -77,14 +77,9 @@ else fail "Neither sha256sum nor shasum is available."; fi
 # Locate Android build-tools (apksigner + aapt), highest version that has apksigner.
 SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 [[ -n "${SDK_ROOT}" && -d "${SDK_ROOT}" ]] || fail "ANDROID_HOME / ANDROID_SDK_ROOT is not a valid Android SDK."
-BUILD_TOOLS_DIR=""
-while IFS= read -r d; do
-  [[ -x "${d}/apksigner" ]] && { BUILD_TOOLS_DIR="${d}"; break; }
-done < <(find "${SDK_ROOT}/build-tools" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort -Vr)
-[[ -n "${BUILD_TOOLS_DIR}" ]] || fail "apksigner not found under ${SDK_ROOT}/build-tools."
-APKSIGNER="${BUILD_TOOLS_DIR}/apksigner"
-AAPT="${BUILD_TOOLS_DIR}/aapt"; [[ -x "${AAPT}" ]] || AAPT="${BUILD_TOOLS_DIR}/aapt2"
-[[ -x "${AAPT}" ]] || fail "aapt/aapt2 not found under ${BUILD_TOOLS_DIR}."
+# shellcheck source=scripts/lib/android-sdk.sh
+source "${SCRIPT_DIR}/lib/android-sdk.sh"
+android_resolve_build_tools || fail "Android SDK build-tools could not be resolved (see above)."
 
 # --- 3/4. Validate the input APK (regular file; symlink policy) --------------
 [[ -e "${APK_SRC}" ]] || fail "APK not found: ${APK_SRC}"
@@ -107,7 +102,7 @@ EXPECTED_FP="$(normalize_fp "${WIZER_ANDROID_EXPECTED_CERT_SHA256}")"
 
 # --- 5/6. apksigner verification: require v1 + v2 + v3 -----------------------
 log "Verifying APK signature (apksigner)..."
-VERIFY_OUT="$("${APKSIGNER}" verify --verbose --print-certs "${APK_SRC}" 2>/dev/null)" \
+VERIFY_OUT="$("${APKSIGNER_CMD[@]}" verify --verbose --print-certs "${APK_SRC}" 2>/dev/null)" \
   || fail "apksigner could not verify the APK (unsigned or corrupt): ${APK_SRC}"
 scheme_ok() { printf '%s\n' "${VERIFY_OUT}" | grep -qiE "Verified using $1 scheme[^:]*: *true"; }
 scheme_ok v1 || fail "APK is not v1-signed (JAR signing) — required for minSdk 21 / Android 5.0."
