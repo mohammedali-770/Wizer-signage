@@ -151,8 +151,11 @@ describe('production preflight contract', () => {
         [
           '-c',
           // offsite_first_word delegates to offsite_executable (which preserves
-          // directory components for resolution checks), so both must be sourced.
-          `source <(sed -n '/^offsite_executable()/,/^}/p;/^offsite_first_word()/,/^}/p' "$1"); offsite_first_word "$2"`,
+          // directory components for resolution checks), which in turn delegates
+          // to the quote-aware splitter and the per-segment resolver. All four
+          // must be sourced or every case here dies with "command not found"
+          // rather than asserting anything.
+          `source <(sed -n '/^offsite_split_segments()/,/^}/p;/^offsite_segment_executable()/,/^}/p;/^offsite_executable()/,/^}/p;/^offsite_first_word()/,/^}/p' "$1"); offsite_first_word "$2"`,
           '_',
           preflightPath,
           cmd,
