@@ -250,7 +250,17 @@ fi
 # Staging lives directly under the downloads root (same filesystem as android/,
 # so mv is an atomic rename), NOT under android/, so nginx never exposes it.
 STAGING="$(mktemp -d "${DOWNLOADS_DIR%/}/.publish.XXXXXX")" || fail "Could not create staging dir."
-cleanup() { rm -rf "${STAGING}" 2>/dev/null || true; }
+# The lock is released HERE, not only on the success path. A failure between
+# acquiring it and the end of the script would otherwise leave the mkdir lock
+# behind, and the next publish would wait its full timeout and then refuse to
+# run -- turning a recoverable error into a second, more confusing one.
+cleanup() {
+  rm -rf "${STAGING}" 2>/dev/null || true
+  case "${LOCK_MODE:-}" in
+    flock) flock -u 9 2>/dev/null || true ;;
+    mkdir) rmdir "${LOCK_DIR}" 2>/dev/null || true ;;
+  esac
+}
 trap cleanup EXIT
 
 S_APK="${STAGING}/${FNAME}"
@@ -262,7 +272,7 @@ S_LATEST="${STAGING}/latest.json"
 cp -- "${APK_SRC}" "${S_APK}"
 COPY_SHA="$("${SHA256[@]}" "${S_APK}" | awk '{print $1}')"
 [[ "${COPY_SHA}" == "${APK_SHA256}" ]] || fail "Staged APK checksum differs from source (copy corruption)."
-"${APKSIGNER}" verify "${S_APK}" >/dev/null 2>&1 || fail "Staged APK failed apksigner re-verification."
+"${APKSIGNER_CMD[@]}" verify "${S_APK}" >/dev/null 2>&1 || fail "Staged APK failed apksigner re-verification."
 
 # --- 18. Checksum file (name-relative) + verify it ---------------------------
 ( cd "${STAGING}" && "${SHA256[@]}" "${FNAME}" > "${FNAME}.sha256" )

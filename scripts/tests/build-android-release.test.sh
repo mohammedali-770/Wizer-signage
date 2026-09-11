@@ -55,3 +55,25 @@ fail_case "Missing required signing environment variable(s)" \
   --version-code=42
 
 echo "build-android-release argument tests passed"
+
+# --- Refactor guard ----------------------------------------------------------
+# apksigner is invoked through the APKSIGNER_CMD array so a build-tools path
+# containing a space stays one argument. A leftover bare "${APKSIGNER}" from a
+# partial refactor is not a syntax error -- it fails at runtime, under `set -u`,
+# deep into a publish that has already verified and staged the APK. That is
+# exactly how it was found, so it is pinned here.
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+leftover=0
+for f in "${ROOT_DIR}/scripts/build-android-release.sh" "${ROOT_DIR}/scripts/publish-android-release.sh"; do
+  if grep -q '"\${APKSIGNER}"' "$f"; then
+    echo "FAIL: $(basename "$f") still calls a bare \${APKSIGNER}; use \"\${APKSIGNER_CMD[@]}\"" >&2
+    leftover=1
+  fi
+  if ! grep -q 'APKSIGNER_CMD\[@\]' "$f"; then
+    echo "FAIL: $(basename "$f") never invokes APKSIGNER_CMD" >&2
+    leftover=1
+  fi
+done
+[[ "${leftover}" -eq 0 ]] || exit 1
+echo "apksigner invocation guard passed"
+
