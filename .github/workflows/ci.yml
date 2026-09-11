@@ -116,6 +116,9 @@ jobs:
       - name: Blue/green rollback target-selection tests
         run: bash scripts/tests/rollback-blue-green.test.sh
 
+      - name: Blue/green cutover write-failure tests
+        run: bash scripts/tests/blue-green-cutover-write.test.sh
+
       - name: Smoke-test self-test
         run: bash scripts/tests/smoke-test.test.sh
 
