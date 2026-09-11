@@ -137,6 +137,9 @@ jobs:
       - name: Database URL environment precedence tests
         run: bash scripts/tests/pg-env-precedence.test.sh
 
+      - name: Dotenv precedence + call-site tests
+        run: bash scripts/tests/env-file-precedence.test.sh
+
       - name: Deploy nginx-reload tests
         run: bash scripts/tests/deploy-nginx-reload.test.sh
 

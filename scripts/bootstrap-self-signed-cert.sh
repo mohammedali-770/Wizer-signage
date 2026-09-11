@@ -30,13 +30,14 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-${ROOT_DIR}/infra/docker/docker-compose.yml}"
 
 # --- Load .env (without overriding already-exported vars) for APP_DOMAIN ------
+# This comment described the intent; `set -a; source` did the opposite and
+# discarded an exported APP_DOMAIN in favour of the .env value. Since DOMAIN
+# below feeds a certificate write that --force will overwrite, the wrong answer
+# here can replace the certificate for a domain the operator did not name.
+# shellcheck source=scripts/lib/env-file.sh
+source "${SCRIPT_DIR}/lib/env-file.sh"
 ENV_FILE="${ROOT_DIR}/.env"
-if [[ -f "${ENV_FILE}" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "${ENV_FILE}"
-  set +a
-fi
+env_load_defaults "${ENV_FILE}" APP_DOMAIN
 
 # --- Parse args --------------------------------------------------------------
 FORCE=0
