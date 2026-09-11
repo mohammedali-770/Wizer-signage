@@ -39,6 +39,35 @@ export type PublishedAndroidRelease = {
 export class AndroidReleaseCatalogService {
   private readonly dir = process.env.APK_DOWNLOAD_DIR ?? '/srv/downloads';
 
+  /**
+   * Resolve whatever `latest.json` currently points at.
+   *
+   * latest.json only decides WHICH version is current; it is not trusted to
+   * prove that version is installable. The coordinates it names are handed
+   * straight to find(), which re-reads the immutable per-version manifest and
+   * confirms the APK and its checksum sidecar are both present and consistent.
+   * So a latest.json left behind by a half-finished publish, or one whose APK
+   * was later deleted or truncated, resolves to null rather than to a download
+   * that 404s or serves a partial file.
+   */
+  findLatest(): PublishedAndroidRelease | null {
+    const manifestPath = join(this.dir, 'android', 'latest.json');
+    if (!existsSync(manifestPath)) return null;
+
+    try {
+      const stat = statSync(manifestPath);
+      if (!stat.isFile() || stat.size <= 0 || stat.size > 64 * 1024) return null;
+
+      const parsed = JSON.parse(readFileSync(manifestPath, 'utf8')) as AndroidReleaseManifest;
+      if (typeof parsed.versionName !== 'string' || typeof parsed.versionCode !== 'number') {
+        return null;
+      }
+      return this.find(parsed.versionName, parsed.versionCode);
+    } catch {
+      return null;
+    }
+  }
+
   find(versionName: string, versionCode: number): PublishedAndroidRelease | null {
     if (
       !versionName ||

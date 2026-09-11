@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import request from 'supertest';
@@ -14,28 +14,35 @@ describe('Android release downloads (e2e)', () => {
   beforeAll(async () => {
     root = mkdtempSync(join(tmpdir(), 'wizer-downloads-'));
     mkdirSync(join(root, 'android'));
+
+    // `scripts/publish-android-release.sh` writes the SAME manifest to both the
+    // atomic latest.json pointer and the immutable per-version file. The
+    // per-version copy is the one the catalog re-reads to decide a release is
+    // actually installable, so a stub here would make /android-latest 404 and
+    // hide whether the route works at all.
+    const manifest = {
+      schemaVersion: 1,
+      packageName: 'com.wizer.signage',
+      versionName: '1.2.3',
+      versionCode: 123,
+      fileName: 'wizer-signage-v1.2.3-123.apk',
+      downloadUrl: '/api/downloads/android/wizer-signage-v1.2.3-123.apk',
+      sha256: '0'.repeat(64),
+      certificateSha256: '1'.repeat(64),
+      sizeBytes: 3,
+      minSdk: 23,
+      publishedAt: '2026-08-09T00:00:00Z',
+    };
+    writeFileSync(join(root, 'android', 'latest.json'), JSON.stringify(manifest));
     writeFileSync(
-      join(root, 'android', 'latest.json'),
-      JSON.stringify({
-        schemaVersion: 1,
-        packageName: 'com.wizer.signage',
-        versionName: '1.2.3',
-        versionCode: 123,
-        fileName: 'wizer-signage-v1.2.3-123.apk',
-        downloadUrl: '/api/downloads/android/wizer-signage-v1.2.3-123.apk',
-        sha256: '0'.repeat(64),
-        certificateSha256: '1'.repeat(64),
-        sizeBytes: 3,
-        minSdk: 23,
-        publishedAt: '2026-08-09T00:00:00Z',
-      }),
+      join(root, 'android', 'wizer-signage-v1.2.3-123.json'),
+      `${JSON.stringify(manifest)}\n`,
     );
     writeFileSync(join(root, 'android', 'wizer-signage-v1.2.3-123.apk'), Buffer.from([1, 2, 3]));
     writeFileSync(
       join(root, 'android', 'wizer-signage-v1.2.3-123.apk.sha256'),
       `${'0'.repeat(64)}  wizer-signage-v1.2.3-123.apk\n`,
     );
-    writeFileSync(join(root, 'android', 'wizer-signage-v1.2.3-123.json'), '{"versionCode":123}\n');
 
     process.env.APK_DOWNLOAD_DIR = root;
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -79,6 +86,35 @@ describe('Android release downloads (e2e)', () => {
     );
     expect(checksum.status).toBe(200);
     expect(checksum.headers['content-type']).toMatch(/^text\/plain/);
+  });
+
+  it('redirects the short /apk entry point to the current immutable APK, uncacheably', async () => {
+    const res = await request(app.getHttpServer()).get('/api/downloads/android-latest');
+
+    expect(res.status).toBe(302);
+    expect(res.headers['location']).toBe('/api/downloads/android/wizer-signage-v1.2.3-123.apk');
+    // A pinned redirect would hold devices on a superseded APK forever, and the
+    // whole point of this route is that its target moves with every release.
+    expect(res.headers['cache-control']).toBe('no-store');
+    // Declared before @Get(':file'); prove routing, not declaration order.
+    expect(res.headers['content-type'] ?? '').not.toMatch(/package-archive/);
+  });
+
+  it('404s rather than redirecting when latest.json names a version that is not installable', async () => {
+    const latestPath = join(root, 'android', 'latest.json');
+    const good = readFileSync(latestPath, 'utf8');
+    try {
+      writeFileSync(
+        latestPath,
+        JSON.stringify({ ...JSON.parse(good), versionName: '9.9.9', versionCode: 999 }),
+      );
+
+      const res = await request(app.getHttpServer()).get('/api/downloads/android-latest');
+      expect(res.status).toBe(404);
+      expect(res.headers['location']).toBeUndefined();
+    } finally {
+      writeFileSync(latestPath, good);
+    }
   });
 
   it('rejects traversal and arbitrary files from the mounted directory', async () => {

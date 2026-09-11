@@ -52,6 +52,12 @@ const EXPECTED_PUBLIC_ROUTES: readonly string[] = [
   'GET /content-files/:token',
   'GET /downloads/:file',
   'GET /downloads/android/:file',
+  // Short, stable entry point for sideloading the TV player. Public for the
+  // same reason the APK itself is (docs/android-distribution.md §1): integrity
+  // comes from Android signing, the expected-certificate gate and the published
+  // SHA-256, not from the URL being secret. It returns only a 302 to an already
+  // public immutable path, and 404s when nothing is published.
+  'GET /downloads/android-latest',
 ];
 
 const EXPECTED_CLASS_LEVEL_PUBLIC: readonly string[] = [

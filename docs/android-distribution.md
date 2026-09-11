@@ -15,6 +15,51 @@ versioned URL; a small `latest.json` manifest advertises the current version.
 
 ---
 
+## 0. The short install URL — `/apk`
+
+**`https://<APP_DOMAIN>/apk` always serves the current release.**
+
+Android TV and Google TV devices generally ship **no web browser**, so a person
+installing the player types a URL into a loader app using a D-pad remote. The
+immutable path is ~64 characters and carries the version:
+
+```
+https://signage.wizer.sa/api/downloads/android/wizer-signage-v0.6.0-1.apk
+```
+
+That is unusable on a remote, and it goes stale the moment a new release ships —
+so any printed or spoken instruction would have to be reissued every release.
+`/apk` is short, permanent, and always current:
+
+```
+signage.wizer.sa/apk
+```
+
+How it resolves, and why it cannot serve a broken release:
+
+1. nginx `location = /apk` proxies to `GET /api/downloads/android-latest`
+   (one hop, so the first response the device sees is the redirect to the APK).
+2. The API reads `latest.json` for the version **coordinates only**.
+3. Those coordinates go through `AndroidReleaseCatalogService.find()`, which
+   re-reads the immutable per-version manifest and confirms the APK and its
+   checksum sidecar are both present and mutually consistent.
+4. It answers **302** to the immutable versioned path.
+
+So a `latest.json` left behind by a half-finished publish, or one whose APK was
+later deleted or truncated, yields **404 — no release published** rather than a
+redirect to a download that fails or serves partial bytes.
+
+**302, never 301.** The target changes every release; a permanently cached
+redirect would pin devices and browsers to a stale APK.
+
+**`/apk` must not be routed under `/api/downloads/android/`.** That prefix is an
+nginx `alias` served straight off disk (`location ^~`), so a request there never
+reaches the API and would be resolved as a filename.
+
+Until the first release is published, `/apk` returns 404. That is correct.
+
+---
+
 ## 1. Public URL structure
 
 Served by **nginx** directly (read-only) under the existing `/api/downloads/`

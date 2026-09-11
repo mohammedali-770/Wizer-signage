@@ -112,9 +112,15 @@ check "proxy_http_version 1.1 is set (keepalive's other precondition)" \
 # APK downloads stream tens of megabytes per request off a single VPS. The
 # generic 30r/s API zone is priced for JSON, not for that: at that rate the
 # uplink saturates and every screen's manifest poll fails with it.
+# Counted against the number of download-serving locations rather than a
+# hardcoded total, so adding another one does not silently fail this — it fails
+# only if the new location omits the zone. The >= 3 floor keeps it from passing
+# vacuously if the locations themselves are deleted: /apk, the static android
+# subtree, and the proxied /api/downloads/ parent.
+dl_locations=$(grep -cE 'location (= /apk|\^~ /api/downloads)' "${DIRECTIVES}")
 dl_blocks=$(grep -c 'zone=wizer_downloads' "${DIRECTIVES}")
-check "both /api/downloads/ locations carry the tight rate zone (found ${dl_blocks}/2)" \
-  "$([[ "${dl_blocks}" -eq 2 ]]; echo $?)"
+check "every download-serving location carries the tight rate zone (${dl_blocks}/${dl_locations}, min 3)" \
+  "$([[ "${dl_blocks}" -eq "${dl_locations}" && "${dl_locations}" -ge 3 ]]; echo $?)"
 
 check "the downloads zone is declared and is tighter than the API zone" \
   "$(grep -qE 'zone=wizer_downloads:[0-9]+m\s+rate=[0-9]+r/m' "${NGINX_DIRECTIVES}"; echo $?)"

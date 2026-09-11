@@ -68,6 +68,36 @@ server {
         return 404;
     }
 
+    # Short, permanent entry point for sideloading the player.
+    #
+    # Android TV devices generally ship no web browser, so a person installing
+    # the player types this URL into a loader app using a D-pad remote. The
+    # immutable release path is ~64 characters and carries the version, so it is
+    # both untypeable and stale the moment a new release ships. This stays
+    # short and permanent; the API resolves the current version from latest.json
+    # and answers with a 302 to the immutable file.
+    #
+    # PROXIED, not `return 302 /api/downloads/android-latest` — that would cost
+    # the client two redirects instead of one, and loader apps vary in how many
+    # hops they follow. Proxying means the first response the device sees is the
+    # redirect to the APK itself.
+    #
+    # It must not be routed under /api/downloads/android/: that prefix is an
+    # `alias` served straight off disk below, so it never reaches the API.
+    location = /apk {
+        limit_req  zone=wizer_downloads burst=10 nodelay;
+        limit_conn wizer_conn 8;
+        limit_except GET HEAD { deny all; }
+        rewrite ^ /api/downloads/android-latest break;
+        proxy_pass http://api_upstream;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-Id      $request_id;
+        proxy_set_header Connection        "";
+    }
+
     location ^~ /api/downloads/android/ {
         alias /usr/share/nginx/downloads/android/;
         limit_req  zone=wizer_downloads burst=10 nodelay;
