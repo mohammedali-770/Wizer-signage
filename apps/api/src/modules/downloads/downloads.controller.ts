@@ -1,4 +1,4 @@
-import { Controller, Get, NotFoundException, Param, Redirect, Res } from '@nestjs/common';
+import { Controller, Get, Header, NotFoundException, Param, Redirect, Res } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { createReadStream, existsSync, statSync } from 'node:fs';
@@ -46,8 +46,16 @@ export class DownloadsController {
    *
    * 302, not 301: the target changes with every release and a permanently
    * cached redirect would pin devices and browsers to a stale APK.
+   *
+   * `no-store` for the same reason. A 302 is not heuristically cacheable under
+   * RFC 7234, but loader apps and corporate proxies are not reliably compliant,
+   * and anything that pins this response pins a device to a superseded APK.
+   * The header belongs HERE and not in nginx's `location = /apk`: that block
+   * declares no `add_header`, so it inherits all six server-level security
+   * headers, and adding one there would silently drop the other five.
    */
   @Get('android-latest')
+  @Header('Cache-Control', 'no-store')
   @Redirect(undefined, 302)
   redirectToLatestApk(): { url: string } {
     const release = this.catalog.findLatest();
