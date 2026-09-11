@@ -35,7 +35,8 @@
 # see docs/android-distribution.md.
 #
 # Requirements: Android SDK build-tools (apksigner, aapt) via ANDROID_HOME /
-# ANDROID_SDK_ROOT, plus python3, sha256sum (or shasum), flock, mktemp.
+# ANDROID_SDK_ROOT, plus Python 3 (python3/python/py -3), sha256sum (or
+# shasum) and mktemp. flock is used when present; mkdir is the portable fallback.
 # =============================================================================
 
 set -euo pipefail
@@ -66,8 +67,24 @@ EXPECTED_PKG="com.wizer.signage"
 
 # --- 1/2. Validate required commands -----------------------------------------
 need_cmd() { command -v "$1" >/dev/null 2>&1 || fail "Required command not found: $1"; }
-need_cmd python3
-need_cmd flock
+
+# Python builds and validates the JSON manifests -- deliberately, so no manifest
+# is ever produced by shell string concatenation. Which name it answers to
+# varies: Git Bash on Windows (where the signing keystore lives, and therefore
+# where this legitimately runs) has no `python3` at all, only `python` or the
+# `py` launcher.
+PYTHON=()
+for cand in python3 python py; do
+  command -v "${cand}" >/dev/null 2>&1 || continue
+  case "${cand}" in
+    py) "${cand}" -3 -c 'import sys; sys.exit(0 if sys.version_info[0]==3 else 1)' >/dev/null 2>&1 \
+          && { PYTHON=("${cand}" -3); break; } ;;
+    *)  "${cand}" -c 'import sys; sys.exit(0 if sys.version_info[0]==3 else 1)' >/dev/null 2>&1 \
+          && { PYTHON=("${cand}"); break; } ;;
+  esac
+done
+(( ${#PYTHON[@]} > 0 )) || fail "No Python 3 found (tried python3, python, py -3). It is required to build the release manifests."
+
 need_cmd mktemp
 need_cmd stat
 if command -v sha256sum >/dev/null 2>&1; then SHA256=(sha256sum); SHA256C=(sha256sum -c)
@@ -180,8 +197,23 @@ log "  -> ${DEST_APK}"
 # --- Serialize publishes (avoid races on version check + latest.json) --------
 mkdir -p "${DOWNLOADS_DIR}"
 LOCK="${DOWNLOADS_DIR%/}/.publish-android.lock"
-exec 9>"${LOCK}"
-flock -w 30 9 || fail "Could not acquire publish lock (${LOCK}); another publish may be running."
+LOCK_DIR="${LOCK}.d"
+LOCK_MODE=""
+# flock does not exist in Git Bash on Windows, which is where the signing
+# keystore lives and therefore where a release is legitimately published from.
+# mkdir is atomic on every platform, so it is the portable fallback.
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"${LOCK}"
+  flock -w 30 9 || fail "Could not acquire publish lock (${LOCK}); another publish may be running."
+  LOCK_MODE=flock
+else
+  waited=0
+  until mkdir "${LOCK_DIR}" 2>/dev/null; do
+    (( waited < 30 )) || fail "Could not acquire publish lock (${LOCK_DIR}); another publish may be running. If none is, remove that directory and retry."
+    sleep 1; waited=$(( waited + 1 ))
+  done
+  LOCK_MODE=mkdir
+fi
 
 mkdir -p "${ANDROID_DIR}"
 
@@ -197,7 +229,7 @@ mkdir -p "${ANDROID_DIR}"
 # cannot silently disable the guard. If latest.json IS present it must still
 # parse (fail closed on a corrupt pointer).
 if [[ -e "${LATEST_JSON}" ]]; then
-  python3 -c 'import json,sys; int(json.load(open(sys.argv[1]))["versionCode"])' "${LATEST_JSON}" >/dev/null 2>&1 \
+  "${PYTHON[@]}" -c 'import json,sys; int(json.load(open(sys.argv[1]))["versionCode"])' "${LATEST_JSON}" >/dev/null 2>&1 \
     || fail "Existing latest.json is present but unreadable/invalid; refusing to publish until it is fixed or restored: ${LATEST_JSON}"
 fi
 DISK_MAX_VC=-1
@@ -241,7 +273,7 @@ emit_manifest() { # $1 = output path
   PKG="${PKG}" VN="${VERSION_NAME}" VC="${VERSION_CODE}" FN="${FNAME}" \
   URL="${DOWNLOAD_URL}" SHA="${APK_SHA256}" CERT="${CERT_FP}" \
   SIZE="${SIZE_BYTES}" MINSDK="${MIN_SDK}" TS="${PUBLISHED_AT}" OUT="$1" \
-  python3 <<'PY'
+  "${PYTHON[@]}" <<'PY' 
 import json, os
 doc = {
     "schemaVersion": 1,
@@ -264,7 +296,7 @@ with open(os.environ["OUT"], "w", encoding="utf-8") as f:
     f.write("\n")
 PY
 }
-validate_json() { python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$1" || fail "Generated JSON is invalid: $1"; }
+validate_json() { "${PYTHON[@]}" -c 'import json,sys; json.load(open(sys.argv[1]))' "$1" || fail "Generated JSON is invalid: $1"; }
 
 PUBLISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 emit_manifest "${S_VER_JSON}"; validate_json "${S_VER_JSON}"
@@ -281,7 +313,10 @@ mv -- "${S_VER_JSON}" "${DEST_VER_JSON}"
 mv -- "${S_LATEST}"   "${LATEST_JSON}"
 
 cleanup; trap - EXIT
-flock -u 9 2>/dev/null || true
+case "${LOCK_MODE:-}" in
+  flock) flock -u 9 2>/dev/null || true ;;
+  mkdir) rmdir "${LOCK_DIR}" 2>/dev/null || true ;;
+esac
 
 cat <<EOF
 
