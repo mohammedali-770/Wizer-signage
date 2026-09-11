@@ -281,7 +281,7 @@ COPY_SHA="$("${SHA256[@]}" "${S_APK}" | awk '{print $1}')"
 # --- 3/19/20. Build + validate JSON manifests with python3 (no shell concat) -
 emit_manifest() { # $1 = output path
   PKG="${PKG}" VN="${VERSION_NAME}" VC="${VERSION_CODE}" FN="${FNAME}" \
-  URL="${DOWNLOAD_URL}" SHA="${APK_SHA256}" CERT="${CERT_FP}" \
+  SHA="${APK_SHA256}" CERT="${CERT_FP}" \
   SIZE="${SIZE_BYTES}" MINSDK="${MIN_SDK}" TS="${PUBLISHED_AT}" OUT="$1" \
   "${PYTHON[@]}" <<'PY' 
 import json, os
@@ -291,16 +291,27 @@ doc = {
     "versionName": os.environ["VN"],
     "versionCode": int(os.environ["VC"]),
     "fileName": os.environ["FN"],
-    "downloadUrl": os.environ["URL"],
+    # Built HERE rather than passed in. Under Git Bash the shell->native-Windows
+    # boundary rewrites POSIX-looking values, so a "/api/downloads/android/..."
+    # environment variable arrived as "C:/Program Files/Git/api/downloads/...".
+    # A bare filename has no leading slash and is left alone, and the API pins
+    # this exact prefix (android-release-catalog.service.ts), so it must be
+    # produced deterministically rather than transported.
+    "downloadUrl": "/api/downloads/android/" + os.environ["FN"],
     "sha256": os.environ["SHA"],
     "certificateSha256": os.environ["CERT"],
     "sizeBytes": int(os.environ["SIZE"]),
     "minSdk": int(os.environ["MINSDK"]),
     "publishedAt": os.environ["TS"],
 }
-# Guard: downloadUrl must stay under the immutable android/ prefix, no traversal.
-assert doc["downloadUrl"].startswith("/api/downloads/android/"), "bad downloadUrl prefix"
-assert ".." not in doc["downloadUrl"], "downloadUrl traversal"
+# Guards. fileName is the only variable part, so check it directly and say what
+# was actually seen -- the previous message named only the symptom, which made a
+# value-mangling bug look like a logic bug.
+_fn = os.environ["FN"]
+assert "/" not in _fn and "\\" not in _fn, f"fileName must be a bare filename, got {_fn!r}"
+assert ".." not in _fn, f"fileName traversal: {_fn!r}"
+assert doc["downloadUrl"].startswith("/api/downloads/android/"), \
+    f"bad downloadUrl prefix: {doc['downloadUrl']!r}"
 with open(os.environ["OUT"], "w", encoding="utf-8") as f:
     json.dump(doc, f, indent=2)
     f.write("\n")
