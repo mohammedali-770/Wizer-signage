@@ -264,8 +264,106 @@ OFFSITE_CMD="$(read_env_value BACKUP_OFFSITE_CMD)"
 # other rclone is on PATH, while a valid `/opt/vendor/rclone` outside PATH
 # would be rejected. Both mis-answer the only question that matters: will this
 # command run here?
-offsite_executable() {
-  local cmd="${1%%[;&|]*}"          # first command in a list
+# Split a shell command list into the simple commands the shell will actually
+# run, QUOTE-AWARE.
+#
+# A plain `tr ';&|' '\n'` -- which the classification path used -- splits inside
+# quotes, so `ssh host 'mkdir -p /srv && cp "$1" /srv/'` yields a segment whose
+# first word is `cp` and the deploy is rejected for a copy that runs on the FAR
+# side. It also splits `2>&1` at the `&`, inventing a segment `1`. Both
+# directions are wrong: resolution UNDER-checks (the transport binary is never
+# seen) and classification OVER-matches (a false local-copy abort).
+#
+# `$(...)`, backticks and `${...}` are treated as OPAQUE rather than recursed
+# into. Their contents do run, but mis-splitting them aborts a deploy that would
+# have worked, and a false abort is the costlier error here.
+offsite_split_segments() {
+  # NOTE: a single `local` would expand every word before assigning any of them,
+  # so `n=${#s}` would read s while it is still unset and trip `set -u`.
+  local s="$1"
+  local n=${#s} i=0 c nxt seg="" q="" depth=0
+  while (( i < n )); do
+    c="${s:i:1}"
+    # inside single quotes: only another single quote ends it
+    if [[ "${q}" == "'" ]]; then
+      seg+="${c}"; [[ "${c}" == "'" ]] && q=""
+      i=$(( i + 1 )); continue
+    fi
+    # inside double quotes: backslash escapes, a double quote ends it
+    if [[ "${q}" == '"' ]]; then
+      if [[ "${c}" == '\' ]]; then seg+="${s:i:2}"; i=$(( i + 2 )); continue; fi
+      seg+="${c}"; [[ "${c}" == '"' ]] && q=""
+      i=$(( i + 1 )); continue
+    fi
+    # inside $( ) / ` ` / ${ }: opaque, but track nesting so we leave correctly
+    if (( depth > 0 )); then
+      seg+="${c}"
+      case "${c}" in
+        '(' | '{') depth=$(( depth + 1 )) ;;
+        ')' | '}') depth=$(( depth - 1 )) ;;
+        '`')       depth=$(( depth - 1 )) ;;
+      esac
+      i=$(( i + 1 )); continue
+    fi
+    case "${c}" in
+      '\') seg+="${s:i:2}"; i=$(( i + 2 )); continue ;;
+      "'")  seg+="${c}"; q="'";  i=$(( i + 1 )); continue ;;
+      '"')  seg+="${c}"; q='"';  i=$(( i + 1 )); continue ;;
+      '`')  seg+="${c}"; depth=1; i=$(( i + 1 )); continue ;;
+      '$')
+        nxt="${s:i+1:1}"
+        if [[ "${nxt}" == "(" || "${nxt}" == "{" ]]; then
+          seg+="${s:i:2}"; depth=1; i=$(( i + 2 )); continue
+        fi
+        seg+="${c}"; i=$(( i + 1 )); continue ;;
+      '<' | '>')
+        # a redirection, never a separator: >> << >&2 2>&1 &>
+        seg+="${c}"; i=$(( i + 1 ))
+        [[ "${s:i:1}" == "${c}" ]] && { seg+="${c}"; i=$(( i + 1 )); }
+        [[ "${s:i:1}" == '&'    ]] && { seg+='&';   i=$(( i + 1 )); }
+        continue ;;
+      '&')
+        if [[ "${s:i+1:1}" == ">" ]]; then seg+='&>'; i=$(( i + 2 )); continue; fi
+        printf '%s\n' "${seg}"; seg=""; i=$(( i + 1 ))
+        [[ "${s:i:1}" == '&' ]] && i=$(( i + 1 ))
+        continue ;;
+      '|')
+        printf '%s\n' "${seg}"; seg=""; i=$(( i + 1 ))
+        [[ "${s:i:1}" == '|' ]] && i=$(( i + 1 ))
+        [[ "${s:i:1}" == '&' ]] && i=$(( i + 1 ))
+        continue ;;
+      ';')
+        printf '%s\n' "${seg}"; seg=""; i=$(( i + 1 ))
+        [[ "${s:i:1}" == ';' ]] && i=$(( i + 1 ))
+        continue ;;
+      $'\n' | '(' | ')')
+        printf '%s\n' "${seg}"; seg=""; i=$(( i + 1 )); continue ;;
+      *) seg+="${c}"; i=$(( i + 1 )); continue ;;
+    esac
+  done
+  printf '%s\n' "${seg}"
+}
+
+# Words the shell runs WITHOUT consulting PATH. Reporting one of these as "not
+# installed" would abort a deploy over `cd` or `:`. Only a BARE word can be a
+# builtin -- `/usr/bin/test` is a real file and must still be resolved, which is
+# why the */* arm comes first.
+offsite_is_shell_builtin() {
+  case "$1" in
+    */*) return 1 ;;
+    ''|:|.|'['|'!'|'{'|'}') return 0 ;;
+    alias|bg|break|builtin|cd|command|continue|declare|echo|eval|exec|exit|export) return 0 ;;
+    false|fg|getopts|hash|jobs|kill|let|local|printf|pwd|read|readonly|return) return 0 ;;
+    set|shift|shopt|source|test|times|trap|true|type|typeset|ulimit|umask) return 0 ;;
+    unalias|unset|wait) return 0 ;;
+    case|do|done|elif|else|esac|fi|for|function|if|in|select|then|time|until|while) return 0 ;;
+  esac
+  return 1
+}
+
+# The executable ONE simple command will exec. Directory components PRESERVED.
+offsite_segment_executable() {
+  local cmd="$1"
   cmd="${cmd%%#*}"                  # drop a trailing comment
   local word
   while :; do
@@ -283,6 +381,38 @@ offsite_executable() {
   cmd="${cmd%%[[:space:]]*}"        # first word
   cmd="${cmd#\\}"                 # \cp bypasses an alias; still cp
   printf '%s' "${cmd}"
+}
+
+# EVERY executable the command list needs, one per line, first-seen order, shell
+# builtins dropped and duplicates removed.
+#
+# This is what the resolution checks must use. Resolving only the head is how
+# `mkdir -p /stage && rclone copyto ...` was validated as `mkdir` and rclone was
+# never looked for in either place -- the same class of miss that aborted the
+# 2026-09-09 deploy after a dump had already been written. It is not theoretical
+# for the shipped defaults either: .env.example's BACKUP_OFFSITE_VERIFY_CMD is a
+# pipeline (`rclone size --json ... | sed -n ...`), so `sed` was never validated.
+offsite_executables() {
+  local segment exe
+  local -a seen=()
+  while IFS= read -r segment; do
+    exe="$(offsite_segment_executable "${segment}")"
+    [[ -n "${exe}" ]] || continue
+    offsite_is_shell_builtin "${exe}" && continue
+    local dup=0 prev
+    for prev in ${seen[@]+"${seen[@]}"}; do
+      [[ "${prev}" == "${exe}" ]] && { dup=1; break; }
+    done
+    (( dup )) && continue
+    seen+=("${exe}")
+    printf '%s\n' "${exe}"
+  done < <(offsite_split_segments "$1")
+}
+
+# The HEAD executable of the list. Kept for the no-op gate and error messages,
+# which name a single utility; resolution must use offsite_executables instead.
+offsite_executable() {
+  offsite_segment_executable "$(offsite_split_segments "$1" | head -n 1)"
 }
 
 # The same word reduced to its basename, for CLASSIFICATION only: deciding
@@ -304,12 +434,31 @@ offsite_first_word() {
 # had rclone, the host did not. Nothing had caught it because the previous
 # BACKUP_OFFSITE_CMD was `cp`, which exists everywhere. A backup that fails
 # here aborts the deploy after a dump has already been written.
+# Report the first of these binaries that the maintenance image lacks, or
+# nothing if they all resolve.
+#
+# The binaries are passed as ARGV, never interpolated into the `sh -c` string.
+# The old `sh -c "command -v '${EXEC}'"` shape died with "Unterminated quoted
+# string" on any value containing a quote -- a confusing failure for what should
+# be a clear preflight message.
+offsite_missing_in_image() {
+  docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c '
+    for b in "$@"; do
+      command -v "$b" >/dev/null 2>&1 || { printf %s "$b"; exit 0; }
+    done
+  ' sh "$@"
+}
+
 offsite_bin_on_host() {
   command -v "$1" >/dev/null 2>&1
 }
 
 OFFSITE_BIN="$(offsite_first_word "${OFFSITE_CMD}")"
 OFFSITE_EXEC="$(offsite_executable "${OFFSITE_CMD}")"
+OFFSITE_EXECS=()
+while IFS= read -r offsite_exe; do
+  [[ -n "${offsite_exe}" ]] && OFFSITE_EXECS+=("${offsite_exe}")
+done < <(offsite_executables "${OFFSITE_CMD}")
 case "${OFFSITE_BIN}" in
   true|:|echo|cat|printf|test|nop|noop|'')
     fail "BACKUP_OFFSITE_CMD is a no-op; configure a real off-host copy command" ;;
@@ -341,11 +490,12 @@ offsite_is_local_copy() {
   local segment word
   OFFSITE_LOCAL_BIN=""
   while IFS= read -r segment; do
-    word="$(offsite_first_word "${segment}")"
+    word="$(offsite_segment_executable "${segment}")"
+    word="${word##*/}"
     case "${word}" in
       cp|mv|install|ln|dd) OFFSITE_LOCAL_BIN="${word}"; return 0 ;;
     esac
-  done <<< "$(printf '%s' "${1}" | tr ';&|' '\n\n\n')"
+  done < <(offsite_split_segments "${1}")
   return 1
 }
 if offsite_is_local_copy "${OFFSITE_CMD}"; then
@@ -418,8 +568,9 @@ resolve_maintenance_image() {
 MAINTENANCE_IMAGE="$(resolve_maintenance_image "${1:-}")" && resolve_rc=0 || resolve_rc=$?
 case "${resolve_rc}" in
   0)
-    docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${OFFSITE_EXEC}' >/dev/null 2>&1" \
-      || fail "BACKUP_OFFSITE_CMD runs '${OFFSITE_EXEC}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
+    offsite_image_missing="$(offsite_missing_in_image "${OFFSITE_EXECS[@]}")"
+    [[ -z "${offsite_image_missing}" ]] \
+      || fail "BACKUP_OFFSITE_CMD runs '${offsite_image_missing}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
     pass "offsite copy command resolves inside the maintenance image (${MAINTENANCE_IMAGE})" ;;
   2)
     fail "release ${1} was named but its maintenance image is not on this host; pull it first: IMAGE_REGISTRY_PREFIX=${REGISTRY} scripts/pull-release-images.sh ${1:0:12}" ;;
@@ -436,15 +587,27 @@ OFFSITE_VERIFY_CMD="$(read_env_value BACKUP_OFFSITE_VERIFY_CMD)"
   || fail "BACKUP_OFFSITE_VERIFY_CMD is missing/empty in ${ENV_FILE}; the offsite copy would be assumed from an exit status rather than confirmed"
 VERIFY_BIN="$(offsite_first_word "${OFFSITE_VERIFY_CMD}")"
 VERIFY_EXEC="$(offsite_executable "${OFFSITE_VERIFY_CMD}")"
+VERIFY_EXECS=()
+while IFS= read -r verify_exe; do
+  [[ -n "${verify_exe}" ]] && VERIFY_EXECS+=("${verify_exe}")
+done < <(offsite_executables "${OFFSITE_VERIFY_CMD}")
 case "${VERIFY_BIN}" in
   true|:|echo|cat|printf|test|nop|noop|'')
     fail "BACKUP_OFFSITE_VERIFY_CMD is a no-op; it must report the remote object's size in bytes" ;;
 esac
-docker run --rm --entrypoint sh "${MAINTENANCE_IMAGE}" -c "command -v '${VERIFY_EXEC}' >/dev/null 2>&1" \
-  || fail "BACKUP_OFFSITE_VERIFY_CMD runs '${VERIFY_EXEC}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
+verify_image_missing="$(offsite_missing_in_image "${VERIFY_EXECS[@]}")"
+[[ -z "${verify_image_missing}" ]] \
+  || fail "BACKUP_OFFSITE_VERIFY_CMD runs '${verify_image_missing}', which does not exist in the maintenance image ${MAINTENANCE_IMAGE} that runs the nightly backup"
 # Now that both binaries are known, prove they exist on the HOST as well. The
 # deploy-time backup runs here, not in the container.
-for offsite_pair in "BACKUP_OFFSITE_CMD:${OFFSITE_EXEC}" "BACKUP_OFFSITE_VERIFY_CMD:${VERIFY_EXEC}"; do
+offsite_host_pairs=()
+for offsite_exe in ${OFFSITE_EXECS[@]+"${OFFSITE_EXECS[@]}"}; do
+  offsite_host_pairs+=("BACKUP_OFFSITE_CMD:${offsite_exe}")
+done
+for verify_exe in ${VERIFY_EXECS[@]+"${VERIFY_EXECS[@]}"}; do
+  offsite_host_pairs+=("BACKUP_OFFSITE_VERIFY_CMD:${verify_exe}")
+done
+for offsite_pair in ${offsite_host_pairs[@]+"${offsite_host_pairs[@]}"}; do
   offsite_bin_on_host "${offsite_pair#*:}" \
     || fail "${offsite_pair%%:*} runs '${offsite_pair#*:}', which is not on this host's PATH. deploy-blue-green.sh runs scripts/backup-db.sh on the HOST for the mandatory pre-migration backup, so the maintenance image having it is not enough — install it here too."
 done

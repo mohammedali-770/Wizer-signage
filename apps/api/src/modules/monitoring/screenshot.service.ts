@@ -67,7 +67,7 @@ export class ScreenshotService {
     await this.assertScreen(companyId, screenId);
     const { skip, take, meta } = resolvePagination(query);
     const where: Prisma.ScreenshotWhereInput = { companyId, screenId };
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.screenshot.findMany({ where, orderBy: { takenAt: 'desc' }, skip, take }),
       this.prisma.screenshot.count({ where }),
     ]);

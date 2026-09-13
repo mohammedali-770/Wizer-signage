@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { mkdirSync } from 'node:fs';
+import { accessSync, constants as fsConstants, mkdirSync } from 'node:fs';
 import { open, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -44,8 +44,25 @@ export function diskUploadOptions(maxBytes: number) {
       destination: (_req: unknown, _file: unknown, cb: (e: Error | null, dir: string) => void) => {
         try {
           mkdirSync(UPLOAD_TMP_DIR, { recursive: true });
+          // mkdirSync SUCCEEDS on an existing directory we cannot write to, so
+          // it proves nothing on its own. That is exactly how an unwritable
+          // spool shipped: UPLOAD_TMP_DIR is a named volume, Docker created the
+          // mountpoint root:root while the API runs as uid 1000, this callback
+          // returned cleanly, and multer's write stream then failed with a bare
+          // EACCES. That is not a MulterError, so Nest passed it through and
+          // every upload became a generic 500 with nothing naming the cause.
+          //
+          // Checking here turns a silent, universal upload failure into one
+          // legible message naming the directory.
+          accessSync(UPLOAD_TMP_DIR, fsConstants.W_OK);
           cb(null, UPLOAD_TMP_DIR);
         } catch (error) {
+          const reason = (error as NodeJS.ErrnoException)?.code ?? 'unknown error';
+          logger.error(
+            `Upload spool "${UPLOAD_TMP_DIR}" is not usable (${reason}). ` +
+              `Uploads cannot be accepted. If this is a container, the volume ` +
+              `mounted there must be writable by the runtime user.`,
+          );
           cb(error as Error, '');
         }
       },

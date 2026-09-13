@@ -85,7 +85,7 @@ export class LocationsService {
       [query.sort ?? 'createdAt']: query.order ?? 'desc',
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.location.findMany({
         where,
         orderBy,

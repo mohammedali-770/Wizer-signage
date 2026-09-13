@@ -25,7 +25,8 @@ ok() { echo "  ok   — $1"; pass=$(( pass + 1 )); }
 no() { echo "  FAIL — $1"; echo "         $2"; fail=$(( fail + 1 )); }
 
 OFFSITE_LOCAL_BIN=""
-for fn in offsite_executable offsite_first_word offsite_is_local_copy; do
+for fn in offsite_split_segments offsite_is_shell_builtin offsite_segment_executable \
+          offsite_executables offsite_executable offsite_first_word offsite_is_local_copy; do
   body="$(sed -n "/^${fn}() {/,/^}/p" "${PREFLIGHT}")"
   [[ -n "${body}" ]] || { echo "could not extract ${fn} from ${PREFLIGHT}" >&2; exit 1; }
   eval "${body}"
@@ -96,5 +97,63 @@ remote_case "scp"               'scp "$1" backup@offsite.example:/srv/'
 remote_case "cat (left to the no-op gate)" 'cat "$1" > /backups/offsite/dump.gz'
 
 echo
+
+# --- Resolution must see EVERY binary, not just the head --------------------
+# Resolving only the head is how `mkdir -p /stage && rclone copyto ...` was
+# validated as `mkdir`, leaving rclone unchecked in both the maintenance image
+# and on the host -- the same class of miss that aborted the 2026-09-09 deploy
+# after a dump had already been written.
+execs_case() {
+  local label="$1" cmd="$2" want="$3" got
+  got="$(offsite_executables "${cmd}" | tr '\n' ' ')"
+  got="${got% }"
+  if [[ "${got}" == "${want}" ]]; then ok "${label}"; else no "${label}" "want [${want}] got [${got}]"; fi
+}
+
+execs_case "resolves the transport after a && prefix" \
+  'mkdir -p /var/tmp/stage && rclone copyto "$1" spaces:b/x' 'mkdir rclone'
+execs_case "resolves both sides of a pipeline" \
+  'gzip -c "$1" | aws s3 cp - s3://bucket/x' 'gzip aws'
+execs_case "resolves sed in the shipped verify default" \
+  'rclone size --json "spaces:b/$(basename "$1")" | sed -n "s/x/y/p"' 'rclone sed'
+execs_case "resolves a plain single command" \
+  'rclone copyto "$1" "spaces:b/$(basename "$1")"' 'rclone'
+execs_case "treats ; and || as separators too" \
+  'rclone copyto "$1" a ; rclone copyto "$1" b || logger failed' 'rclone logger'
+
+# Quote-awareness. A tr-based split invents a segment from text inside quotes,
+# which both reports a phantom binary missing and -- via the classifier -- would
+# abort the deploy for a `cp` that runs on the FAR side of an ssh.
+execs_case "does not split on separators inside single quotes" \
+  "ssh host 'mkdir -p /srv && cp \"\$1\" /srv/'" 'ssh'
+execs_case "does not split on separators inside double quotes" \
+  'rclone copyto "$1" "spaces:b/a&&b|c"' 'rclone'
+execs_case "does not split a 2>&1 redirection" \
+  'rclone copyto "$1" spaces:b/x 2>&1' 'rclone'
+execs_case "does not split a >/dev/null 2>&1 redirection" \
+  'rclone copyto "$1" spaces:b/x >/dev/null 2>&1' 'rclone'
+
+# Builtins never resolve through PATH; reporting one missing would abort a
+# deploy over `cd`. Duplicates are collapsed so one absent binary is named once.
+execs_case "drops shell builtins" \
+  'cd /tmp && rclone copyto "$1" x' 'rclone'
+execs_case "collapses duplicates" \
+  'rclone copyto "$1" a && rclone copyto "$1" b' 'rclone'
+execs_case "keeps an absolute path that merely looks like a builtin" \
+  '/usr/bin/test -f "$1" && rclone copyto "$1" x' '/usr/bin/test rclone'
+
+# The classifier must not be fooled by a far-side copy, and must still catch a
+# near-side one that is not the head of the list.
+if offsite_is_local_copy "ssh host 'cp \"\$1\" /srv/'"; then
+  no "does not flag a cp that runs on the far side of ssh" "flagged it"
+else
+  ok "does not flag a cp that runs on the far side of ssh"
+fi
+if offsite_is_local_copy 'mkdir -p /backups && cp "$1" /backups/'; then
+  ok "still flags a local cp that is not the head of the list"
+else
+  no "still flags a local cp that is not the head of the list" "missed it"
+fi
+
 echo "=== ${pass} passed, ${fail} failed ==="
 (( fail == 0 ))

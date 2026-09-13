@@ -178,6 +178,58 @@ class ApiClient(
         }
     }
 
+    /**
+     * Download an ABSOLUTE, pre-signed URL straight from object storage.
+     *
+     * Deliberately different from [downloadToFile] in two ways, both of which
+     * are security properties rather than style:
+     *
+     *  1. It sends NO headers. In particular it never sends `X-Device-Token`.
+     *     That token is long-lived and authenticates every device endpoint --
+     *     manifest, heartbeat, commands, screenshots, OTA -- so handing it to a
+     *     third-party host would be a full device compromise, not a read-only
+     *     leak. A pre-signed URL needs no credential by construction.
+     *
+     *  2. Redirects are DISABLED. OkHttp follows redirects by default and, on a
+     *     cross-host hop, strips only the literal `Authorization` header -- a
+     *     custom header like ours would be carried along. Since nothing here
+     *     should ever need a second hop, refusing them removes that whole class
+     *     of accident rather than relying on header-name luck.
+     *
+     * Same failure contract as [downloadToFile]: any unsuccessful response,
+     * missing body, or exception deletes [dest] and returns false, and the
+     * caller still verifies size + checksum before committing to cache.
+     */
+    suspend fun downloadFromUrl(url: String, dest: File): Boolean = withContext(Dispatchers.IO) {
+        val request = Request.Builder().url(url).get().build()
+        try {
+            directHttp.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    dest.delete()
+                    return@withContext false
+                }
+                val body = resp.body
+                if (body == null) {
+                    dest.delete()
+                    return@withContext false
+                }
+                body.byteStream().use { input -> dest.outputStream().use { output -> input.copyTo(output) } }
+                true
+            }
+        } catch (e: Exception) {
+            dest.delete()
+            false
+        }
+    }
+
+    /**
+     * Redirect-refusing client for pre-signed storage URLs. Derived from [http]
+     * with newBuilder() so it shares the connection pool and dispatcher.
+     */
+    private val directHttp: OkHttpClient by lazy {
+        http.newBuilder().followRedirects(false).followSslRedirects(false).build()
+    }
+
     // --- Phase 8 monitoring ------------------------------------------------
 
     suspend fun sendHeartbeat(token: String, payload: HeartbeatPayload): Boolean = withContext(Dispatchers.IO) {

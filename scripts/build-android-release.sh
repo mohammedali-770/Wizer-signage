@@ -115,19 +115,9 @@ KS_PATH="${WIZER_ANDROID_KEYSTORE_PATH}"
 log "Keystore present and readable: ${KS_PATH}"
 
 # --- Locate Android SDK build-tools ------------------------------------------
-SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-[[ -n "${SDK_ROOT}" && -d "${SDK_ROOT}" ]] || fail "ANDROID_HOME / ANDROID_SDK_ROOT is not set to a valid Android SDK."
-BUILD_TOOLS_DIR=""
-if [[ -d "${SDK_ROOT}/build-tools" ]]; then
-  while IFS= read -r d; do
-    if [[ -x "${d}/apksigner" ]]; then BUILD_TOOLS_DIR="${d}"; break; fi
-  done < <(find "${SDK_ROOT}/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -Vr)
-fi
-[[ -n "${BUILD_TOOLS_DIR}" ]] || fail "Could not find 'apksigner' under ${SDK_ROOT}/build-tools. Install Android build-tools."
-APKSIGNER="${BUILD_TOOLS_DIR}/apksigner"
-AAPT="${BUILD_TOOLS_DIR}/aapt"
-[[ -x "${AAPT}" ]] || AAPT="${BUILD_TOOLS_DIR}/aapt2"
-[[ -x "${AAPT}" ]] || fail "Could not find aapt/aapt2 under ${BUILD_TOOLS_DIR}."
+# shellcheck source=scripts/lib/android-sdk.sh
+source "${SCRIPT_DIR}/lib/android-sdk.sh"
+android_resolve_build_tools || fail "Android SDK build-tools could not be resolved (see above)."
 log "Using build-tools: ${BUILD_TOOLS_DIR}"
 
 # --- Choose Gradle invocation ------------------------------------------------
@@ -169,7 +159,7 @@ log "Built APK: ${APK_BUILT}"
 
 # --- 7. Verify it is actually signed -----------------------------------------
 log "Verifying signature (apksigner verify) ..."
-VERIFY_OUT="$("${APKSIGNER}" verify --verbose --print-certs "${APK_BUILT}")"
+VERIFY_OUT="$("${APKSIGNER_CMD[@]}" verify --verbose --print-certs "${APK_BUILT}")"
 scheme_v1="$(printf '%s\n' "${VERIFY_OUT}" | grep -i 'Verified using v1 scheme' | head -1)"
 scheme_v2="$(printf '%s\n' "${VERIFY_OUT}" | grep -i 'Verified using v2 scheme' | head -1)"
 scheme_v3="$(printf '%s\n' "${VERIFY_OUT}" | grep -i 'Verified using v3 scheme' | head -1)"

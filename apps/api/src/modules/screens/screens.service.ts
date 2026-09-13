@@ -111,7 +111,7 @@ export class ScreensService {
       [query.sort ?? 'createdAt']: query.order ?? 'desc',
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.screen.findMany({ where, orderBy, skip, take, include: SCREEN_INCLUDE }),
       this.prisma.screen.count({ where }),
     ]);

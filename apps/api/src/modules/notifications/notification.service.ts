@@ -46,7 +46,7 @@ export class NotificationService {
     const { skip, take, meta } = resolvePagination(query);
     const where: Prisma.NotificationWhereInput = { userId };
     if (query.unreadOnly) where.readAt = null;
-    const [rows, total, unread] = await this.prisma.$transaction([
+    const [rows, total, unread] = await Promise.all([
       this.prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
       this.prisma.notification.count({ where }),
       this.prisma.notification.count({ where: { userId, readAt: null } }),

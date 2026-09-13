@@ -9,13 +9,21 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck source=scripts/lib/pg-url.sh
 source "${SCRIPT_DIR}/lib/pg-url.sh"
 
+# This script APPLIES DDL (the wizer_ensure_telemetry_partitions call below) and
+# deliberately never echoes the connection URL. A `set -a; source` here replaced
+# an operator's exported scratch DIRECT_URL with the production one silently, so
+# a run aimed at a throwaway database altered production instead. It sourced
+# lib/pg-url.sh -- which exists to prevent exactly this -- and then did not use
+# it. MONTHS_AHEAD is shielded for the same reason: it is read below and decides
+# how much DDL runs.
+#
+# In the maintenance container (infra/docker/crontab:31) ROOT_DIR is /app and
+# /app/.env does not exist, so this is a no-op there; the bug was only ever
+# reachable on the host, which is why nothing caught it.
+# shellcheck source=scripts/lib/env-file.sh
+source "${SCRIPT_DIR}/lib/env-file.sh"
 ENV_FILE="${ROOT_DIR}/.env"
-if [[ -f "${ENV_FILE}" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "${ENV_FILE}"
-  set +a
-fi
+env_load_defaults "${ENV_FILE}" DIRECT_URL DATABASE_URL TELEMETRY_PARTITION_MONTHS_AHEAD
 
 MONTHS_AHEAD="${TELEMETRY_PARTITION_MONTHS_AHEAD:-6}"
 [[ "${MONTHS_AHEAD}" =~ ^[0-9]+$ ]] || {

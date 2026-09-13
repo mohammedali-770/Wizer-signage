@@ -9,9 +9,15 @@
  */
 
 import { API_BASE_URL } from './api-base';
+import { ApiError, readBody, toApiError } from './api-errors';
 import { invalidateApiCache } from './api-cache';
 import { endImpersonation, isImpersonating } from './impersonation';
 import { requestRefreshedAccessToken, shouldAttemptBrowserRefresh } from './refresh-client';
+
+// Re-exported so the existing `import { ApiError } from './api'` sites keep
+// working; the class and the response-decoding live in ./api-errors so they
+// can be unit-tested without dragging in the whole client.
+export { ApiError };
 
 const BASE = API_BASE_URL;
 
@@ -20,18 +26,6 @@ const ACCESS_KEY = 'ms_access_token';
 // pre-cookie value left by an older build rather than carrying a bearer secret
 // in localStorage indefinitely.
 const LEGACY_REFRESH_KEY = 'ms_refresh_token';
-
-export class ApiError extends Error {
-  readonly code: string;
-  readonly status: number;
-
-  constructor(code: string, message: string, status: number) {
-    super(message);
-    this.name = 'ApiError';
-    this.code = code;
-    this.status = status;
-  }
-}
 
 export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -105,13 +99,11 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     if (ok) res = await send();
   }
 
-  const text = await res.text();
-  const json = text ? JSON.parse(text) : null;
+  const json = await readBody(res);
 
   if (!res.ok) {
-    const error = (json && json.error) || { code: 'ERROR', message: res.statusText };
     if (res.status === 401) handleUnauthorized();
-    throw new ApiError(error.code, error.message, res.status);
+    throw toApiError(res, json);
   }
   return json as T;
 }
@@ -138,12 +130,10 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
     if (ok) res = await send();
   }
 
-  const text = await res.text();
-  const json = text ? JSON.parse(text) : null;
+  const json = await readBody(res);
   if (!res.ok) {
-    const error = (json && json.error) || { code: 'ERROR', message: res.statusText };
     if (res.status === 401) handleUnauthorized();
-    throw new ApiError(error.code, error.message, res.status);
+    throw toApiError(res, json);
   }
   return json as T;
 }

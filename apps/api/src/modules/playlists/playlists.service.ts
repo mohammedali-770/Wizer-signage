@@ -114,7 +114,7 @@ export class PlaylistsService {
       if (query.createdTo) where.createdAt.lte = new Date(query.createdTo);
     }
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.playlist.findMany({
         where,
         orderBy: this.orderBy(query.sort),

@@ -74,7 +74,7 @@ export class ScheduledReportService {
     const { skip, take, meta } = resolvePagination(query);
     const where: Prisma.ScheduledReportWhereInput = { companyId };
     if (query.reportType) where.reportType = query.reportType;
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.scheduledReport.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
       this.prisma.scheduledReport.count({ where }),
     ]);

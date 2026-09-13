@@ -29,7 +29,14 @@ TEMPLATE="${ROOT_DIR}/infra/nginx/templates/wizer-signage.conf.template"
 # the deployed domain comes from APP_DOMAIN at runtime, and baking one into a
 # test would be the first step toward baking one into the config.
 TEST_DOMAIN="signage.example.com"
-NGINX_IMAGE="${NGINX_IMAGE:-nginx:1.29-alpine}"
+# Derived from the compose pin, never hard-coded. A literal default drifted to
+# nginx:1.29-alpine while infra/docker/docker-compose.yml pinned the running
+# proxy to 1.27-alpine, so the only real `nginx -t` in the repo was parsing
+# production's config with a binary two minor versions newer than the one that
+# would execute it.
+COMPOSE_FILE="${ROOT_DIR}/infra/docker/docker-compose.yml"
+COMPOSE_NGINX_PIN="$(sed -n 's/^[[:space:]]*image:[[:space:]]*\(nginx:[^[:space:]]*\).*/\1/p' "${COMPOSE_FILE}" | head -n 1)"
+NGINX_IMAGE="${NGINX_IMAGE:-${COMPOSE_NGINX_PIN}}"
 
 pass=0
 fail=0
@@ -40,6 +47,13 @@ bad()  { printf '  FAIL %s\n' "$1"; fail=$(( fail + 1 )); }
 check() { # check <description> <condition-exit-code>
   if [[ "$2" -eq 0 ]]; then ok "$1"; else bad "$1"; fi
 }
+
+# If this ever comes back empty the suite would silently test whatever
+# `nginx:` resolves to, which is exactly the drift being fixed.
+check "the nginx image under test is read from the compose pin" \
+  "$([[ -n "${COMPOSE_NGINX_PIN}" ]]; echo $?)"
+check "the image under test matches what production runs (${NGINX_IMAGE} vs ${COMPOSE_NGINX_PIN:-<none>})" \
+  "$([[ "${NGINX_IMAGE}" == "${COMPOSE_NGINX_PIN}" ]]; echo $?)"
 
 echo "==> nginx configuration regression tests"
 
@@ -240,6 +254,52 @@ else
     "${NGINX_IMAGE}" nginx -T 2>/dev/null)"
   check "effective config carries the cleared Connection header" \
     "$(printf '%s' "${dump}" | grep -q 'proxy_set_header Connection *""'; echo $?)"
+
+  # --- The template production ACTUALLY serves --------------------------------
+  # Everything above parses infra/nginx/templates/. After blue/green adoption
+  # nginx renders infra/nginx/templates-blue-green/ instead:
+  # infra/docker/docker-compose.blue-green-proxy.yml mounts it over
+  # /etc/nginx/templates, and deploy-blue-green.sh includes that overlay in
+  # BASE_COMPOSE. So the file that is live on the box had never been parsed by
+  # anything, and a syntax error in it would first surface at
+  # `docker exec ... nginx -t` DURING a deploy -- after migrations have run.
+  #
+  # It differs materially: the static upstream blocks are replaced by
+  # `include /etc/nginx/runtime/active-upstreams.conf`, which only exists at
+  # runtime. The bootstrap content is extracted from the shipped entrypoint
+  # script rather than copied here, so this cannot drift from what really lands.
+  BG_TEMPLATE="${ROOT_DIR}/infra/nginx/templates-blue-green/wizer-signage.conf.template"
+  BOOTSTRAP="${ROOT_DIR}/infra/nginx/docker-entrypoint.d/05-active-upstreams-default.sh"
+
+  check "the blue/green template exists (it is what production serves)" \
+    "$([[ -f "${BG_TEMPLATE}" ]]; echo $?)"
+
+  BG_RENDERED="${WORK}/bg-wizer-signage.conf"
+  APP_DOMAIN="${TEST_DOMAIN}" \
+    perl -pe 's/\$\{APP_DOMAIN\}/$ENV{APP_DOMAIN}/g' "${BG_TEMPLATE}" > "${BG_RENDERED}"
+
+  BG_IPV4="${WORK}/bg-ipv4-only.conf"
+  grep -vE '^\s*listen\s+\[::\]:' "${BG_RENDERED}" > "${BG_IPV4}"
+
+  mkdir -p "${WORK}/runtime"
+  sed -n "/^  cat > \"\${ACTIVE_FILE}.tmp\" <<'EOF'$/,/^EOF$/p" "${BOOTSTRAP}" \
+    | sed '1d;$d' > "${WORK}/runtime/active-upstreams.conf"
+
+  check "bootstrap upstreams were extracted from the shipped entrypoint" \
+    "$([[ -s "${WORK}/runtime/active-upstreams.conf" ]] && grep -q 'upstream api_upstream' "${WORK}/runtime/active-upstreams.conf"; echo $?)"
+
+  bg_out="$(docker run --rm --network host "${UPSTREAM_HOSTS[@]}" \
+    -v "${NGINX_CONF}:/etc/nginx/nginx.conf:ro" \
+    -v "${BG_IPV4}:/etc/nginx/conf.d/wizer-signage.conf:ro" \
+    -v "${WORK}/runtime:/etc/nginx/runtime:ro" \
+    -v "${WORK}/certs:/etc/letsencrypt/live/${TEST_DOMAIN}:ro" \
+    "${NGINX_IMAGE}" nginx -t 2>&1)"
+  bg_rc=$?
+  check "nginx -t accepts the BLUE/GREEN rendered config" "${bg_rc}"
+  [[ ${bg_rc} -ne 0 ]] && printf '%s\n' "${bg_out}" >&2
+
+  check "blue/green nginx -t reports the test as successful" \
+    "$(printf '%s' "${bg_out}" | grep -q 'test is successful'; echo $?)"
 fi
 
 echo

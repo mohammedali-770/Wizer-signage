@@ -108,7 +108,7 @@ export class BackupService {
 
   /** Super Admin view: last run per type + recent history + staleness. */
   async status(now: Date = new Date(), staleDays = DEFAULT_STALE_DAYS) {
-    const [recent, lastDbSuccess] = await this.prisma.$transaction([
+    const [recent, lastDbSuccess] = await Promise.all([
       this.prisma.backupRecord.findMany({ orderBy: { startedAt: 'desc' }, take: 20 }),
       this.prisma.backupRecord.findFirst({
         where: { type: BackupType.DATABASE, status: BackupStatus.SUCCESS },

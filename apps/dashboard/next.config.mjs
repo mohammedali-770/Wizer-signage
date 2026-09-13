@@ -12,6 +12,25 @@ const nextConfig = {
   // standalone bundle requires elevated privileges on Windows (EPERM on symlink).
   output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : undefined,
   reactStrictMode: true,
+  experimental: {
+    /**
+     * Client-side Router Cache lifetimes.
+     *
+     * Next 15 defaults `dynamic` to 0, and the root layout calls `connection()`
+     * (for the CSP nonce), which makes every route dynamic. Together those mean
+     * navigating BACK to a page visited seconds ago re-fetches its whole RSC
+     * payload from the droplet. The 30s client data cache (use-api.ts:25) hides
+     * the API call but not that round trip.
+     *
+     * 30s matches that DEFAULT_TTL, so a back-navigation inside the
+     * window reuses both and is instant. Deliberately not longer: these are
+     * operational consoles where stale fleet state is worse than a re-fetch.
+     */
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
   transpilePackages: [
     '@wizer/ui',
     '@wizer/shared',

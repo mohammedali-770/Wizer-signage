@@ -205,8 +205,46 @@ EOF
 
 write_and_reload() {
   local content="$1"
-  printf '%s\n' "${content}" | docker exec -i wizer-signage-nginx sh -c "cat > ${ACTIVE_FILE}.next"
-  docker exec wizer-signage-nginx sh -c "cp ${ACTIVE_FILE} ${ACTIVE_FILE}.previous && mv ${ACTIVE_FILE}.next ${ACTIVE_FILE}"
+
+  # EVERY docker exec below is checked. This function is always invoked in a
+  # condition context (`if ! write_and_reload ...`), and bash suppresses set -e
+  # for the whole body of a function called that way -- so an unchecked failure
+  # does not abort the script, it falls through to `return 0` and the deploy
+  # reports a cutover that never happened.
+  #
+  # A stale .next left by an earlier failed run is what turns that into a silent
+  # wrong-slot cutover: if the write fails and one is lying around, the promote
+  # moves THAT file into place, `nginx -t` passes because it is valid config for
+  # the wrong slot, the reload succeeds, and the public readiness gate then
+  # confirms the OLD slot is healthy. Clear it first.
+  if ! docker exec wizer-signage-nginx sh -c "rm -f ${ACTIVE_FILE}.next"; then
+    echo "ERROR [blue-green]: could not clear a previous ${ACTIVE_FILE}.next in wizer-signage-nginx." >&2
+    return 1
+  fi
+
+  if ! printf '%s\n' "${content}" | docker exec -i wizer-signage-nginx sh -c "cat > ${ACTIVE_FILE}.next"; then
+    echo "ERROR [blue-green]: could not write ${ACTIVE_FILE}.next in wizer-signage-nginx." >&2
+    return 1
+  fi
+
+  # Prove the bytes that landed are the bytes intended, BEFORE promoting them.
+  # A short write -- disk full, or the container going away mid-copy -- can still
+  # exit 0, and a truncated upstream file that happens to parse would cut over
+  # to a slot nobody chose.
+  local want got
+  want="$(printf '%s\n' "${content}" | wc -c | tr -d '[:space:]')"
+  got="$(docker exec wizer-signage-nginx sh -c "wc -c < ${ACTIVE_FILE}.next" 2>/dev/null | tr -d '[:space:]')"
+  if [[ "${want}" != "${got}" ]]; then
+    echo "ERROR [blue-green]: ${ACTIVE_FILE}.next is ${got:-0} bytes, expected ${want}; refusing to promote a partial upstream file." >&2
+    docker exec wizer-signage-nginx sh -c "rm -f ${ACTIVE_FILE}.next" || true
+    return 1
+  fi
+
+  if ! docker exec wizer-signage-nginx sh -c "cp ${ACTIVE_FILE} ${ACTIVE_FILE}.previous && mv ${ACTIVE_FILE}.next ${ACTIVE_FILE}"; then
+    echo "ERROR [blue-green]: could not promote ${ACTIVE_FILE}.next in wizer-signage-nginx." >&2
+    return 1
+  fi
+
   if ! docker exec wizer-signage-nginx nginx -t; then
     docker exec wizer-signage-nginx sh -c "mv ${ACTIVE_FILE}.previous ${ACTIVE_FILE}" || true
     return 1

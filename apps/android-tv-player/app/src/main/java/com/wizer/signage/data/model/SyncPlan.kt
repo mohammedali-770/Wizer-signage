@@ -24,6 +24,15 @@ data class SyncPlanItem(
     val durationSeconds: Int? = null,
     val playFullVideo: Boolean = false,
     val pdfPageDurationSeconds: Int? = null,
+    /**
+     * Absolute, short-lived storage URL for caching this asset WITHOUT the bytes
+     * passing through the API. Null for URL/TEXT items, and null if the server
+     * could not sign one -- in which case [downloadPath] is still there.
+     *
+     * Requires no credentials: it is pre-signed, and it must never be sent the
+     * device token (see ApiClient.downloadFromUrl).
+     */
+    val signedUrl: String? = null,
     /** Device-authenticated download path (relative to /api); null for URL/TEXT. */
     val downloadPath: String? = null,
     val url: String? = null,

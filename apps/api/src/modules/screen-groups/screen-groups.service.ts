@@ -31,7 +31,7 @@ export class ScreenGroupsService {
     const where: Prisma.ScreenGroupWhereInput = { companyId };
     if (query.search) where.name = { contains: query.search, mode: 'insensitive' };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.screenGroup.findMany({
         where,
         orderBy: { createdAt: 'desc' },

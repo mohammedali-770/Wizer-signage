@@ -28,7 +28,11 @@ pass=0; fail=0
 ok() { echo "  ok   — $1"; pass=$(( pass + 1 )); }
 no() { echo "  FAIL — $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fail=$(( fail + 1 )); }
 
-for fn in read_env_raw read_env_value offsite_assignment_is_source_safe offsite_bin_on_host offsite_executable offsite_first_word; do
+# offsite_executable/offsite_first_word delegate to the splitter and the
+# per-segment resolver, so those must be extracted alongside them or every
+# case here fails with 'command not found' instead of a real assertion.
+for fn in read_env_raw read_env_value offsite_assignment_is_source_safe offsite_bin_on_host \
+          offsite_split_segments offsite_segment_executable offsite_executable offsite_first_word; do
   body="$(sed -n "/^${fn}() {/,/^}/p" "${PREFLIGHT}")"
   [[ -n "${body}" ]] || { echo "could not extract ${fn} from ${PREFLIGHT}" >&2; exit 1; }
   eval "${body}"

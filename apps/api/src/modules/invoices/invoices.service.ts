@@ -68,7 +68,7 @@ export class InvoicesService {
     if (query.status) where.status = query.status;
     if (query.companyId) where.companyId = query.companyId;
 
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.invoice.findMany({
         where,
         include: { company: { select: { id: true, name: true, slug: true } } },
