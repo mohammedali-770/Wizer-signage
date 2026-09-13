@@ -1120,8 +1120,20 @@ model Playlist {
 
   @@index([companyId])
   @@index([status])
-  // Same list path as screens; same reason `deletedAt` is not in the key.
-  @@index([companyId, createdAt])
+  // updatedAt, NOT createdAt -- the playlist list page is the one caller that
+  // does not use the default sort: playlists/page.tsx:53 hardcodes
+  // `sort: 'updated'` on every request, which orderBy() maps to
+  // { updatedAt: 'desc' } (playlists.service.ts:481-482).
+  //
+  // Measured on 12k rows for one tenant, ORDER BY updatedAt DESC LIMIT 20:
+  //   [companyId]                  5.78ms  bitmap scan of all 12k + top-N sort
+  //   [companyId, createdAt]       5.44ms  index NOT USED -- plan identical
+  //   [companyId, updatedAt]       0.076ms Index Scan Backward, 25 buffers vs 638
+  // A btree cannot order by a column that is not the key, so the createdAt
+  // variant was pure write cost for no read benefit.
+  //
+  // `deletedAt` is left out of the key for the same measured reason as screens.
+  @@index([companyId, updatedAt])
   @@map("playlists")
 }
 
