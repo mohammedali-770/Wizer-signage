@@ -74,7 +74,10 @@ function build() {
     content: { findMany: jest.fn().mockResolvedValue([]) },
     company: { findFirst: jest.fn().mockResolvedValue({ fallbackContentId: null }) },
   };
-  const storage = { streamContent: jest.fn().mockResolvedValue(undefined) };
+  const storage = {
+    streamContent: jest.fn().mockResolvedValue(undefined),
+    getSignedUrl: jest.fn().mockResolvedValue('https://storage.example.invalid/signed/obj'),
+  };
   const service = new DeviceContentService(prisma as any, storage as any);
   return { service, prisma, storage };
 }
@@ -305,5 +308,88 @@ describe('DeviceContentService.download entitlement', () => {
       NotFoundException,
     );
     expect(t.storage.streamContent).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Taking media delivery off the droplet.
+   *
+   * Every cached byte is currently proxied through the API (storage.service.ts
+   * streamContent), which makes this one container the bandwidth bottleneck for
+   * the entire fleet. The sync plan now also carries a direct storage URL so a
+   * player can fetch the asset itself.
+   *
+   * The load-bearing property is that this is ADDITIVE: `downloadPath` must
+   * survive untouched, or every player already in the field stops caching.
+   */
+  /** A screen whose fallback content is `id` — the minimum arrangement that puts one item in the plan. */
+  const planWith = (
+    t: ReturnType<typeof build>,
+    id: string,
+    over: Record<string, unknown> = {},
+  ) => {
+    t.prisma.screen.findFirst.mockResolvedValue({
+      id: 's1',
+      companyId: 'comp1',
+      locationId: 'loc1',
+      orientation: 'LANDSCAPE',
+      workingHours: null,
+      fallbackContentId: id,
+      location: { timezone: 'UTC', workingHours: null, fallbackContentId: null },
+      company: { timezone: 'UTC' },
+      groups: [],
+    });
+    t.prisma.content.findMany.mockResolvedValue([content({ id, ...over })]);
+  };
+
+  describe('getSyncPlan direct-download URLs', () => {
+    it('carries a direct signedUrl for file content', async () => {
+      const t = build();
+      planWith(t, 'c1', { type: 'IMAGE' });
+      const plan = await t.service.getSyncPlan(device);
+      const item = plan.items.find((i: { contentId: string }) => i.contentId === 'c1');
+      expect(item?.signedUrl).toBe('https://storage.example.invalid/signed/obj');
+    });
+
+    it('KEEPS downloadPath so players already in the field are unaffected', async () => {
+      const t = build();
+      planWith(t, 'c1', { type: 'IMAGE' });
+      const plan = await t.service.getSyncPlan(device);
+      const item = plan.items.find((i: { contentId: string }) => i.contentId === 'c1');
+      expect(item?.downloadPath).toBe('/device/content/c1/download');
+    });
+
+    it('signs with the same TTL the manifest uses, so both share cache entries', async () => {
+      const t = build();
+      planWith(t, 'c1', { type: 'IMAGE' });
+      await t.service.getSyncPlan(device);
+      // 3600 === MANIFEST_SIGNED_TTL_SECONDS. A different value would silently
+      // double the signing rate against Storage rather than reuse the cache.
+      expect(t.storage.getSignedUrl).toHaveBeenCalledWith(
+        'companies/comp1/content/c1/f.png',
+        expect.any(String),
+        3600,
+      );
+    });
+
+    it('does not sign non-file content', async () => {
+      const t = build();
+      planWith(t, 'u1', { type: 'URL', storageKey: null, url: 'https://x' });
+      const plan = await t.service.getSyncPlan(device);
+      const item = plan.items.find((i: { contentId: string }) => i.contentId === 'u1');
+      expect(item?.signedUrl).toBeNull();
+      expect(t.storage.getSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it('still returns a usable plan when signing fails', async () => {
+      const t = build();
+      t.storage.getSignedUrl.mockRejectedValue(new Error('storage down'));
+      planWith(t, 'c1', { type: 'IMAGE' });
+      const plan = await t.service.getSyncPlan(device);
+      const item = plan.items.find((i: { contentId: string }) => i.contentId === 'c1');
+      // Degrades to the proxied path rather than failing the whole sync plan --
+      // a signing outage must not stop the fleet from caching.
+      expect(item?.signedUrl).toBeNull();
+      expect(item?.downloadPath).toBe('/device/content/c1/download');
+    });
   });
 });

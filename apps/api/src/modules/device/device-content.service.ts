@@ -17,6 +17,22 @@ export const PRE_DOWNLOAD_WINDOW_MS = 60 * 60 * 1000;
 const SAMPLE_STEP_MS = 60 * 1000;
 const ENTITLEMENT_CACHE_BUCKET_MS = 60 * 1000;
 
+/**
+ * TTL for sync-plan signed URLs.
+ *
+ * Deliberately identical to MANIFEST_SIGNED_TTL_SECONDS in
+ * schedules/schedule-resolver.service.ts. StorageService.getSignedUrl caches on
+ * `key|ttl` and re-serves while half the TTL remains, so matching the manifest's
+ * value means the sync plan reuses the SAME cache entries the manifest already
+ * populated -- it adds no signing load at all. A different value would silently
+ * double both the signing rate and the cache footprint.
+ *
+ * An hour is also comfortably longer than any single asset download: the player
+ * must finish fetching within the window, and a 300MB video on a slow venue
+ * uplink is the case that has to fit.
+ */
+const SYNC_PLAN_SIGNED_TTL_SECONDS = 3600;
+
 const ENTITLE_SELECT = {
   id: true,
   type: true,
@@ -72,7 +88,7 @@ export class DeviceContentService {
 
   async getSyncPlan(device: AuthenticatedDevice) {
     const entitled = await this.entitledContent(device);
-    const items = [...entitled.values()].map((c) => this.toSyncItem(c));
+    const items = await Promise.all([...entitled.values()].map((c) => this.toSyncItem(c)));
     return {
       screenId: device.screenId,
       generatedAt: new Date().toISOString(),
@@ -224,8 +240,31 @@ export class DeviceContentService {
     return company?.fallbackContentId ?? null;
   }
 
-  private toSyncItem(content: EntitledContent) {
+  private async toSyncItem(content: EntitledContent) {
     const isFile = this.isFileType(content.type);
+    // Direct-from-storage URL so a player can cache an asset WITHOUT the bytes
+    // transiting this droplet. Today every cached byte is proxied
+    // (storage.service.ts streamContent), which makes the API the bandwidth
+    // bottleneck for the whole fleet and puts it on the critical path for
+    // playback it does not need to be on.
+    //
+    // Additive on purpose: `downloadPath` below stays exactly as it was, so
+    // players in the field are unaffected and ignore this field. A player that
+    // understands it prefers it and falls back to downloadPath when it is null
+    // (local-adapter deployments, or a signing failure). Entitlement is still
+    // enforced here -- this plan only ever contains content this screen may
+    // play -- and integrity is still verifiable via `checksum`, which is the
+    // sha256 of the uploaded file.
+    const signedUrl =
+      isFile && content.storageKey
+        ? await this.storage
+            .getSignedUrl(
+              content.storageKey,
+              content.mimeType ?? 'application/octet-stream',
+              SYNC_PLAN_SIGNED_TTL_SECONDS,
+            )
+            .catch(() => null)
+        : null;
     return {
       contentId: content.id,
       type: content.type,
@@ -238,6 +277,7 @@ export class DeviceContentService {
       durationSeconds: content.durationSeconds,
       playFullVideo: false,
       pdfPageDurationSeconds: null,
+      signedUrl,
       downloadPath: isFile && content.storageKey ? `/device/content/${content.id}/download` : null,
       url: content.type === ContentType.URL ? content.url : null,
       textBody: content.type === ContentType.TEXT ? content.textBody : null,
