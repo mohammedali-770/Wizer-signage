@@ -66,8 +66,32 @@ docker rm -f "$OWN" >/dev/null
 
 echo "== D: real pg_dump backup as node, DIRECT_URL preferred, no leak =="
 docker run -d --name "$PG" --network "$NET" -e POSTGRES_PASSWORD=pw_synthetic postgres:17-alpine >/dev/null
-for _ in $(seq 1 40); do docker exec "$PG" psql -U postgres -d postgres -c 'select 1' >/dev/null 2>&1 && break; sleep 1; done
-docker exec "$PG" psql -U postgres -d postgres -c 'CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2);' >/dev/null
+# Wait for TCP, FROM ANOTHER CONTAINER -- the exact path backup-db.sh uses.
+#
+# `docker exec psql` was wrong here and made this drill flaky. It connects over
+# the Unix socket INSIDE the container, and the official entrypoint runs a
+# "socket-only postgresql server for setting up or running scripts" with
+# `-c listen_addresses=''` while it initialises. So the socket answers `select 1`
+# during init, the probe breaks out early, the entrypoint then STOPS that
+# temporary server and restarts it for real -- and the backup, which connects
+# over the network, lands in the gap and is refused.
+#
+# That is exactly how the 2026-09-12 nightly failed: D reported "backup failed"
+# at 07:14:30.17, and E1/E2 connected over the network to the SAME container
+# 0.3s later and both passed. The backup path was fine; the gate was not.
+#
+# PGHOST is a hostname, so psql connects over TCP -- never the socket.
+if docker run --rm --network "$NET" -e PGPASSWORD=pw_synthetic -e PGHOST="$PG" \
+  postgres:17-alpine \
+  bash -c 'n=0; while [ $n -lt 60 ]; do psql -U postgres -d postgres -c "select 1" >/dev/null 2>&1 && exit 0; n=$((n+1)); sleep 1; done; exit 1' \
+  >/dev/null 2>&1
+then ok "D: postgres accepting TCP connections"
+else no "D: postgres never accepted TCP (environment, not the backup path)"
+fi
+# Asserted, not silent: a failed seed would surface later as "dump empty/wrong",
+# which points at the backup script rather than at the fixture.
+docker exec "$PG" psql -U postgres -d postgres -c 'CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2);' >/dev/null \
+  && ok "D: seed schema created" || no "D: seed failed"
 OUT="$(docker run --rm --network "$NET" -u 1000 -v "$VOL":/backups -v "$REPO/scripts":/app/scripts:ro \
   -e BACKUP_DIR=/backups \
   -e DIRECT_URL="postgresql://postgres:pw_synthetic@$PG:5432/postgres?sslmode=disable" \
