@@ -46,7 +46,7 @@ export class TagsService {
     }
     if (query.search) where.name = { contains: query.search, mode: 'insensitive' };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.tag.findMany({
         where,
         orderBy: { name: 'asc' },

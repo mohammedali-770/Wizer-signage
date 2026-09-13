@@ -119,7 +119,7 @@ export class InvitationsService {
     }
     if (query.status) where.status = query.status;
 
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.invitation.findMany({
         where,
         orderBy: { createdAt: 'desc' },

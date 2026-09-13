@@ -159,7 +159,7 @@ export class AlertService {
       if (query.from) where.triggeredAt.gte = new Date(query.from);
       if (query.to) where.triggeredAt.lte = new Date(query.to);
     }
-    const [rows, total, open] = await this.prisma.$transaction([
+    const [rows, total, open] = await Promise.all([
       this.prisma.alert.findMany({
         where,
         orderBy: [{ status: 'asc' }, { triggeredAt: 'desc' }],

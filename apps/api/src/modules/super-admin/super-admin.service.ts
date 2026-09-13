@@ -149,7 +149,7 @@ export class SuperAdminService {
         { companyName: { contains: query.search, mode: 'insensitive' } },
       ];
     }
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.demoRequest.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
       this.prisma.demoRequest.count({ where }),
     ]);

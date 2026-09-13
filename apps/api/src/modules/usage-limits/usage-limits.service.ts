@@ -72,24 +72,23 @@ export class UsageLimitsService {
 
   /** Live resource counts for a company (pending invitations reserve seats). */
   async computeUsage(companyId: string): Promise<UsageCounts> {
-    const [locations, screens, users, pendingInvitations, storageAgg] =
-      await this.prisma.$transaction([
-        // Archived locations/screens don't consume quota.
-        this.prisma.location.count({
-          where: { companyId, deletedAt: null, status: { not: 'ARCHIVED' } },
-        }),
-        this.prisma.screen.count({
-          where: { companyId, deletedAt: null, status: { not: 'ARCHIVED' } },
-        }),
-        this.prisma.user.count({ where: { companyId, deletedAt: null } }),
-        this.prisma.invitation.count({
-          where: { companyId, status: 'PENDING', expiresAt: { gt: new Date() } },
-        }),
-        this.prisma.content.aggregate({
-          where: { companyId, deletedAt: null },
-          _sum: { fileSize: true },
-        }),
-      ]);
+    const [locations, screens, users, pendingInvitations, storageAgg] = await Promise.all([
+      // Archived locations/screens don't consume quota.
+      this.prisma.location.count({
+        where: { companyId, deletedAt: null, status: { not: 'ARCHIVED' } },
+      }),
+      this.prisma.screen.count({
+        where: { companyId, deletedAt: null, status: { not: 'ARCHIVED' } },
+      }),
+      this.prisma.user.count({ where: { companyId, deletedAt: null } }),
+      this.prisma.invitation.count({
+        where: { companyId, status: 'PENDING', expiresAt: { gt: new Date() } },
+      }),
+      this.prisma.content.aggregate({
+        where: { companyId, deletedAt: null },
+        _sum: { fileSize: true },
+      }),
+    ]);
     // BigInt sum. Kept as a number for the storageGb arithmetic below, then
     // published as a STRING to match the per-row `fileSize` — which is already a
     // string because it is a 64-bit column, not a JSON number.

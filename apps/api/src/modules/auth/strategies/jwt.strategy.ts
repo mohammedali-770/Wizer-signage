@@ -39,9 +39,20 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     // Session validity, expiry, and inactivity window (also advances activity).
-    const session = await this.sessions.validateForAccess(payload.sid);
-
-    const user = await this.users.findById(payload.sub);
+    //
+    // Issued in PARALLEL. These are two independent lookups keyed by different
+    // ids -- validateForAccess(payload.sid) and findById(payload.sub) -- and the
+    // only thing that couples them is the identity check immediately below,
+    // which needs both to have resolved anyway. Awaiting them in sequence cost a
+    // second full database round trip on EVERY authenticated request, which is
+    // the single most-executed path in the API.
+    //
+    // Promise.all attaches a handler to both, so a rejection from either cannot
+    // surface as an unhandled rejection; the loser is a harmless completed read.
+    const [session, user] = await Promise.all([
+      this.sessions.validateForAccess(payload.sid),
+      this.users.findById(payload.sub),
+    ]);
     if (!user || session.userId !== user.id) {
       throw new UnauthorizedException('Account not found.');
     }

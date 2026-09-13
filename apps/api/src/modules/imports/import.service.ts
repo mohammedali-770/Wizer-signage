@@ -223,7 +223,7 @@ export class ImportService {
       ? {}
       : { companyId: scope.companyId };
     if (query.type) where.type = query.type;
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.importJob.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
       this.prisma.importJob.count({ where }),
     ]);

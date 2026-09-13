@@ -107,7 +107,7 @@ export class ActivityLogService {
       if (params.to) where.createdAt.lte = params.to;
     }
 
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.activityLog.findMany({
         where,
         orderBy: { createdAt: 'desc' },

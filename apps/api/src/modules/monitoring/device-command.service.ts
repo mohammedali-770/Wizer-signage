@@ -99,7 +99,7 @@ export class DeviceCommandService {
     const { skip, take, meta } = resolvePagination(query);
     const where: Prisma.DeviceCommandWhereInput = { companyId, screenId };
     if (query.status) where.status = query.status;
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.deviceCommand.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
       this.prisma.deviceCommand.count({ where }),
     ]);

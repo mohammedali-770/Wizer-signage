@@ -282,7 +282,7 @@ export class ProofOfPlayService {
   async report(companyId: string, query: ProofOfPlayQueryDto) {
     const where = this.buildWhere(companyId, query);
     const { skip, take, meta } = resolvePagination(query);
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.proofOfPlay.findMany({
         where,
         orderBy: { startedAt: 'desc' },
@@ -474,7 +474,7 @@ export class ProofOfPlayService {
     const playlistIds = unique(rows.map((r) => r.playlistId));
     const scheduleIds = unique(rows.map((r) => r.scheduleId));
     const broadcastIds = unique(rows.map((r) => r.emergencyBroadcastId));
-    const [contents, playlists, schedules, broadcasts] = await this.prisma.$transaction([
+    const [contents, playlists, schedules, broadcasts] = await Promise.all([
       this.prisma.content.findMany({
         where: { id: { in: contentIds }, companyId },
         select: { id: true, title: true },

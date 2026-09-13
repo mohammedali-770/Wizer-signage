@@ -119,7 +119,7 @@ export class CompaniesService {
       [query.sort ?? 'createdAt']: query.order ?? 'desc',
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.company.findMany({
         where,
         orderBy,

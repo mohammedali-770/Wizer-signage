@@ -14,22 +14,22 @@ function build(opts: {
   gracePeriodEndsAt?: Date | null;
 }) {
   const activityLog = { log: jest.fn().mockResolvedValue(undefined) };
+  // Each query is stubbed individually rather than stubbing the wrapper that
+  // happens to batch them. computeUsage issues these five as independent reads
+  // (they were in an array-form $transaction, which under READ COMMITTED gave
+  // them no shared snapshot anyway), and a mock of the batching call could not
+  // tell a correct implementation from one that never ran the queries at all.
   const prisma: any = {
-    location: { count: jest.fn() },
-    screen: { count: jest.fn() },
-    user: { count: jest.fn() },
-    invitation: { count: jest.fn() },
-    content: { aggregate: jest.fn() },
+    location: { count: jest.fn().mockResolvedValue(opts.locations ?? 0) },
+    screen: { count: jest.fn().mockResolvedValue(opts.screens ?? 0) },
+    user: { count: jest.fn().mockResolvedValue(opts.users ?? 0) },
+    invitation: { count: jest.fn().mockResolvedValue(opts.pendingInvitations ?? 0) },
+    content: {
+      aggregate: jest
+        .fn()
+        .mockResolvedValue({ _sum: { fileSize: opts.storageBytes ?? BigInt(0) } }),
+    },
     subscription: { findUnique: jest.fn(), update: jest.fn().mockResolvedValue({}) },
-    $transaction: jest
-      .fn()
-      .mockResolvedValue([
-        opts.locations ?? 0,
-        opts.screens ?? 0,
-        opts.users ?? 0,
-        opts.pendingInvitations ?? 0,
-        { _sum: { fileSize: opts.storageBytes ?? BigInt(0) } },
-      ]),
   };
   prisma.subscription.findUnique.mockResolvedValue({
     id: 'sub-1',

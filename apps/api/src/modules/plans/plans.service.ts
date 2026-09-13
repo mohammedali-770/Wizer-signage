@@ -53,7 +53,7 @@ export class PlansService {
       ];
     }
 
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.plan.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
       this.prisma.plan.count({ where }),
     ]);

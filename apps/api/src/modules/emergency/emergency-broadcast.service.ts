@@ -75,7 +75,7 @@ export class EmergencyBroadcastService {
     const where: Prisma.EmergencyBroadcastWhereInput = { companyId };
     if (query.status) where.status = query.status;
     if (query.search) where.title = { contains: query.search, mode: 'insensitive' };
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.emergencyBroadcast.findMany({
         where,
         orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
@@ -579,7 +579,7 @@ export class EmergencyBroadcastService {
     const locationIds = targets
       .filter((t) => t.targetType === ScheduleTargetType.LOCATION)
       .map((t) => t.targetId);
-    const [screens, groups, locations] = await this.prisma.$transaction([
+    const [screens, groups, locations] = await Promise.all([
       this.prisma.screen.findMany({
         where: { id: { in: screenIds }, companyId, deletedAt: null },
         select: { id: true },

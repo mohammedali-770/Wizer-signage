@@ -112,7 +112,7 @@ export class SchedulesService {
       where.AND = and;
     }
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.schedule.findMany({
         where,
         orderBy: this.orderBy(query.sort),
