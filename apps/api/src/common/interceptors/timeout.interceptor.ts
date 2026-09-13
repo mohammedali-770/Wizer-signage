@@ -28,6 +28,15 @@ const EXEMPT_PATTERNS: RegExp[] = [
   /\/downloads(\/|$)/,
   /\/exports?(\/|$)/,
   /\/content\/[^/]+\/(file|stream)/,
+  // Uploads, for the same reason as the download routes above: the body IS the
+  // transfer, so a handler bound is a bound on the client's uplink. Content is
+  // capped at 300MB (content.controller.ts) behind nginx's 300s proxy timeout;
+  // at 120s this interceptor was the BINDING constraint, well under the 300s the
+  // docblock above says it means to sit beneath. A slow uplink got a 408 from us
+  // rather than finishing.
+  /\/content\/upload(\/|$)/,
+  /\/content\/[^/]+\/replace(\/|$)/,
+  /\/imports?(\/|$)/,
 ];
 
 /**

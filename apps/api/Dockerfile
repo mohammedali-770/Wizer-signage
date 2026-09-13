@@ -96,6 +96,24 @@ COPY --from=build --chown=node:node /app/apps/api/package.json ./package.json
 # (prisma CLI ships in node_modules as a production dependency).
 COPY --from=build --chown=node:node /app/apps/api/prisma ./prisma
 
+# Create the upload spool and hand it to `node` BEFORE dropping privileges.
+#
+# UPLOAD_TMP_DIR (infra/docker/docker-compose.yml:64) is a named volume mounted
+# at this path. Docker materialises a volume mountpoint that does not exist in
+# the image as root:root 0755 — so uid 1000 could not write into it, and EVERY
+# file upload failed while URL content kept working.
+#
+# The failure landed one step later than you would expect, which is why it was
+# not obvious: mkdirSync(dir,{recursive:true}) in common/upload/disk-upload.ts:46
+# SUCCEEDS on an already-existing directory without needing write permission, so
+# multer's destination callback returned cleanly and the EACCES surfaced from the
+# write stream instead. That is not a MulterError, so Nest passed it through
+# untouched and the user saw a generic 500.
+#
+# Creating it here means the mountpoint exists in the image with the right owner,
+# and Docker preserves that ownership when it materialises the volume over it.
+RUN mkdir -p /var/tmp/wizer-uploads && chown node:node /var/tmp/wizer-uploads
+
 USER node
 EXPOSE 3001
 

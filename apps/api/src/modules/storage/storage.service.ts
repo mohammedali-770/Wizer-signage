@@ -27,6 +27,22 @@ const DEFAULT_SIGNED_TTL = 3600; // seconds
 const UPSTREAM_FETCH_TIMEOUT_MS = Number(process.env.STORAGE_FETCH_TIMEOUT_MS ?? 15_000);
 
 /**
+ * Separate, much larger bound for UPLOADS.
+ *
+ * The 15s above is correct for signing, object fetch and remove — they are
+ * sub-second calls and the bound exists so a degraded provider cannot park
+ * handles. But it was attached in the client-level `fetch`, so it applied to the
+ * streamed upload too, whose body is the WHOLE FILE. `AbortSignal.timeout` is a
+ * deadline on the entire request, not an idle timeout, so a 5 MB photo had to
+ * sustain ~0.3-0.8 MB/s to beat it and a 300 MB video would have needed 20 MB/s.
+ * Uploads failed as "Storage upload failed: …" with nothing naming the cause.
+ *
+ * Bounded at nginx's proxy timeout rather than left unlimited: past that point
+ * the client is already gone, so holding the handle protects nothing.
+ */
+const UPLOAD_FETCH_TIMEOUT_MS = Number(process.env.STORAGE_UPLOAD_TIMEOUT_MS ?? 300_000);
+
+/**
  * Fraction of a signed URL's lifetime we are willing to serve from cache.
  *
  * Signing is a live HTTPS round-trip to Supabase, and the manifest resolver mints
@@ -61,6 +77,13 @@ export class StorageService {
   private readonly localDir: string;
   private readonly apiUrl: string;
   private supabase?: SupabaseClient;
+  /**
+   * Same credentials, upload-sized timeout. A separate client rather than a
+   * per-call signal because supabase-js's upload options do not take one, and
+   * mutating a shared timeout around each call would race between concurrent
+   * uploads.
+   */
+  private supabaseUpload?: SupabaseClient;
   /** key+ttl -> { url, reuseUntil }. In-process only; see getSignedUrl. */
   private readonly signedUrlCache = new Map<string, { url: string; reuseUntil: number }>();
 
@@ -76,27 +99,30 @@ export class StorageService {
 
     if (supabase?.url && supabase.serviceRoleKey && supabase.storageBucket) {
       this.mode = 'supabase';
-      this.supabase = createClient(supabase.url, supabase.serviceRoleKey, {
-        auth: { persistSession: false },
-        global: {
-          // supabase-js otherwise inherits undici's 300s default, so a slow
-          // Storage API would hold every upload/signed-URL/remove call open
-          // indefinitely. Every SDK call is now bounded.
-          fetch: (input, init) =>
-            fetch(input as Parameters<typeof globalThis.fetch>[0], {
-              ...init,
-              signal: init?.signal ?? AbortSignal.timeout(UPSTREAM_FETCH_TIMEOUT_MS),
-            }),
-        },
-        // This server uses Storage only — never Realtime. supabase-js still
-        // constructs a Realtime client, and @supabase/realtime-js throws on
-        // Node < 22 when it can't find a native WebSocket. Supplying the `ws`
-        // transport satisfies that probe (it never actually connects). ws is
-        // runtime-compatible with realtime-js's WebSocketLikeConstructor; their
-        // TS types differ, so cast narrowly.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        realtime: { transport: WebSocket as any },
-      });
+      const makeClient = (timeoutMs: number): SupabaseClient =>
+        createClient(supabase.url!, supabase.serviceRoleKey!, {
+          auth: { persistSession: false },
+          global: {
+            // supabase-js otherwise inherits undici's 300s default, so a slow
+            // Storage API would hold every upload/signed-URL/remove call open
+            // indefinitely. Every SDK call is now bounded.
+            fetch: (input, init) =>
+              fetch(input as Parameters<typeof globalThis.fetch>[0], {
+                ...init,
+                signal: init?.signal ?? AbortSignal.timeout(timeoutMs),
+              }),
+          },
+          // This server uses Storage only — never Realtime. supabase-js still
+          // constructs a Realtime client, and @supabase/realtime-js throws on
+          // Node < 22 when it can't find a native WebSocket. Supplying the `ws`
+          // transport satisfies that probe (it never actually connects). ws is
+          // runtime-compatible with realtime-js's WebSocketLikeConstructor; their
+          // TS types differ, so cast narrowly.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          realtime: { transport: WebSocket as any },
+        });
+      this.supabase = makeClient(UPSTREAM_FETCH_TIMEOUT_MS);
+      this.supabaseUpload = makeClient(UPLOAD_FETCH_TIMEOUT_MS);
       this.logger.log(`Storage: Supabase bucket "${this.bucket}".`);
     } else {
       this.mode = 'local';
@@ -118,7 +144,7 @@ export class StorageService {
 
   async upload(key: string, buffer: Buffer, contentType: string): Promise<void> {
     if (this.mode === 'supabase') {
-      const { error } = await this.supabase!.storage.from(this.bucket).upload(key, buffer, {
+      const { error } = await this.supabaseUpload!.storage.from(this.bucket).upload(key, buffer, {
         contentType,
         upsert: true,
       });
@@ -148,7 +174,7 @@ export class StorageService {
     if (this.mode === 'supabase') {
       const source = createReadStream(filePath);
       try {
-        const { error } = await this.supabase!.storage.from(this.bucket).upload(key, source, {
+        const { error } = await this.supabaseUpload!.storage.from(this.bucket).upload(key, source, {
           contentType,
           upsert: true,
         });

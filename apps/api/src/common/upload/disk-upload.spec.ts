@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -139,6 +139,112 @@ describe('disk upload helpers', () => {
       destination({}, {}, (e, d) => (e ? reject(e) : resolve(d))),
     );
     expect(existsSync(target)).toBe(true);
+  });
+
+  /**
+   * The spool being unusable is not hypothetical — it shipped.
+   *
+   * UPLOAD_TMP_DIR is a named volume; Docker created its mountpoint root:root
+   * while the API runs as uid 1000. `mkdirSync(dir,{recursive:true})` SUCCEEDS
+   * on an existing directory you cannot write to, so the destination callback
+   * returned cleanly and multer's write stream then failed with a bare EACCES.
+   * That is not a MulterError, so every upload became a generic 500 while URL
+   * content kept working — and nothing in the suite noticed, because nothing
+   * exercised this callback against a spool it could not use.
+   */
+  describe('when the spool is unusable', () => {
+    const getDestination = (): ((
+      req: unknown,
+      file: unknown,
+      cb: (e: Error | null, dir: string) => void,
+    ) => void) =>
+      (
+        diskUploadOptions(1024).storage as unknown as {
+          getDestination: (
+            req: unknown,
+            file: unknown,
+            cb: (e: Error | null, dir: string) => void,
+          ) => void;
+        }
+      ).getDestination;
+
+    const callDestination = (): Promise<{ err: Error | null; dir: string }> =>
+      new Promise((resolve) => getDestination()({}, {}, (err, dir) => resolve({ err, dir })));
+
+    const ORIGINAL = process.env.UPLOAD_TMP_DIR;
+    afterEach(() => {
+      if (ORIGINAL === undefined) delete process.env.UPLOAD_TMP_DIR;
+      else process.env.UPLOAD_TMP_DIR = ORIGINAL;
+      jest.resetModules();
+    });
+
+    it('reports an error instead of handing multer a directory it cannot create', async () => {
+      // A path whose PARENT is a regular file: mkdirSync cannot create it, and
+      // unlike a permissions test this behaves identically for root and non-root.
+      const base = await mkdtemp(join(tmpdir(), 'wizer-spool-'));
+      const notADir = join(base, 'i-am-a-file');
+      await writeFile(notADir, 'x');
+      process.env.UPLOAD_TMP_DIR = join(notADir, 'nested');
+      jest.resetModules();
+      const { diskUploadOptions: fresh } =
+        (await import('./disk-upload')) as typeof import('./disk-upload');
+
+      const result = await new Promise<{ err: Error | null; dir: string }>((resolve) =>
+        (
+          fresh(1024).storage as unknown as {
+            getDestination: (
+              r: unknown,
+              f: unknown,
+              cb: (e: Error | null, d: string) => void,
+            ) => void;
+          }
+        ).getDestination({}, {}, (err, dir) => resolve({ err, dir })),
+      );
+
+      // Not toBeInstanceOf(Error): constructor identity differs across a
+      // jest.resetModules() dynamic import. The contract is what matters — an
+      // error is reported and no directory is handed to multer.
+      expect(result.err).toBeTruthy();
+      expect((result.err as NodeJS.ErrnoException).code).toBeDefined();
+      expect(result.dir).toBe('');
+    });
+
+    it('rejects a directory that exists but is not writable', async () => {
+      if (process.getuid?.() === 0) {
+        // Root bypasses the W_OK check entirely, so this assertion would pass
+        // without proving anything. Skipping loudly beats a vacuous green.
+        console.warn('skipped: running as root, which bypasses W_OK');
+        return;
+      }
+      const dir = await mkdtemp(join(tmpdir(), 'wizer-spool-ro-'));
+      await chmod(dir, 0o555);
+      process.env.UPLOAD_TMP_DIR = dir;
+      jest.resetModules();
+      const { diskUploadOptions: fresh } =
+        (await import('./disk-upload')) as typeof import('./disk-upload');
+
+      const result = await new Promise<{ err: Error | null; dir: string }>((resolve) =>
+        (
+          fresh(1024).storage as unknown as {
+            getDestination: (
+              r: unknown,
+              f: unknown,
+              cb: (e: Error | null, d: string) => void,
+            ) => void;
+          }
+        ).getDestination({}, {}, (err, dir2) => resolve({ err, dir: dir2 })),
+      );
+
+      await chmod(dir, 0o755);
+      expect(result.err).toBeTruthy();
+      expect(result.dir).toBe('');
+    });
+
+    it('still accepts a spool it can write to', async () => {
+      const result = await callDestination();
+      expect(result.err).toBeNull();
+      expect(existsSync(result.dir)).toBe(true);
+    });
   });
 
   it('round-trips content through the spool unchanged', async () => {
