@@ -901,6 +901,17 @@ model Screen {
   @@index([companyId])
   @@index([locationId])
   @@index([status])
+  // List path: filter `companyId`, order by createdAt desc. With only the
+  // single-column @@index([companyId]) Postgres bitmap-scanned all of a
+  // tenant's rows and top-N sorted them -- linear in tenant size.
+  //
+  // `deletedAt` is deliberately NOT in the key. Measured on 12k rows for one
+  // tenant: [companyId, deletedAt, createdAt] was NOT USED by the planner at
+  // all (6.0ms, identical plan to having no index), because a column between
+  // the equality and the sort column stops the index satisfying the ORDER BY.
+  // [companyId, createdAt] gives a plain Index Scan at 0.065ms. `deletedAt IS
+  // NULL` is applied as a cheap filter on the few rows the LIMIT touches.
+  @@index([companyId, createdAt])
   @@map("screens")
 }
 
@@ -1071,6 +1082,10 @@ model Content {
   @@index([type])
   @@index([status])
   @@index([expiresAt])
+  // Content's list predicate ALWAYS carries a status (it defaults to ACTIVE in
+  // content.service.ts), so status is an equality and belongs ahead of the sort
+  // column. `deletedAt` is excluded for the same measured reason as screens.
+  @@index([companyId, status, createdAt])
   @@map("contents")
 }
 
@@ -1105,6 +1120,8 @@ model Playlist {
 
   @@index([companyId])
   @@index([status])
+  // Same list path as screens; same reason `deletedAt` is not in the key.
+  @@index([companyId, createdAt])
   @@map("playlists")
 }
 
