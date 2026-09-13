@@ -18,25 +18,39 @@ import { catchError, timeout } from 'rxjs/operators';
  */
 const DEFAULT_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS ?? 120_000);
 
+/** An exemption. `method` omitted means every method. */
+type ExemptRoute = { method?: string; pattern: RegExp };
+
 /**
  * Routes that legitimately stream or take a long time and must NOT be cut off
- * mid-transfer (large media downloads, report/export rendering). Matched against
- * the request path.
+ * mid-transfer (large media downloads, report/export rendering).
+ *
+ * Matched against the PATH ONLY -- `intercept` strips the query string first.
+ * That is load-bearing, not tidiness: `request.url` on Express carries the query
+ * string, and every pattern here anchors on `(\/|$)`, so a `?` where the pattern
+ * expects `/` or end-of-string silently defeats the exemption. `/api/imports?type=X`
+ * matched nothing at all until the path was isolated.
  */
-const EXEMPT_PATTERNS: RegExp[] = [
-  /\/download(\/|$)/,
-  /\/downloads(\/|$)/,
-  /\/exports?(\/|$)/,
-  /\/content\/[^/]+\/(file|stream)/,
+const EXEMPT_PATTERNS: ExemptRoute[] = [
+  { pattern: /\/download(\/|$)/ },
+  { pattern: /\/downloads(\/|$)/ },
+  { pattern: /\/exports?(\/|$)/ },
+  { pattern: /\/content\/[^/]+\/(file|stream)/ },
   // Uploads, for the same reason as the download routes above: the body IS the
   // transfer, so a handler bound is a bound on the client's uplink. Content is
   // capped at 300MB (content.controller.ts) behind nginx's 300s proxy timeout;
   // at 120s this interceptor was the BINDING constraint, well under the 300s the
   // docblock above says it means to sit beneath. A slow uplink got a 408 from us
   // rather than finishing.
-  /\/content\/upload(\/|$)/,
-  /\/content\/[^/]+\/replace(\/|$)/,
-  /\/imports?(\/|$)/,
+  { pattern: /\/content\/upload(\/|$)/ },
+  { pattern: /\/content\/[^/]+\/replace(\/|$)/ },
+  // ONLY the multipart upload, which is `@Post()` on `@Controller('imports')`
+  // (imports.controller.ts:72) -- so exactly `/imports`, and POST-qualified
+  // because `@Get()` on the same path is the ordinary list handler. The detail,
+  // commit, cancel and template routes are short handlers and keep the backstop;
+  // a bare `/imports?(\/|$)` exempted all of them and, because of the query
+  // string, still missed the upload it was added for.
+  { method: 'POST', pattern: /\/imports$/ },
 ];
 
 /**
@@ -61,8 +75,13 @@ export class TimeoutInterceptor implements NestInterceptor {
     if (context.getType() !== 'http') return next.handle();
 
     const request = context.switchToHttp().getRequest<{ url?: string; method?: string }>();
-    const url = request?.url ?? '';
-    if (EXEMPT_PATTERNS.some((pattern) => pattern.test(url))) {
+    const path = (request?.url ?? '').split('?')[0] ?? '';
+    const method = (request?.method ?? '').toUpperCase();
+    if (
+      EXEMPT_PATTERNS.some(
+        (route) => (!route.method || route.method === method) && route.pattern.test(path),
+      )
+    ) {
       return next.handle();
     }
 
@@ -72,7 +91,7 @@ export class TimeoutInterceptor implements NestInterceptor {
         if (error instanceof TimeoutError) {
           // Log the route, never the payload or query values.
           this.logger.error(
-            `Request timed out after ${DEFAULT_TIMEOUT_MS}ms: ${request?.method ?? '?'} ${url.split('?')[0]}`,
+            `Request timed out after ${DEFAULT_TIMEOUT_MS}ms: ${request?.method ?? '?'} ${path}`,
           );
           return throwError(() => new RequestTimeoutException('The request took too long.'));
         }
