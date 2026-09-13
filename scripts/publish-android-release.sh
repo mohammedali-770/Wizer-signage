@@ -215,6 +215,25 @@ else
   LOCK_MODE=mkdir
 fi
 
+# The release trap goes in HERE, the instant the lock is held -- not after the
+# staging dir exists. Everything between this point and the end of the script
+# can fail, and two of those failures are the LIKELY ones: re-running a publish
+# for a version that already exists, and mktemp failing on a full disk. With the
+# trap installed later, those exits left the mkdir lock directory behind, so the
+# next publish waited its full 30s timeout and then refused to run -- turning a
+# clear, recoverable error into a second, more confusing one.
+#
+# STAGING is not set yet, hence the :- guard; the trap is idempotent so the
+# success path can still run it early and disarm.
+cleanup() {
+  if [[ -n "${STAGING:-}" ]]; then rm -rf "${STAGING}" 2>/dev/null || true; fi
+  case "${LOCK_MODE:-}" in
+    flock) flock -u 9 2>/dev/null || true ;;
+    mkdir) rmdir "${LOCK_DIR}" 2>/dev/null || true ;;
+  esac
+}
+trap cleanup EXIT
+
 mkdir -p "${ANDROID_DIR}"
 
 # --- 13. Never overwrite an existing version ---------------------------------
@@ -250,19 +269,6 @@ fi
 # Staging lives directly under the downloads root (same filesystem as android/,
 # so mv is an atomic rename), NOT under android/, so nginx never exposes it.
 STAGING="$(mktemp -d "${DOWNLOADS_DIR%/}/.publish.XXXXXX")" || fail "Could not create staging dir."
-# The lock is released HERE, not only on the success path. A failure between
-# acquiring it and the end of the script would otherwise leave the mkdir lock
-# behind, and the next publish would wait its full timeout and then refuse to
-# run -- turning a recoverable error into a second, more confusing one.
-cleanup() {
-  rm -rf "${STAGING}" 2>/dev/null || true
-  case "${LOCK_MODE:-}" in
-    flock) flock -u 9 2>/dev/null || true ;;
-    mkdir) rmdir "${LOCK_DIR}" 2>/dev/null || true ;;
-  esac
-}
-trap cleanup EXIT
-
 S_APK="${STAGING}/${FNAME}"
 S_SUM="${STAGING}/${FNAME}.sha256"
 S_VER_JSON="${STAGING}/version.json"
