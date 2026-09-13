@@ -19,6 +19,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.util.concurrent.TimeUnit
 
 /**
  * The direct-storage path must never be able to strand an asset.
@@ -95,8 +96,13 @@ class AssetDownloadFallbackTest {
 
         downloader.download("tok", item(), maxAttempts = 1)
 
-        val direct = server.takeRequest()
-        val proxied = server.takeRequest()
+        // Bounded, never the blocking overload: under a regression the proxied
+        // request is never made, and takeRequest() with no timeout would hang the
+        // test JVM forever instead of failing -- which hangs CI, not just this test.
+        val direct = requireNotNull(server.takeRequest(5, TimeUnit.SECONDS)) { "no direct request" }
+        val proxied = requireNotNull(server.takeRequest(5, TimeUnit.SECONDS)) {
+            "the proxied retry was never made"
+        }
         assertNull(direct.getHeader("X-Device-Token"))
         assertEquals("tok", proxied.getHeader("X-Device-Token"))
     }
@@ -141,6 +147,7 @@ class AssetDownloadFallbackTest {
 
         assertTrue(downloader.download("tok", item(checksumOf = null), maxAttempts = 1))
         assertEquals("only the proxied request should be made", 1, server.requestCount)
-        assertEquals("/api/device/content/c1/download", server.takeRequest().path)
+        val only = requireNotNull(server.takeRequest(5, TimeUnit.SECONDS)) { "no request made" }
+        assertEquals("/api/device/content/c1/download", only.path)
     }
 }
