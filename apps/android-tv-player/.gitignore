@@ -4,6 +4,8 @@
 build/
 */build/
 .gradle/
+# Kotlin 2.x compiler session/cache dir, created by any local Gradle build.
+.kotlin/
 
 # Local configuration (SDK path, signing — never commit).
 local.properties

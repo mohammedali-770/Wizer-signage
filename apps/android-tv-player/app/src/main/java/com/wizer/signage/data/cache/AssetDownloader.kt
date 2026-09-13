@@ -24,10 +24,18 @@ import java.io.File
  *    unverifiable direct download could put unchecked bytes into the cache.
  *    The proxied path stays authenticated end to end, so it is the safe
  *    default when there is nothing to verify against.
- *  - A failed direct attempt falls back to the proxied path within the SAME
- *    attempt, so a storage hiccup or an expired URL costs one extra request
- *    rather than a whole retry cycle -- and a screen is never left uncached
- *    because object storage was briefly unreachable.
+ *  - A direct attempt that does not END IN A COMMITTED ASSET falls back to the
+ *    proxied path within the SAME attempt. "Does not end in a committed asset"
+ *    deliberately includes a 200 whose bytes fail verification, not just a
+ *    transport failure: wrong-but-successful bytes are the failure mode the
+ *    direct path uniquely introduces, because object storage is the one hop the
+ *    API does not control. Keying the fallback on the transport result alone
+ *    would skip the proxy exactly when it is most needed, and -- since the
+ *    direct URL is the same on every attempt -- would then repeat the identical
+ *    bad request until the retries ran out, leaving the screen uncached.
+ *
+ * Each attempt gets its OWN temp file, so bytes from a rejected direct download
+ * can never be mistaken for the proxied download that follows it.
  */
 class AssetDownloader(
     private val api: ApiClient,
@@ -38,37 +46,56 @@ class AssetDownloader(
         // Only trust a direct fetch we can actually verify -- see the class doc.
         val directUrl = if (item.checksum != null) item.signedUrl else null
         if (proxiedPath == null && directUrl == null) return false
+
         for (attempt in 1..maxAttempts) {
-            val temp = File(cache.tmpDir, "dl_${item.contentId}_${System.nanoTime()}.part")
-            var downloaded = directUrl != null && api.downloadFromUrl(directUrl, temp)
-            if (!downloaded && proxiedPath != null) {
-                downloaded = api.downloadToFile(token, proxiedPath, temp)
+            if (directUrl != null) {
+                if (fetchVerifyCommit(item) { temp -> api.downloadFromUrl(directUrl, temp) }) return true
             }
-            if (downloaded && Checksums.verify(temp, item.fileSizeBytes?.toLongOrNull(), item.checksum)) {
-                val now = System.currentTimeMillis()
-                cache.commit(
-                    CachedAsset(
-                        contentId = item.contentId,
-                        version = item.version,
-                        checksum = item.checksum,
-                        type = item.type,
-                        mimeType = item.mimeType,
-                        fileName = cache.fileNameFor(item.contentId, item.version),
-                        fileSize = temp.length(),
-                        downloadedAt = now,
-                        lastUsedAt = now,
-                    ),
-                    temp,
-                )
-                return true
+            // Reached when the direct fetch failed outright OR delivered bytes
+            // that did not verify. Both are "storage did not give us the asset".
+            if (proxiedPath != null) {
+                if (fetchVerifyCommit(item) { temp -> api.downloadToFile(token, proxiedPath, temp) }) return true
             }
-            temp.delete()
             // Full jitter: a new playlist pushes the same asset to every screen at
             // once, so a failing download must not be retried by the whole fleet
             // on the same tick.
             if (attempt < maxAttempts) delay(Jitter.backoff(attempt - 1, RETRY_BASE_MS))
         }
         return false
+    }
+
+    /**
+     * One fetch into a private temp file: download, verify, commit. Returns true
+     * only when the asset is in the cache. The temp file is always cleaned up --
+     * [CacheManager.commit] renames it away, so the delete is a no-op on success.
+     */
+    private suspend fun fetchVerifyCommit(
+        item: SyncPlanItem,
+        fetch: suspend (File) -> Boolean,
+    ): Boolean {
+        val temp = File(cache.tmpDir, "dl_${item.contentId}_${System.nanoTime()}.part")
+        try {
+            if (!fetch(temp)) return false
+            if (!Checksums.verify(temp, item.fileSizeBytes?.toLongOrNull(), item.checksum)) return false
+            val now = System.currentTimeMillis()
+            cache.commit(
+                CachedAsset(
+                    contentId = item.contentId,
+                    version = item.version,
+                    checksum = item.checksum,
+                    type = item.type,
+                    mimeType = item.mimeType,
+                    fileName = cache.fileNameFor(item.contentId, item.version),
+                    fileSize = temp.length(),
+                    downloadedAt = now,
+                    lastUsedAt = now,
+                ),
+                temp,
+            )
+            return true
+        } finally {
+            temp.delete()
+        }
     }
 
     companion object {
