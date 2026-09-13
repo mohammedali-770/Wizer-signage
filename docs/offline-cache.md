@@ -4,8 +4,9 @@ Phase 7 lets the Android TV player keep playing during internet outages by
 caching its entitled assets locally, persisting the last-good manifest, and
 pre-downloading upcoming scheduled content. It adds three device-authenticated
 backend endpoints (download, sync-plan, sync-status) and a modular Android cache
-layer. Signed URLs remain in the manifest for online streaming only — the cache
-is fed by the **device download endpoint**, never by public storage URLs.
+layer. The cache is fed by a **pre-signed storage URL** when the sync plan
+carries one, falling back to the **device download endpoint** otherwise — see
+[Cache fill paths](#cache-fill-paths) for why there are two and when each is used.
 
 See [android-player.md](./android-player.md) for the player and
 [advanced-scheduling.md](./advanced-scheduling.md) for the manifest it consumes.
@@ -94,8 +95,32 @@ the `Device` row and surfaced on the dashboard screen detail page:
 
 Each file-backed manifest item now also carries `downloadPath` (the device
 download endpoint) and `version` (content `updatedAt`), so the player prefers the
-cache and can detect content changes. `signedUrl` remains for **online streaming
-fallback** only.
+cache and can detect content changes. The manifest's `signedUrl` is for **online
+streaming fallback** only; the separate `signedUrl` on a _sync plan_ item is what
+fills the cache (below).
+
+### Cache fill paths
+
+`AssetDownloader` tries two sources, in order, within a single attempt:
+
+1. **Pre-signed storage URL** (`SyncPlanItem.signedUrl`) — used ONLY when the
+   item also carries a `checksum`, because `Checksums.verify` returns true for a
+   null expected hash, so an unverifiable direct download could admit unchecked
+   bytes. Fetched with **no credentials and no redirects followed**: the device
+   token authenticates every device endpoint, so leaking it to a third-party
+   host would be a full device compromise, and OkHttp strips only the literal
+   `Authorization` header across a cross-host hop.
+2. **Device download endpoint** (`downloadPath`) — authenticated end to end, and
+   the default whenever there is no checksum to verify against.
+
+The fallback triggers on anything that is not a committed asset, including a
+`200` whose bytes fail verification — not just transport failure. Wrong-but-
+successful bytes are the failure mode the direct path uniquely introduces, since
+object storage is the one hop the API does not control.
+
+Operational consequence: **devices talk to object storage directly.** Anything
+that moves, renames or re-permissions the bucket affects the fleet, not just the
+API host.
 
 ---
 
